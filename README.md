@@ -1,6 +1,6 @@
-## Code formatting
+<div align="center">
 
-Prettier is configured for the project with tab indentation displayed at a four-column width. Run `npm run format` to format supported project files, or `npm run format:check` to verify formatting without changing files. In VS Code, install the recommended Run On Save extension; the workspace settings then run the custom formatter on the saved file. Block-bodied function declarations receive blank lines after their opening brace and before their closing brace, except declarations whose body is a single `return` statement, which use standard Prettier spacing. Callback functions use standard Prettier spacing. Non-empty class declarations receive a blank line after their opening brace, and arrays beginning with string entries followed by an object keep those initial strings on the opening line. `scrypt` callback calls keep their leading arguments on one line. Decorators stay directly above their declarations. Dependencies, build output, the npm lockfile, and the local generated-user credentials are excluded.
+  <img src="https://raw.githubusercontent.com/flixermedia/flixer/main/resources/logo/flixer-logo.png" alt="Flixer Logo" width="150" height="150" />
 
 ## Releases
 
@@ -8,26 +8,80 @@ See [VERSION.md](./VERSION.md) for the versioning policy, release steps, and Doc
 
 ## Updating the Insomnia API collection
 
-Run `npm run insomnia:update` to create or refresh `insomnia/flixer-insomnia.json`. The script creates the collection and its parent directory first. If the local OpenAPI endpoint is unreachable, it runs Ts.ED's barrel generator and starts the development server directly as a hidden Node.js process, then waits up to two minutes for OpenAPI to become available. After generation (or an error), it stops only the server it started; it does not stop a server that was already running or open a separate `cmd.exe` window. If startup fails, its captured output is included in the updater's error message. This automatic startup applies to local HTTP URLs only. The update preserves the Insomnia workspace and existing environment values, regenerates requests from the documented API operations, and creates development environment entries for every variable referenced by those requests. [Faker](https://fakerjs.dev/) generates appropriate examples for new variables (such as usernames, emails, passwords, IDs, names, dates, phone numbers, and locations); existing values are preserved on update. The generated test account's username, email, and password are persisted in `insomnia/flixer-user.json` and reused for subsequent collection generations. Authentication values such as tokens and captured user/session IDs start empty.
+  **Your media, your rules, beautifully streamed.**
 
-The login request has an after-response script that stores the returned `accessToken` as `access_token`, `user.id` as `user_id`, and `session.id` as `session_id` in the active Insomnia environment. Generated secured requests use the bearer token, and user/session requests use the populated IDs.
+  [![GitHub release](https://img.shields.io/github/v/release/flixermedia/flixer?style=flat-square&color=blue)](https://github.com/flixermedia/flixer/releases)
+  [![Docker Image CI](https://img.shields.io/github/actions/workflow/status/flixermedia/flixer/docker.yml?style=flat-square&label=Docker)](https://github.com/flixermedia/flixer/pkgs/container/flixer)
+  [![License](https://img.shields.io/github/license/flixermedia/flixer?style=flat-square&color=green)](https://github.com/flixermedia/flixer/blob/main/LICENSE)
+  [![GitHub stars](https://img.shields.io/github/stars/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/stargazers)
 
-Set `OPENAPI_URL` to use a different running server (defaults to `http://localhost:8083/scalar/doc/openapi.json`) or `INSOMNIA_FILE` to update a different collection file.
+</div>
 
-### User access
+---
 
-The first account registered through the API is assigned the `admin` role; subsequent registrations receive the `user` role. Registration uses a PostgreSQL transaction lock so concurrent first sign-ups cannot both become administrators. To promote an additional trusted account, update its role directly in PostgreSQL:
+> **🚧 Under Active Development:** Flixer is currently in early-stage development. APIs, features, configuration options, and UI elements are subject to frequent changes. If you encounter bugs or missing features, feel free to open an issue or pull request!
 
-```sql
-UPDATE users SET role = 'admin' WHERE username = 'your-username';
+> **ℹ️ Note on Architecture:** This repository contains the **backend API server** for Flixer. The user interface and web client reside in a separate repository at [flixermedia/flixer-web](https://github.com/flixermedia/flixer-web).
+
+---
+
+**Flixer** is a modern, blazing-fast, open-source media server that puts you in complete control of your personal entertainment library. Stream your movies, TV shows, and music anywhere, on any device, with zero friction and total privacy.
+
+---
+
+## 🌟 Why Flixer?
+
+*   🚀 **High Performance:** Built from the ground up for speed, minimal resource usage, and instant playback.
+*   🔒 **100% Private & Self-Hosted:** Your data stays with you. No tracking, no data collection, no forced cloud accounts.
+*   🎨 **Sleek, Modern Interface:** A gorgeous, intuitive UI designed to make browsing your collection a joy.
+*   📱 **Cross-Platform:** Stream seamlessly across web browsers, mobile devices, and smart TVs.
+*   🛠️ **Open Source:** Community-driven and fully customizable. 
+
+---
+
+## 📸 Screenshots
+
+*(Coming soon as the UI evolves! Check back for updates.)*
+
+---
+
+## 🚀 Getting Started
+
+Getting Flixer up and running on your server is quick and easy using Docker.
+
+### Prerequisites
+
+*   Docker and Docker Compose installed on your system.
+
+### Quick Start with Docker Compose
+
+1. Create a `docker-compose.yml` file:
+
+```yaml
+version: "3.8"
+
+services:
+  flixer:
+    image: ghcr.io/flixermedia/flixer:latest
+    container_name: flixer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/config
+      - /path/to/your/media:/media
+    environment:
+      - PUID=1000
+      - PGID=1000
 ```
 
-Then log in again (the API reads the current role from the database). Admins can read and delete any user. Regular users can only read their own account and delete it by sending their current password.
+2. Start the container:
 
-### Authentication sessions
+```bash
+docker compose up -d
+```
 
-Each successful registration or login creates a persisted session. Access tokens are tied to that session, so revoking or deleting the session invalidates its token on the next authenticated request.
-Expired session rows are removed when the application starts and by an hourly scheduled job. Expired tokens are rejected even before cleanup runs.
+3. Open your browser and navigate to **`http://localhost:8080`** to finish the setup wizard!
 
 ### Settings
 
@@ -40,20 +94,46 @@ To add, remove, or change the visibility of a setting, edit `src/config/settings
 
 Scheduled and background jobs are managed by [pg-boss](https://github.com/timgit/pg-boss), an MIT-licensed PostgreSQL-backed job queue. It uses the existing `DATABASE_URL`; no Redis service is needed. Supabase hosts and URLs with an SSL-required mode automatically use verified TLS for both TypeORM and pg-boss connections. If Node.js does not trust the database certificate, download the database CA certificate from Supabase **Database Settings > SSL Configuration** and set `DATABASE_SSL_CA_PATH` in `.env` to its local path. Certificate verification remains enabled. pg-boss creates and manages its own `pgboss` schema, so the database role must be permitted to create that schema and its tables. It requires PostgreSQL 13+ and Node.js 22.12+. Add future job handlers and schedules in `src/jobs` and register them in `JobScheduler`.
 
-- `GET /api/jobs/queues` lists pg-boss queues and their current counts.
-- `GET /api/jobs/queues/:queueName/jobs?limit=100` lists jobs; the limit must be between 1 and 1000.
-- `GET /api/jobs/queues/:queueName/jobs/:jobId` inspects a job.
-- `POST /api/jobs/queues/:queueName/jobs` enqueues a job with an optional `{ "data": {} }` body.
-- `POST /api/jobs/queues/:queueName/jobs/:jobId/retry` retries a job.
-- `DELETE /api/jobs/queues/:queueName/jobs/:jobId` cancels a job.
-- `GET /api/jobs/schedules` lists recurring schedules.
-- `PUT /api/jobs/schedules/:queueName` creates or updates a schedule with `{ "cron": "0 * * * *", "data": {} }`.
-- `DELETE /api/jobs/schedules/:queueName` removes a schedule.
+## 🗺️ Roadmap
 
-All job-management routes require a valid bearer token for an account whose current database role is `admin`. Job operations are currently restricted to queues with an application worker registered; at present, that is `cleanup-expired-user-sessions`. Add and register a worker before exposing another queue through the API.
+We are just getting started! Here is a sneak peek at what is on the horizon:
 
-- `GET /api/auth/sessions` lists the signed-in user's active sessions and marks the current one.
-- `DELETE /api/auth/sessions/:sessionId` revokes one of the signed-in user's sessions.
-- `POST /api/auth/logout` revokes the current session.
+- [ ] **Core Server & Media Scanner:** Automated metadata fetching for movies and TV shows.
+- [ ] **Transcoding Engine:** On-the-fly hardware-accelerated transcoding (NVENC/QuickSync).
+- [ ] **Web Client & Mobile Apps:** Polished clients for Android, iOS, and desktop.
+- [ ] **User Management:** Multi-user support with parental controls and watch history.
+- [ ] **Plugins & Extensions:** Community-created addons and metadata providers.
 
-The login/register response includes `session.id`. The Insomnia login script stores it as `session_id`; its logout and current-session revoke scripts clear the saved credentials.
+Check out our [GitHub Projects board](https://github.com/flixermedia/flixer/projects) to track our progress in detail.
+
+---
+
+## 🤝 Contributing
+
+We love contributions from the community! Whether it is fixing a bug, translating the interface, suggesting a feature, or writing documentation, your help is welcome.
+
+1. Fork the [Repository](https://github.com/flixermedia/flixer)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting PRs.
+
+---
+
+## 💖 Support the Project
+
+If you love Flixer, please consider giving the repository a ⭐ **star** to help others discover it! 
+
+---
+
+## 📄 License
+
+Flixer is open-source software licensed under the **[MIT License](LICENSE)**.
+
+---
+
+<div align="center">
+  <p>Built with ❤️ by the Flixer Community</p>
+</div>
