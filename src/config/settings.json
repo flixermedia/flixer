@@ -1,0 +1,32 @@
+[
+	{
+		"key": "server_name",
+		"defaultValue": null,
+		"isPublic": true
+	},
+	{
+		"key": "server_address",
+		"defaultValue": null,
+		"isPublic": true
+	},
+	{
+		"key": "cache_path",
+		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "logs_path",
+		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "metadata_path",
+		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "secret_key",
+		"defaultValue": null,
+		"isPublic": false
+	}
+]

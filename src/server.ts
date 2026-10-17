@@ -30,7 +30,7 @@ const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
 	mount: {
-		"/api": [...Object.values(api)],
+		"/api": Object.values(api),
 	},
 	views: {
 		root: join(process.cwd(), "../views"),

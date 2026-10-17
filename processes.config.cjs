@@ -1,6 +1,6 @@
 "use strict";
 
-const path = require("path");
+const path = require("node:path");
 const defaultLogFile = path.join(__dirname, "/logs/project-server.log");
 
 module.exports = {

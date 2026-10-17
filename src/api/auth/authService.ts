@@ -87,6 +87,11 @@ export class AuthService {
 		}
 	}
 
+	async getAuthenticatedUser(authorization?: string): Promise<PublicUser> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		return this.toPublicUser(user);
+	}
+
 	async register(username: string, password: string, email?: string): Promise<AuthResult> {
 		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);

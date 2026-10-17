@@ -2,6 +2,10 @@
 
 Prettier is configured for the project with tab indentation displayed at a four-column width. Run `npm run format` to format supported project files, or `npm run format:check` to verify formatting without changing files. In VS Code, install the recommended Run On Save extension; the workspace settings then run the custom formatter on the saved file. Block-bodied function declarations receive blank lines after their opening brace and before their closing brace, except declarations whose body is a single `return` statement, which use standard Prettier spacing. Callback functions use standard Prettier spacing. Non-empty class declarations receive a blank line after their opening brace, and arrays beginning with string entries followed by an object keep those initial strings on the opening line. `scrypt` callback calls keep their leading arguments on one line. Decorators stay directly above their declarations. Dependencies, build output, the npm lockfile, and the local generated-user credentials are excluded.
 
+## Releases
+
+See [VERSION.md](./VERSION.md) for the versioning policy, release steps, and Docker image tags. In brief, `package.json` is the source of truth; push a matching `vX.Y.Z` tag to run the GitHub release workflow.
+
 ## Updating the Insomnia API collection
 
 Run `npm run insomnia:update` to create or refresh `insomnia/flixer-insomnia.json`. The script creates the collection and its parent directory first. If the local OpenAPI endpoint is unreachable, it runs Ts.ED's barrel generator and starts the development server directly as a hidden Node.js process, then waits up to two minutes for OpenAPI to become available. After generation (or an error), it stops only the server it started; it does not stop a server that was already running or open a separate `cmd.exe` window. If startup fails, its captured output is included in the updater's error message. This automatic startup applies to local HTTP URLs only. The update preserves the Insomnia workspace and existing environment values, regenerates requests from the documented API operations, and creates development environment entries for every variable referenced by those requests. [Faker](https://fakerjs.dev/) generates appropriate examples for new variables (such as usernames, emails, passwords, IDs, names, dates, phone numbers, and locations); existing values are preserved on update. The generated test account's username, email, and password are persisted in `insomnia/flixer-user.json` and reused for subsequent collection generations. Authentication values such as tokens and captured user/session IDs start empty.
@@ -24,6 +28,15 @@ Then log in again (the API reads the current role from the database). Admins can
 
 Each successful registration or login creates a persisted session. Access tokens are tied to that session, so revoking or deleting the session invalidates its token on the next authenticated request.
 Expired session rows are removed when the application starts and by an hourly scheduled job. Expired tokens are rejected even before cleanup runs.
+
+### Settings
+
+Settings are stored as JSON values in the global `settings` table. Their definitions live in [src/config/settings.json](./src/config/settings.json), which declares each key, its default value, and whether it is public. On startup, the app adds missing rows with their defaults, updates visibility, preserves values already stored in the database, and deletes rows whose keys were removed from the JSON file. `updated_at` is maintained automatically. Settings have no per-user overrides.
+
+- `GET /api/settings` requires a bearer token. All signed-in users receive global settings marked public; only admins receive private settings such as `secret_key`.
+- `PUT /api/settings/:key` requires an admin bearer token and a `{ "value": ... }` body to update a global setting.
+
+To add, remove, or change the visibility of a setting, edit `src/config/settings.json` and restart the server; no migration is needed for changes to the settings list. The default value is only used when a row is first created—changing it later does not overwrite the live value in the database. Unset values use JSON `null`, which is stored as SQL `NULL`.
 
 Scheduled and background jobs are managed by [pg-boss](https://github.com/timgit/pg-boss), an MIT-licensed PostgreSQL-backed job queue. It uses the existing `DATABASE_URL`; no Redis service is needed. Supabase hosts and URLs with an SSL-required mode automatically use verified TLS for both TypeORM and pg-boss connections. If Node.js does not trust the database certificate, download the database CA certificate from Supabase **Database Settings > SSL Configuration** and set `DATABASE_SSL_CA_PATH` in `.env` to its local path. Certificate verification remains enabled. pg-boss creates and manages its own `pgboss` schema, so the database role must be permitted to create that schema and its tables. It requires PostgreSQL 13+ and Node.js 22.12+. Add future job handlers and schedules in `src/jobs` and register them in `JobScheduler`.
 
