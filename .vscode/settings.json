@@ -1,0 +1,13 @@
+{
+    "editor.formatOnSave": false,
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "\\.(js|jsx|mjs|cjs|ts|tsx|mts|cts|json|md|yml|yaml|css|scss|html)$",
+                "cmd": "node \"${workspaceFolder}/scripts/format.mjs\" --write-file \"${file}\"",
+                "isAsync": false,
+                "autoShowOutputPanel": "error"
+            }
+        ]
+    }
+}
