@@ -1,0 +1,145 @@
+# Ts.ED AGENTS.md guide
+
+This document provides an overview of the Ts.ED framework for AI assistants.
+
+## Audience
+
+You are an expert in TypeScript, Ts.ED, and scalable Node.js application development. You write functional,
+maintainable, performant, and accessible code following Ts.ED and TypeScript best practices.
+
+# Objectives
+
+- Scaffold or extend features using Ts.ED patterns (controllers, services, models/DTOs, middlewares, interceptors,
+  pipes, validators, exception filters).
+- Generate code that compiles, follows decorators usage, and respects dependency injection.
+- Use the official Ts.ED documentation for API details and examples.
+
+## Typical repository layout (adjust to your project)
+
+layout:
+
+```text
+src/
+  controllers/
+  services/
+  models/
+  middlewares/
+  interceptors/
+  protocols/ (auth strategies, guards)
+  index.ts (server bootstrap)
+  test/ or src/**/**.spec.ts
+  package.json
+```
+
+## Best practices for Ts.ED apps
+
+- Keep controllers small; push logic to services for easier testing.
+- Use Model/DTOs and validation decorators to protect your routes.
+- Prefer dependency injection over manual singletons.
+- Use interceptors and middlewares for cross‑cutting concerns (logging, caching, metrics).
+- Document routes with OpenAPI where applicable and keep examples up‑to‑date.
+
+## Troubleshooting
+
+- "Validation doesn’t run" → ensure Model/DTO is used as parameter with `@BodyParams()` and decorators like
+  `@Required()` are
+  present.
+- "DI didn’t inject my service" → annotate with `@Injectable()` and ensure it’s discovered (standard directory
+  structure/imports).
+- "Custom error shape" → write an exception filter with `@Catch()` or use built‑in exceptions.
+- "Types mismatch" → ensure DTOs are classes with explicit types; avoid loose `any` types.
+
+## Conventions & scaffolding (CLI)
+
+cli:
+name: @tsed/cli
+install: npm i -D @tsed/cli | yarn add -D @tsed/cli | pnpm add -D @tsed/cli | bun add -d @tsed/cli
+usage:
+
+- tsed generate <resource>
+- The Ts.ED CLI is the canonical source of scaffolding and up-to-date conventions for Ts.ED.
+- Prefer using `tsed generate` to create controllers, services, DTOs, middlewares, interceptors, tests, etc.
+- When available, agents should call the CLI to ensure files, names, and boilerplate match the current best practices.
+
+## Plugins & extensions
+
+plugins: https://api.tsed.dev/rest/warehouse
+notes:
+
+- Discover community and premium plugins to extend the framework (auth, logging, integrations, etc.).
+- Agents may query the API to suggest relevant plugins when the task involves external systems or advanced features.
+
+## Authoritative docs (link instead of copying)
+
+links:
+
+- getting_started: https://tsed.dev/introduction/getting-started.md
+- controllers: https://tsed.dev/docs/controllers.md
+- routing: https://tsed.dev/docs/routing.md
+- di_providers: https://tsed.dev/docs/providers.md
+- models: https://tsed.dev/docs/model.md
+- validation: https://tsed.dev/docs/validation.md
+- middlewares: https://tsed.dev/docs/middlewares.md
+- pipes: https://tsed.dev/docs/pipes.md
+- interceptors: https://tsed.dev/docs/interceptors.md
+- authentication: https://tsed.dev/docs/authentication.md
+- exceptions: https://tsed.dev/docs/exceptions.md
+- request_context: https://tsed.dev/docs/request-context.md
+- swagger_openapi: https://tsed.dev/tutorials/swagger.md
+- testing: https://tsed.dev/docs/testing.md
+- best_practices: https://tsed.dev/introduction/cheat-sheet.md
+- cli: https://tsed.dev/docs/command.md
+- plugins list: https://api.tsed.dev/rest/warehouse
+
+## Guardrails for AI
+
+rules:
+
+- Prefer minimal diffs; mirror existing code style and naming.
+- Always use Ts.ED decorators and DI patterns (e.g., @Controller, @Injectable, @Inject, @UseBefore, @UseAfter,
+  @PathParams, @BodyParams, @QueryParams).
+- Create DTOs with validation decorators (@Required, @MinLength, @Email, etc.).
+- Keep controllers thin; move business logic to services.
+- Keep serialization/validation consistent using Json Mapper and class annotations.
+- Update or add unit/integration tests near changed files.
+- When adding routes, include types, status codes, and example responses; update OpenAPI annotations when applicable.
+- Do not change package manager or framework choices.
+
+## How the agent should operate
+
+process:
+
+- Read relevant sections in the links above before generating code.
+- Propose the smallest viable change and show a summary of edits.
+- Provide follow‑up commands to validate locally (build/test/start).
+- When adding new files, include short TSDoc comments and example usage where helpful.
+
+## Common tasks (examples)
+
+examples:
+
+- title: Add a controller with CRUD endpoints
+  prompt: |
+  Create a Ts.ED controller `UsersController` under `src/controllers`. Use `@Controller("/users")`. Add `GET /:id`,
+  `POST /`, and `PUT /:id` endpoints. Validate body with DTOs under `src/models` using Ts.ED validation decorators.
+  Inject a `UsersService` for logic.
+- title: Create a DTO with validation
+  prompt: |
+  Create `UserModel` in `src/models` with `id?: string`, `email: string`, `password: string`. Use `@Email()` and
+  `@MinLength(8)` as appropriate. Ensure it’s compatible with Ts.ED Json Mapper.
+- title: Add a service and inject it in a controller
+  prompt: |
+  Create `UsersService` in `src/services` annotated with `@Injectable()`. Provide methods `findById`, `create`,
+  `update`. Inject it in `UsersController` via constructor and call methods.
+- title: Add middleware or interceptor
+  prompt: |
+  Create a logging middleware using `@Middleware()` and `@UseBefore()` on specific routes. Or create an interceptor with
+  `@Interceptor()` and apply via `@UseAfter()`.
+- title: Exception handling
+  prompt: |
+  Use built‑in exceptions (e.g., `BadRequest`, `NotFound`) or create a custom `@Catch()` filter. Ensure consistent error
+  response shape.
+- title: Tests
+  prompt: |
+  Add unit tests with your chosen test runner (Jest/Vitest). Co‑locate `*.spec.ts` near the code or under `test/`. Mock
+  services and test controller logic.

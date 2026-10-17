@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": false,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./dist/types",
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["src/**/*", ".templates/**/*"],
+	"exclude": ["src/**/*.spec.ts", "dist", "node_modules", "**/helpers/*Fixture.ts", "**/__mock__/**", "coverage"],
+	"linterOptions": {
+		"exclude": []
+	}
+}

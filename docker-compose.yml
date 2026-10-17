@@ -1,0 +1,14 @@
+services:
+    server:
+        env_file:
+            - .env
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+            args:
+                - http_proxy
+                - https_proxy
+                - no_proxy
+        image: flixer/server:latest
+        ports:
+            - "8081:8081"

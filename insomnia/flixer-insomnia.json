@@ -1,0 +1,647 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-10-17T02:06:29.048Z",
+  "__export_source": "insomnia.desktop.app",
+  "resources": [
+    {
+      "_id": "wrk_flixer_api",
+      "parentId": null,
+      "modified": 1792195579543,
+      "created": 1792195579543,
+      "name": "Flixer API",
+      "description": "Requests for the Flixer API. Development environment variables are automatically generated from the OpenAPI spec.",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_flixer_base",
+      "parentId": "wrk_flixer_api",
+      "modified": 1792195579543,
+      "created": 1792195579543,
+      "name": "Base Environment",
+      "data": {},
+      "dataPropertyOrder": null,
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_flixer_dev",
+      "parentId": "env_flixer_base",
+      "modified": 1792195579543,
+      "created": 1792195579543,
+      "name": "Development",
+      "data": {
+        "base_url": "http://localhost:8083",
+        "test_username": "Kody_Rau37",
+        "test_email": "fritz.yundt35@hotmail.com",
+        "test_password": "1G6kToPPtOrt2feB",
+        "access_token": "",
+        "user_id": "",
+        "session_id": "",
+        "path_queueName": "",
+        "query_limit": 92,
+        "path_jobId": "example-path-jobid"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "base_url",
+          "test_username",
+          "test_email",
+          "test_password",
+          "access_token",
+          "user_id",
+          "session_id",
+          "path_queueName",
+          "query_limit",
+          "path_jobId"
+        ]
+      },
+      "color": "#4B9E5F",
+      "isPrivate": false,
+      "metaSortKey": 1792195579543,
+      "_type": "environment"
+    },
+    {
+      "_id": "grp_flixer_api_c692273deb27",
+      "name": "Version",
+      "description": "Version API requests",
+      "_type": "request_group",
+      "parentId": "wrk_flixer_api",
+      "modified": 1792202789041,
+      "created": 1792202789041,
+      "metaSortKey": 0,
+      "isPrivate": false
+    },
+    {
+      "_id": "grp_flixer_api_66a36e77fd00",
+      "name": "Auth",
+      "description": "Auth API requests",
+      "_type": "request_group",
+      "parentId": "wrk_flixer_api",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "metaSortKey": -2,
+      "isPrivate": false
+    },
+    {
+      "_id": "grp_flixer_api_5b7dcd14a4fa",
+      "name": "Users",
+      "description": "Users API requests",
+      "_type": "request_group",
+      "parentId": "wrk_flixer_api",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "metaSortKey": -3,
+      "isPrivate": false
+    },
+    {
+      "_id": "grp_flixer_api_6966922100bf",
+      "name": "Jobs",
+      "description": "Jobs API requests",
+      "_type": "request_group",
+      "parentId": "wrk_flixer_api",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "metaSortKey": -4,
+      "isPrivate": false
+    },
+    {
+      "_id": "req_flixer_261c39f80265",
+      "parentId": "grp_flixer_api_c692273deb27",
+      "modified": 1792202789042,
+      "created": 1792202789042,
+      "url": "{{ _.base_url }}/api/version",
+      "name": "GET /api/version",
+      "description": "Tags: VersionController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1792202789041,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_521ad9914075",
+      "parentId": "grp_flixer_api_66a36e77fd00",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/auth/register",
+      "name": "POST /api/auth/register",
+      "description": "Tags: AuthController",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"{{ _.test_username }}\",\n  \"email\": \"{{ _.test_email }}\",\n  \"password\": \"{{ _.test_password }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789041,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_019432a060e4",
+      "parentId": "grp_flixer_api_66a36e77fd00",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/auth/login",
+      "name": "POST /api/auth/login",
+      "description": "Tags: AuthController",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"{{ _.test_username }}\",\n  \"password\": \"{{ _.test_password }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "afterResponseScript": "const body = insomnia.response.json();\nif (\n  typeof body?.accessToken !== \"string\" || body.accessToken.length === 0 ||\n  typeof body.user?.id !== \"string\" || body.user.id.length === 0 ||\n  typeof body.session?.id !== \"string\" || body.session.id.length === 0\n) {\n  console.warn(\"Login response is missing accessToken, user.id, or session.id; environment values were not changed.\");\n} else {\n  insomnia.environment.set(\"access_token\", body.accessToken);\n  insomnia.environment.set(\"user_id\", body.user.id);\n  insomnia.environment.set(\"session_id\", body.session.id);\n}",
+      "authentication": {},
+      "metaSortKey": -1792202789041,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_967a0ab18522",
+      "parentId": "grp_flixer_api_66a36e77fd00",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/auth/sessions",
+      "name": "GET /api/auth/sessions",
+      "description": "Tags: AuthController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789040,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_eb511d1f395c",
+      "parentId": "grp_flixer_api_66a36e77fd00",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/auth/sessions/{{ _.session_id }}",
+      "name": "DELETE /api/auth/sessions/{sessionId}",
+      "description": "Tags: AuthController",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body?.revoked === true && typeof body.id === \"string\" && body.id.length > 0 && body.id === insomnia.environment.get(\"session_id\")) {\n  insomnia.environment.set(\"session_id\", \"\");\n  console.log(\"The current session was revoked; cleared its local credentials.\");\n} else if (body?.revoked !== true || typeof body.id !== \"string\" || body.id.length === 0) {\n  console.warn(\"Revoke response did not confirm success; environment values were not changed.\");\n} else {\n  console.log(\"Another session was revoked; the current environment credentials were kept.\");\n}",
+      "authentication": {},
+      "metaSortKey": -1792202789039,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_4efccd3a4948",
+      "parentId": "grp_flixer_api_66a36e77fd00",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/auth/logout",
+      "name": "POST /api/auth/logout",
+      "description": "Tags: AuthController",
+      "method": "POST",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body?.loggedOut === true && typeof body.id === \"string\" && body.id.length > 0) {\n  insomnia.environment.set(\"access_token\", \"\");\n  insomnia.environment.set(\"session_id\", \"\");\n  insomnia.environment.set(\"user_id\", \"\");\n  console.log(\"Cleared the logged-out session from the active environment.\");\n} else {\n  console.warn(\"Logout response did not confirm success; environment values were not changed.\");\n}",
+      "authentication": {},
+      "metaSortKey": -1792202789038,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_cd7628b03299",
+      "parentId": "grp_flixer_api_5b7dcd14a4fa",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/users",
+      "name": "GET /api/users",
+      "description": "Tags: UserController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789037,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_6a95d43c804d",
+      "parentId": "grp_flixer_api_5b7dcd14a4fa",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/users/{{ _.user_id }}",
+      "name": "GET /api/users/{id}",
+      "description": "Tags: UserController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789036,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_2199b704fd4b",
+      "parentId": "grp_flixer_api_5b7dcd14a4fa",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/users/{{ _.user_id }}",
+      "name": "DELETE /api/users/{id}",
+      "description": "Tags: UserController",
+      "method": "DELETE",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"password\": \"{{ _.test_password }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789035,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_b6640586c74a",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789043,
+      "created": 1792202789043,
+      "url": "{{ _.base_url }}/api/jobs/queues",
+      "name": "GET /api/jobs/queues",
+      "description": "Tags: JobsController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789034,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_7cc68140ecc2",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789044,
+      "created": 1792202789044,
+      "url": "{{ _.base_url }}/api/jobs/queues/{{ _.path_queueName }}/jobs",
+      "name": "GET /api/jobs/queues/{queueName}/jobs",
+      "description": "Tags: JobsController",
+      "method": "GET",
+      "body": {},
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "{{ _.query_limit }}",
+          "disabled": false
+        }
+      ],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789034,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_4a33a3f8a7a6",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789044,
+      "created": 1792202789044,
+      "url": "{{ _.base_url }}/api/jobs/queues/{{ _.path_queueName }}/jobs",
+      "name": "POST /api/jobs/queues/{queueName}/jobs",
+      "description": "Tags: JobsController",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"data\": {}\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789033,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_7f997d6b1bb3",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/queues/{{ _.path_queueName }}/jobs/{{ _.path_jobId }}",
+      "name": "GET /api/jobs/queues/{queueName}/jobs/{jobId}",
+      "description": "Tags: JobsController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789032,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_0daecb5b9af3",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/queues/{{ _.path_queueName }}/jobs/{{ _.path_jobId }}",
+      "name": "DELETE /api/jobs/queues/{queueName}/jobs/{jobId}",
+      "description": "Tags: JobsController",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789032,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_47def19a8a26",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/queues/{{ _.path_queueName }}/jobs/{{ _.path_jobId }}/retry",
+      "name": "POST /api/jobs/queues/{queueName}/jobs/{jobId}/retry",
+      "description": "Tags: JobsController",
+      "method": "POST",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789031,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_12dd8fab56f7",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/schedules",
+      "name": "GET /api/jobs/schedules",
+      "description": "Tags: JobsController",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789030,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_79463d080bc7",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/schedules/{{ _.path_queueName }}",
+      "name": "PUT /api/jobs/schedules/{queueName}",
+      "description": "Tags: JobsController",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"cron\": \"example-cron\",\n  \"data\": {}\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789029,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_flixer_5120ad904eb2",
+      "parentId": "grp_flixer_api_6966922100bf",
+      "modified": 1792202789045,
+      "created": 1792202789045,
+      "url": "{{ _.base_url }}/api/jobs/schedules/{{ _.path_queueName }}",
+      "name": "DELETE /api/jobs/schedules/{queueName}",
+      "description": "Tags: JobsController",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1792202789028,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    }
+  ]
+}
