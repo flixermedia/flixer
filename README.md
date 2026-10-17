@@ -8,12 +8,12 @@ See [VERSION.md](./VERSION.md) for the versioning policy, release steps, and Doc
 
 ## Updating the Insomnia API collection
 
-  **Your media, your rules, beautifully streamed.**
+**Your media, your rules, beautifully streamed.**
 
-  [![GitHub release](https://img.shields.io/github/v/release/flixermedia/flixer?style=flat-square&color=blue)](https://github.com/flixermedia/flixer/releases)
-  [![Docker Image CI](https://img.shields.io/github/actions/workflow/status/flixermedia/flixer/docker.yml?style=flat-square&label=Docker)](https://github.com/flixermedia/flixer/pkgs/container/flixer)
-  [![License](https://img.shields.io/github/license/flixermedia/flixer?style=flat-square&color=green)](https://github.com/flixermedia/flixer/blob/main/LICENSE)
-  [![GitHub stars](https://img.shields.io/github/stars/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/stargazers)
+[![GitHub release](https://img.shields.io/github/v/release/flixermedia/flixer?style=flat-square&color=blue)](https://github.com/flixermedia/flixer/releases)
+[![Docker Image CI](https://img.shields.io/github/actions/workflow/status/flixermedia/flixer/docker.yml?style=flat-square&label=Docker)](https://github.com/flixermedia/flixer/pkgs/container/flixer)
+[![License](https://img.shields.io/github/license/flixermedia/flixer?style=flat-square&color=green)](https://github.com/flixermedia/flixer/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/stargazers)
 
 </div>
 
@@ -31,17 +31,17 @@ See [VERSION.md](./VERSION.md) for the versioning policy, release steps, and Doc
 
 ## 🌟 Why Flixer?
 
-*   🚀 **High Performance:** Built from the ground up for speed, minimal resource usage, and instant playback.
-*   🔒 **100% Private & Self-Hosted:** Your data stays with you. No tracking, no data collection, no forced cloud accounts.
-*   🎨 **Sleek, Modern Interface:** A gorgeous, intuitive UI designed to make browsing your collection a joy.
-*   📱 **Cross-Platform:** Stream seamlessly across web browsers, mobile devices, and smart TVs.
-*   🛠️ **Open Source:** Community-driven and fully customizable. 
+- 🚀 **High Performance:** Built from the ground up for speed, minimal resource usage, and instant playback.
+- 🔒 **100% Private & Self-Hosted:** Your data stays with you. No tracking, no data collection, no forced cloud accounts.
+- 🎨 **Sleek, Modern Interface:** A gorgeous, intuitive UI designed to make browsing your collection a joy.
+- 📱 **Cross-Platform:** Stream seamlessly across web browsers, mobile devices, and smart TVs.
+- 🛠️ **Open Source:** Community-driven and fully customizable.
 
 ---
 
 ## 📸 Screenshots
 
-*(Coming soon as the UI evolves! Check back for updates.)*
+_(Coming soon as the UI evolves! Check back for updates.)_
 
 ---
 
@@ -51,7 +51,7 @@ Getting Flixer up and running on your server is quick and easy using Docker.
 
 ### Prerequisites
 
-*   Docker and Docker Compose installed on your system.
+- Docker and Docker Compose installed on your system.
 
 ### Quick Start with Docker Compose
 
@@ -61,18 +61,18 @@ Getting Flixer up and running on your server is quick and easy using Docker.
 version: "3.8"
 
 services:
-  flixer:
-    image: ghcr.io/flixermedia/flixer:latest
-    container_name: flixer
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./config:/config
-      - /path/to/your/media:/media
-    environment:
-      - PUID=1000
-      - PGID=1000
+    flixer:
+        image: ghcr.io/flixermedia/flixer:latest
+        container_name: flixer
+        restart: unless-stopped
+        ports:
+            - "8080:8080"
+        volumes:
+            - ./config:/config
+            - /path/to/your/media:/media
+        environment:
+            - PUID=1000
+            - PGID=1000
 ```
 
 2. Start the container:
@@ -124,7 +124,7 @@ Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting PRs
 
 ## 💖 Support the Project
 
-If you love Flixer, please consider giving the repository a ⭐ **star** to help others discover it! 
+If you love Flixer, please consider giving the repository a ⭐ **star** to help others discover it!
 
 ---
 
