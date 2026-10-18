@@ -1,16 +1,23 @@
-import { BadRequest, Conflict, Forbidden, NotFound, Unauthorized } from "@tsed/exceptions";
+import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests, Unauthorized } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
 import { createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
-import { DataSource, MoreThan } from "typeorm";
+import { DataSource, MoreThan, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
 import { User, type UserRole } from "../../entities/user.entity.js";
 import { UserSession } from "../../entities/userSession.entity.js";
+import { AccountEmailService } from "./accountEmailService.js";
+import { deleteAvatarFile } from "./avatarStorage.js";
+import { EmailVerificationService } from "./emailVerificationService.js";
 
 const PASSWORD_KEY_LENGTH = 64;
 const PASSWORD_SALT_LENGTH = 16;
 const PASSWORD_SCRYPT_COST = 1 << 14;
 const ACCESS_TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
+const RESEND_COOLDOWN_MS = 60_000;
+const PASSKEY_TICKET_LIFETIME_SECONDS = 5 * 60;
 
 export interface AuthResult {
 	accessToken: string;
@@ -23,15 +30,31 @@ export interface AuthResult {
 	user: {
 		id: string;
 		username: string;
+		displayName: string;
 		email: string | null;
 		role: UserRole;
 	};
 }
 
+export interface VerificationPending {
+	verificationRequired: true;
+	email: string;
+}
+
+export interface PasskeyRequired {
+	passkeyRequired: true;
+	ticket: string;
+}
+
 export interface PublicUser {
 	id: string;
 	username: string;
+	displayName: string;
 	email: string | null;
+	emailVerified: boolean;
+	pendingEmail: string | null;
+	passkeyRequired: boolean;
+	avatarUrl: string | null;
 	role: UserRole;
 	createdAt: Date;
 }
@@ -78,7 +101,13 @@ function isUniqueViolation(error: unknown): boolean {
 @Injectable()
 export class AuthService {
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly emailVerification: EmailVerificationService,
+		private readonly accountEmail: AccountEmailService,
+	) {}
+
+	private readonly resendCooldowns = new Map<string, number>();
 
 	async requireAdmin(authorization?: string): Promise<void> {
 		const { user } = await this.requireAuthenticatedSession(authorization);
@@ -92,25 +121,128 @@ export class AuthService {
 		return this.toPublicUser(user);
 	}
 
-	async register(username: string, password: string, email?: string): Promise<AuthResult> {
+	async updateProfile(authorization: string | undefined, changes: { displayName?: string; email?: string }): Promise<PublicUser> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		const displayName = changes.displayName?.trim();
+		if (changes.displayName !== undefined && !displayName) {
+			throw new BadRequest("Display name cannot be empty.");
+		}
+		if (displayName) {
+			user.displayName = displayName;
+		}
+		const requestedEmail = changes.email !== undefined ? this.normalizeEmail(changes.email) : undefined;
+		let verificationTarget: string | undefined;
+		if (requestedEmail !== undefined && requestedEmail !== user.email) {
+			if (this.emailVerification.isRequired()) {
+				const taken = await this.dataSource.getRepository(User).findOneBy({ email: requestedEmail });
+				if (taken) {
+					throw new Conflict("An account with this email already exists.");
+				}
+				user.pendingEmail = requestedEmail;
+				verificationTarget = requestedEmail;
+			} else {
+				user.email = requestedEmail;
+				user.emailVerifiedAt = new Date();
+			}
+		} else if (requestedEmail !== undefined) {
+			user.pendingEmail = null;
+		}
+
+		const [saveError, saved] = await tryCatch(() => this.dataSource.getRepository(User).save(user));
+		if (saveError) {
+			if (isUniqueViolation(saveError)) {
+				throw new Conflict("An account with this email already exists.");
+			}
+			throw saveError;
+		}
+		if (verificationTarget) {
+			await this.emailVerification.sendVerificationEmail(saved, verificationTarget);
+		}
+
+		return this.toPublicUser(saved);
+	}
+
+	async assertPassword(authorization: string | undefined, password: string | undefined): Promise<void> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		if (!password || !(await this.verifyPassword(password, user.passwordHash))) {
+			throw new Unauthorized("Your password is incorrect.");
+		}
+	}
+
+	async changePassword(authorization: string | undefined, currentPassword: string, newPassword: string): Promise<{ changed: true }> {
+		const { user, session } = await this.requireAuthenticatedSession(authorization);
+		if (!(await this.verifyPassword(currentPassword, user.passwordHash))) {
+			throw new Unauthorized("Your current password is incorrect.");
+		}
+		if (currentPassword === newPassword) {
+			throw new BadRequest("The new password must be different from your current password.");
+		}
+
+		const salt = randomBytes(PASSWORD_SALT_LENGTH);
+		const passwordKey = await derivePasswordKey(newPassword, salt);
+		user.passwordHash = `scrypt$${salt.toString("base64url")}$${passwordKey.toString("base64url")}`;
+
+		await this.dataSource.transaction(async (manager) => {
+			await manager.getRepository(User).save(user);
+			await manager.getRepository(UserSession).delete({ userId: user.id, id: Not(session.id) });
+		});
+
+		return { changed: true };
+	}
+
+	async deleteAccount(authorization: string | undefined, password: string): Promise<{ deleted: true }> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		if (!(await this.verifyPassword(password, user.passwordHash))) {
+			throw new Unauthorized("Your password is incorrect.");
+		}
+		if (user.role === "admin") {
+			const admins = await this.dataSource.getRepository(User).count({ where: { role: "admin" } });
+			if (admins <= 1) {
+				throw new Forbidden("You are the only administrator. Promote another user before deleting your account.");
+			}
+		}
+
+		await this.dataSource.getRepository(User).delete({ id: user.id });
+		await deleteAvatarFile(user.avatarFile);
+		void this.accountEmail.sendAccountDeletedEmail(user);
+		return { deleted: true };
+	}
+
+	async register(username: string, password: string, email: string, displayName: string | undefined, authorization?: string): Promise<AuthResult | VerificationPending> {
 		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);
-		const normalizedEmail = email === undefined ? null : this.normalizeEmail(email);
+		const normalizedEmail = this.normalizeEmail(email);
 		const salt = randomBytes(PASSWORD_SALT_LENGTH);
 		const passwordKey = await derivePasswordKey(password, salt);
 		const user = this.dataSource.getRepository(User).create({
 			id: randomUUID(),
 			username: normalizedUsername,
+			displayName: displayName?.trim() || username.trim(),
 			email: normalizedEmail,
 			role: "user",
-			passwordHash: `scrypt$${salt.toString("base64url")}$${passwordKey.toString("base64url")}`,
+			emailVerifiedAt: this.emailVerification.isRequired() ? null : new Date(),
+			passwordHash: ["scrypt", salt.toString("base64url"), passwordKey.toString("base64url")].join("$"),
 		});
 
 		const [saveError] = await tryCatch(() =>
 			this.dataSource.transaction(async (manager) => {
 				await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:first-user-admin"]);
 				const users = manager.getRepository(User);
-				user.role = (await users.count()) === 0 ? "admin" : "user";
+				const userCount = await users.count();
+				const registrationSetting = await manager
+					.getRepository(Setting)
+					.findOneBy({ key: "registration_enabled" });
+				if (!registrationSetting || typeof registrationSetting.value !== "boolean") {
+					throw new Error("The registration_enabled setting is missing or invalid.");
+				}
+				if (!registrationSetting.value && userCount > 0) {
+					if (!authorization) {
+						throw new Forbidden("Public registration is disabled. An administrator must create accounts.");
+					}
+					await this.requireAdmin(authorization);
+				}
+
+				user.role = userCount === 0 ? "admin" : "user";
 				await users.save(user);
 			}),
 		);
@@ -122,7 +254,46 @@ export class AuthService {
 			throw saveError;
 		}
 
+		if (this.emailVerification.isRequired()) {
+			await this.trySendVerification(user);
+			return { verificationRequired: true, email: normalizedEmail };
+		}
+
 		return this.createAuthResult(user, tokenSecret);
+	}
+
+	async verifyEmail(token: string): Promise<{ verified: true }> {
+		return this.emailVerification.verify(token);
+	}
+
+	async resendVerification(username: string, password: string): Promise<{ sent: true }> {
+		const user = await this.dataSource.getRepository(User).findOneBy({ username: this.normalizeUsername(username) });
+		if (!user || !(await this.verifyPassword(password, user.passwordHash))) {
+			throw new Unauthorized("Invalid username or password.");
+		}
+		if (user.emailVerifiedAt) {
+			return { sent: true };
+		}
+
+		const lastSent = this.resendCooldowns.get(user.id) ?? 0;
+		if (Date.now() - lastSent < RESEND_COOLDOWN_MS) {
+			throw new TooManyRequests("Please wait a minute before requesting another verification email.");
+		}
+		this.resendCooldowns.set(user.id, Date.now());
+		const [sendError] = await tryCatch(() => this.emailVerification.sendVerificationEmail(user));
+		if (sendError) {
+			this.resendCooldowns.delete(user.id);
+			throw sendError;
+		}
+
+		return { sent: true };
+	}
+
+	private async trySendVerification(user: User): Promise<void> {
+		const [error] = await tryCatch(() => this.emailVerification.sendVerificationEmail(user));
+		if (error) {
+			console.error("[auth] failed to send verification email", error);
+		}
 	}
 
 	async getUser(id: string, authorization?: string): Promise<PublicUser> {
@@ -289,13 +460,26 @@ export class AuthService {
 		return {
 			id: user.id,
 			username: user.username,
+			displayName: user.displayName ?? user.username,
 			email: user.email,
+			emailVerified: user.emailVerifiedAt !== null,
+			pendingEmail: user.pendingEmail,
+			passkeyRequired: user.passkeyRequired,
+			avatarUrl: user.avatarFile ? `/auth/avatars/${user.avatarFile}` : null,
 			role: user.role,
 			createdAt: user.createdAt,
 		};
 	}
 
-	async login(username: string, password: string): Promise<AuthResult> {
+	toPublicUserFor(user: User): PublicUser {
+		return this.toPublicUser(user);
+	}
+
+	async issueAuthResult(user: User): Promise<AuthResult> {
+		return this.createAuthResult(user, this.getTokenSecret());
+	}
+
+	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired> {
 		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);
 		const user = await this.dataSource.getRepository(User).findOneBy({ username: normalizedUsername });
@@ -304,7 +488,58 @@ export class AuthService {
 			throw new Unauthorized("Invalid username or password.");
 		}
 
+		if (!user.emailVerifiedAt && this.emailVerification.isRequired()) {
+			throw new Forbidden("Please verify your email address before signing in.");
+		}
+
+		if (user.passkeyRequired && (await this.dataSource.getRepository(PasskeyCredential).existsBy({ userId: user.id }))) {
+			return { passkeyRequired: true, ticket: this.createPasskeyTicket(user.id) };
+		}
+
 		return this.createAuthResult(user, tokenSecret);
+	}
+
+	async setPasskeyRequired(authorization: string | undefined, enabled: boolean, password?: string): Promise<PublicUser> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		if (!enabled && user.passkeyRequired && (!password || !(await this.verifyPassword(password, user.passwordHash)))) {
+			throw new Unauthorized("Your password is incorrect.");
+		}
+		if (enabled && !(await this.dataSource.getRepository(PasskeyCredential).existsBy({ userId: user.id }))) {
+			throw new BadRequest("Add a passkey before requiring one at sign-in.");
+		}
+
+		user.passkeyRequired = enabled;
+		return this.toPublicUser(await this.dataSource.getRepository(User).save(user));
+	}
+
+	/** Short-lived proof that the password step succeeded, exchanged for a session after a passkey check. */
+	createPasskeyTicket(userId: string): string {
+		const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Math.floor(Date.now() / 1000) + PASSKEY_TICKET_LIFETIME_SECONDS })).toString("base64url");
+		return `${payload}.${this.signPasskeyTicket(payload)}`;
+	}
+
+	readPasskeyTicket(ticket: string): string {
+		const [payload, signature, extra] = ticket.split(".");
+		if (!payload || !signature || extra !== undefined) {
+			throw new Unauthorized("Your sign-in expired. Enter your password again.");
+		}
+
+		const expected = Buffer.from(this.signPasskeyTicket(payload));
+		const actual = Buffer.from(signature);
+		if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+			throw new Unauthorized("Your sign-in expired. Enter your password again.");
+		}
+
+		const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string; exp?: number };
+		if (typeof claims.sub !== "string" || typeof claims.exp !== "number" || claims.exp < Math.floor(Date.now() / 1000)) {
+			throw new Unauthorized("Your sign-in expired. Enter your password again.");
+		}
+
+		return claims.sub;
+	}
+
+	private signPasskeyTicket(payload: string): string {
+		return createHmac("sha256", this.getTokenSecret()).update(`passkey-ticket.${payload}`).digest("base64url");
 	}
 
 	private normalizeEmail(email: string): string {
@@ -374,6 +609,7 @@ export class AuthService {
 			user: {
 				id: user.id,
 				username: user.username,
+				displayName: user.displayName ?? user.username,
 				email: user.email,
 				role: user.role,
 			},
