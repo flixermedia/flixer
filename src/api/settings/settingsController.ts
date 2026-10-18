@@ -5,17 +5,23 @@ import { SettingRequest } from "./settingRequest.js";
 import { SettingsService } from "./settingsService.js";
 
 @Controller("/settings")
-@Security("BearerAuth")
 export class SettingsController {
 
 	constructor(private readonly settingsService: SettingsService) {}
 
 	@Get("/")
+	@Security("BearerAuth")
 	list(@HeaderParams("authorization") authorization?: string) {
 		return this.settingsService.list(authorization);
 	}
 
+	@Get("/registration")
+	registrationStatus() {
+		return this.settingsService.getRegistrationStatus();
+	}
+
 	@Put("/:key")
+	@Security("BearerAuth")
 	update(
 		@PathParams("key") key: string,
 		@BodyParams() request: SettingRequest,

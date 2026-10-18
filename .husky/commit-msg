@@ -1,0 +1,1 @@
+node scripts/emoji-commit-message.mjs "$1"

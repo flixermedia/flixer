@@ -33,11 +33,23 @@ export class SettingsService {
 		return settings.map((setting) => this.toPublicSetting(setting));
 	}
 
+	async getRegistrationStatus(): Promise<{ registrationEnabled: boolean }> {
+		const setting = await this.dataSource.getRepository(Setting).findOneBy({ key: "registration_enabled" });
+		if (!setting || typeof setting.value !== "boolean") {
+			throw new Error("The registration_enabled setting is missing or invalid.");
+		}
+
+		return { registrationEnabled: setting.value };
+	}
+
 	async update(key: string, request: SettingRequest, authorization?: string): Promise<PublicSetting> {
 		await this.authService.requireAdmin(authorization);
 
 		if (!SETTING_KEY_PATTERN.test(key)) {
 			throw new BadRequest("Setting key has an invalid format.");
+		}
+		if (key === "registration_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The registration_enabled setting must be a boolean.");
 		}
 
 		const settings = this.dataSource.getRepository(Setting);

@@ -4,6 +4,10 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
 	appType: "custom",
+	server: {
+		// Uploaded files (profile pictures) must not restart the dev server.
+		watch: { ignored: ["**/data/**"] },
+	},
 	build: {
 		outDir: "dist",
 		target: "node24",

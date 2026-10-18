@@ -7,6 +7,7 @@ import type { PlatformFastifyPluginSettings } from "@tsed/platform-fastify";
 import { join } from "node:path";
 
 import "@tsed/platform-fastify";
+import "@tsed/platform-multer";
 import "@tsed/scalar";
 import * as api from "./api.js";
 import { config } from "./config/config.js";

@@ -6,6 +6,10 @@
 
 See [VERSION.md](./VERSION.md) for the versioning policy, release steps, and Docker image tags. In brief, `package.json` is the source of truth; push a matching `vX.Y.Z` tag to run the GitHub release workflow.
 
+## Commit messages
+
+Husky runs a `commit-msg` hook that adds a random emoji after recognized commit types such as `feat:`, `fix(scope):`, `docs:`, or `chore:`. For example, `feat: add settings API` becomes `feat: ✨ add settings API`. Existing emoji-containing messages and unrecognized message formats are left unchanged. Run `npm install` to install the Git hooks in a fresh clone.
+
 ## Updating the Insomnia API collection
 
 **Your media, your rules, beautifully streamed.**
@@ -88,7 +92,12 @@ docker compose up -d
 Settings are stored as JSON values in the global `settings` table. Their definitions live in [src/config/settings.json](./src/config/settings.json), which declares each key, its default value, and whether it is public. On startup, the app adds missing rows with their defaults, updates visibility, preserves values already stored in the database, and deletes rows whose keys were removed from the JSON file. `updated_at` is maintained automatically. Settings have no per-user overrides.
 
 - `GET /api/settings` requires a bearer token. All signed-in users receive global settings marked public; only admins receive private settings such as `secret_key`.
+- `GET /api/settings/registration` is public and returns whether account registration is enabled.
 - `PUT /api/settings/:key` requires an admin bearer token and a `{ "value": ... }` body to update a global setting.
+
+The `registration_enabled` setting defaults to `true`. An administrator can disable public account creation with `PUT /api/settings/registration_enabled` and `{ "value": false }`; while disabled, only an authenticated administrator can create accounts through `POST /api/auth/register`. The initial account can still be created to bootstrap the first administrator.
+
+Account registration requires a username, a valid email address, and a password.
 
 To add, remove, or change the visibility of a setting, edit `src/config/settings.json` and restart the server; no migration is needed for changes to the settings list. The default value is only used when a row is first created—changing it later does not overwrite the live value in the database. Unset values use JSON `null`, which is stored as SQL `NULL`.
 

@@ -10,9 +10,15 @@ export class RegisterRequest {
 	username!: string;
 
 	@Property()
+	@MinLength(1)
+	@MaxLength(64)
+	displayName?: string;
+
+	@Property()
+	@Required()
 	@Format("email")
 	@MaxLength(254)
-	email?: string;
+	email!: string;
 
 	@Property()
 	@Required()
