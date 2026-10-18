@@ -15,7 +15,7 @@ Husky runs a `commit-msg` hook that adds a random emoji after recognized commit 
 **Your media, your rules, beautifully streamed.**
 
 [![GitHub release](https://img.shields.io/github/v/release/flixermedia/flixer?style=flat-square&color=blue)](https://github.com/flixermedia/flixer/releases)
-[![Docker Image CI](https://img.shields.io/github/actions/workflow/status/flixermedia/flixer/docker.yml?style=flat-square&label=Docker)](https://github.com/flixermedia/flixer/pkgs/container/flixer)
+[![Docker Image CI](https://img.shields.io/github/actions/workflow/status/flixermedia/flixer/release.yml?style=flat-square&label=Docker)](https://github.com/flixermedia/flixer/pkgs/container/flixer)
 [![License](https://img.shields.io/github/license/flixermedia/flixer?style=flat-square&color=green)](https://github.com/flixermedia/flixer/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/stargazers)
 
@@ -51,41 +51,56 @@ _(Coming soon as the UI evolves! Check back for updates.)_
 
 ## 🚀 Getting Started
 
-Getting Flixer up and running on your server is quick and easy using Docker.
+The backend, Vue web app, Go streamer, and reverse proxy are run together with Docker Compose. The proxy is the only
+service exposed to the host; it serves the web app and routes API, WebSocket, and media-streaming requests internally.
+PostgreSQL is hosted separately and configured through `DATABASE_URL`.
 
 ### Prerequisites
 
-- Docker and Docker Compose installed on your system.
+- Docker Engine and Docker Compose v2.
+- A PostgreSQL 13+ database.
+- A media directory readable by Docker.
 
 ### Quick Start with Docker Compose
 
-1. Create a `docker-compose.yml` file:
+1. Clone this repository and create the runtime environment file:
 
-```yaml
-version: "3.8"
+   ```bash
+   cp .env.example .env
+   ```
 
-services:
-    flixer:
-        image: ghcr.io/flixermedia/flixer:latest
-        container_name: flixer
-        restart: unless-stopped
-        ports:
-            - "8080:8080"
-        volumes:
-            - ./config:/config
-            - /path/to/your/media:/media
-        environment:
-            - PUID=1000
-            - PGID=1000
-```
+2. Edit `.env`. Set `DATABASE_URL`, generate strong unique values for `JWT_SECRET` and `STREAM_TOKEN_SECRET`, and
+   point `MEDIA_PATH` at your library. The stream token secret is shared with the streamer automatically by Compose.
+   Set `FLIXER_PUBLIC_URL`, `APP_URL`, `PASSKEY_RP_ID`, and `PASSKEY_ORIGINS` to match the URL and hostname clients
+   will use. Use the public HTTPS URL when TLS is terminated by an external proxy.
 
-2. Start the container:
+3. Start the stack:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. Open `http://localhost:8080` (or the host port configured in `HTTP_PORT`) and create the first account.
+
+The default media path is `../flixer-data/media`, matching a sibling checkout of the Flixer data directory. The API
+and streamer receive the same media directory at `/media`; it is read-only inside both containers. Uploaded avatars
+are persisted at `AVATAR_PATH`. If you use a different library location, set `MEDIA_PATH` in `.env`.
+
+The Compose stack pulls `ghcr.io/flixermedia/flixer-web:latest` and
+`ghcr.io/flixermedia/flixer-streamer:latest`, while building the backend and proxy locally. The image workflows in
+the web and streamer repositories publish `main`, release-tag, and commit-SHA images to GitHub Container Registry.
+The backend workflow publishes versioned images and `latest` when a matching `vX.Y.Z` release tag is pushed. If
+packages are private, authenticate Docker to `ghcr.io` before starting the stack.
+
+For development, use `docker-compose.dev.yml`, which builds the API, proxy, and the sibling `../flixer-web` and
+`../flixer-streamer` checkouts from source instead of pulling published images:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml up --build
 ```
 
-3. Open your browser and navigate to **`http://localhost:8080`** to finish the setup wizard!
+It uses the same `.env` and port as the production stack. The local Vite development server continues to proxy `/api`
+directly to `http://localhost:8083`; the Compose stacks instead route all client traffic through the proxy on port 8080.
 
 ### Settings
 

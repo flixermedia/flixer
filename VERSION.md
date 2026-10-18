@@ -17,6 +17,21 @@ still changing. This repository currently starts at `1.0.0`.
 
 ## Preparing a release
 
+Releases are tagged automatically. When a push to `main` contains a `package.json` version that has no `vX.Y.Z` tag
+yet, the release workflow publishes the Docker image, creates the tag, and creates the GitHub Release. If the tag
+already exists, the push is skipped. To release, bump the version and push to `main`:
+
+```powershell
+npm version patch --no-git-tag-version
+```
+
+Replace `patch` with `minor` or `major` when appropriate, commit `package.json` and `package-lock.json`, and push.
+Pushing a matching `vX.Y.Z` tag manually still works; the workflow rejects a tag that differs from `package.json`.
+
+The manual steps below remain valid if you prefer to create the tag yourself.
+
+### Manual tagging
+
 1. Merge the changes intended for release into `main`. Make sure the working
    tree is clean and the changes are committed.
 2. From `main`, choose the appropriate version bump:
