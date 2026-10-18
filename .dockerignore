@@ -4,3 +4,8 @@ Dockerfile
 .env.local
 .env.development
 **/*.spec.ts
+.git
+.gitignore
+dist
+coverage
+logs

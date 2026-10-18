@@ -25,6 +25,7 @@ COPY --from=build /opt .
 RUN npm ci --omit=dev --ignore-scripts
 
 COPY processes.config.cjs ./
+COPY resources ./resources
 
 RUN chown -R node:node "$WORKDIR"
 USER node
