@@ -72,7 +72,8 @@ export class PlaybackService {
 		};
 		const signingInput = `${base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${base64Url(JSON.stringify(claims))}`;
 		const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
-		const streamerUrl = (process.env.STREAMER_PUBLIC_URL || "http://localhost:8091").replace(/\/+$/, "");
+		// Relative by default so clients reach the streamer through the same origin (proxy or Vite dev server).
+		const streamerUrl = (process.env.STREAMER_PUBLIC_URL || "").replace(/\/+$/, "");
 
 		const { relativePath: _relativePath, ...publicSample } = sample;
 		return {
