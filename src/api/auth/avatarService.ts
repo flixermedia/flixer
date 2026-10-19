@@ -3,6 +3,7 @@ import { BadRequest, NotFound, RequestEntityTooLarge } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { AuthService, type PublicUser } from "./authService.js";
 import { deleteAvatarFile, detectAvatarType, MAX_AVATAR_BYTES, mimeForAvatarFile, readAvatarFile, saveAvatarFile } from "./avatarStorage.js";
 
@@ -28,32 +29,30 @@ export class AvatarService {
 			throw new BadRequest("Profile pictures must be a PNG, JPEG, WebP or GIF image.");
 		}
 
-		const repository = this.dataSource.getRepository(User);
-		const user = await repository.findOneByOrFail({ id: current.id });
-		const previous = user.avatarFile;
-		user.avatarFile = await saveAvatarFile(user.id, file.buffer, type);
+		const users = this.dataSource.getRepository(User);
+		const user = await users.findOneByOrFail({ id: current.id });
+		const previous = user.preferences?.avatarFile ?? null;
+		const avatarFile = await saveAvatarFile(user.id, file.buffer, type);
 
-		let saved: User;
 		try {
-			saved = await repository.save(user);
+			await this.dataSource.getRepository(UserPreference).upsert({ userId: user.id, avatarFile }, ["userId"]);
 		} catch (error) {
-			await deleteAvatarFile(user.avatarFile);
+			await deleteAvatarFile(avatarFile);
 			throw error;
 		}
 
 		await deleteAvatarFile(previous);
-		return this.authService.toPublicUserFor(saved);
+		return this.authService.toPublicUserFor(await users.findOneByOrFail({ id: user.id }));
 	}
 
 	async removeAvatar(authorization: string | undefined): Promise<PublicUser> {
 		const current = await this.authService.getAuthenticatedUser(authorization);
-		const repository = this.dataSource.getRepository(User);
-		const user = await repository.findOneByOrFail({ id: current.id });
-		const previous = user.avatarFile;
-		user.avatarFile = null;
-		const saved = await repository.save(user);
+		const users = this.dataSource.getRepository(User);
+		const user = await users.findOneByOrFail({ id: current.id });
+		const previous = user.preferences?.avatarFile ?? null;
+		await this.dataSource.getRepository(UserPreference).upsert({ userId: user.id, avatarFile: null }, ["userId"]);
 		await deleteAvatarFile(previous);
-		return this.authService.toPublicUserFor(saved);
+		return this.authService.toPublicUserFor(await users.findOneByOrFail({ id: user.id }));
 	}
 
 	async getAvatar(filename: string): Promise<{ data: Buffer; mime: string }> {

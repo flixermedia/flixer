@@ -3,6 +3,7 @@ export { AuthController } from "./api/auth/authController.js";
 export { AvatarController } from "./api/auth/avatarController.js";
 export { PasskeyController } from "./api/auth/passkeyController.js";
 export { UserController } from "./api/user/userController.js";
+export { PreferencesController } from "./api/preferences/preferencesController.js";
 export { SettingsController } from "./api/settings/settingsController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";
 export { JobsController } from "./api/jobs/jobsController.js";

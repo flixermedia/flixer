@@ -7,6 +7,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { Setting } from "../../entities/setting.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
 import { User, type UserRole } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { UserSession } from "../../entities/userSession.entity.js";
 import { AccountEmailService } from "./accountEmailService.js";
 import { deleteAvatarFile } from "./avatarStorage.js";
@@ -203,7 +204,7 @@ export class AuthService {
 		}
 
 		await this.dataSource.getRepository(User).delete({ id: user.id });
-		await deleteAvatarFile(user.avatarFile);
+		await deleteAvatarFile(user.preferences?.avatarFile);
 		void this.accountEmail.sendAccountDeletedEmail(user);
 		return { deleted: true };
 	}
@@ -464,8 +465,8 @@ export class AuthService {
 			email: user.email,
 			emailVerified: user.emailVerifiedAt !== null,
 			pendingEmail: user.pendingEmail,
-			passkeyRequired: user.passkeyRequired,
-			avatarUrl: user.avatarFile ? `/auth/avatars/${user.avatarFile}` : null,
+			passkeyRequired: user.preferences?.passkeyRequired ?? false,
+			avatarUrl: user.preferences?.avatarFile ? `/auth/avatars/${user.preferences.avatarFile}` : null,
 			role: user.role,
 			createdAt: user.createdAt,
 		};
@@ -492,7 +493,7 @@ export class AuthService {
 			throw new Forbidden("Please verify your email address before signing in.");
 		}
 
-		if (user.passkeyRequired && (await this.dataSource.getRepository(PasskeyCredential).existsBy({ userId: user.id }))) {
+		if (user.preferences?.passkeyRequired && (await this.dataSource.getRepository(PasskeyCredential).existsBy({ userId: user.id }))) {
 			return { passkeyRequired: true, ticket: this.createPasskeyTicket(user.id) };
 		}
 
@@ -501,15 +502,15 @@ export class AuthService {
 
 	async setPasskeyRequired(authorization: string | undefined, enabled: boolean, password?: string): Promise<PublicUser> {
 		const { user } = await this.requireAuthenticatedSession(authorization);
-		if (!enabled && user.passkeyRequired && (!password || !(await this.verifyPassword(password, user.passwordHash)))) {
+		if (!enabled && user.preferences?.passkeyRequired && (!password || !(await this.verifyPassword(password, user.passwordHash)))) {
 			throw new Unauthorized("Your password is incorrect.");
 		}
 		if (enabled && !(await this.dataSource.getRepository(PasskeyCredential).existsBy({ userId: user.id }))) {
 			throw new BadRequest("Add a passkey before requiring one at sign-in.");
 		}
 
-		user.passkeyRequired = enabled;
-		return this.toPublicUser(await this.dataSource.getRepository(User).save(user));
+		await this.dataSource.getRepository(UserPreference).upsert({ userId: user.id, passkeyRequired: enabled }, ["userId"]);
+		return this.toPublicUser(await this.dataSource.getRepository(User).findOneByOrFail({ id: user.id }));
 	}
 
 	/** Short-lived proof that the password step succeeded, exchanged for a session after a passkey check. */

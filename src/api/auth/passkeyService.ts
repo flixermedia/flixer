@@ -15,7 +15,7 @@ import { DataSource, LessThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PasskeyChallenge, type PasskeyChallengeType } from "../../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
-import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { AuthService, type AuthResult } from "./authService.js";
 
 const CHALLENGE_LIFETIME_MS = 5 * 60 * 1000;
@@ -220,7 +220,7 @@ export class PasskeyService {
 		await repository.remove(credential);
 		// Without any passkeys left, requiring one at sign-in would lock the account out.
 		if (!(await repository.existsBy({ userId: user.id }))) {
-			await this.dataSource.getRepository(User).update({ id: user.id }, { passkeyRequired: false });
+			await this.dataSource.getRepository(UserPreference).update({ userId: user.id }, { passkeyRequired: false });
 		}
 		return { id, deleted: true };
 	}
