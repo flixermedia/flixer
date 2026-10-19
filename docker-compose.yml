@@ -14,7 +14,8 @@ services:
             PORT: 8081
             AVATAR_DIR: /data/avatars
             STREAM_MEDIA_ROOT: /media
-            STREAMER_PUBLIC_URL: ${FLIXER_PUBLIC_URL:-http://localhost:${HTTP_PORT:-8080}}
+            STREAMER_PUBLIC_URL: ""
+            STREAMER_INTERNAL_URL: http://streamer:8091
         volumes:
             - ${AVATAR_PATH:-../flixer-data/avatars}:/data/avatars
             - ${MEDIA_PATH:-../flixer-data/media}:/media:ro

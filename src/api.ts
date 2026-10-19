@@ -6,3 +6,4 @@ export { UserController } from "./api/user/userController.js";
 export { SettingsController } from "./api/settings/settingsController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";
 export { JobsController } from "./api/jobs/jobsController.js";
+export { StreamsController } from "./api/streams/streamsController.js";

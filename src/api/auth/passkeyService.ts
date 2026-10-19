@@ -71,18 +71,22 @@ export class PasskeyService {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const registration = response as RegistrationResponseJSON;
 
-		const verification = await this.verifyOrReject(() =>
-			verifyRegistrationResponse({
+		// A failed registration is not an authentication failure, so it must not be a 401 (the client signs out on 401).
+		let verification;
+		try {
+			verification = await verifyRegistrationResponse({
 				response: registration,
 				expectedChallenge: (challenge) => this.consumeChallenge(challenge, "registration", user.id),
 				expectedOrigin: this.getAllowedOrigins(),
 				expectedRPID: this.getRelyingPartyId(),
 				requireUserVerification: false,
-			}),
-		);
+			});
+		} catch (error) {
+			throw new BadRequest(error instanceof Error ? error.message : "The passkey could not be verified.");
+		}
 
 		if (!verification.verified || !verification.registrationInfo) {
-			throw new Unauthorized("The passkey could not be verified.");
+			throw new BadRequest("The passkey could not be verified.");
 		}
 
 		const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
