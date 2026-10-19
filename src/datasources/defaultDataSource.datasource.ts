@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { Setting } from "../entities/setting.entity.js";
+import { UserPreference } from "../entities/userPreference.entity.js";
 import { PasskeyChallenge } from "../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../entities/passkeyCredential.entity.js";
 import { AddUsername1792190000000 } from "../migrations/addUsername1792190000000.js";
@@ -16,6 +17,8 @@ import { AddUserEmailVerified1792500000000 } from "../migrations/addUserEmailVer
 import { AddUserPendingEmail1792600000000 } from "../migrations/addUserPendingEmail1792600000000.js";
 import { AddUserPasskeyRequired1792700000000 } from "../migrations/addUserPasskeyRequired1792700000000.js";
 import { AddUserAvatar1792800000000 } from "../migrations/addUserAvatar1792800000000.js";
+import { CreateUserPreferences1792900000000 } from "../migrations/createUserPreferences1792900000000.js";
+import { MoveUserSettingsToPreferences1793000000000 } from "../migrations/moveUserSettingsToPreferences1793000000000.js";
 import { synchronizeSettings } from "../config/settingsSync.js";
 import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
 
@@ -30,7 +33,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 		const dataSource = new DataSource({
 			type: "postgres",
 			url,
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge],
+			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -43,6 +46,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddUserPendingEmail1792600000000,
 				AddUserPasskeyRequired1792700000000,
 				AddUserAvatar1792800000000,
+				CreateUserPreferences1792900000000,
+				MoveUserSettingsToPreferences1793000000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

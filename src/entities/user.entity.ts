@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, OneToOne, PrimaryColumn } from "typeorm";
+import { UserPreference } from "./userPreference.entity.js";
 
 export type UserRole = "admin" | "user";
 
@@ -29,11 +30,9 @@ export class User {
 	@Column({ name: "pending_email", type: "varchar", length: 254, nullable: true })
 	pendingEmail!: string | null;
 
-	@Column({ name: "passkey_required", type: "boolean", default: false })
-	passkeyRequired!: boolean;
-
-	@Column({ name: "avatar_file", type: "varchar", length: 128, nullable: true })
-	avatarFile!: string | null;
+	/** Loaded with every user query. Null until the user has a preferences row (defaults apply). */
+	@OneToOne(() => UserPreference, (preference) => preference.user, { eager: true })
+	preferences?: UserPreference | null;
 
 	@CreateDateColumn({ name: "created_at", type: "timestamptz" })
 	createdAt!: Date;
