@@ -8,6 +8,7 @@
 		"prepare": "husky",
 		"start": "npm run barrels && tsed dev",
 		"start:prod": "cross-env NODE_ENV=production node dist/index.js",
+		"kill:port": "node scripts/kill-port.mjs 8083",
 		"insomnia:update": "node scripts/update-insomnia.mjs",
 		"format": "node scripts/format.mjs --write",
 		"format:check": "node scripts/format.mjs --check",
