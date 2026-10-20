@@ -1,8 +1,9 @@
-import { Property, Required } from "@tsed/schema";
+import { Required, Schema } from "@tsed/schema";
 
 export class SettingRequest {
 
-	@Property()
+	// @Any() would emit overlapping integer/number oneOf branches, rejecting every number.
+	@Schema({ type: ["null", "number", "string", "boolean", "array", "object"] } as never)
 	@Required()
 	value!: unknown;
 }
