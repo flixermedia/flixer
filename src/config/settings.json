@@ -33,5 +33,40 @@
 		"key": "secret_key",
 		"defaultValue": null,
 		"isPublic": false
+	},
+	{
+		"key": "sentry_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_flixer_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_streamer_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_web_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_flixer_dsn",
+		"defaultValue": "https://749a5ec6e67365da970d126ddce48375@o4512285684596736.ingest.us.sentry.io/4512285693771776",
+		"isPublic": false
+	},
+	{
+		"key": "sentry_streamer_dsn",
+		"defaultValue": "https://b3aa85a36bc644ddfd7165b5f0fd46e4@o4512285684596736.ingest.us.sentry.io/4512285696393216",
+		"isPublic": false
+	},
+	{
+		"key": "sentry_web_dsn",
+		"defaultValue": "https://d1b4ac66b848d6c4b977e6eecbb69a64@o4512285684596736.ingest.us.sentry.io/4512285695148032",
+		"isPublic": false
 	}
 ]

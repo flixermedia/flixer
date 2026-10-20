@@ -1,0 +1,36 @@
+// Tails the JSON log files written by flixer and flixer-streamer (LOG_DIR) and ships them to Loki.
+local.file_match "apps" {
+  path_targets = [
+    {"__path__" = "/logs/flixer.log", "app" = "flixer"},
+    {"__path__" = "/logs/streamer.log", "app" = "streamer"},
+  ]
+}
+
+loki.source.file "apps" {
+  targets    = local.file_match.apps.targets
+  forward_to = [loki.process.apps.receiver]
+}
+
+// Promote the log level to a label so it can be filtered cheaply; everything else stays in the JSON line.
+loki.process "apps" {
+  stage.json {
+    expressions = { level = "level" }
+  }
+
+  stage.template {
+    source   = "level"
+    template = "{{ ToLower .Value }}"
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

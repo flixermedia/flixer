@@ -13,6 +13,8 @@ import * as api from "./api.js";
 import { config } from "./config/config.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
+import "./sentry/sentryErrorFilter.js";
+import { SentryService } from "./sentry/sentryService.js";
 
 const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 		use: "fastify-raw-body",
@@ -26,7 +28,7 @@ const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler],
+	imports: [DefaultDataSource, JobScheduler, SentryService],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE

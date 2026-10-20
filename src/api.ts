@@ -8,3 +8,4 @@ export { SettingsController } from "./api/settings/settingsController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";
 export { JobsController } from "./api/jobs/jobsController.js";
 export { StreamsController } from "./api/streams/streamsController.js";
+export { SentryController } from "./sentry/sentryController.js";

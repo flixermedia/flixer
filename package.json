@@ -1,6 +1,6 @@
 {
 	"name": "flixer",
-	"version": "1.3.0",
+	"version": "1.4.0",
 	"description": "",
 	"scripts": {
 		"build": "npm run barrels && tsed build",
@@ -22,6 +22,7 @@
 		"@fastify/middie": "^9.3.5",
 		"@fastify/session": "^11.1.4",
 		"@fastify/static": "^10.1.6",
+		"@sentry/node": "^11.8.0",
 		"@simplewebauthn/server": "^14.0.3",
 		"@tsed/ajv": "^8.44.0",
 		"@tsed/barrels": "^7.8.1",
@@ -33,6 +34,7 @@
 		"@tsed/exceptions": "^8.44.0",
 		"@tsed/json-mapper": "^8.44.0",
 		"@tsed/logger": "^8.0.7",
+		"@tsed/logger-file": "^8.0.7",
 		"@tsed/logger-std": "^8.0.7",
 		"@tsed/openspec": "^8.44.0",
 		"@tsed/platform-cache": "^8.44.0",

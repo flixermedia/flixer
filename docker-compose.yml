@@ -43,6 +43,7 @@ services:
             FFMPEG_PATH: ffmpeg
             FFPROBE_PATH: ffprobe
             TRANSCODE_DIR: /var/cache/flixer/transcode
+            FLIXER_URL: http://api:8081
             MAX_TRANSCODES: ${MAX_TRANSCODES:-2}
             LOG_LEVEL: ${STREAMER_LOG_LEVEL:-info}
         volumes:

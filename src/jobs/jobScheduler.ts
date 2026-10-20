@@ -4,6 +4,7 @@ import { BadRequest } from "@tsed/exceptions";
 import { PgBoss, type JobWithMetadata, type QueueResult, type Schedule } from "pg-boss";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
+import { SentryService } from "../sentry/sentryService.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 
 const SESSION_CLEANUP_CRON = "0 * * * *";
@@ -17,7 +18,10 @@ export class JobScheduler {
 
 	private boss?: PgBoss;
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly sentryService: SentryService,
+	) {}
 
 	async $onInit(): Promise<void> {
 		const connectionString = process.env.DATABASE_URL;
@@ -31,12 +35,20 @@ export class JobScheduler {
 		});
 		boss.on("error", (error) => {
 			logger().error("pg-boss reported a scheduler error.", error);
+			this.sentryService.captureException(error);
 		});
 
 		await boss.start();
 		const [setupError] = await tryCatch(async () => {
 			await boss.createQueue(SESSION_CLEANUP_JOB);
-			await boss.work(SESSION_CLEANUP_JOB, () => cleanupExpiredUserSessions(this.dataSource));
+			await boss.work(SESSION_CLEANUP_JOB, async () => {
+				const [jobError] = await tryCatch(() => cleanupExpiredUserSessions(this.dataSource));
+				if (jobError) {
+					logger().error(`Job ${SESSION_CLEANUP_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
 			await boss.schedule(SESSION_CLEANUP_JOB, SESSION_CLEANUP_CRON);
 		});
 		if (setupError) {
