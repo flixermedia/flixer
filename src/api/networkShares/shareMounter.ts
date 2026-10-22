@@ -37,6 +37,15 @@ function redact(text: string, secrets: string[]): string {
 	return result.replace(/\s+/g, " ").trim();
 }
 
+/** On Linux without root, SMB_MOUNT_SUDO=true runs mount/umount through passwordless sudo. */
+function privileged(command: string, args: string[], env?: NodeJS.ProcessEnv): [string, string[]] {
+	if (process.platform === "linux" && process.getuid?.() !== 0 && process.env.SMB_MOUNT_SUDO === "true") {
+		const keep = Object.keys(env ?? {});
+		return ["sudo", ["-n", ...(keep.length ? [`--preserve-env=${keep.join(",")}`] : []), command, ...args]];
+	}
+	return [command, args];
+}
+
 function run(command: string, args: string[], secrets: string[], env?: NodeJS.ProcessEnv): Promise<string> {
 	return new Promise((resolvePromise, reject) => {
 		execFile(command, args, { timeout: COMMAND_TIMEOUT_MS, windowsHide: true, maxBuffer: 1024 * 1024, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
@@ -101,7 +110,9 @@ async function mountLinux(target: MountTarget, path: string): Promise<void> {
 	].join(",");
 	try {
 		// The password goes in the environment (PASSWD) so it never appears in the process list.
-		await run("mount", ["-t", "cifs", `//${target.host}/${target.share}`, path, "-o", options], secretsOf(target), target.password ? { PASSWD: target.password } : undefined);
+		const env = target.password ? { PASSWD: target.password } : undefined;
+		const [command, args] = privileged("mount", ["-t", "cifs", `//${target.host}/${target.share}`, path, "-o", options], env);
+		await run(command, args, secretsOf(target), env);
 	} catch (error: unknown) {
 		if (error instanceof MountError && process.getuid?.() !== 0) {
 			throw new MountError(`${error.message} Mounting a share needs root or the SYS_ADMIN capability; run flixer with it, or mount the share yourself and list its folder in STREAM_MEDIA_ROOT instead.`);
@@ -132,7 +143,7 @@ export async function mountShare(target: MountTarget, force = false): Promise<st
 			if (!force) {
 				return path;
 			}
-			await run("umount", [path], []);
+			await run(...privileged("umount", [path]), []);
 		}
 		await (process.platform === "linux" ? mountLinux(target, path) : mountMac(target, path));
 	} else {
@@ -152,7 +163,7 @@ export async function unmountShare(target: Pick<MountTarget, "id" | "host" | "sh
 		return;
 	}
 	if (await isMounted(path)) {
-		await run("umount", [path], []);
+		await run(...privileged("umount", [path]), []);
 	}
 	await rmdir(path).catch(() => undefined);
 }
