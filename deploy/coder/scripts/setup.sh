@@ -41,6 +41,7 @@ STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
 LOG_DIR=$ROOT/flixer-data/logs
 STREAMER_INTERNAL_URL=http://localhost:8091
 INDEXER_URL=http://localhost:8092
+SMB_MOUNT_SUDO=true
 EOF
 fi
 
