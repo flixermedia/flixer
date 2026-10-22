@@ -37,6 +37,13 @@ flixer-stack restart indexer
 flixer-stack logs api        # logs are in ~/logs/<service>.log
 ```
 
+## GitHub access
+
+The template uses Coder's GitHub external authentication: `git` authenticates through the agent's credential helper and `gh`
+reads `GH_TOKEN`, both as the GitHub account linked to the workspace owner. The Coder deployment needs a GitHub provider
+(`CODER_EXTERNAL_AUTH_0_ID=github`, `CODER_EXTERNAL_AUTH_0_TYPE=github`, plus client ID and secret). On first workspace
+creation Coder prompts the owner to link their account. Commits use the owner's Coder name and email. Check with `gh auth status`.
+
 ## Parameters
 
 - **Git base URL**: where the repos are cloned from (default `https://github.com/flixermedia`). Private repos use Coder's git authentication.

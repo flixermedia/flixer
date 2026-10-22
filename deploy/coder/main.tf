@@ -15,6 +15,11 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+# Requires a GitHub external auth provider (id "github") on the Coder deployment; the owner links their account once.
+data "coder_external_auth" "github" {
+  id = "github"
+}
+
 data "coder_parameter" "git_base_url" {
   name         = "git_base_url"
   display_name = "Git base URL"
@@ -57,6 +62,7 @@ resource "coder_agent" "main" {
     GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
     GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
     GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
+    GH_TOKEN            = data.coder_external_auth.github.access_token
     GIT_BASE_URL        = trimsuffix(data.coder_parameter.git_base_url.value, "/")
     PUBLIC_URL          = local.public_url
     PUBLIC_HOST         = local.public_host
