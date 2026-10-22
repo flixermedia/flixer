@@ -7,7 +7,7 @@ ROOT="$HOME/projects"
 mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/media-images" "$ROOT/flixer-data/logs"
 export PATH="$HOME/bin:$PATH"
 
-for repo in flixer flixer-web flixer-indexer flixer-streamer; do
+for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs; do
   [ -d "$ROOT/$repo/.git" ] || git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo"
 done
 
@@ -66,13 +66,13 @@ fi
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash
-# Usage: flixer-stack [start|stop|restart|status|logs [service]] — services: api web indexer streamer
+# Usage: flixer-stack [start|stop|restart|status|logs [service]] — services: api web indexer streamer docs
 set -uo pipefail
 ROOT="$HOME/projects"
 RUN="$HOME/.flixer-run"
 LOGS="$HOME/logs"
 mkdir -p "$RUN" "$LOGS"
-SERVICES="api streamer indexer web"
+SERVICES="api streamer indexer web docs"
 
 command_for() {
   case "$1" in
@@ -80,6 +80,7 @@ command_for() {
     streamer) echo "$ROOT/flixer-streamer|go run ./cmd/flixer-streamer" ;;
     indexer) echo "$ROOT/flixer-indexer|go run ./cmd/flixer-indexer" ;;
     web) echo "$ROOT/flixer-web|npm run dev -- --port 5173" ;;
+    docs) echo "$ROOT/flixer-docs|npm start -- --host 0.0.0.0 --port 3000 --no-open" ;;
   esac
 }
 
@@ -122,6 +123,7 @@ install_node() {
 }
 install_node flixer
 install_node flixer-web
+install_node flixer-docs
 (cd "$ROOT/flixer-indexer" && go mod download)
 (cd "$ROOT/flixer-streamer" && go mod download)
 
