@@ -205,9 +205,10 @@ resource "docker_container" "workspace" {
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
   env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
 
-  # Lets flixer mount SMB shares (via sudo, see SMB_MOUNT_SUDO).
+  # Lets flixer mount SMB shares (via sudo, see SMB_MOUNT_SUDO). mount.cifs also needs
+  # DAC_READ_SEARCH, or it fails with "Unable to apply new capability set".
   capabilities {
-    add = ["SYS_ADMIN"]
+    add = ["SYS_ADMIN", "DAC_READ_SEARCH"]
   }
 
   host {
