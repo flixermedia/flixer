@@ -15,9 +15,10 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# Requires a GitHub external auth provider (id "github") on the Coder deployment; the owner links their account once.
+# Uses the GitHub external auth provider (id "github") of the Coder deployment when it is configured; the owner links their account once.
 data "coder_external_auth" "github" {
-  id = "github"
+  id       = "github"
+  optional = true
 }
 
 data "coder_parameter" "git_base_url" {
