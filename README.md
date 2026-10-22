@@ -91,6 +91,17 @@ Compose also runs `flixer-indexer` (with Redis), which scans libraries and store
 `/api/admin/indexer/*`; flixer reaches the indexer at `INDEXER_URL` (default `http://localhost:8092` outside Compose).
 The indexer mounts the media directory read-write so artwork can be saved alongside media.
 
+#### SMB shares in Docker
+
+- **Windows, macOS and Linux:** set `SMB_HOST`, `SMB_SHARE`, and usually `SMB_USERNAME` and `SMB_PASSWORD` in `.env`,
+  then start the stack with `docker compose -f docker-compose.yml -f docker-compose.smb-volume.yml up -d` (or set
+  `COMPOSE_FILE=docker-compose.yml:docker-compose.smb-volume.yml`, separating files with `;` on Windows). Docker mounts
+  the share as a CIFS volume at `/smb` in the API, streamer, and indexer, and it is added to the media roots so you can
+  create a library from it. Use the server's IP address for `SMB_HOST`, and add `SMB_OPTIONS=ro` to mount it read-only.
+- **Linux only:** `docker-compose.smb.yml` lets flixer mount shares itself from **Libraries > Network shares**. It
+  needs root and `SYS_ADMIN` in the API container and mount propagation, which Docker Desktop on Windows and macOS
+  does not support, so the stack fails to start there.
+
 The Compose stack pulls `ghcr.io/flixermedia/flixer-web:latest` and
 `ghcr.io/flixermedia/flixer-streamer:latest`, while building the backend and proxy locally. The image workflows in
 the web and streamer repositories publish `main`, release-tag, and commit-SHA images to GitHub Container Registry.

@@ -2,10 +2,32 @@ import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { PersonProfile } from "../../entities/personProfile.entity.js";
 import { WatchProgress } from "../../entities/watchProgress.entity.js";
+import { IndexerClient } from "../indexer/indexerClient.js";
+import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
+import { allowedPersonImage, fetchPersonImage } from "./personImages.js";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PROFILE_REFRESH_MS = 180 * 24 * 60 * 60 * 1000;
+const PROFILE_RETRY_MS = 14 * 24 * 60 * 60 * 1000;
+const PROFILE_LINK_PREFIXES = ["https://en.wikipedia.org/", "https://www.discogs.com/"];
+
+export interface PersonProfileView {
+	description: string | null;
+	biography: string | null;
+	source: string | null;
+	sourceUrl: string | null;
+}
+
+function toProfileView(row: PersonProfile): PersonProfileView | null {
+	return row.biography || row.description ? { description: row.description, biography: row.biography, source: row.source, sourceUrl: row.sourceUrl } : null;
+}
+
+const ROLE_ORDER = ["artist", "actor", "director", "writer", "producer", "composer"];
 const FEATURED_COUNT = 5;
 const FEATURED_CANDIDATES = 40;
 const ROW_SIZE = 20;
@@ -53,16 +75,37 @@ function runtimeOf(item: MediaItem): number | null {
 	return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds / 60) : null;
 }
 
-/** Names and roles only; image paths on people are not exposed. */
-function peopleOf(value: unknown): Array<{ name: string; role: string | null }> {
+/** Names, roles and whether a photo is available; the photo URL itself is never exposed. */
+function peopleOf(value: unknown): Array<{ id: string; name: string; role: string | null; hasImage: boolean }> {
 	if (!Array.isArray(value)) {
 		return [];
 	}
 	return value
-		.map((person) => person as { name?: unknown; role?: unknown })
-		.filter((person) => typeof person?.name === "string" && person.name.length > 0)
+		.map((person) => person as { name?: unknown; role?: unknown; image?: unknown })
+		.filter((person) => typeof person?.name === "string" && person.name.trim().length > 0)
 		.slice(0, 20)
-		.map((person) => ({ name: person.name as string, role: textOf(person.role) }));
+		.map((person) => ({ id: personIdOf(person.name as string), name: person.name as string, role: textOf(person.role), hasImage: allowedPersonImage(person.image) !== null }));
+}
+
+/** Crew with their department (director, writer, ...), one entry per person and department. */
+function crewOf(value: unknown): Array<{ id: string; name: string; role: string; hasImage: boolean }> {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	const seen = new Set<string>();
+	const crew: Array<{ id: string; name: string; role: string; hasImage: boolean }> = [];
+	for (const entry of value) {
+		const person = entry as { name?: unknown; type?: unknown; image?: unknown } | null;
+		if (typeof person?.name !== "string" || !person.name.trim()) {
+			continue;
+		}
+		const role = typeof person.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : "crew";
+		if (!seen.has(`${person.name}|${role}`)) {
+			seen.add(`${person.name}|${role}`);
+			crew.push({ id: personIdOf(person.name), name: person.name.trim(), role, hasImage: allowedPersonImage(person.image) !== null });
+		}
+	}
+	return crew.slice(0, 30);
 }
 
 export interface HomeCard {
@@ -117,7 +160,12 @@ const CONTINUE_LIMIT = 20;
 @Injectable()
 export class MediaHomeService {
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		@Inject(IndexerClient) private readonly indexer: IndexerClient,
+	) {}
+
+	private readonly profileLookups = new Map<string, Promise<PersonProfile | null>>();
 
 	async home(userId: string) {
 		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([
@@ -282,9 +330,14 @@ export class MediaHomeService {
 			genres: stringsOf(metadata.genres),
 			studios: stringsOf(metadata.studios),
 			cast: peopleOf(metadata.cast),
+			crew: crewOf(metadata.crew),
 			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<string, number>,
 			status: textOf(metadata.status),
 			artist: textOf(metadata.artist ?? metadata.albumArtist),
+			artistId: (() => {
+				const artist = textOf(metadata.artist ?? metadata.albumArtist);
+				return artist ? personIdOf(artist) : null;
+			})(),
 			technical: item.technical
 				? {
 						container: textOf(item.technical.container),
@@ -361,6 +414,116 @@ export class MediaHomeService {
 		}
 		const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
 		return { total, items: items.map((item) => this.toCard(item)) };
+	}
+
+	/** Everything a person is credited on (albums, movies, shows), grouped by role, matched by name ignoring case. */
+	async person(id: string): Promise<{ id: string; name: string; hasImage: boolean; profile: PersonProfileView | null; groups: Array<{ role: string; items: Array<HomeCard & { detail: string | null }> }> }> {
+		if (!UUID_PATTERN.test(id)) {
+			throw new NotFound("Person not found.");
+		}
+		const credits = await this.dataSource
+			.getRepository(MediaCredit)
+			.createQueryBuilder("credit")
+			.innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false")
+			.where("credit.person_id = :id", { id: id.toLowerCase() })
+			.orderBy("item.year", "DESC", "NULLS LAST")
+			.addOrderBy("COALESCE(item.sort_title, item.title)", "ASC")
+			.getMany();
+		if (credits.length === 0) {
+			throw new NotFound("Person not found.");
+		}
+		const groups = new Map<string, Map<string, HomeCard & { detail: string | null }>>();
+		for (const credit of credits) {
+			const item = (credit as MediaCredit & { item: MediaItem }).item;
+			const role = credit.role === "albumArtist" ? "artist" : credit.role;
+			const cards = groups.get(role) ?? new Map<string, HomeCard & { detail: string | null }>();
+			cards.set(item.id, { ...this.toCard(item), detail: credit.detail || null });
+			groups.set(role, cards);
+		}
+		const rank = (role: string) => {
+			const index = ROLE_ORDER.indexOf(role);
+			return index === -1 ? ROLE_ORDER.length : index;
+		};
+		const kind = groups.has("artist") ? "artist" : "film";
+		const stored = await this.profileOf(credits[0].personId, credits[0].name, kind);
+		return {
+			id: credits[0].personId,
+			name: credits[0].name,
+			hasImage: credits.some((credit) => allowedPersonImage(credit.image) !== null) || allowedPersonImage(stored?.image) !== null,
+			profile: stored ? toProfileView(stored) : null,
+			groups: [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([role, cards]) => ({ role, items: [...cards.values()] })),
+		};
+	}
+
+	/** The stored profile, fetched through the indexer the first time a person is viewed. Misses are retried after two weeks. */
+	private profileOf(personId: string, name: string, kind: string): Promise<PersonProfile | null> {
+		const pending = this.profileLookups.get(personId);
+		if (pending) {
+			return pending;
+		}
+		const lookup = this.loadProfile(personId, name, kind).finally(() => this.profileLookups.delete(personId));
+		this.profileLookups.set(personId, lookup);
+		return lookup;
+	}
+
+	private async loadProfile(personId: string, name: string, kind: string): Promise<PersonProfile | null> {
+		const repository = this.dataSource.getRepository(PersonProfile);
+		const stored = await repository.findOneBy({ personId });
+		const age = stored ? Date.now() - stored.fetchedAt.getTime() : Infinity;
+		if (!stored || age > (stored.biography ? PROFILE_REFRESH_MS : PROFILE_RETRY_MS)) {
+			try {
+				const bio = await this.indexer.fetchPersonBio(name, kind);
+				const row = repository.create({
+					personId,
+					description: bio?.description || null,
+					biography: bio?.biography || null,
+					source: bio?.source || null,
+					sourceUrl: bio?.url && PROFILE_LINK_PREFIXES.some((prefix) => bio.url.startsWith(prefix)) ? bio.url : null,
+					image: allowedPersonImage(bio?.imageUrl),
+					fetchedAt: new Date(),
+				});
+				await repository.save(row);
+				return row;
+			} catch {
+				// The indexer or Wikipedia is unavailable; keep any older copy and try again on the next view.
+			}
+		}
+		return stored;
+	}
+
+	/** A person's photo, taken from the first credit that has one, scaled to the requested width. */
+	async personImage(id: string, width?: number): Promise<{ data: Buffer; mime: string }> {
+		if (!UUID_PATTERN.test(id)) {
+			throw new NotFound("Image not found.");
+		}
+		const credits = await this.dataSource
+			.getRepository(MediaCredit)
+			.createQueryBuilder("credit")
+			.where("credit.person_id = :id AND credit.image IS NOT NULL", { id: id.toLowerCase() })
+			.orderBy("credit.position", "ASC")
+			.limit(10)
+			.getMany();
+		let url = credits.map((credit) => allowedPersonImage(credit.image)).find((value): value is string => value !== null);
+		if (!url) {
+			const profile = await this.dataSource.getRepository(PersonProfile).findOneBy({ personId: id.toLowerCase() });
+			url = allowedPersonImage(profile?.image) ?? undefined;
+		}
+		if (!url) {
+			throw new NotFound("Image not found.");
+		}
+		return resizeImage(() => this.loadPersonPhoto(url), `person:${url}`, normalizeWidth(width));
+	}
+
+	/** Prefers the indexer's on-disk cache, and goes straight to the provider only when the indexer is unreachable. */
+	private async loadPersonPhoto(url: string): Promise<{ data: Buffer; mime: string }> {
+		try {
+			return await this.indexer.fetchPersonImage(url);
+		} catch (error) {
+			if ((error as { status?: number }).status === 503) {
+				return fetchPersonImage(url);
+			}
+			throw error;
+		}
 	}
 
 	private toCard(item: MediaItem): HomeCard {

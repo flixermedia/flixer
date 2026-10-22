@@ -9,6 +9,13 @@ import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
 import { MediaItem } from "../entities/mediaItem.entity.js";
 import { NetworkShare } from "../entities/networkShare.entity.js";
 import { WatchProgress } from "../entities/watchProgress.entity.js";
+import { MediaCredit } from "../entities/mediaCredit.entity.js";
+import { PersonProfile } from "../entities/personProfile.entity.js";
+import { CreatePersonProfiles1794200000000 } from "../migrations/createPersonProfiles1794200000000.js";
+import { AddPersonProfileImage1794300000000 } from "../migrations/addPersonProfileImage1794300000000.js";
+import { AddMediaCreditImage1794100000000 } from "../migrations/addMediaCreditImage1794100000000.js";
+import { AddMediaCreditPersonId1794000000000 } from "../migrations/addMediaCreditPersonId1794000000000.js";
+import { CreateMediaCredits1793900000000 } from "../migrations/createMediaCredits1793900000000.js";
 import { CreateWatchProgress1793800000000 } from "../migrations/createWatchProgress1793800000000.js";
 import { CreateNetworkShares1793600000000 } from "../migrations/createNetworkShares1793600000000.js";
 import { AddMediaItemLastSeenAt1793700000000 } from "../migrations/addMediaItemLastSeenAt1793700000000.js";
@@ -48,7 +55,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			url,
 			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
 			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress],
+			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress, MediaCredit, PersonProfile],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -71,6 +78,11 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateNetworkShares1793600000000,
 				AddMediaItemLastSeenAt1793700000000,
 				CreateWatchProgress1793800000000,
+				CreateMediaCredits1793900000000,
+				AddMediaCreditPersonId1794000000000,
+				AddMediaCreditImage1794100000000,
+				CreatePersonProfiles1794200000000,
+				AddPersonProfileImage1794300000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

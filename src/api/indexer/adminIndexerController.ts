@@ -96,6 +96,14 @@ export class AdminIndexerController {
 		return result;
 	}
 
+	@Post("/queues/:queue/clear-failed")
+	async clearFailed(@PathParams("queue") queue: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		const result = await this.indexer.request("POST", `/internal/queues/${this.requireQueue(queue)}/clear-failed`);
+		this.live.invalidate("indexer");
+		return result;
+	}
+
 	@Post("/queues/:queue/pause")
 	async pause(@PathParams("queue") queue: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);

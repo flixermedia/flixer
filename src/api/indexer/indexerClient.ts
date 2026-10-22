@@ -78,6 +78,39 @@ export class IndexerClient {
 		return { data: Buffer.from(await response.arrayBuffer()), contentType: response.headers.get("content-type") ?? "application/octet-stream" };
 	}
 
+	/** Fetches a person photo through the indexer, which downloads it once and serves it from its cache. */
+	async fetchPersonImage(photoUrl: string): Promise<{ data: Buffer; mime: string }> {
+		const body = Buffer.from(JSON.stringify({ url: photoUrl }));
+		const url = new URL(`${this.baseUrl()}/internal/people/image`);
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				method: "POST",
+				headers: { ...signIndexerRequest("POST", url.pathname, body), "content-type": "application/json" },
+				body,
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+			});
+		} catch {
+			throw new Exception(503, "flixer-indexer is not reachable.");
+		}
+		if (!response.ok) {
+			throw new Exception(response.status === 404 ? 404 : 502, "The image could not be loaded.");
+		}
+		return { data: Buffer.from(await response.arrayBuffer()), mime: response.headers.get("content-type")?.split(";")[0].trim() ?? "image/jpeg" };
+	}
+
+	/** Looks up a person's biography through the indexer; resolves to null when none exists. */
+	async fetchPersonBio(name: string, kind: string): Promise<{ description: string; biography: string; url: string; source: string; imageUrl?: string } | null> {
+		try {
+			return await this.request("POST", "/internal/people/bio", { body: { name, kind }, timeoutMs: 8_000 });
+		} catch (error) {
+			if ((error as { status?: number }).status === 404) {
+				return null;
+			}
+			throw error;
+		}
+	}
+
 	/** Asks the indexer to re-read settings and libraries; failures are not fatal because the indexer also polls. */
 	async reloadSettings(): Promise<void> {
 		await this.request("POST", "/internal/settings/reload").catch(() => undefined);

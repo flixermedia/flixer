@@ -5,6 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
+import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
 
 export const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
@@ -125,14 +126,19 @@ export class AdminMediaService {
 		return { ...rest, images: (images ?? []).map(toImage), parent: parent ? { id: parent.id, title: parent.title, type: parent.type } : null, childCount };
 	}
 
-	/** The bytes of one of an item's images, read from flixer's own storage or fetched from the indexer. */
-	async image(id: string, index: number): Promise<{ data: Buffer; mime: string }> {
+	/** The bytes of one of an item's images, read from flixer's own storage or fetched from the indexer. A width scales it down. */
+	async image(id: string, index: number, width?: number): Promise<{ data: Buffer; mime: string }> {
 		const item = await this.find(id);
 		const stored = (item.images ?? [])[index] as StoredImage | undefined;
 		if (!stored || typeof stored.path !== "string" || !stored.path) {
 			throw new NotFound("Image not found.");
 		}
-		const upload = uploadFilename(stored.path);
+		const path = stored.path;
+		return resizeImage(() => this.readImage(path), `${id}:${index}:${path}`, normalizeWidth(width));
+	}
+
+	private async readImage(path: string): Promise<{ data: Buffer; mime: string }> {
+		const upload = uploadFilename(path);
 		if (upload) {
 			const data = await readUpload(upload);
 			const mime = mimeForUpload(upload);
@@ -141,7 +147,7 @@ export class AdminMediaService {
 			}
 			return { data, mime };
 		}
-		const { data, contentType } = await this.indexer.fetchImage(stored.path);
+		const { data, contentType } = await this.indexer.fetchImage(path);
 		return { data, mime: contentType };
 	}
 
