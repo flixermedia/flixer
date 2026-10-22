@@ -30,6 +30,10 @@ export class User {
 	@Column({ name: "pending_email", type: "varchar", length: 254, nullable: true })
 	pendingEmail!: string | null;
 
+	/** Set while an administrator has disabled the account; disabled users cannot sign in. */
+	@Column({ name: "disabled_at", type: "timestamptz", nullable: true })
+	disabledAt!: Date | null;
+
 	/** Loaded with every user query. Null until the user has a preferences row (defaults apply). */
 	@OneToOne(() => UserPreference, (preference) => preference.user, { eager: true })
 	preferences?: UserPreference | null;

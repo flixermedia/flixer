@@ -32,6 +32,11 @@ export class StreamsService {
 
 	async listSessions(authorization?: string) {
 		await this.authService.requireAdmin(authorization);
+		return this.fetchSessions();
+	}
+
+	/** Same as listSessions for callers that have already checked access, such as the live socket. */
+	async fetchSessions() {
 		const response = await this.request("/admin/sessions", "GET");
 		const data = (await response.json()) as StreamerSessions;
 

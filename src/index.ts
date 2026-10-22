@@ -3,8 +3,11 @@ import { tryCatch } from "@dschz/try-catch";
 import { $log } from "@tsed/logger";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { Server } from "./server.js";
+import { freePortIfBusy } from "./utils/freePort.js";
 
 async function startServer(): Promise<void> {
+
+	await freePortIfBusy(Number(process.env.PORT || 8083), (message) => $log.warn(message));
 
 	const [bootstrapError, platform] = await tryCatch(async () => {
 		const platform = await PlatformFastify.bootstrap(Server);

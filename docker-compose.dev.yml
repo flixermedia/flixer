@@ -42,7 +42,6 @@ services:
         environment:
             PORT: 8091
             STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:?Set STREAM_TOKEN_SECRET in .env}
-            MEDIA_ROOTS: '["/media"]'
             FFMPEG_PATH: ffmpeg
             FFPROBE_PATH: ffprobe
             TRANSCODE_DIR: /var/cache/flixer/transcode
