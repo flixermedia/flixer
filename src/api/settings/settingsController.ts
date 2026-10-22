@@ -1,6 +1,6 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
-import { Get, Put, Security } from "@tsed/schema";
+import { Get, Post, Put, Security } from "@tsed/schema";
 import { SettingRequest } from "./settingRequest.js";
 import { SettingsService } from "./settingsService.js";
 
@@ -18,6 +18,12 @@ export class SettingsController {
 	@Get("/registration")
 	registrationStatus() {
 		return this.settingsService.getRegistrationStatus();
+	}
+
+	@Post("/email/test")
+	@Security("BearerAuth")
+	sendTestEmail(@HeaderParams("authorization") authorization?: string) {
+		return this.settingsService.sendTestEmail(authorization);
 	}
 
 	@Put("/:key")

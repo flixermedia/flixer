@@ -13,6 +13,8 @@ import * as api from "./api.js";
 import { config } from "./config/config.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
+import { LiveLogService } from "./logs/liveLogService.js";
+import { LiveService } from "./live/liveService.js";
 import "./sentry/sentryErrorFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 
@@ -28,7 +30,7 @@ const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler, SentryService],
+	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LiveService],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE

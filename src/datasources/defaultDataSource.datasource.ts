@@ -4,6 +4,19 @@ import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { Setting } from "../entities/setting.entity.js";
 import { UserPreference } from "../entities/userPreference.entity.js";
+import { ApiKey } from "../entities/apiKey.entity.js";
+import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
+import { MediaItem } from "../entities/mediaItem.entity.js";
+import { NetworkShare } from "../entities/networkShare.entity.js";
+import { WatchProgress } from "../entities/watchProgress.entity.js";
+import { CreateWatchProgress1793800000000 } from "../migrations/createWatchProgress1793800000000.js";
+import { CreateNetworkShares1793600000000 } from "../migrations/createNetworkShares1793600000000.js";
+import { AddMediaItemLastSeenAt1793700000000 } from "../migrations/addMediaItemLastSeenAt1793700000000.js";
+import { CreateMediaItems1793400000000 } from "../migrations/createMediaItems1793400000000.js";
+import { AddMediaItemEditedFields1793500000000 } from "../migrations/addMediaItemEditedFields1793500000000.js";
+import { CreateMediaLibraries1793300000000 } from "../migrations/createMediaLibraries1793300000000.js";
+import { AddDevicesAndApiKeys1793100000000 } from "../migrations/addDevicesAndApiKeys1793100000000.js";
+import { AddUserDisabledAt1793200000000 } from "../migrations/addUserDisabledAt1793200000000.js";
 import { PasskeyChallenge } from "../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../entities/passkeyCredential.entity.js";
 import { AddUsername1792190000000 } from "../migrations/addUsername1792190000000.js";
@@ -33,7 +46,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 		const dataSource = new DataSource({
 			type: "postgres",
 			url,
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference],
+			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
+			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
+			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -48,6 +63,14 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddUserAvatar1792800000000,
 				CreateUserPreferences1792900000000,
 				MoveUserSettingsToPreferences1793000000000,
+				AddDevicesAndApiKeys1793100000000,
+				AddUserDisabledAt1793200000000,
+				CreateMediaLibraries1793300000000,
+				CreateMediaItems1793400000000,
+				AddMediaItemEditedFields1793500000000,
+				CreateNetworkShares1793600000000,
+				AddMediaItemLastSeenAt1793700000000,
+				CreateWatchProgress1793800000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

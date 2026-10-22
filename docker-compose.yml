@@ -13,11 +13,14 @@ services:
         environment:
             PORT: 8081
             AVATAR_DIR: /data/avatars
+            MEDIA_IMAGE_DIR: /data/media-images
             STREAM_MEDIA_ROOT: /media
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
+            INDEXER_URL: http://indexer:8092
         volumes:
             - ${AVATAR_PATH:-../flixer-data/avatars}:/data/avatars
+                        - ${MEDIA_IMAGE_PATH:-../flixer-data/media-images}:/data/media-images
             - ${MEDIA_PATH:-../flixer-data/media}:/media:ro
         expose:
             - "8081"
@@ -39,7 +42,6 @@ services:
         environment:
             PORT: 8091
             STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:?Set STREAM_TOKEN_SECRET in .env}
-            MEDIA_ROOTS: '["/media"]'
             FFMPEG_PATH: ffmpeg
             FFPROBE_PATH: ffprobe
             TRANSCODE_DIR: /var/cache/flixer/transcode
@@ -58,6 +60,40 @@ services:
             start_period: 10s
         restart: unless-stopped
         init: true
+
+    indexer:
+        image: ghcr.io/flixermedia/flixer-indexer:latest
+        depends_on:
+            redis:
+                condition: service_healthy
+        environment:
+            PORT: 8092
+            ROLE: all
+            FLIXER_URL: http://api:8081
+            STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:?Set STREAM_TOKEN_SECRET in .env}
+            REDIS_ADDR: redis:6379
+            CACHE_PATH: /var/cache/flixer/indexer
+            LOG_LEVEL: ${INDEXER_LOG_LEVEL:-info}
+        volumes:
+            # Read-write so artwork can be stored alongside media; use :ro if every library uses cache image storage.
+            - ${MEDIA_PATH:-../flixer-data/media}:/media
+            - indexer-cache:/var/cache/flixer/indexer
+        expose:
+            - "8092"
+        restart: unless-stopped
+        init: true
+
+    redis:
+        image: redis:7-alpine
+        command: ["redis-server", "--appendonly", "yes"]
+        volumes:
+            - redis-data:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+        restart: unless-stopped
 
     web:
         image: ghcr.io/flixermedia/flixer-web:latest
@@ -89,3 +125,7 @@ services:
             timeout: 5s
             retries: 3
         restart: unless-stopped
+
+volumes:
+    redis-data:
+    indexer-cache:

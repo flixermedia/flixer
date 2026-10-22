@@ -5,6 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
 import { MailService } from "./mailService.js";
 
 const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
@@ -25,9 +26,14 @@ export class EmailVerificationService {
 		private readonly mailService: MailService,
 	) {}
 
-	/** Verification is enforced only when a mail server is configured. */
-	isRequired(): boolean {
-		return this.mailService.isConfigured();
+	/** Verification is enforced only when the admin has it switched on and a mail server is configured. */
+	async isRequired(): Promise<boolean> {
+		if (!(await this.mailService.isConfigured())) {
+			return false;
+		}
+
+		const setting = await this.dataSource.getRepository(Setting).findOneBy({ key: "email_verification_required" });
+		return setting?.value !== false;
 	}
 
 	async sendVerificationEmail(user: User, targetEmail?: string): Promise<void> {

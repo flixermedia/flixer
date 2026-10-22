@@ -17,6 +17,10 @@ export class AvatarService {
 
 	async uploadAvatar(authorization: string | undefined, file: { buffer?: Buffer; size?: number } | undefined): Promise<PublicUser> {
 		const current = await this.authService.getAuthenticatedUser(authorization);
+		return this.setUserAvatar(current.id, file);
+	}
+
+	async setUserAvatar(userId: string, file: { buffer?: Buffer; size?: number } | undefined): Promise<PublicUser> {
 		if (!file?.buffer?.length) {
 			throw new BadRequest("Choose an image to upload.");
 		}
@@ -30,7 +34,7 @@ export class AvatarService {
 		}
 
 		const users = this.dataSource.getRepository(User);
-		const user = await users.findOneByOrFail({ id: current.id });
+		const user = await users.findOneByOrFail({ id: userId });
 		const previous = user.preferences?.avatarFile ?? null;
 		const avatarFile = await saveAvatarFile(user.id, file.buffer, type);
 
@@ -47,8 +51,12 @@ export class AvatarService {
 
 	async removeAvatar(authorization: string | undefined): Promise<PublicUser> {
 		const current = await this.authService.getAuthenticatedUser(authorization);
+		return this.clearUserAvatar(current.id);
+	}
+
+	async clearUserAvatar(userId: string): Promise<PublicUser> {
 		const users = this.dataSource.getRepository(User);
-		const user = await users.findOneByOrFail({ id: current.id });
+		const user = await users.findOneByOrFail({ id: userId });
 		const previous = user.preferences?.avatarFile ?? null;
 		await this.dataSource.getRepository(UserPreference).upsert({ userId: user.id, avatarFile: null }, ["userId"]);
 		await deleteAvatarFile(previous);

@@ -9,7 +9,7 @@ export class AccountEmailService {
 
 	/** Best effort: a mail failure must never undo an account deletion. */
 	async sendAccountDeletedEmail(user: Pick<User, "username" | "displayName" | "email">): Promise<void> {
-		if (!user.email || !this.mailService.isConfigured()) {
+		if (!user.email || !(await this.mailService.isConfigured())) {
 			return;
 		}
 

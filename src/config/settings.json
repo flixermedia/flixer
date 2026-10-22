@@ -5,6 +5,11 @@
 		"isPublic": true
 	},
 	{
+		"key": "email_verification_required",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
 		"key": "server_name",
 		"defaultValue": null,
 		"isPublic": true
@@ -32,6 +37,56 @@
 	{
 		"key": "secret_key",
 		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "smtp_host",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "smtp_port",
+		"defaultValue": 587,
+		"isPublic": false
+	},
+	{
+		"key": "smtp_secure",
+		"defaultValue": false,
+		"isPublic": false
+	},
+	{
+		"key": "smtp_user",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "smtp_password",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "smtp_from",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "indexer_language",
+		"defaultValue": "en",
+		"isPublic": false
+	},
+	{
+		"key": "indexer_providers",
+		"defaultValue": {},
+		"isPublic": false
+	},
+	{
+		"key": "indexer_concurrency",
+		"defaultValue": {},
+		"isPublic": false
+	},
+	{
+		"key": "indexer_subtitles",
+		"defaultValue": {},
 		"isPublic": false
 	},
 	{

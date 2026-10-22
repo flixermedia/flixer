@@ -86,6 +86,11 @@ The default media path is `../flixer-data/media`, matching a sibling checkout of
 and streamer receive the same media directory at `/media`; it is read-only inside both containers. Uploaded avatars
 are persisted at `AVATAR_PATH`. If you use a different library location, set `MEDIA_PATH` in `.env`.
 
+Compose also runs `flixer-indexer` (with Redis), which scans libraries and stores items through the signed
+`/api/indexer/*` endpoints using the same `STREAM_TOKEN_SECRET`. Admins start scans and tune workers through
+`/api/admin/indexer/*`; flixer reaches the indexer at `INDEXER_URL` (default `http://localhost:8092` outside Compose).
+The indexer mounts the media directory read-write so artwork can be saved alongside media.
+
 The Compose stack pulls `ghcr.io/flixermedia/flixer-web:latest` and
 `ghcr.io/flixermedia/flixer-streamer:latest`, while building the backend and proxy locally. The image workflows in
 the web and streamer repositories publish `main`, release-tag, and commit-SHA images to GitHub Container Registry.

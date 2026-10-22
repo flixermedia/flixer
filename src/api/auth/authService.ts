@@ -1,5 +1,6 @@
 import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests, Unauthorized } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
+import { getContext } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
 import { createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { DataSource, MoreThan, Not } from "typeorm";
@@ -10,6 +11,7 @@ import { User, type UserRole } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { UserSession } from "../../entities/userSession.entity.js";
 import { AccountEmailService } from "./accountEmailService.js";
+import { ApiKeyService } from "../apiKeys/apiKeyService.js";
 import { deleteAvatarFile } from "./avatarStorage.js";
 import { EmailVerificationService } from "./emailVerificationService.js";
 
@@ -19,6 +21,29 @@ const PASSWORD_SCRYPT_COST = 1 << 14;
 const ACCESS_TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const RESEND_COOLDOWN_MS = 60_000;
 const PASSKEY_TICKET_LIFETIME_SECONDS = 5 * 60;
+const LAST_SEEN_GRANULARITY_MS = 60_000;
+const MAX_USER_AGENT_LENGTH = 512;
+
+interface RequestContextLike {
+	request?: { get(name: string): unknown; raw?: { ip?: string } };
+}
+
+/** Reads the caller's User-Agent and address from the current request, if there is one. */
+function readClientInfo(): { userAgent: string | null; ipAddress: string | null } {
+	const request = getContext<RequestContextLike>()?.request;
+	if (!request) {
+		return { userAgent: null, ipAddress: null };
+	}
+
+	const userAgent = request.get("user-agent");
+	const forwarded = request.get("x-forwarded-for");
+	const forwardedFor = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "";
+
+	return {
+		userAgent: typeof userAgent === "string" && userAgent ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
+		ipAddress: (forwardedFor || request.raw?.ip || "").slice(0, 64) || null,
+	};
+}
 
 export interface AuthResult {
 	accessToken: string;
@@ -67,7 +92,7 @@ export interface PublicSession {
 	current: boolean;
 }
 
-interface AuthenticatedSession {
+export interface AuthenticatedSession {
 	user: User;
 	session: UserSession;
 }
@@ -106,15 +131,36 @@ export class AuthService {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly emailVerification: EmailVerificationService,
 		private readonly accountEmail: AccountEmailService,
+		private readonly apiKeys: ApiKeyService,
 	) {}
 
 	private readonly resendCooldowns = new Map<string, number>();
 
+	static isUuid(value: string): boolean {
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+	}
+
+	/** Allows a signed-in administrator or an API key that belongs to one. */
 	async requireAdmin(authorization?: string): Promise<void> {
-		const { user } = await this.requireAuthenticatedSession(authorization);
-		if (user.role !== "admin") {
+		const token = /^Bearer\s+(\S+)$/i.exec(authorization ?? "")?.[1];
+		if (token && this.apiKeys.isApiKey(token)) {
+			const owner = await this.apiKeys.authenticate(token);
+			if (owner.role !== "admin") {
+				throw new Forbidden("Administrator access is required.");
+			}
+			return;
+		}
+
+		await this.requireAdminSession(authorization);
+	}
+
+	/** Requires a real login session; used for actions an API key must not perform. */
+	async requireAdminSession(authorization?: string): Promise<AuthenticatedSession> {
+		const authenticated = await this.requireAuthenticatedSession(authorization);
+		if (authenticated.user.role !== "admin") {
 			throw new Forbidden("Administrator access is required.");
 		}
+		return authenticated;
 	}
 
 	async getAuthenticatedUser(authorization?: string): Promise<PublicUser> {
@@ -134,7 +180,7 @@ export class AuthService {
 		const requestedEmail = changes.email !== undefined ? this.normalizeEmail(changes.email) : undefined;
 		let verificationTarget: string | undefined;
 		if (requestedEmail !== undefined && requestedEmail !== user.email) {
-			if (this.emailVerification.isRequired()) {
+			if (await this.emailVerification.isRequired()) {
 				const taken = await this.dataSource.getRepository(User).findOneBy({ email: requestedEmail });
 				if (taken) {
 					throw new Conflict("An account with this email already exists.");
@@ -213,16 +259,15 @@ export class AuthService {
 		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);
 		const normalizedEmail = this.normalizeEmail(email);
-		const salt = randomBytes(PASSWORD_SALT_LENGTH);
-		const passwordKey = await derivePasswordKey(password, salt);
+		const verificationRequired = await this.emailVerification.isRequired();
 		const user = this.dataSource.getRepository(User).create({
 			id: randomUUID(),
 			username: normalizedUsername,
 			displayName: displayName?.trim() || username.trim(),
 			email: normalizedEmail,
 			role: "user",
-			emailVerifiedAt: this.emailVerification.isRequired() ? null : new Date(),
-			passwordHash: ["scrypt", salt.toString("base64url"), passwordKey.toString("base64url")].join("$"),
+			emailVerifiedAt: verificationRequired ? null : new Date(),
+			passwordHash: await this.hashPassword(password),
 		});
 
 		const [saveError] = await tryCatch(() =>
@@ -255,7 +300,7 @@ export class AuthService {
 			throw saveError;
 		}
 
-		if (this.emailVerification.isRequired()) {
+		if (await this.emailVerification.isRequired()) {
 			await this.trySendVerification(user);
 			return { verificationRequired: true, email: normalizedEmail };
 		}
@@ -441,6 +486,16 @@ export class AuthService {
 		if (!user) {
 			throw new Unauthorized("The account for this access token no longer exists.");
 		}
+		if (user.disabledAt) {
+			throw new Unauthorized("This account has been disabled.");
+		}
+
+		if (Date.now() - session.lastSeenAt.getTime() > LAST_SEEN_GRANULARITY_MS) {
+			session.lastSeenAt = new Date();
+			const { userAgent, ipAddress } = readClientInfo();
+			const changes = { lastSeenAt: session.lastSeenAt, ...(userAgent && { userAgent }), ...(ipAddress && { ipAddress }) };
+			await this.dataSource.getRepository(UserSession).update({ id: session.id }, changes);
+		}
 
 		return { user, session };
 	}
@@ -489,7 +544,11 @@ export class AuthService {
 			throw new Unauthorized("Invalid username or password.");
 		}
 
-		if (!user.emailVerifiedAt && this.emailVerification.isRequired()) {
+		if (user.disabledAt) {
+			throw new Forbidden("This account has been disabled. Contact your server administrator.");
+		}
+
+		if (!user.emailVerifiedAt && (await this.emailVerification.isRequired())) {
 			throw new Forbidden("Please verify your email address before signing in.");
 		}
 
@@ -561,6 +620,16 @@ export class AuthService {
 		return secret;
 	}
 
+	async hashPassword(password: string): Promise<string> {
+		const salt = randomBytes(PASSWORD_SALT_LENGTH);
+		const key = await derivePasswordKey(password, salt);
+		return ["scrypt", salt.toString("base64url"), key.toString("base64url")].join("$");
+	}
+
+	normalizeIdentity(value: string): string {
+		return value.trim().toLowerCase();
+	}
+
 	private async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
 		const [algorithm, saltValue, keyValue] = passwordHash.split("$");
 		if (algorithm !== "scrypt" || !saltValue || !keyValue) {
@@ -578,13 +647,19 @@ export class AuthService {
 	}
 
 	private async createAuthResult(user: User, secret: string): Promise<AuthResult> {
+		if (user.disabledAt) {
+			throw new Forbidden("This account has been disabled. Contact your server administrator.");
+		}
 		const issuedAt = Math.floor(Date.now() / 1000);
 		const expiresAt = new Date((issuedAt + ACCESS_TOKEN_LIFETIME_SECONDS) * 1000);
+		const { userAgent, ipAddress } = readClientInfo();
 		const session = await this.dataSource.getRepository(UserSession).save(
 			this.dataSource.getRepository(UserSession).create({
 				id: randomUUID(),
 				userId: user.id,
 				expiresAt,
+				userAgent,
+				ipAddress,
 			}),
 		);
 		const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");

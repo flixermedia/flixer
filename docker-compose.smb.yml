@@ -1,0 +1,43 @@
+# Lets flixer connect SMB shares itself (Admin > Libraries > Network shares) when running in Docker.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.smb.yml up -d
+#
+# Needs a Linux host: the mounts flixer makes inside its container are shared with the streamer and
+# indexer through a bind-mount with propagation, which Docker Desktop (Windows/macOS) does not do
+# reliably. There, mount the share on the host (or as a CIFS volume) and list that folder in
+# STREAM_MEDIA_ROOT instead.
+services:
+    api:
+        user: root
+        cap_add:
+            - SYS_ADMIN
+        security_opt:
+            - apparmor:unconfined
+        environment:
+            SMB_MOUNT_DIR: /mnt/flixer-shares
+        volumes:
+            - type: bind
+              source: ${SMB_MOUNT_PATH:-./mounts}
+              target: /mnt/flixer-shares
+              bind:
+                  propagation: rshared
+                  create_host_path: true
+
+    streamer:
+        volumes:
+            - type: bind
+              source: ${SMB_MOUNT_PATH:-./mounts}
+              target: /mnt/flixer-shares
+              read_only: true
+              bind:
+                  propagation: rslave
+                  create_host_path: true
+
+    indexer:
+        volumes:
+            - type: bind
+              source: ${SMB_MOUNT_PATH:-./mounts}
+              target: /mnt/flixer-shares
+              bind:
+                  propagation: rslave
+                  create_host_path: true
