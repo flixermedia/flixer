@@ -8,6 +8,7 @@ A [Coder](https://coder.com) template that gives each workspace the whole stack:
 | flixer-streamer (`go run`) | workspace | 8091 |
 | flixer-indexer (`go run`) | workspace | 8092 |
 | flixer-web (Vite dev server, HTTPS) | workspace | 5173 |
+| flixer-docs (Docusaurus dev server, **Flixer Docs** app) | workspace | 3000 |
 | PostgreSQL 16 | sidecar container (`postgres`) | 5432 |
 | Redis 7 | sidecar container (`redis`) | 6379 |
 
@@ -23,7 +24,7 @@ cd deploy/coder
 coder templates push flixer-dev --directory .
 ```
 
-Then create a workspace from `flixer-dev`. On every start it clones the four repos into `~/projects`, writes a `.env`
+Then create a workspace from `flixer-dev`. On every start it clones the five repos into `~/projects`, writes a `.env`
 in each (random `JWT_SECRET`/`STREAM_TOKEN_SECRET`, wired to the local Postgres/Redis), runs `npm ci` / `go mod download`
 when needed and starts the services. Existing `.env` files are never overwritten, so add provider keys
 (`TMDB_API_KEY`, `DISCOGS_TOKEN`, ...) there.

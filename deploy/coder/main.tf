@@ -18,7 +18,7 @@ data "coder_workspace_owner" "me" {}
 data "coder_parameter" "git_base_url" {
   name         = "git_base_url"
   display_name = "Git base URL"
-  description  = "Where flixer, flixer-web, flixer-indexer and flixer-streamer are cloned from."
+  description  = "Where flixer, flixer-web, flixer-indexer, flixer-streamer and flixer-docs are cloned from."
   type         = "string"
   default      = "https://github.com/flixermedia"
   mutable      = false
@@ -81,7 +81,7 @@ resource "coder_agent" "main" {
   }
 }
 
-# Clones the repos, installs dependencies and starts api, streamer, indexer and web.
+# Clones the repos, installs dependencies and starts api, streamer, indexer, web and docs.
 resource "coder_script" "stack" {
   agent_id           = coder_agent.main.id
   display_name       = "Flixer dev stack"
@@ -97,6 +97,16 @@ resource "coder_app" "web" {
   display_name = "Flixer"
   icon         = "/icon/play.svg"
   url          = "https://localhost:5173"
+  subdomain    = true
+  share        = "owner"
+}
+
+resource "coder_app" "docs" {
+  agent_id     = coder_agent.main.id
+  slug         = "docs"
+  display_name = "Flixer Docs"
+  icon         = "/icon/markdown.svg"
+  url          = "http://localhost:3000"
   subdomain    = true
   share        = "owner"
 }
