@@ -87,6 +87,7 @@ export class AdminMediaController {
 	async image(
 		@PathParams("id") id: string,
 		@PathParams("index", Number) index: number,
+		@QueryParams("w", Number) width: number | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
 	) {
@@ -94,7 +95,7 @@ export class AdminMediaController {
 		if (!Number.isInteger(index) || index < 0) {
 			throw new NotFound("Image not found.");
 		}
-		const { data, mime } = await this.media.image(this.requireId(id), index);
+		const { data, mime } = await this.media.image(this.requireId(id), index, width);
 		ctx.response.setHeader("Content-Type", mime);
 		ctx.response.setHeader("Cache-Control", "private, max-age=60");
 		ctx.response.setHeader("X-Content-Type-Options", "nosniff");

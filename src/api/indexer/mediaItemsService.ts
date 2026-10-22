@@ -4,8 +4,11 @@ import { randomUUID } from "node:crypto";
 import { DataSource, EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.js";
+import { allowedPersonImage } from "../media/personImages.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 
+const CREDITED_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
 /** What flixer-indexer sends to POST /api/indexer/media/items. */
 export interface IndexerItemPayload {
 	libraryId: string;
@@ -197,8 +200,49 @@ export class MediaItemsService {
 			item.isPlaceholder = false;
 			item.lastSeenAt = new Date();
 
-			return { id: (await manager.save(item)).id };
+			const saved = await manager.save(item);
+			await this.syncCredits(manager, saved);
+			return { id: saved.id };
 		});
+	}
+
+	/** Rewrites the item's credits from its metadata so they always match what the indexer last reported. */
+	private async syncCredits(manager: EntityManager, item: MediaItem): Promise<void> {
+		await manager.delete(MediaCredit, { itemId: item.id });
+		if (!CREDITED_TYPES.includes(item.type)) {
+			return;
+		}
+		const metadata = item.metadata ?? {};
+		const credits = new Map<string, MediaCredit>();
+		const add = (name: unknown, role: unknown, detail: unknown, position: number, image?: unknown) => {
+			if (typeof name !== "string" || !name.trim() || typeof role !== "string") {
+				return;
+			}
+			const personKey = personKeyOf(name);
+			const key = `${personKey}|${role}`;
+			if (!credits.has(key)) {
+				credits.set(key, manager.create(MediaCredit, { itemId: item.id, personKey, personId: personIdOf(name), role, name: name.trim(), detail: typeof detail === "string" && detail.trim() ? detail.trim() : null, position, image: allowedPersonImage(image) }));
+			}
+		};
+		const people = (value: unknown, fallbackRole: string) => {
+			if (!Array.isArray(value)) {
+				return;
+			}
+			value.forEach((entry, index) => {
+				const person = entry as { name?: unknown; type?: unknown; role?: unknown; image?: unknown } | null;
+				const type = typeof person?.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : fallbackRole;
+				add(person?.name, type, person?.role, index + 1, person?.image);
+			});
+		};
+		people(metadata.cast, "actor");
+		people(metadata.crew, "crew");
+		if (item.type === "album") {
+			add(metadata.artist, "artist", null, 0);
+			add(metadata.albumArtist, "albumArtist", null, 0);
+		}
+		if (credits.size > 0) {
+			await manager.insert(MediaCredit, [...credits.values()]);
+		}
 	}
 
 	private async lock(manager: EntityManager, libraryId: string, key: string): Promise<void> {

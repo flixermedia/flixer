@@ -54,6 +54,28 @@ export class MediaHomeController {
 		return this.home.search(typeof q === "string" ? q : "", typeof type === "string" ? type : undefined);
 	}
 
+	@Get("/people/:id/image")
+	async personImage(
+		@PathParams("id") id: string,
+		@QueryParams("w", Number) width: number | undefined,
+		@Context() ctx: PlatformContext,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		await this.authService.getAuthenticatedUser(authorization);
+		const { data, mime } = await this.home.personImage(id, width);
+		ctx.response.setHeader("Content-Type", mime);
+		ctx.response.setHeader("Cache-Control", "private, max-age=86400");
+		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
+		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+		return data;
+	}
+
+	@Get("/people/:id")
+	async person(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.getAuthenticatedUser(authorization);
+		return this.home.person(id);
+	}
+
 	@Get("/browse/:kind")
 	async browse(
 		@PathParams("kind") kind: string,
@@ -82,6 +104,7 @@ export class MediaHomeController {
 	async image(
 		@PathParams("id") id: string,
 		@PathParams("index", Number) index: number,
+		@QueryParams("w", Number) width: number | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
 	) {
@@ -89,9 +112,9 @@ export class MediaHomeController {
 		if (!AuthService.isUuid(id) || !Number.isInteger(index) || index < 0) {
 			throw new NotFound("Image not found.");
 		}
-		const { data, mime } = await this.media.image(id.toLowerCase(), index);
+		const { data, mime } = await this.media.image(id.toLowerCase(), index, width);
 		ctx.response.setHeader("Content-Type", mime);
-		ctx.response.setHeader("Cache-Control", "private, max-age=300");
+		ctx.response.setHeader("Cache-Control", "private, max-age=86400");
 		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
 		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
 		return data;

@@ -1,0 +1,34 @@
+# Connects one SMB share for flixer, flixer-streamer and flixer-indexer on Windows, macOS and Linux.
+# Docker itself mounts the share as a CIFS volume, so nothing is mounted from inside the containers and no
+# extra privileges are needed. Set SMB_HOST, SMB_SHARE (and normally SMB_USERNAME / SMB_PASSWORD) in .env, then:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.smb-volume.yml up -d
+#
+# or set COMPOSE_FILE=docker-compose.yml:docker-compose.smb-volume.yml in .env (use ; instead of : on Windows).
+# The share appears at /smb in every service and is added to the media roots, so it can be picked when
+# creating a library in the admin dashboard.
+#
+# Use the server's IP address for SMB_HOST. Passwords containing a comma are not supported by mount options.
+# Add SMB_OPTIONS=ro to mount the share read-only.
+services:
+    api:
+        environment:
+            STREAM_MEDIA_ROOT: '["/media","/smb"]'
+        volumes:
+            - smb-media:/smb:ro
+
+    streamer:
+        volumes:
+            - smb-media:/smb:ro
+
+    indexer:
+        volumes:
+            - smb-media:/smb
+
+volumes:
+    smb-media:
+        driver: local
+        driver_opts:
+            type: cifs
+            device: //${SMB_HOST:?Set SMB_HOST in .env}/${SMB_SHARE:?Set SMB_SHARE in .env}
+            o: addr=${SMB_HOST},username=${SMB_USERNAME:-guest},password=${SMB_PASSWORD:-},vers=${SMB_VERSION:-3.0},file_mode=0666,dir_mode=0777,iocharset=utf8${SMB_OPTIONS:+,${SMB_OPTIONS}}
