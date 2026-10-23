@@ -40,12 +40,13 @@ import { AddUserAvatar1792800000000 } from "../migrations/addUserAvatar179280000
 import { CreateUserPreferences1792900000000 } from "../migrations/createUserPreferences1792900000000.js";
 import { MoveUserSettingsToPreferences1793000000000 } from "../migrations/moveUserSettingsToPreferences1793000000000.js";
 import { synchronizeSettings } from "../config/settingsSync.js";
+import { appConfig } from "../config/store/appConfig.js";
 import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
 
 export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 	.type("typeorm:datasource")
 	.asyncFactory(async () => {
-		const url = process.env.DATABASE_URL;
+		const url = appConfig().get("databaseUrl");
 		if (!url) {
 			throw new Error("DATABASE_URL must be set to initialize the PostgreSQL DataSource.");
 		}

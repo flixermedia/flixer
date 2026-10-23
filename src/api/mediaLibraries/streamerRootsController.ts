@@ -3,6 +3,7 @@ import { Unauthorized } from "@tsed/exceptions";
 import { HeaderParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { appConfig } from "../../config/store/appConfig.js";
 import { MediaRootsService } from "./mediaRootsService.js";
 
 export const STREAMER_ROOTS_CONTEXT = "flixer-streamer:media-roots:v1";
@@ -27,7 +28,7 @@ export class StreamerRootsController {
 	}
 
 	private verify(timestamp?: string, signature?: string): void {
-		const secret = process.env.STREAM_TOKEN_SECRET?.trim() ?? "";
+		const secret = appConfig().get("streamTokenSecret") ?? "";
 		const issuedAt = Number(timestamp);
 		if (Buffer.byteLength(secret) < 32 || !signature || !Number.isInteger(issuedAt)) {
 			throw new Unauthorized("Invalid streamer signature.");

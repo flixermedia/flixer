@@ -100,6 +100,10 @@ export class AdminMediaService {
 			builder.andWhere("item.parent_id = :parentId", { parentId: query.parentId });
 		}
 		const search = query.search?.trim();
+		// Unfiltered, list only top-level items (movies, shows, albums); seasons, episodes and tracks are browsed through their parent.
+		if (!query.parentId && !query.type && !search) {
+			builder.andWhere("item.parent_id IS NULL");
+		}
 		if (search) {
 			const escaped = search.replace(/[\\%_]/g, "\\$&");
 			builder.andWhere("(item.title ILIKE :search OR item.path ILIKE :search)", { search: `%${escaped}%` });

@@ -1,11 +1,12 @@
 import { createDecipheriv, createCipheriv, hkdfSync, randomBytes } from "node:crypto";
+import { appConfig } from "../../config/store/appConfig.js";
 
 const CONTEXT = "flixer:network-shares:v1";
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
 
 function key(): Buffer {
-	const secret = process.env.STREAM_TOKEN_SECRET?.trim() ?? "";
+	const secret = appConfig().get("streamTokenSecret") ?? "";
 	if (Buffer.byteLength(secret) < 32) {
 		throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to store network share passwords.");
 	}

@@ -1,5 +1,6 @@
 import { Injectable } from "@tsed/di";
 import { Exception } from "@tsed/exceptions";
+import { appConfig } from "../../config/store/appConfig.js";
 import { signIndexerRequest } from "./indexerAuth.js";
 
 const DEFAULT_INDEXER_URL = "http://localhost:8092";
@@ -16,7 +17,7 @@ export interface IndexerRequestOptions {
 export class IndexerClient {
 
 	baseUrl(): string {
-		return (process.env.INDEXER_URL?.trim() || process.env.INDEXER_INTERNAL_URL?.trim() || DEFAULT_INDEXER_URL).replace(/\/+$/, "");
+		return (appConfig().get("indexerUrl") || DEFAULT_INDEXER_URL).replace(/\/+$/, "");
 	}
 
 	async request<T = unknown>(method: "GET" | "POST", path: string, options: IndexerRequestOptions = {}): Promise<T> {

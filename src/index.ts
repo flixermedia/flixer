@@ -2,16 +2,30 @@ import "reflect-metadata";
 import { tryCatch } from "@dschz/try-catch";
 import { $log } from "@tsed/logger";
 import { PlatformFastify } from "@tsed/platform-fastify";
+import { startBootstrapServer, stopBootstrapServer } from "./bootstrap/bootstrapServer.js";
+import { announceRecovery } from "./setup/recovery.js";
+import { updateRuntime } from "./bootstrap/setupStatus.js";
+import { waitForDatabase } from "./bootstrap/waitForDatabase.js";
+import { ensureSecrets } from "./config/store/sharedSecret.js";
 import { Server } from "./server.js";
 import { freePortIfBusy } from "./utils/freePort.js";
 
 async function startServer(): Promise<void> {
 
-	await freePortIfBusy(Number(process.env.PORT || 8083), (message) => $log.warn(message));
+	const port = Number(process.env.PORT || 8083);
+	await freePortIfBusy(port, (message) => $log.warn(message));
+
+	// Until PostgreSQL is configured and reachable only the setup endpoints answer; the full app takes the port over afterwards.
+	ensureSecrets();
+	const bootstrapServer = await startBootstrapServer(port);
+	announceRecovery((message) => $log.warn(message));
+	await waitForDatabase((message) => $log.warn(message));
+	await stopBootstrapServer(bootstrapServer);
 
 	const [bootstrapError, platform] = await tryCatch(async () => {
 		const platform = await PlatformFastify.bootstrap(Server);
 		await platform.listen();
+		updateRuntime({ mode: "ready" });
 		return platform;
 	});
 

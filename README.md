@@ -53,38 +53,47 @@ _(Coming soon as the UI evolves! Check back for updates.)_
 
 The backend, Vue web app, Go streamer, and reverse proxy are run together with Docker Compose. The proxy is the only
 service exposed to the host; it serves the web app and routes API, WebSocket, and media-streaming requests internally.
-PostgreSQL is hosted separately and configured through `DATABASE_URL`.
+PostgreSQL is bundled in the Compose file, or you can use your own server; the setup wizard or `DATABASE_URL` selects it.
 
 ### Prerequisites
 
 - Docker Engine and Docker Compose v2.
-- A PostgreSQL 13+ database.
+- Optionally, your own PostgreSQL 13+ database (a bundled one is included).
 - A media directory readable by Docker.
 
 ### Quick Start with Docker Compose
 
-1. Clone this repository and create the runtime environment file:
+1. Clone this repository. If your media is not in `./media`, create a `.env` file with the folder that holds it
+   (this is the only setting you need), then start the stack:
 
    ```bash
-   cp .env.example .env
-   ```
-
-2. Edit `.env`. Set `DATABASE_URL`, generate strong unique values for `JWT_SECRET` and `STREAM_TOKEN_SECRET`, and
-   point `MEDIA_PATH` at your library. The stream token secret is shared with the streamer automatically by Compose.
-   Set `FLIXER_PUBLIC_URL`, `APP_URL`, `PASSKEY_RP_ID`, and `PASSKEY_ORIGINS` to match the URL and hostname clients
-   will use. Use the public HTTPS URL when TLS is terminated by an external proxy.
-
-3. Start the stack:
-
-   ```bash
+   echo "MEDIA_PATH=/path/to/your/media" > .env
    docker compose up -d
    ```
 
-4. Open `http://localhost:8080` (or the host port configured in `HTTP_PORT`) and create the first account.
+2. Open `http://localhost:8080` (or the host port set in `HTTP_PORT`). The setup wizard opens on a fresh install.
+   Choose **Quick Setup** or **Advanced Setup**. The bundled PostgreSQL and Redis are pre-filled in the wizard
+   (`postgres://flixer:flixer@postgres:5432/flixer` and `redis://redis:6379`), or enter your own. The wizard also
+   creates the administrator account.
 
-The default media path is `../flixer-data/media`, matching a sibling checkout of the Flixer data directory. The API
-and streamer receive the same media directory at `/media`; it is read-only inside both containers. Uploaded avatars
-are persisted at `AVATAR_PATH`. If you use a different library location, set `MEDIA_PATH` in `.env`.
+Secrets are generated automatically. Settings are saved in a SQLite file on the `flixer-config` volume, with
+secrets encrypted by a key file that lives next to it; keep both together when backing up. The stream secret is
+shared with the streamer and indexer through the `flixer-secrets` volume.
+
+Anything you set as an environment variable (in `.env`, copied from `.env.example`) wins over the wizard and shows
+as locked there, so existing installs that already have a `.env` keep working unchanged. Services other than the
+API need no database or Redis settings: the indexer fetches its Redis connection from the API. Changing the Redis
+URL needs an indexer restart (`docker compose restart indexer`); a new stream secret needs the API, streamer and
+indexer restarted.
+
+If setup was completed but the server later starts with no database configured (for example a database URL that only
+lived in a removed `.env`), the wizard opens in recovery mode. The API prints a one-time recovery code in its log
+(`docker compose logs api`); enter it in the wizard to reconnect a database. Only the database can be changed this way,
+the code changes on every start, and repeated wrong codes are locked out for ten minutes.
+
+`MEDIA_PATH` (default `./media`) is mounted at `/media` in the API, streamer and indexer; it is read-only in the API
+and streamer. Avatars and artwork live in Docker volumes. Network shares can be added in the app instead of a local
+folder (see below).
 
 Compose also runs `flixer-indexer` (with Redis), which scans libraries and stores items through the signed
 `/api/indexer/*` endpoints using the same `STREAM_TOKEN_SECRET`. Admins start scans and tune workers through

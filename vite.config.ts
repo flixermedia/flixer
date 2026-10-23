@@ -15,7 +15,8 @@ export default defineConfig({
 		sourcemap: true,
 		minify: false,
 		rollupOptions: {
-			external: [...builtinModules, ...builtinModules.map((module) => `node:${module}`)],
+			// node:sqlite is only importable with the prefix, so builtinModules does not list it.
+			external: [...builtinModules, ...builtinModules.map((module) => `node:${module}`), "node:sqlite"],
 			output: {
 				entryFileNames: "index.js",
 				format: "es",

@@ -8,6 +8,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
@@ -113,7 +114,7 @@ export class PlaybackService {
 		const signingInput = `${base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${base64Url(JSON.stringify(claims))}`;
 		const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
 		// Relative by default so clients reach the streamer through the same origin (proxy or Vite dev server).
-		const streamerUrl = (process.env.STREAMER_PUBLIC_URL || "").replace(/\/+$/, "");
+		const streamerUrl = (appConfig().get("streamerPublicUrl") || "").replace(/\/+$/, "");
 
 		const { relativePath: _relativePath, rootId: _rootId, ...publicSample } = sample;
 		return {
@@ -128,7 +129,7 @@ export class PlaybackService {
 	}
 
 	private getSecret(): Buffer {
-		const secret = Buffer.from(process.env.STREAM_TOKEN_SECRET?.trim() ?? "");
+		const secret = Buffer.from(appConfig().get("streamTokenSecret") ?? "");
 		if (secret.length < 32) {
 			throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to issue stream tokens.");
 		}

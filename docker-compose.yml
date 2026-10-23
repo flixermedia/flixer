@@ -1,29 +1,30 @@
+# Flixer. Start with `docker compose up -d`, open http://localhost:8080 and follow the setup wizard.
+#
+# The only thing to set is where your media lives: put MEDIA_PATH=/path/to/your/media in a .env file next to this
+# file (or export it). Everything else is configured in the wizard.
 services:
     api:
         image: ghcr.io/flixermedia/flixer:latest
-        build:
-            context: .
-            dockerfile: Dockerfile
-            args:
-                - http_proxy
-                - https_proxy
-                - no_proxy
-        env_file:
-            - .env
+        depends_on:
+            postgres:
+                condition: service_healthy
         environment:
             PORT: 8081
+            CONFIG_DIR: /var/lib/flixer/config
+            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
             AVATAR_DIR: /data/avatars
             MEDIA_IMAGE_DIR: /data/media-images
             STREAM_MEDIA_ROOT: /media
-            # LOG_DIR in .env is for native runs; file logging is off here (logs go to the container output).
             LOG_DIR: ""
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
         volumes:
-            - ${AVATAR_PATH:-../flixer-data/avatars}:/data/avatars
-            - ${MEDIA_IMAGE_PATH:-../flixer-data/media-images}:/data/media-images
-            - ${MEDIA_PATH:-../flixer-data/media}:/media:ro
+            - ${MEDIA_PATH:-./media}:/media:ro
+            - flixer-config:/var/lib/flixer/config
+            - flixer-secrets:/run/flixer-secrets
+            - flixer-avatars:/data/avatars
+            - flixer-media-images:/data/media-images
         expose:
             - "8081"
         healthcheck:
@@ -43,15 +44,12 @@ services:
         image: ghcr.io/flixermedia/flixer-streamer:latest
         environment:
             PORT: 8091
-            STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:?Set STREAM_TOKEN_SECRET in .env}
-            FFMPEG_PATH: ffmpeg
-            FFPROBE_PATH: ffprobe
+            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
             TRANSCODE_DIR: /var/cache/flixer/transcode
             FLIXER_URL: http://api:8081
-            MAX_TRANSCODES: ${MAX_TRANSCODES:-2}
-            LOG_LEVEL: ${STREAMER_LOG_LEVEL:-info}
         volumes:
-            - ${MEDIA_PATH:-../flixer-data/media}:/media:ro
+            - ${MEDIA_PATH:-./media}:/media:ro
+            - flixer-secrets:/run/flixer-secrets:ro
         expose:
             - "8091"
         healthcheck:
@@ -72,19 +70,36 @@ services:
             PORT: 8092
             ROLE: all
             FLIXER_URL: http://api:8081
-            STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:?Set STREAM_TOKEN_SECRET in .env}
-            REDIS_ADDR: redis:6379
+            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
             CACHE_PATH: /var/cache/flixer/indexer
-            LOG_LEVEL: ${INDEXER_LOG_LEVEL:-info}
         volumes:
-            # Read-write so artwork can be stored alongside media; use :ro if every library uses cache image storage.
-            - ${MEDIA_PATH:-../flixer-data/media}:/media
+            # Read-write so artwork can be stored alongside media.
+            - ${MEDIA_PATH:-./media}:/media
             - indexer-cache:/var/cache/flixer/indexer
+            - flixer-secrets:/run/flixer-secrets:ro
         expose:
             - "8092"
         restart: unless-stopped
         init: true
 
+    # Bundled database. In the wizard use postgres://flixer:flixer@postgres:5432/flixer (it is pre-filled).
+    # Only reachable inside the Compose network; point the wizard at your own server to skip it.
+    postgres:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_USER: flixer
+            POSTGRES_PASSWORD: flixer
+            POSTGRES_DB: flixer
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U flixer -d flixer"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+        restart: unless-stopped
+
+    # Bundled Redis. In the wizard use redis://redis:6379 (pre-filled), or your own.
     redis:
         image: redis:7-alpine
         command: ["redis-server", "--appendonly", "yes"]
@@ -130,4 +145,9 @@ services:
 
 volumes:
     redis-data:
+    postgres-data:
+    flixer-config:
+    flixer-secrets:
+    flixer-avatars:
+    flixer-media-images:
     indexer-cache:
