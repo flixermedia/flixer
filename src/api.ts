@@ -1,4 +1,6 @@
 export { VersionController } from "./api/versionController.js";
+export { SetupController } from "./api/setup/setupController.js";
+export { InternalConfigController } from "./api/setup/internalConfigController.js";
 export { AuthController } from "./api/auth/authController.js";
 export { AvatarController } from "./api/auth/avatarController.js";
 export { PasskeyController } from "./api/auth/passkeyController.js";

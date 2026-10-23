@@ -13,6 +13,7 @@ import { UserSession } from "../../entities/userSession.entity.js";
 import { AccountEmailService } from "./accountEmailService.js";
 import { ApiKeyService } from "../apiKeys/apiKeyService.js";
 import { deleteAvatarFile } from "./avatarStorage.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { EmailVerificationService } from "./emailVerificationService.js";
 
 const PASSWORD_KEY_LENGTH = 64;
@@ -611,7 +612,7 @@ export class AuthService {
 	}
 
 	private getTokenSecret(): string {
-		const secret = process.env.JWT_SECRET;
+		const secret = appConfig().get("jwtSecret");
 
 		if (!secret || Buffer.byteLength(secret) < 32) {
 			throw new Error("JWT_SECRET must be set to at least 32 bytes to issue access tokens.");

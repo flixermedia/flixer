@@ -6,6 +6,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { MailService } from "./mailService.js";
 
 const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
@@ -87,11 +88,11 @@ export class EmailVerificationService {
 	}
 
 	private getAppUrl(): string {
-		return (process.env.APP_URL?.trim() || "https://localhost:5173").replace(/\/+$/, "");
+		return (appConfig().get("appUrl") || "https://localhost:5173").replace(/\/+$/, "");
 	}
 
 	private sign(value: string): Buffer {
-		const secret = process.env.JWT_SECRET;
+		const secret = appConfig().get("jwtSecret");
 		if (!secret || Buffer.byteLength(secret) < 32) {
 			throw new Error("JWT_SECRET must be set to at least 32 bytes to issue verification tokens.");
 		}

@@ -5,6 +5,7 @@ import { PgBoss, type JobWithMetadata, type QueueResult, type Schedule } from "p
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { SentryService } from "../sentry/sentryService.js";
+import { appConfig } from "../config/store/appConfig.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 
 const SESSION_CLEANUP_CRON = "0 * * * *";
@@ -24,7 +25,7 @@ export class JobScheduler {
 	) {}
 
 	async $onInit(): Promise<void> {
-		const connectionString = process.env.DATABASE_URL;
+		const connectionString = appConfig().get("databaseUrl");
 		if (!connectionString) {
 			throw new Error("DATABASE_URL must be set to initialize the job scheduler.");
 		}

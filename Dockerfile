@@ -27,7 +27,8 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY processes.config.cjs ./
 COPY resources ./resources
 
-RUN chown -R node:node "$WORKDIR"
+# Named volumes copy this ownership on first use, so the node user can write settings and the shared secret.
+RUN mkdir -p /var/lib/flixer/config /run/flixer-secrets && chown -R node:node "$WORKDIR" /var/lib/flixer /run/flixer-secrets
 USER node
 
 EXPOSE 8081

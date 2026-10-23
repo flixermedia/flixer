@@ -1,5 +1,6 @@
 import { Injectable } from "@tsed/di";
 import type { User } from "../../entities/user.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { MailService } from "./mailService.js";
 
 @Injectable()
@@ -14,7 +15,7 @@ export class AccountEmailService {
 		}
 
 		const displayName = user.displayName ?? user.username;
-		const appUrl = (process.env.APP_URL?.trim() || "https://localhost:5173").replace(/\/+$/, "");
+		const appUrl = (appConfig().get("appUrl") || "https://localhost:5173").replace(/\/+$/, "");
 		const deletedAt = new Date().toUTCString();
 
 		try {

@@ -16,6 +16,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { PasskeyChallenge, type PasskeyChallengeType } from "../../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { AuthService, type AuthResult } from "./authService.js";
 
 const CHALLENGE_LIFETIME_MS = 5 * 60 * 1000;
@@ -278,15 +279,15 @@ export class PasskeyService {
 	}
 
 	private getRelyingPartyId(): string {
-		return process.env.PASSKEY_RP_ID?.trim() || "localhost";
+		return appConfig().get("passkeyRpId") || "localhost";
 	}
 
 	private getRelyingPartyName(): string {
-		return process.env.PASSKEY_RP_NAME?.trim() || "Flixer";
+		return appConfig().get("passkeyRpName") || "Flixer";
 	}
 
 	private getAllowedOrigins(): string[] {
-		const configured = process.env.PASSKEY_ORIGINS?.split(",")
+		const configured = appConfig().get("passkeyOrigins")?.split(",")
 			.map((origin) => origin.trim())
 			.filter(Boolean);
 

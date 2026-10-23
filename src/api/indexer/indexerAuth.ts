@@ -1,5 +1,6 @@
 import { Unauthorized } from "@tsed/exceptions";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { appConfig } from "../../config/store/appConfig.js";
 
 export const INDEXER_TIMESTAMP_HEADER = "x-indexer-timestamp";
 export const INDEXER_SIGNATURE_HEADER = "x-indexer-signature";
@@ -16,7 +17,7 @@ export function indexerSignature(secret: string, timestamp: string, method: stri
 }
 
 export function indexerSecret(): string {
-	const secret = process.env.STREAM_TOKEN_SECRET?.trim() ?? "";
+	const secret = appConfig().get("streamTokenSecret") ?? "";
 	if (Buffer.byteLength(secret) < 32) {
 		throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to talk to flixer-indexer.");
 	}

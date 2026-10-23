@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { AuthService } from "../auth/authService.js";
 
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -59,7 +60,7 @@ export class StreamsService {
 	}
 
 	private async request(path: string, method: string, allowedStatuses: number[] = []): Promise<Response> {
-		const baseUrl = (process.env.STREAMER_INTERNAL_URL || "http://localhost:8091").replace(/\/+$/, "");
+		const baseUrl = (appConfig().get("streamerInternalUrl") || "http://localhost:8091").replace(/\/+$/, "");
 		let response: Response;
 		try {
 			response = await fetch(`${baseUrl}${path}`, {
@@ -81,7 +82,7 @@ export class StreamsService {
 
 	// Must match the streamer's AdminKey derivation.
 	private adminKey(): string {
-		const secret = process.env.STREAM_TOKEN_SECRET?.trim() ?? "";
+		const secret = appConfig().get("streamTokenSecret") ?? "";
 		if (Buffer.byteLength(secret) < 32) {
 			throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to manage streamer sessions.");
 		}
