@@ -15,6 +15,11 @@
 		"isPublic": true
 	},
 	{
+		"key": "login_banner",
+		"defaultValue": "",
+		"isPublic": true
+	},
+	{
 		"key": "server_address",
 		"defaultValue": null,
 		"isPublic": true
@@ -69,6 +74,12 @@
 		"defaultValue": "",
 		"isPublic": false
 	},
+	{ "key": "transcode_hw_accel", "defaultValue": "none", "isPublic": false },
+	{ "key": "transcode_preset", "defaultValue": "veryfast", "isPublic": false },
+	{ "key": "transcode_crf", "defaultValue": 23, "isPublic": false },
+	{ "key": "transcode_threads", "defaultValue": 0, "isPublic": false },
+	{ "key": "transcode_max_bitrate_kbps", "defaultValue": 0, "isPublic": false },
+	{ "key": "transcode_max_concurrent", "defaultValue": null, "isPublic": false },
 	{
 		"key": "indexer_language",
 		"defaultValue": "en",
