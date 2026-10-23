@@ -63,11 +63,12 @@ PostgreSQL is bundled in the Compose file, or you can use your own server; the s
 
 ### Quick Start with Docker Compose
 
-1. Clone this repository. If your media is not in `./media`, create a `.env` file with the folder that holds it
-   (this is the only setting you need), then start the stack:
+1. Clone this repository and create a `.env` file next to `docker-compose.yml`. `DATA_PATH` is required: the folder
+   where Flixer keeps avatars and metadata (the indexer's cache and uploaded artwork) (it is created if missing). `MEDIA_PATH` is
+   your media folder and defaults to `./media`. Then start the stack:
 
    ```bash
-   echo "MEDIA_PATH=/path/to/your/media" > .env
+   printf 'DATA_PATH=/path/to/flixer-data\nMEDIA_PATH=/path/to/your/media\n' > .env
    docker compose up -d
    ```
 
@@ -92,7 +93,7 @@ lived in a removed `.env`), the wizard opens in recovery mode. The API prints a 
 the code changes on every start, and repeated wrong codes are locked out for ten minutes.
 
 `MEDIA_PATH` (default `./media`) is mounted at `/media` in the API, streamer and indexer; it is read-only in the API
-and streamer. Avatars and artwork live in Docker volumes. Network shares can be added in the app instead of a local
+and streamer. Avatars and metadata (indexer cache and artwork, in `metadata/`) live in `DATA_PATH`; settings, secrets, PostgreSQL and Redis stay in Docker volumes. Network shares can be added in the app instead of a local
 folder (see below).
 
 Compose also runs `flixer-indexer` (with Redis), which scans libraries and stores items through the signed
@@ -117,14 +118,15 @@ the web and streamer repositories publish `main`, release-tag, and commit-SHA im
 The backend workflow publishes versioned images and `latest` when a matching `vX.Y.Z` release tag is pushed. If
 packages are private, authenticate Docker to `ghcr.io` before starting the stack.
 
-For development, use `docker-compose.dev.yml`, which builds the API, proxy, and the sibling `../flixer-web` and
-`../flixer-streamer` checkouts from source instead of pulling published images:
+For development, use `docker-compose.dev.yml`, which builds the API and the sibling `../flixer-web`, `../flixer-streamer` and
+`../flixer-indexer` checkouts from source instead of pulling published images. It is the same stack as
+`docker-compose.yml` (including the bundled PostgreSQL and Redis), with debug logging, and it needs `DATA_PATH` too:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-It uses the same `.env` and port as the production stack. The local Vite development server continues to proxy `/api`
+It uses the same `.env` and port as the production stack, under its own project name (`flixer-dev`) so its volumes stay separate. The local Vite development server continues to proxy `/api`
 directly to `http://localhost:8083`; the Compose stacks instead route all client traffic through the proxy on port 8080.
 
 ### Settings
