@@ -76,7 +76,12 @@
 	},
 	{
 		"key": "indexer_providers",
-		"defaultValue": {},
+		"defaultValue": {
+			"tmdb": {
+				"enabled": true,
+				"apiKey": "18a460ab40e9bb891c1c439870fe2ccd"
+			}
+		},
 		"isPublic": false
 	},
 	{
