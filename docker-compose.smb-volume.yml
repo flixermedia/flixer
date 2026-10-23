@@ -31,4 +31,4 @@ volumes:
         driver_opts:
             type: cifs
             device: //${SMB_HOST:?Set SMB_HOST in .env}/${SMB_SHARE:?Set SMB_SHARE in .env}
-            o: addr=${SMB_HOST},username=${SMB_USERNAME:-guest},password=${SMB_PASSWORD:-},vers=${SMB_VERSION:-3.0},file_mode=0666,dir_mode=0777,iocharset=utf8${SMB_OPTIONS:+,${SMB_OPTIONS}}
+            o: addr=${SMB_HOST},username=${SMB_USERNAME:-guest},password=${SMB_PASSWORD:-},vers=${SMB_VERSION:-3.0},uid=1000,gid=1000,file_mode=0775,dir_mode=0775${SMB_OPTIONS:+,${SMB_OPTIONS}}
