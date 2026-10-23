@@ -15,6 +15,7 @@ import { DataSource, LessThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PasskeyChallenge, type PasskeyChallengeType } from "../../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { AuthService, type AuthResult } from "./authService.js";
