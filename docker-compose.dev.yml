@@ -11,7 +11,7 @@ services:
         command:
             - /bin/sh
             - -c
-            - mkdir -p /data/avatars /data/metadata/artwork && chown -R 1000:1000 /data/avatars /data/metadata/artwork && chown 65532:65532 /data/metadata || true
+            - mkdir -p /data/avatars /data/metadata/artwork /data/logs /data/mounts || exit 1; chown -R 1000:1000 /data/avatars /data/metadata/artwork 2>/dev/null || true; chown 65532:65532 /data/metadata 2>/dev/null || true; chown 1000:1000 /data/mounts 2>/dev/null || true; chmod 0777 /data/logs 2>/dev/null || true
         volumes:
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}:/data
         restart: "no"
@@ -34,7 +34,8 @@ services:
             AVATAR_DIR: /data/avatars
             METADATA_DIR: /data/metadata
             STREAM_MEDIA_ROOT: /media
-            LOG_DIR: ""
+            SMB_MOUNT_DIR: /data/mounts
+            LOG_DIR: /data/logs
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
@@ -43,7 +44,9 @@ services:
             - flixer-config:/var/lib/flixer/config
             - flixer-secrets:/run/flixer-secrets
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/avatars:/data/avatars
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts
         expose:
             - "8081"
         healthcheck:
@@ -70,9 +73,12 @@ services:
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
             TRANSCODE_DIR: /var/cache/flixer/transcode
             FLIXER_URL: http://api:8081
+            LOG_DIR: /data/logs
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
         expose:
             - "8091"
         healthcheck:
@@ -99,6 +105,7 @@ services:
             LOG_LEVEL: debug
             ROLE: all
             FLIXER_URL: http://api:8081
+            LOG_DIR: /data/logs
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
             CACHE_PATH: /var/cache/flixer/indexer
         volumes:
@@ -106,6 +113,8 @@ services:
             - ${MEDIA_PATH:-./media}:/media
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/var/cache/flixer/indexer
             - flixer-secrets:/run/flixer-secrets:ro
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts
         expose:
             - "8092"
         restart: unless-stopped

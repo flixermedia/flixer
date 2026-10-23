@@ -63,9 +63,9 @@ PostgreSQL is bundled in the Compose file, or you can use your own server; the s
 
 ### Quick Start with Docker Compose
 
-1. Clone this repository and create a `.env` file next to `docker-compose.yml`. `DATA_PATH` is required: the folder
-   where Flixer keeps avatars and metadata (the indexer's cache and uploaded artwork) (it is created if missing). `MEDIA_PATH` is
-   your media folder and defaults to `./media`. Then start the stack:
+1. Clone this repository and create a `.env` file next to `docker-compose.yml`. `DATA_PATH` is required: it is the folder
+   where Flixer keeps avatars, metadata (the indexer's cache and uploaded artwork), and logs. It is created if missing.
+   `MEDIA_PATH` is your media folder and defaults to `./media`. Then start the stack:
 
    ```bash
    printf 'DATA_PATH=/path/to/flixer-data\nMEDIA_PATH=/path/to/your/media\n' > .env
@@ -93,8 +93,9 @@ lived in a removed `.env`), the wizard opens in recovery mode. The API prints a 
 the code changes on every start, and repeated wrong codes are locked out for ten minutes.
 
 `MEDIA_PATH` (default `./media`) is mounted at `/media` in the API, streamer and indexer; it is read-only in the API
-and streamer. Avatars and metadata (indexer cache and artwork, in `metadata/`) live in `DATA_PATH`; settings, secrets, PostgreSQL and Redis stay in Docker volumes. Network shares can be added in the app instead of a local
-folder (see below).
+and streamer. Avatars live in `DATA_PATH/avatars`, metadata (indexer cache and uploaded artwork) in
+`DATA_PATH/metadata`, SMB share mount points in `DATA_PATH/mounts`, and application log files in `DATA_PATH/logs`. The default Compose files work on Docker Desktop because they do not request mount propagation. Settings, secrets, PostgreSQL and Redis stay in
+Docker volumes. Network shares can be added in the app instead of a local folder (see below).
 
 Compose also runs `flixer-indexer` (with Redis), which scans libraries and stores items through the signed
 `/api/indexer/*` endpoints using the same `STREAM_TOKEN_SECRET`. Admins start scans and tune workers through
@@ -108,9 +109,10 @@ The indexer mounts the media directory read-write so artwork can be saved alongs
   `COMPOSE_FILE=docker-compose.yml:docker-compose.smb-volume.yml`, separating files with `;` on Windows). Docker mounts
   the share as a CIFS volume at `/smb` in the API, streamer, and indexer, and it is added to the media roots so you can
   create a library from it. Use the server's IP address for `SMB_HOST`, and add `SMB_OPTIONS=ro` to mount it read-only.
-- **Linux only:** `docker-compose.smb.yml` lets flixer mount shares itself from **Libraries > Network shares**. It
-  needs root and `SYS_ADMIN` in the API container and mount propagation, which Docker Desktop on Windows and macOS
-  does not support, so the stack fails to start there.
+- **Linux only:** `docker-compose.smb.yml` lets flixer mount shares itself from **Libraries > Network shares**:
+  `docker compose -f docker-compose.yml -f docker-compose.smb.yml up -d`. It grants the API container the privileges
+  and mount propagation required to create CIFS mounts and share them with the streamer and indexer. Do not use this
+  override on Docker Desktop for Windows or macOS; instead, mount the share on the host and expose it through `MEDIA_PATH`.
 
 The Compose stack pulls `ghcr.io/flixermedia/flixer-web:latest` and
 `ghcr.io/flixermedia/flixer-streamer:latest`, while building the backend and proxy locally. The image workflows in
