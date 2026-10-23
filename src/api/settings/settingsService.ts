@@ -9,6 +9,7 @@ import { MailService, SMTP_SETTING_KEYS } from "../auth/mailService.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexerSettingsService.js";
 import { SECRET_MASK } from "./secretMask.js";
+import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
 
 export { SECRET_MASK };
@@ -67,13 +68,18 @@ export class SettingsService {
 		return settings.map((setting) => this.toPublicSetting(setting));
 	}
 
-	async getRegistrationStatus(): Promise<{ registrationEnabled: boolean }> {
-		const setting = await this.dataSource.getRepository(Setting).findOneBy({ key: "registration_enabled" });
+	async getRegistrationStatus(): Promise<{ registrationEnabled: boolean; serverName: string; loginBanner: string }> {
+		const repository = this.dataSource.getRepository(Setting);
+		const setting = await repository.findOneBy({ key: "registration_enabled" });
 		if (!setting || typeof setting.value !== "boolean") {
 			throw new Error("The registration_enabled setting is missing or invalid.");
 		}
+		const text = async (key: string) => {
+			const value = (await repository.findOneBy({ key }))?.value;
+			return typeof value === "string" ? value : "";
+		};
 
-		return { registrationEnabled: setting.value };
+		return { registrationEnabled: setting.value, serverName: await text("server_name"), loginBanner: await text("login_banner") };
 	}
 
 	async update(key: string, request: SettingRequest, authorization?: string): Promise<PublicSetting> {
@@ -84,6 +90,17 @@ export class SettingsService {
 		}
 		if ((key === "registration_enabled" || key === "email_verification_required") && typeof request.value !== "boolean") {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
+		}
+
+		if (key === "login_banner" && (typeof request.value !== "string" || request.value.length > 500)) {
+			throw new BadRequest("The login_banner setting must be text of at most 500 characters.");
+		}
+		if (key === "server_name" && request.value !== null && (typeof request.value !== "string" || request.value.length > 100)) {
+			throw new BadRequest("The server_name setting must be text of at most 100 characters.");
+		}
+
+		if (TRANSCODING_SETTING_KEYS.includes(key)) {
+			validateTranscodingSetting(key, request.value);
 		}
 
 		if (key.startsWith("sentry_")) {
