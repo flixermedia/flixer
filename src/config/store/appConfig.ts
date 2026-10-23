@@ -66,7 +66,7 @@ export function appConfig(): AppConfig {
 		try {
 			store = new ConfigStore(configDirectory());
 		} catch (error: unknown) {
-			$log.warn({ event: "CONFIG_STORE_UNAVAILABLE", message: error instanceof Error ? error.message : String(error) });
+			$log.warn({ event: "CONFIG_STORE_UNAVAILABLE", message: `CONFIG_STORE_UNAVAILABLE: ${error instanceof Error ? error.message : String(error)}` });
 		}
 		instance = new AppConfig(store);
 	}

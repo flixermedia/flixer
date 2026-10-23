@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$HOME/projects"
-mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/media-images" "$ROOT/flixer-data/logs"
+mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/metadata" "$ROOT/flixer-data/logs"
 export PATH="$HOME/bin:$PATH"
 
 for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs; do
@@ -36,7 +36,7 @@ PASSKEY_RP_ID=$PUBLIC_HOST
 PASSKEY_ORIGINS=$PUBLIC_URL
 MEDIA_PATH=$ROOT/flixer-data/media
 AVATAR_DIR=$ROOT/flixer-data/avatars
-MEDIA_IMAGE_DIR=$ROOT/flixer-data/media-images
+METADATA_DIR=$ROOT/flixer-data/metadata
 STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
 LOG_DIR=$ROOT/flixer-data/logs
 STREAMER_INTERNAL_URL=http://localhost:8091

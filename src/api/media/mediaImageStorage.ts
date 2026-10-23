@@ -10,9 +10,9 @@ export const UPLOAD_PREFIX = "upload:";
 const FILENAME_PATTERN = /^[0-9a-f-]{36}-[0-9a-f]{16}\.(png|jpg|webp|gif)$/;
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
 
-/** Folder artwork uploaded by admins is stored in, configured with MEDIA_IMAGE_DIR. */
+/** Folder artwork uploaded by admins is stored in: the "artwork" folder inside METADATA_DIR. */
 export function getMediaImageDirectory(): string {
-	return resolve(process.env.MEDIA_IMAGE_DIR?.trim() || "./data/media-images");
+	return resolve(process.env.METADATA_DIR?.trim() || "./data/metadata", "artwork");
 }
 
 export function detectImageType(buffer: Buffer): AvatarType | null {
