@@ -38,7 +38,6 @@ services:
             BACKUP_DIR: /data/backups
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://updater:8093
-            UPDATER_TOKEN: ${UPDATER_TOKEN:-}
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-config:/var/lib/flixer/config
@@ -155,8 +154,8 @@ services:
             start_period: 10s
         restart: unless-stopped
 
-    # Optional, in-dashboard updates: `docker compose --profile updates up -d` with UPDATER_TOKEN set in .env (any random
-    # string of 16+ characters). The updater is the only container with the Docker socket. When an admin asks from
+    # Optional, in-dashboard updates: `docker compose --profile updates up -d`. No token to set: Flixer and the
+    # updater derive it from the shared stream token secret. The updater is the only container with the Docker socket. When an admin asks from
     # Admin > Updates it backs up the database, pins the new versions in its state volume, recreates the services one by one
     # and rolls back if one does not become healthy. It needs this folder mounted at the same path as on the host
     # (PROJECT_DIR defaults to the current directory). Update the updater itself by pulling its image manually.
@@ -167,9 +166,10 @@ services:
             data-init:
                 condition: service_completed_successfully
         environment:
-            UPDATER_TOKEN: ${UPDATER_TOKEN:-}
+            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
+            - flixer-secrets:/run/flixer-secrets:ro
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro
             - updater-state:/state
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/backups

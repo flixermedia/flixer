@@ -1,5 +1,6 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict } from "@tsed/exceptions";
+import { createHmac } from "node:crypto";
 import { readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DataSource, IsNull } from "typeorm";
@@ -60,6 +61,11 @@ export interface UpdateStatus {
 	updaterReachable: boolean;
 	run: UpdateRun | null;
 	backups: Array<{ name: string; sizeBytes: number; createdAt: string }>;
+}
+
+/** Must match the updater: hex(HMAC-SHA256(secret, "flixer-updater-token")). */
+export function deriveUpdaterToken(secret: string | undefined | null): string | undefined {
+	return secret ? createHmac("sha256", secret).update("flixer-updater-token").digest("hex") : undefined;
 }
 
 export function parseVersion(value: string | null | undefined): number[] | null {
@@ -138,7 +144,7 @@ export class UpdateService {
 	/** Asks the updater to move every outdated component to its newest release. It backs up, updates and rolls back. */
 	async apply(): Promise<UpdateRun> {
 		if (!this.updaterToken()) {
-			throw new BadRequest("Updates are not configured. Run Flixer with the flixer-updater service from docker-compose.yml and set UPDATER_TOKEN.");
+			throw new BadRequest("Updates are not available yet: Flixer has no stream token secret to authenticate with the updater. Finish the setup wizard first.");
 		}
 		const status = await this.status(true);
 		if (!status.updaterReachable) {
@@ -283,8 +289,9 @@ export class UpdateService {
 		return versions;
 	}
 
+	/** An explicit UPDATER_TOKEN wins; otherwise it is derived from the stream token secret the updater also reads. */
 	private updaterToken(): string | undefined {
-		return process.env.UPDATER_TOKEN?.trim() || undefined;
+		return process.env.UPDATER_TOKEN?.trim() || deriveUpdaterToken(appConfig().get("streamTokenSecret"));
 	}
 
 	private async updaterUrl(): Promise<string> {
