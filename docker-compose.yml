@@ -168,7 +168,6 @@ services:
                 condition: service_completed_successfully
         environment:
             UPDATER_TOKEN: ${UPDATER_TOKEN:-}
-            DATABASE_URL: ${UPDATER_DATABASE_URL:-postgres://flixer:flixer@postgres:5432/flixer}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro

@@ -154,7 +154,11 @@ export class UpdateService {
 		const targets = Object.fromEntries(outdated.map((component) => [component.id, component.latest as string]));
 		const current = Object.fromEntries(status.components.filter((component) => component.installed).map((component) => [component.id, component.installed as string]));
 		logger().info(`Starting update: ${outdated.map((component) => `${component.id} ${component.installed} -> ${component.latest}`).join(", ")}.`);
-		const response = await this.callUpdater("/v1/update", { method: "POST", body: JSON.stringify({ targets, current }) });
+		const databaseUrl = appConfig().get("databaseUrl");
+		if (!databaseUrl) {
+			throw new BadRequest("DATABASE_URL is not configured, so the database cannot be backed up.");
+		}
+		const response = await this.callUpdater("/v1/update", { method: "POST", body: JSON.stringify({ targets, current, databaseUrl }) });
 		const body = (await response.json().catch(() => ({}))) as UpdateRun & { error?: string };
 		if (response.status === 409) {
 			throw new Conflict("An update is already in progress.");
