@@ -124,10 +124,10 @@ export class SettingsService {
 				throw new BadRequest(`The ${key} setting must be a boolean.`);
 			}
 		}
-		if (key === "updates_watchtower_url") {
+		if (key === "updates_updater_url") {
 			const value = typeof request.value === "string" ? request.value.trim() : null;
 			if (value === null || (value !== "" && !/^https?:\/\/[^\s]+$/.test(value))) {
-				throw new BadRequest("The Watchtower URL must be empty or an http(s) URL.");
+				throw new BadRequest("The updater URL must be empty or an http(s) URL.");
 			}
 		}
 
