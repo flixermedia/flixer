@@ -1,6 +1,6 @@
 ARG NODE_VERSION=26.12.0
 
-FROM node:${NODE_VERSION}-alpine AS build
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build
 WORKDIR /opt
 
 COPY package*.json tsconfig*.json vite.config.ts .barrels.json ./
