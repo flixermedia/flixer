@@ -1,6 +1,6 @@
 {
 	"name": "flixer",
-	"version": "1.7.0",
+	"version": "1.8.0",
 	"description": "",
 	"scripts": {
 		"build": "npm run barrels && tsed build",
@@ -64,6 +64,7 @@
 		"sharp": "^0.35.5",
 		"socket.io": "^4.8.4",
 		"typeorm": "^1.1.2",
+		"web-push": "^3.6.7",
 		"ws": "^8.21.3"
 	},
 	"devDependencies": {
@@ -79,6 +80,7 @@
 		"@types/node": "^26.6.5",
 		"@types/nodemailer": "^8.0.2",
 		"@types/supertest": "^7.2.1",
+		"@types/web-push": "^3.6.4",
 		"@types/ws": "^8.18.2",
 		"husky": "^9.1.7",
 		"prettier": "^3.9.10",
