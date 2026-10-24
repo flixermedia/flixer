@@ -11,13 +11,15 @@ services:
         command:
             - /bin/sh
             - -c
-            - mkdir -p /data/avatars /data/metadata/artwork /data/logs /data/mounts || exit 1; chown -R 1000:1000 /data/avatars /data/metadata/artwork 2>/dev/null || true; chown 65532:65532 /data/metadata 2>/dev/null || true; chown 1000:1000 /data/mounts 2>/dev/null || true; chmod 0777 /data/logs 2>/dev/null || true
+            - mkdir -p /data/avatars /data/metadata/artwork /data/logs /data/mounts /data/backups || exit 1; chown -R 1000:1000 /data/avatars /data/metadata/artwork 2>/dev/null || true; chown 65532:65532 /data/metadata 2>/dev/null || true; chown 1000:1000 /data/mounts /data/backups 2>/dev/null || true; chmod 0777 /data/logs 2>/dev/null || true
         volumes:
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}:/data
         restart: "no"
 
     api:
         image: ghcr.io/flixermedia/flixer:latest
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -35,11 +37,16 @@ services:
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
+            BACKUP_DIR: /data/backups
+            WEB_INTERNAL_URL: http://web
+            WATCHTOWER_URL: http://watchtower:8080
+            WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN:-}
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-config:/var/lib/flixer/config
             - flixer-secrets:/run/flixer-secrets
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/avatars:/data/avatars
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/data/backups
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts
@@ -60,6 +67,8 @@ services:
 
     streamer:
         image: ghcr.io/flixermedia/flixer-streamer:latest
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
         environment:
             PORT: 8091
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
@@ -84,6 +93,8 @@ services:
 
     indexer:
         image: ghcr.io/flixermedia/flixer-indexer:latest
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -140,6 +151,8 @@ services:
 
     web:
         image: ghcr.io/flixermedia/flixer-web:latest
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
         expose:
             - "80"
         healthcheck:
@@ -148,6 +161,23 @@ services:
             timeout: 5s
             retries: 5
             start_period: 10s
+        restart: unless-stopped
+
+    # Optional, in-dashboard updates: `docker compose --profile updates up -d` with WATCHTOWER_TOKEN set in .env (any long
+    # random string). Watchtower is the only container with the Docker socket; it updates just the services labelled above,
+    # and only when an admin asks from Admin > Updates (or enables automatic updates there).
+    watchtower:
+        image: nickfedor/watchtower:latest
+        profiles: ["updates"]
+        environment:
+            WATCHTOWER_HTTP_API_UPDATE: "true"
+            WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN:-}
+            WATCHTOWER_LABEL_ENABLE: "true"
+            WATCHTOWER_CLEANUP: "true"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        expose:
+            - "8080"
         restart: unless-stopped
 
     # Reverse proxy. Its nginx config is the same as deploy/proxy/nginx.conf (with $ written as $$); it is written

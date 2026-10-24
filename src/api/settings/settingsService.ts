@@ -1,3 +1,4 @@
+import { isValidVapidSubject } from "../notifications/notificationService.js";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
@@ -101,6 +102,33 @@ export class SettingsService {
 
 		if (TRANSCODING_SETTING_KEYS.includes(key)) {
 			validateTranscodingSetting(key, request.value);
+		}
+
+		if (key === "notifications_enabled" || key === "notifications_new_media_enabled") {
+			if (typeof request.value !== "boolean") {
+				throw new BadRequest(`The ${key} setting must be a boolean.`);
+			}
+		}
+		if (key === "notifications_permission_prompt" && request.value !== "button" && request.value !== "load") {
+			throw new BadRequest("The notifications_permission_prompt setting must be \"button\" or \"load\".");
+		}
+		if (key === "notifications_vapid_subject" && (typeof request.value !== "string" || (request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))) {
+			throw new BadRequest("The VAPID subject must be empty, a mailto: address or an https:// URL.");
+		}
+
+		if (key === "updates_state") {
+			throw new BadRequest("The update state is managed by Flixer.");
+		}
+		if (key === "updates_check_enabled" || key === "updates_auto_update") {
+			if (typeof request.value !== "boolean") {
+				throw new BadRequest(`The ${key} setting must be a boolean.`);
+			}
+		}
+		if (key === "updates_watchtower_url") {
+			const value = typeof request.value === "string" ? request.value.trim() : null;
+			if (value === null || (value !== "" && !/^https?:\/\/[^\s]+$/.test(value))) {
+				throw new BadRequest("The Watchtower URL must be empty or an http(s) URL.");
+			}
 		}
 
 		if (key.startsWith("sentry_")) {

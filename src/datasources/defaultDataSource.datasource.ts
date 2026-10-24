@@ -11,6 +11,10 @@ import { NetworkShare } from "../entities/networkShare.entity.js";
 import { WatchProgress } from "../entities/watchProgress.entity.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
+import { Notification } from "../entities/notification.entity.js";
+import { PushSubscription } from "../entities/pushSubscription.entity.js";
+import { PushKey } from "../entities/pushKey.entity.js";
+import { CreateNotifications1794400000000 } from "../migrations/createNotifications1794400000000.js";
 import { CreatePersonProfiles1794200000000 } from "../migrations/createPersonProfiles1794200000000.js";
 import { AddPersonProfileImage1794300000000 } from "../migrations/addPersonProfileImage1794300000000.js";
 import { AddMediaCreditImage1794100000000 } from "../migrations/addMediaCreditImage1794100000000.js";
@@ -56,7 +60,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			url,
 			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
 			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress, MediaCredit, PersonProfile],
+			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress, MediaCredit, PersonProfile, Notification, PushSubscription, PushKey],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -84,6 +88,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddMediaCreditImage1794100000000,
 				CreatePersonProfiles1794200000000,
 				AddPersonProfileImage1794300000000,
+				CreateNotifications1794400000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

@@ -76,3 +76,10 @@ export class UpdateMediaItemRequest {
 	@MaxLength(20000)
 	overview?: string | null;
 }
+
+/** Marks an item (or every episode of a season or series) watched or unwatched. */
+export class WatchedRequest {
+
+	@Required()
+	watched!: boolean;
+}

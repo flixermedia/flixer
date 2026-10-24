@@ -4,7 +4,7 @@ import { PathParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
 import { isSentryApp, SentryService } from "./sentryService.js";
 
-/** Lets flixer-web and flixer-streamer discover whether Sentry is enabled and which DSN to use. */
+/** Lets flixer-web, flixer-streamer and flixer-indexer discover whether Sentry is enabled and which DSN to use. */
 @Controller("/sentry")
 export class SentryController {
 

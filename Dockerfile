@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.version=$APP_VERSION
 ENV WORKDIR /opt
 WORKDIR $WORKDIR
 
-RUN apk update && apk add build-base git curl cifs-utils && npm install -g pm2
+RUN apk update && apk add build-base git curl cifs-utils postgresql16-client && npm install -g pm2
 
 
 COPY --from=build /opt .
@@ -28,7 +28,7 @@ COPY processes.config.cjs ./
 COPY resources ./resources
 
 # Named volumes copy this ownership on first use, so the node user can write settings and the shared secret.
-RUN mkdir -p /var/lib/flixer/config /run/flixer-secrets && chown -R node:node "$WORKDIR" /var/lib/flixer /run/flixer-secrets
+RUN mkdir -p /var/lib/flixer/config /run/flixer-secrets /data/backups && chown -R node:node "$WORKDIR" /var/lib/flixer /run/flixer-secrets /data/backups
 USER node
 
 EXPOSE 8081

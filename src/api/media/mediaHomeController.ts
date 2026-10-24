@@ -4,7 +4,7 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { Context, BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Get, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
-import { WatchProgressRequest } from "./adminMediaRequests.js";
+import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
 import { AdminMediaService } from "./adminMediaService.js";
 import { MediaHomeService } from "./mediaHomeService.js";
 
@@ -44,14 +44,42 @@ export class MediaHomeController {
 		await this.home.saveProgress(user.id, id.toLowerCase(), request.positionSeconds, request.durationSeconds);
 	}
 
+	@Put("/items/:id/watched")
+	@Returns(204)
+	async setWatched(@PathParams("id") id: string, @BodyParams() request: WatchedRequest, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		if (!AuthService.isUuid(id)) {
+			throw new NotFound("Media item not found.");
+		}
+		await this.home.setWatched(user.id, id.toLowerCase(), request.watched);
+	}
+
+	@Get("/search/genres")
+	async genres(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.getAuthenticatedUser(authorization);
+		return this.home.genres();
+	}
+
 	@Get("/search")
 	async search(
 		@QueryParams("q", String) q: string | undefined,
 		@QueryParams("type", String) type: string | undefined,
+		@QueryParams("genre", String) genre: string | undefined,
+		@QueryParams("yearFrom", Number) yearFrom: number | undefined,
+		@QueryParams("yearTo", Number) yearTo: number | undefined,
+		@QueryParams("sort", String) sort: string | undefined,
+		@QueryParams("unwatched", String) unwatched: string | undefined,
 		@HeaderParams("authorization") authorization?: string,
 	) {
-		await this.authService.getAuthenticatedUser(authorization);
-		return this.home.search(typeof q === "string" ? q : "", typeof type === "string" ? type : undefined);
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		return this.home.search(user.id, typeof q === "string" ? q : "", {
+			type: typeof type === "string" ? type : undefined,
+			genre: typeof genre === "string" ? genre : undefined,
+			yearFrom: Number.isInteger(yearFrom) ? yearFrom : undefined,
+			yearTo: Number.isInteger(yearTo) ? yearTo : undefined,
+			sort: typeof sort === "string" ? sort : undefined,
+			unwatched: unwatched === "true",
+		});
 	}
 
 	@Get("/people/:id/image")
@@ -92,11 +120,11 @@ export class MediaHomeController {
 
 	@Get("/items/:id")
 	async item(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
-		await this.authService.getAuthenticatedUser(authorization);
+		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
 		}
-		return this.home.detail(id.toLowerCase());
+		return this.home.detail(id.toLowerCase(), user.id);
 	}
 
 	/** An image's bytes. Authenticated, so the web app fetches it with its token rather than using a plain img src. */

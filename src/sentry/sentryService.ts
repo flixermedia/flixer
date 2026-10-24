@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.j
 import { Setting } from "../entities/setting.entity.js";
 import { version } from "../config/config.js";
 
-export const SENTRY_APPS = ["flixer", "streamer", "web"] as const;
+export const SENTRY_APPS = ["flixer", "streamer", "indexer", "web"] as const;
 export type SentryApp = (typeof SENTRY_APPS)[number];
 
 export interface SentryAppConfig {
@@ -68,7 +68,13 @@ export class SentryService {
 				this.active = false;
 			}
 			if (config.enabled && config.dsn) {
-				Sentry.init({ dsn: config.dsn, release: `flixer@${version}`, environment: process.env.NODE_ENV ?? "development" });
+				Sentry.init({
+					dsn: config.dsn,
+					release: `flixer@${version}`,
+					environment: process.env.NODE_ENV ?? "development",
+					// Errors the app catches and only logs would otherwise never reach Sentry.
+    				// integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
+				});
 				this.active = true;
 			}
 			logger().info(`Sentry monitoring is ${this.active ? "enabled" : "disabled"}.`);

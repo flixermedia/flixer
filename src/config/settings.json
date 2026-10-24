@@ -106,6 +106,46 @@
 		"isPublic": false
 	},
 	{
+		"key": "notifications_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "notifications_new_media_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "notifications_permission_prompt",
+		"defaultValue": "button",
+		"isPublic": false
+	},
+	{
+		"key": "notifications_vapid_subject",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "updates_check_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "updates_auto_update",
+		"defaultValue": false,
+		"isPublic": false
+	},
+	{
+		"key": "updates_watchtower_url",
+		"defaultValue": "",
+		"isPublic": false
+	},
+	{
+		"key": "updates_state",
+		"defaultValue": {},
+		"isPublic": false
+	},
+	{
 		"key": "sentry_enabled",
 		"defaultValue": true,
 		"isPublic": false
@@ -117,6 +157,11 @@
 	},
 	{
 		"key": "sentry_streamer_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_indexer_enabled",
 		"defaultValue": true,
 		"isPublic": false
 	},
@@ -133,6 +178,11 @@
 	{
 		"key": "sentry_streamer_dsn",
 		"defaultValue": "https://b3aa85a36bc644ddfd7165b5f0fd46e4@o4512285684596736.ingest.us.sentry.io/4512285696393216",
+		"isPublic": false
+	},
+	{
+		"key": "sentry_indexer_dsn",
+		"defaultValue": "https://0774933893e1c7b92e2188ad41c23d53@o4512285684596736.ingest.us.sentry.io/4512312935251968",
 		"isPublic": false
 	},
 	{
