@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isNewer, parseVersion } from "./updateService.js";
+import { deriveUpdaterToken, isNewer, parseVersion } from "./updateService.js";
+
+describe("deriveUpdaterToken", () => {
+	it("matches the updater's HMAC derivation", () => {
+		expect(deriveUpdaterToken("secret")).toBe("d171f4d65c41290afa1ba74b5aebaccc3ee1a6c7811ec0e9ddeaa6433180b65c");
+		expect(deriveUpdaterToken("")).toBeUndefined();
+	});
+});
 
 describe("update versions", () => {
 	it("parses stable versions only", () => {
