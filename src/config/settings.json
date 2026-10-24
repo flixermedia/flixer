@@ -136,7 +136,7 @@
 		"isPublic": false
 	},
 	{
-		"key": "updates_watchtower_url",
+		"key": "updates_updater_url",
 		"defaultValue": "",
 		"isPublic": false
 	},

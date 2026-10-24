@@ -1,8 +1,6 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict } from "@tsed/exceptions";
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DataSource, IsNull } from "typeorm";
 import { version as flixerVersion } from "../../config/config.js";
@@ -12,7 +10,7 @@ import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { NotificationService } from "../notifications/notificationService.js";
 
-export const UPDATE_SETTING_KEYS = ["updates_check_enabled", "updates_auto_update", "updates_watchtower_url"];
+export const UPDATE_SETTING_KEYS = ["updates_check_enabled", "updates_auto_update", "updates_updater_url"];
 
 const COMPONENTS = [
 	{ id: "flixer", label: "API", repo: "flixermedia/flixer" },
@@ -24,10 +22,7 @@ export type ComponentId = (typeof COMPONENTS)[number]["id"];
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
 const LATEST_CACHE_MS = 10 * 60_000;
-/** An update that has not finished by then is reported as failed. */
-const RUN_TIMEOUT_MS = 15 * 60_000;
-const BACKUPS_KEPT = 5;
-const DEFAULT_WATCHTOWER_URL = "http://watchtower:8080";
+const DEFAULT_UPDATER_URL = "http://updater:8093";
 const BACKUP_PATTERN = /^flixer-.*\.dump$/;
 
 export interface ComponentStatus {
@@ -43,16 +38,18 @@ export interface UpdateRun {
 	id: string;
 	startedAt: string;
 	finishedAt: string | null;
-	status: "running" | "succeeded" | "failed";
+	status: "running" | "succeeded" | "failed" | "rolled_back" | "rollback_failed";
+	step: string;
 	targets: Partial<Record<ComponentId, string>>;
+	previous: Partial<Record<ComponentId, string>>;
 	backup: string | null;
 	error: string | null;
+	log: string[];
 }
 
 interface UpdateState {
 	lastCheckedAt: string | null;
 	notified: string | null;
-	run: UpdateRun | null;
 }
 
 export interface UpdateStatus {
@@ -60,6 +57,7 @@ export interface UpdateStatus {
 	updatesAvailable: number;
 	lastCheckedAt: string | null;
 	canApply: boolean;
+	updaterReachable: boolean;
 	run: UpdateRun | null;
 	backups: Array<{ name: string; sizeBytes: number; createdAt: string }>;
 }
@@ -86,8 +84,8 @@ export function isNewer(latest: string | null | undefined, installed: string | n
 
 /**
  * Knows which version of every Flixer component is running and which is the newest release, and applies updates by asking
- * Watchtower (which holds the Docker socket) to pull the newest images and recreate the containers. Flixer itself never
- * touches Docker.
+ * the flixer-updater sidecar (which holds the Docker socket) to back up, pin, recreate and, if needed, roll back. Flixer
+ * itself never touches Docker.
  */
 @Injectable()
 export class UpdateService {
@@ -124,24 +122,28 @@ export class UpdateService {
 				updateAvailable: isNewer(newest, current),
 			};
 		});
-		const state = await this.settleRun(await this.readState(), components);
+		const state = await this.readState();
+		const updater = await this.updaterStatus();
 		return {
 			components,
 			updatesAvailable: components.filter((component) => component.updateAvailable).length,
 			lastCheckedAt: state.lastCheckedAt,
-			canApply: this.watchtowerToken() !== undefined,
-			run: state.run,
+			canApply: this.updaterToken() !== undefined,
+			updaterReachable: updater !== null,
+			run: updater?.run ?? null,
 			backups: await this.listBackups(),
 		};
 	}
 
-	/** Backs up the database, then asks Watchtower to update every labelled container. Returns once the run is recorded. */
+	/** Asks the updater to move every outdated component to its newest release. It backs up, updates and rolls back. */
 	async apply(): Promise<UpdateRun> {
-		const token = this.watchtowerToken();
-		if (!token) {
-			throw new BadRequest("Updates are not configured. Run Flixer with the Watchtower service from docker-compose.yml and set WATCHTOWER_TOKEN.");
+		if (!this.updaterToken()) {
+			throw new BadRequest("Updates are not configured. Run Flixer with the flixer-updater service from docker-compose.yml and set UPDATER_TOKEN.");
 		}
 		const status = await this.status(true);
+		if (!status.updaterReachable) {
+			throw new BadRequest("The updater is not reachable. Check that the flixer-updater container is running.");
+		}
 		if (status.run?.status === "running") {
 			throw new Conflict("An update is already in progress.");
 		}
@@ -149,66 +151,48 @@ export class UpdateService {
 		if (outdated.length === 0) {
 			throw new BadRequest("Everything is already up to date.");
 		}
-
-		const backup = await this.backupDatabase();
-		const run: UpdateRun = {
-			id: randomUUID(),
-			startedAt: new Date().toISOString(),
-			finishedAt: null,
-			status: "running",
-			targets: Object.fromEntries(outdated.map((component) => [component.id, component.latest as string])),
-			backup,
-			error: null,
-		};
-		await this.writeState({ ...(await this.readState()), run });
-		logger().info(`Starting update ${run.id}: ${outdated.map((component) => `${component.id} ${component.installed} -> ${component.latest}`).join(", ")}.`);
-		void this.triggerWatchtower(token, run.id);
-		return run;
+		const targets = Object.fromEntries(outdated.map((component) => [component.id, component.latest as string]));
+		const current = Object.fromEntries(status.components.filter((component) => component.installed).map((component) => [component.id, component.installed as string]));
+		logger().info(`Starting update: ${outdated.map((component) => `${component.id} ${component.installed} -> ${component.latest}`).join(", ")}.`);
+		const response = await this.callUpdater("/v1/update", { method: "POST", body: JSON.stringify({ targets, current }) });
+		const body = (await response.json().catch(() => ({}))) as UpdateRun & { error?: string };
+		if (response.status === 409) {
+			throw new Conflict("An update is already in progress.");
+		}
+		if (!response.ok) {
+			throw new BadRequest(body.error ?? `The updater answered ${response.status}.`);
+		}
+		return body;
 	}
 
-	/** Watchtower answers only after it has recreated every container, including this one, so the reply may never arrive. */
-	private async triggerWatchtower(token: string, runId: string): Promise<void> {
+	private async callUpdater(path: string, init: RequestInit = {}): Promise<Response> {
+		const url = `${await this.updaterUrl()}${path}`;
 		try {
-			const response = await fetch(`${await this.watchtowerUrl()}/v1/update`, {
-				method: "POST",
-				headers: { authorization: `Bearer ${token}` },
-				signal: AbortSignal.timeout(RUN_TIMEOUT_MS),
+			return await fetch(url, {
+				...init,
+				headers: { authorization: `Bearer ${this.updaterToken() ?? ""}`, "content-type": "application/json" },
+				signal: AbortSignal.timeout(10_000),
 			});
-			if (!response.ok) {
-				await this.failRun(runId, `Watchtower answered ${response.status}.`);
-			}
 		} catch (error) {
-			await this.failRun(runId, `Could not reach Watchtower: ${error instanceof Error ? error.message : String(error)}`);
+			throw new BadRequest(`Could not reach the updater: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 
-	private async failRun(runId: string, message: string): Promise<void> {
-		const state = await this.readState();
-		if (state.run?.id === runId && state.run.status === "running") {
-			logger().error(`Update ${runId} failed: ${message}`);
-			await this.writeState({ ...state, run: { ...state.run, status: "failed", finishedAt: new Date().toISOString(), error: message } });
+	/** The latest run as the updater reports it, or null when the updater is not configured or not reachable. */
+	private async updaterStatus(): Promise<{ run: UpdateRun | null } | null> {
+		if (!this.updaterToken()) {
+			return null;
 		}
-	}
-
-	/** A run is finished when every component is reachable on its target version; it fails if that takes too long. */
-	private async settleRun(state: UpdateState, components: ComponentStatus[]): Promise<UpdateState> {
-		const run = state.run;
-		if (!run || run.status !== "running") {
-			return state;
+		try {
+			const response = await this.callUpdater("/v1/status");
+			if (!response.ok) {
+				return null;
+			}
+			const body = (await response.json()) as { state?: { run?: UpdateRun | null } };
+			return { run: body.state?.run ?? null };
+		} catch {
+			return null;
 		}
-		const pending = components.filter((component) => !component.reachable || isNewer(run.targets[component.id], component.installed));
-		const timedOut = Date.now() - new Date(run.startedAt).getTime() > RUN_TIMEOUT_MS;
-		if (pending.length > 0 && !timedOut) {
-			return state;
-		}
-		const finishedAt = new Date().toISOString();
-		const settled: UpdateRun =
-			pending.length === 0
-				? { ...run, status: "succeeded", finishedAt }
-				: { ...run, status: "failed", finishedAt, error: `${pending.map((component) => component.label).join(", ")} did not come back on the new version. Check the container logs; the database backup from before the update is kept.` };
-		const next = { ...state, run: settled };
-		await this.writeState(next);
-		return next;
 	}
 
 	private async scheduledCheck(): Promise<void> {
@@ -227,7 +211,7 @@ export class UpdateService {
 				await this.writeState({ ...state, notified: signature });
 				await this.notifyAdmins(outdated);
 			}
-			if ((await this.settingValue("updates_auto_update")) === true && status.canApply && status.run?.status !== "running") {
+			if ((await this.settingValue("updates_auto_update")) === true && status.canApply && status.updaterReachable && status.run?.status !== "running") {
 				await this.apply();
 			}
 		} catch (error) {
@@ -295,54 +279,18 @@ export class UpdateService {
 		return versions;
 	}
 
-	private watchtowerToken(): string | undefined {
-		return process.env.WATCHTOWER_TOKEN?.trim() || undefined;
+	private updaterToken(): string | undefined {
+		return process.env.UPDATER_TOKEN?.trim() || undefined;
 	}
 
-	private async watchtowerUrl(): Promise<string> {
-		const configured = await this.settingValue("updates_watchtower_url");
-		const url = (typeof configured === "string" && configured.trim() !== "" ? configured.trim() : process.env.WATCHTOWER_URL?.trim()) || DEFAULT_WATCHTOWER_URL;
+	private async updaterUrl(): Promise<string> {
+		const configured = await this.settingValue("updates_updater_url");
+		const url = (typeof configured === "string" && configured.trim() !== "" ? configured.trim() : process.env.UPDATER_URL?.trim()) || DEFAULT_UPDATER_URL;
 		return url.replace(/\/+$/, "");
 	}
 
 	private backupDirectory(): string {
 		return resolve(process.env.BACKUP_DIR?.trim() || "./data/backups");
-	}
-
-	/** Writes a pg_dump of the database and keeps only the newest few. Aborts the update when it cannot. */
-	private async backupDatabase(): Promise<string> {
-		const databaseUrl = appConfig().get("databaseUrl");
-		if (!databaseUrl) {
-			throw new BadRequest("DATABASE_URL is not configured, so the database cannot be backed up.");
-		}
-		const url = new URL(databaseUrl);
-		const directory = this.backupDirectory();
-		await mkdir(directory, { recursive: true });
-		const name = `flixer-${new Date().toISOString().replace(/[:.]/g, "-")}.dump`;
-		const file = join(directory, name);
-		const env = {
-			...process.env,
-			PGHOST: url.hostname,
-			PGPORT: url.port || "5432",
-			PGUSER: decodeURIComponent(url.username),
-			PGPASSWORD: decodeURIComponent(url.password),
-			PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")),
-		};
-		try {
-			await new Promise<void>((done, fail) => {
-				const child = spawn("pg_dump", ["--format=custom", "--no-owner", "--file", file], { env });
-				let stderr = "";
-				child.stderr.on("data", (chunk) => (stderr += chunk));
-				child.on("error", (error) => fail(new Error(`pg_dump could not start (${error.message})`)));
-				child.on("close", (code) => (code === 0 ? done() : fail(new Error(stderr.trim().slice(0, 300) || `pg_dump exited with ${code}`))));
-			});
-		} catch (error) {
-			await rm(file, { force: true });
-			throw new BadRequest(`The database backup failed: ${(error as Error).message}. The update was not started.`);
-		}
-		const backups = (await readdir(directory)).filter((entry) => BACKUP_PATTERN.test(entry)).sort();
-		await Promise.all(backups.slice(0, Math.max(0, backups.length - BACKUPS_KEPT)).map((entry) => rm(join(directory, entry), { force: true })));
-		return name;
 	}
 
 	private async listBackups(): Promise<UpdateStatus["backups"]> {
@@ -366,7 +314,7 @@ export class UpdateService {
 
 	private async readState(): Promise<UpdateState> {
 		const value = (await this.settingValue("updates_state")) as Partial<UpdateState> | null;
-		return { lastCheckedAt: value?.lastCheckedAt ?? null, notified: value?.notified ?? null, run: value?.run ?? null };
+		return { lastCheckedAt: value?.lastCheckedAt ?? null, notified: value?.notified ?? null };
 	}
 
 	private async writeState(state: UpdateState): Promise<void> {

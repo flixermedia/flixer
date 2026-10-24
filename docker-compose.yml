@@ -17,9 +17,7 @@ services:
         restart: "no"
 
     api:
-        image: ghcr.io/flixermedia/flixer:latest
-        labels:
-            com.centurylinklabs.watchtower.enable: "true"
+        image: ghcr.io/flixermedia/flixer:${FLIXER_VERSION:-latest}
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -39,8 +37,8 @@ services:
             INDEXER_URL: http://indexer:8092
             BACKUP_DIR: /data/backups
             WEB_INTERNAL_URL: http://web
-            WATCHTOWER_URL: http://watchtower:8080
-            WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN:-}
+            UPDATER_URL: http://updater:8093
+            UPDATER_TOKEN: ${UPDATER_TOKEN:-}
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-config:/var/lib/flixer/config
@@ -66,9 +64,7 @@ services:
         init: true
 
     streamer:
-        image: ghcr.io/flixermedia/flixer-streamer:latest
-        labels:
-            com.centurylinklabs.watchtower.enable: "true"
+        image: ghcr.io/flixermedia/flixer-streamer:${STREAMER_VERSION:-latest}
         environment:
             PORT: 8091
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
@@ -92,9 +88,7 @@ services:
         init: true
 
     indexer:
-        image: ghcr.io/flixermedia/flixer-indexer:latest
-        labels:
-            com.centurylinklabs.watchtower.enable: "true"
+        image: ghcr.io/flixermedia/flixer-indexer:${INDEXER_VERSION:-latest}
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -150,9 +144,7 @@ services:
         restart: unless-stopped
 
     web:
-        image: ghcr.io/flixermedia/flixer-web:latest
-        labels:
-            com.centurylinklabs.watchtower.enable: "true"
+        image: ghcr.io/flixermedia/flixer-web:${WEB_VERSION:-latest}
         expose:
             - "80"
         healthcheck:
@@ -163,21 +155,27 @@ services:
             start_period: 10s
         restart: unless-stopped
 
-    # Optional, in-dashboard updates: `docker compose --profile updates up -d` with WATCHTOWER_TOKEN set in .env (any long
-    # random string). Watchtower is the only container with the Docker socket; it updates just the services labelled above,
-    # and only when an admin asks from Admin > Updates (or enables automatic updates there).
-    watchtower:
-        image: nickfedor/watchtower:latest
+    # Optional, in-dashboard updates: `docker compose --profile updates up -d` with UPDATER_TOKEN set in .env (any random
+    # string of 16+ characters). The updater is the only container with the Docker socket. When an admin asks from
+    # Admin > Updates it backs up the database, pins the new versions in its state volume, recreates the services one by one
+    # and rolls back if one does not become healthy. It needs this folder mounted at the same path as on the host
+    # (PROJECT_DIR defaults to the current directory). Update the updater itself by pulling its image manually.
+    updater:
+        image: ghcr.io/flixermedia/flixer-updater:latest
         profiles: ["updates"]
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
         environment:
-            WATCHTOWER_HTTP_API_UPDATE: "true"
-            WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN:-}
-            WATCHTOWER_LABEL_ENABLE: "true"
-            WATCHTOWER_CLEANUP: "true"
+            UPDATER_TOKEN: ${UPDATER_TOKEN:-}
+            DATABASE_URL: ${UPDATER_DATABASE_URL:-postgres://flixer:flixer@postgres:5432/flixer}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
+            - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro
+            - updater-state:/state
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/backups
         expose:
-            - "8080"
+            - "8093"
         restart: unless-stopped
 
     # Reverse proxy. Its nginx config is the same as deploy/proxy/nginx.conf (with $ written as $$); it is written
@@ -334,3 +332,4 @@ volumes:
     postgres-data:
     flixer-config:
     flixer-secrets:
+    updater-state:
