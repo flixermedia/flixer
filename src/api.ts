@@ -20,5 +20,7 @@ export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { MediaHomeController } from "./api/media/mediaHomeController.js";
 export { NetworkSharesController } from "./api/networkShares/networkSharesController.js";
 export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
+export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";
+export { AdminUpdatesController } from "./api/updates/updatesController.js";
 export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";

@@ -35,6 +35,15 @@ const ROW_SIZE = 20;
 const TOP_LEVEL_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
 const SEARCH_TYPES: MediaItemType[] = [...TOP_LEVEL_TYPES, "episode"];
 const SEARCH_LIMIT = 60;
+
+export interface SearchFilters {
+	type?: string;
+	genre?: string;
+	yearFrom?: number;
+	yearTo?: number;
+	sort?: string;
+	unwatched?: boolean;
+}
 const BROWSE_KINDS: Record<string, MediaItemType[]> = {
 	movies: ["movie", "video"],
 	tv: ["series"],
@@ -170,10 +179,10 @@ export class MediaHomeService {
 	async home(userId: string) {
 		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([
 			this.libraries(),
-			this.latest(["movie"], ROW_SIZE),
-			this.latest(["series"], ROW_SIZE),
+			this.latest(["movie"], ROW_SIZE, userId),
+			this.latest(["series"], ROW_SIZE, userId),
 			this.latest(["album"], ROW_SIZE),
-			this.latest(["movie", "series"], FEATURED_CANDIDATES),
+			this.latest(["movie", "series"], FEATURED_CANDIDATES, userId),
 			this.continueWatching(userId),
 		]);
 
@@ -212,6 +221,45 @@ export class MediaHomeService {
 			}
 		}
 		await repo.upsert({ userId, itemId, positionSeconds: completed ? 0 : positionSeconds, durationSeconds, completed, updatedAt: new Date() }, ["userId", "itemId"]);
+	}
+
+	/** Marks an item watched or unwatched; a series or season applies to every episode beneath it. */
+	async setWatched(userId: string, itemId: string, watched: boolean) {
+		const repo = this.dataSource.getRepository(MediaItem);
+		const item = await repo.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		if (!item) {
+			throw new NotFound("Media item not found.");
+		}
+		let ids: string[];
+		if (CONTINUE_TYPES.includes(item.type)) {
+			ids = [item.id];
+		} else if (item.type === "season" || item.type === "series") {
+			ids = await this.episodeIds(item.id, item.type);
+		} else {
+			throw new NotFound("Media item not found.");
+		}
+		if (ids.length === 0) {
+			return;
+		}
+		const progress = this.dataSource.getRepository(WatchProgress);
+		if (watched) {
+			await progress.upsert(
+				ids.map((id) => ({ userId, itemId: id, positionSeconds: 0, completed: true, updatedAt: new Date() })),
+				["userId", "itemId"],
+			);
+		} else {
+			await progress.delete({ userId, itemId: In(ids) });
+		}
+	}
+
+	private async episodeIds(id: string, type: "season" | "series"): Promise<string[]> {
+		const rows: Array<{ id: string }> = await this.dataSource.query(
+			type === "season"
+				? `SELECT id FROM media_items WHERE parent_id = $1 AND type = 'episode' AND is_placeholder = false`
+				: `SELECT e.id FROM media_items e JOIN media_items s ON e.parent_id = s.id WHERE s.parent_id = $1 AND e.type = 'episode' AND e.is_placeholder = false`,
+			[id],
+		);
+		return rows.map((row) => row.id);
 	}
 
 	/** Unfinished movies, episodes and videos the user has started, most recent first. */
@@ -272,7 +320,7 @@ export class MediaHomeService {
 	}
 
 	/** One item for the detail page, with its seasons and episodes (or tracks) beneath it. */
-	async detail(id: string) {
+	async detail(id: string, userId?: string) {
 		const repo = this.dataSource.getRepository(MediaItem);
 		const item = await repo.findOneBy({ id });
 		if (!item || item.isPlaceholder) {
@@ -301,8 +349,14 @@ export class MediaHomeService {
 						.getMany()
 				: [];
 
+		const episodeIds = [...grandchildren, ...children, item].filter((entry) => entry.type === "episode" || entry.type === "movie" || entry.type === "video").map((entry) => entry.id);
+		const watchedIds = new Set(
+			userId && episodeIds.length > 0 ? (await this.dataSource.getRepository(WatchProgress).find({ where: { userId, itemId: In(episodeIds), completed: true }, select: { itemId: true } })).map((row) => row.itemId) : [],
+		);
+
 		const summarize = (entry: MediaItem) => ({
 			id: entry.id,
+			watched: watchedIds.has(entry.id),
 			type: entry.type,
 			title: entry.title,
 			year: entry.year,
@@ -318,6 +372,7 @@ export class MediaHomeService {
 		const metadata = item.metadata ?? {};
 		return {
 			id: item.id,
+			watched: watchedIds.has(item.id),
 			type: item.type,
 			title: item.title,
 			year: item.year,
@@ -361,26 +416,67 @@ export class MediaHomeService {
 		};
 	}
 
-	/** Title search over everything playable or browsable; prefix matches rank first. */
-	async search(query: string, type?: string): Promise<HomeCard[]> {
+	/** Every genre present in the library, for the search filter. */
+	async genres(): Promise<string[]> {
+		const rows: Array<{ genre: string }> = await this.dataSource.query(
+			`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`,
+		);
+		return rows.map((row) => row.genre).filter(Boolean);
+	}
+
+	/** Search over everything playable or browsable. Matches titles first, then cast and crew; every filter is optional. */
+	async search(userId: string, query: string, filters: SearchFilters = {}): Promise<HomeCard[]> {
 		const term = query.trim().slice(0, 100);
-		if (term.length < 2) {
+		const genre = filters.genre?.trim().slice(0, 60) || undefined;
+		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched);
+		if (term.length < 2 && !(term.length === 0 && hasFilter)) {
 			return [];
 		}
-		const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
-		const types = type && SEARCH_TYPES.includes(type as MediaItemType) ? [type as MediaItemType] : SEARCH_TYPES;
-		const items = await this.dataSource
+		const types = filters.type && SEARCH_TYPES.includes(filters.type as MediaItemType) ? [filters.type as MediaItemType] : SEARCH_TYPES;
+		const query_ = this.dataSource
 			.getRepository(MediaItem)
 			.createQueryBuilder("item")
 			.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"])
 			.where("item.is_placeholder = false")
-			.andWhere("item.type IN (:...types)", { types })
-			.andWhere("(item.title ILIKE :contains OR item.sort_title ILIKE :contains)", { contains: `%${escaped}%` })
-			.orderBy("CASE WHEN item.title ILIKE :prefix THEN 0 ELSE 1 END", "ASC")
-			.addOrderBy("item.title", "ASC")
-			.setParameter("prefix", `${escaped}%`)
-			.limit(SEARCH_LIMIT)
-			.getMany();
+			.andWhere("item.type IN (:...types)", { types });
+
+		if (term) {
+			const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
+			query_
+				.andWhere("(item.title ILIKE :contains OR item.sort_title ILIKE :contains OR (item.metadata -> 'cast')::text ILIKE :contains OR (item.metadata -> 'crew')::text ILIKE :contains)", { contains: `%${escaped}%` })
+				.setParameter("prefix", `${escaped}%`);
+		}
+		if (genre) {
+			query_.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre });
+		}
+		if (Number.isInteger(filters.yearFrom)) {
+			query_.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
+		}
+		if (Number.isInteger(filters.yearTo)) {
+			query_.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
+		}
+		if (filters.unwatched) {
+			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
+		}
+
+		switch (filters.sort) {
+			case "title":
+				query_.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
+				break;
+			case "year":
+				query_.orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("item.title", "ASC");
+				break;
+			case "added":
+				query_.orderBy("item.created_at", "DESC");
+				break;
+			default:
+				if (term) {
+					query_.orderBy("CASE WHEN item.title ILIKE :prefix THEN 0 WHEN item.title ILIKE :contains THEN 1 ELSE 2 END", "ASC").addOrderBy("item.title", "ASC");
+				} else {
+					query_.orderBy("item.title", "ASC");
+				}
+		}
+		const items = await query_.limit(SEARCH_LIMIT).getMany();
 
 		return items.map((item) => ({
 			id: item.id,
@@ -581,16 +677,29 @@ export class MediaHomeService {
 		);
 	}
 
-	private async latest(types: MediaItemType[], limit: number) {
-		const { entities, raw } = await this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
+	/** Newest items first; with a user, titles they have marked (or finished) watching are left out. */
+	private async latest(types: MediaItemType[], limit: number, userId?: string) {
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item");
+		if (userId) {
+			query.andWhere(
+				`NOT (
+					(item.type IN ('movie', 'video') AND EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true))
+					OR (item.type = 'series'
+						AND EXISTS (SELECT 1 FROM media_items s JOIN media_items e ON e.parent_id = s.id WHERE s.parent_id = item.id AND e.type = 'episode' AND e.is_placeholder = false)
+						AND NOT EXISTS (SELECT 1 FROM media_items s JOIN media_items e ON e.parent_id = s.id
+							WHERE s.parent_id = item.id AND e.type = 'episode' AND e.is_placeholder = false
+							AND NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = e.id AND w.completed = true)))
+				)`,
+				{ userId },
+			);
+		}
+		const { entities, raw } = await query
 			.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"])
 			.addSelect("item.metadata ->> 'tagline'", "tagline")
 			.addSelect("item.metadata ->> 'overview'", "overview")
 			.addSelect("item.metadata ->> 'contentRating'", "rating")
 			.addSelect("item.metadata ->> 'runtime'", "runtime")
-			.where("item.is_placeholder = false")
+			.andWhere("item.is_placeholder = false")
 			.andWhere("item.type IN (:...types)", { types })
 			.orderBy("item.created_at", "DESC")
 			.limit(limit)

@@ -1,3 +1,4 @@
+import { NotificationService } from "../notifications/notificationService.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
@@ -140,10 +141,14 @@ function lastSegment(path: string): string {
 @Injectable()
 export class MediaItemsService {
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly notifications: NotificationService,
+	) {}
 
 	async upsert(payload: IndexerItemPayload): Promise<{ id: string }> {
-		return this.dataSource.transaction(async (manager) => {
+		let announce: { id: string; type: string } | null = null;
+		const result = await this.dataSource.transaction(async (manager) => {
 			if (!(await manager.existsBy(MediaLibrary, { id: payload.libraryId }))) {
 				throw new NotFound("Media library not found.");
 			}
@@ -158,6 +163,8 @@ export class MediaItemsService {
 				(await manager.findOneBy(MediaItem, { libraryId: payload.libraryId, path: payload.path, type: payload.type })) ??
 				// The library folder may have moved: the same content now sits under a different base path.
 				(await this.findByRelativeKey(manager, payload.libraryId, payload.type, payload.externalKey));
+			// A placeholder parent becoming real counts as new too; users never saw it.
+			const isNew = !item || item.isPlaceholder;
 			item ??= manager.create(MediaItem, { id: randomUUID(), libraryId: payload.libraryId });
 
 			const parentId = await this.resolveParent(manager, payload);
@@ -202,8 +209,15 @@ export class MediaItemsService {
 
 			const saved = await manager.save(item);
 			await this.syncCredits(manager, saved);
+			announce = isNew ? { id: saved.id, type: saved.type } : null;
 			return { id: saved.id };
 		});
+		// Only once the transaction has committed, so a rolled-back item is never announced.
+		const created = announce as { id: string; type: string } | null;
+		if (created) {
+			this.notifications.announceNew(created.id, created.type);
+		}
+		return result;
 	}
 
 	/** Rewrites the item's credits from its metadata so they always match what the indexer last reported. */
