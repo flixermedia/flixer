@@ -159,7 +159,7 @@ services:
     # Admin > Updates it backs up the database, pins the new versions in its state volume, recreates the services one by one
     # and rolls back if one does not become healthy. It needs this folder mounted at the same path as on the host
     # (PROJECT_DIR defaults to the current directory). Update the updater itself by pulling its image manually.
-    updater:
+    flixer-updater:
         image: ghcr.io/flixermedia/flixer-updater:latest
         profiles: ["updates"]
         depends_on:
