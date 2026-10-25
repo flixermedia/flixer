@@ -6,6 +6,7 @@ import { AuthService } from "../auth/authService.js";
 import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 import { CreateNetworkShareRequest, UpdateNetworkShareRequest } from "./networkShareRequests.js";
 import { NetworkSharesService } from "./networkSharesService.js";
+import { smbMountSupported } from "./smbSupport.js";
 import { LiveService } from "../../live/liveService.js";
 
 /** Network share (SMB) management for the admin dashboard. */
@@ -24,6 +25,13 @@ export class NetworkSharesController {
 	async list(@HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.shares.list();
+	}
+
+	/** Whether this host can mount SMB shares from inside the container; false on Docker Desktop. */
+	@Get("/support")
+	async support(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return { supported: smbMountSupported() };
 	}
 
 	@Post("/")

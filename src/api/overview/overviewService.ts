@@ -9,6 +9,7 @@ import { User } from "../../entities/user.entity.js";
 import { AdminIndexerService } from "../indexer/adminIndexerService.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 import { StreamsService } from "../streams/streamsService.js";
+import { ACTIVITY_FROM, ACTIVITY_SELECT, mapActivityRow, type ActivityRow } from "./activityService.js";
 
 const FILE_TYPES = ["movie", "episode", "track", "video"];
 const ACTIVITY_LIMIT = 10;
@@ -22,19 +23,6 @@ interface LibraryRow {
 	library_id: string;
 	items: string;
 	size: string | null;
-}
-
-interface ActivityRow {
-	user_name: string;
-	title: string;
-	type: string;
-	parent_title: string | null;
-	season_number: number | null;
-	episode_number: number | null;
-	position_seconds: number;
-	duration_seconds: number;
-	completed: boolean;
-	updated_at: Date;
 }
 
 /** Aggregates what the admin dashboard overview shows. */
@@ -107,31 +95,8 @@ export class OverviewService {
 	}
 
 	private async activity() {
-		const rows: ActivityRow[] = await this.dataSource.query(
-			`SELECT COALESCE(u.display_name, u.username) AS user_name, i.title, i.type, parent.title AS parent_title,
-				COALESCE(i.season_number, season.season_number) AS season_number, i.episode_number,
-				w.position_seconds, w.duration_seconds, w.completed, w.updated_at
-			FROM watch_progress w
-			JOIN users u ON u.id = w.user_id
-			JOIN media_items i ON i.id = w.item_id
-			LEFT JOIN media_items season ON season.id = i.parent_id AND i.type = 'episode'
-			LEFT JOIN media_items parent ON parent.id = COALESCE(season.parent_id, i.parent_id)
-			ORDER BY w.updated_at DESC
-			LIMIT $1`,
-			[ACTIVITY_LIMIT],
-		);
-		return rows.map((row) => ({
-			user: row.user_name,
-			title: row.title,
-			type: row.type,
-			showTitle: row.type === "episode" || row.type === "track" ? row.parent_title : null,
-			seasonNumber: row.season_number,
-			episodeNumber: row.episode_number,
-			positionSeconds: row.position_seconds,
-			durationSeconds: row.duration_seconds,
-			completed: row.completed,
-			at: row.updated_at,
-		}));
+		const rows: ActivityRow[] = await this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ORDER BY w.updated_at DESC LIMIT $1`, [ACTIVITY_LIMIT]);
+		return rows.map(mapActivityRow);
 	}
 
 	/** Free and total space of the file systems holding the media roots; roots on one disk are merged. */
