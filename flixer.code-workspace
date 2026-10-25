@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../flixer-web"
+		},
+		{
+			"path": "../flixer-streamer"
+		},
+		{
+			"path": "../flixer-indexer"
+		},
+		{
+			"path": "../flixer-docs"
+		},
+		{
+			"path": "../flixer-updater"
+		},
+		{
+			"path": "../flixer-data"
+		}
+	]
+}
