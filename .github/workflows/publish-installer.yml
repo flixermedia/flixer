@@ -1,0 +1,45 @@
+name: Publish installer
+
+# Publishes install.sh to GitHub Pages so `curl -fsSL https://get.flixer.dev | bash` always serves main.
+# One-time setup: Settings > Pages > Source: GitHub Actions, custom domain get.flixer.dev,
+# and a DNS CNAME for get.flixer.dev pointing at flixermedia.github.io.
+on:
+    push:
+        branches: [main]
+        paths: [install.sh, .github/workflows/publish-installer.yml]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: pages
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - uses: actions/checkout@v4
+            - name: Lint installer
+              run: |
+                  bash -n install.sh
+                  sudo apt-get install -y shellcheck >/dev/null
+                  shellcheck -S warning install.sh
+            - name: Build site
+              run: |
+                  mkdir site
+                  cp install.sh site/index.html
+                  cp install.sh site/install.sh
+                  echo get.flixer.dev > site/CNAME
+            - uses: actions/configure-pages@v5
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: site
+            - id: deployment
+              uses: actions/deploy-pages@v4
