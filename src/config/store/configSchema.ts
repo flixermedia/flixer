@@ -22,6 +22,9 @@ const serviceHost = (name: string): string => (existsSync("/.dockerenv") ? name 
 /** Suggested when Redis was never configured; not applied implicitly so an unconfigured install still reports no Redis. */
 export const suggestedRedisUrl = (): string => `redis://${serviceHost("redis")}:6379`;
 
+/** Bundled PostgreSQL connection used by the quick setup flow. */
+export const suggestedDatabaseUrl = (): string => `postgres://flixer:flixer@${serviceHost("postgres")}:5432/flixer`;
+
 const MIN_SECRET_BYTES = 32;
 
 export const validateSecret: ConfigValidator = (value) =>
