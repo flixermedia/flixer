@@ -165,6 +165,13 @@ resource "docker_container" "postgres" {
   image   = "postgres:16-alpine"
   name    = "${local.workspace_name}-postgres"
   restart = "unless-stopped"
+  # Run as the workspace user (uid 1000) so the data folder is readable from the workspace.
+  user = "1000:1000"
+  # initdb must resolve its uid to a name, and the image has no entry for 1000.
+  upload {
+    file    = "/etc/passwd"
+    content = "root:x:0:0:root:/root:/bin/sh\ncoder:x:1000:1000::/home/coder:/bin/sh\n"
+  }
   env = [
     "POSTGRES_USER=flixer",
     "POSTGRES_PASSWORD=flixer",
