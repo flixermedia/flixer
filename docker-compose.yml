@@ -124,7 +124,7 @@ services:
             POSTGRES_PASSWORD: flixer
             POSTGRES_DB: flixer
         volumes:
-            - postgres-data:/var/lib/postgresql/data
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/postgres:/var/lib/postgresql/data
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U flixer -d flixer"]
             interval: 10s
@@ -333,7 +333,6 @@ services:
 
 volumes:
     redis-data:
-    postgres-data:
     flixer-config:
     flixer-secrets:
     updater-state:
