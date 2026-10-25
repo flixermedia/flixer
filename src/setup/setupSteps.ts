@@ -4,7 +4,7 @@ import type { AppConfig } from "../config/store/appConfig.js";
 import type { ConfigStore } from "../config/store/configStore.js";
 import { probeDatabase, type DatabaseProbe } from "../bootstrap/databaseProbe.js";
 import { retryDatabaseNow } from "../bootstrap/waitForDatabase.js";
-import { publishStreamTokenSecret } from "../config/store/sharedSecret.js";
+import { publishAppSecret } from "../config/store/sharedSecret.js";
 import { probeRedis, type RedisProbe } from "./redisProbe.js";
 import { resolveUrls, type FieldErrors } from "./urlRules.js";
 
@@ -166,7 +166,7 @@ const servicesStep: SetupStep = {
 	},
 };
 
-const SECRET_NAMES = ["jwtSecret", "streamTokenSecret"] as const;
+const SECRET_NAMES = ["jwtSecret", "appSecret"] as const;
 
 const secretsStep: SetupStep = {
 	id: "secrets",
@@ -194,9 +194,9 @@ const secretsStep: SetupStep = {
 	},
 	async apply(values, context) {
 		save(values, context);
-		publishStreamTokenSecret(context.config);
+		publishAppSecret(context.config);
 		const restart = ["api"];
-		if (values.streamTokenSecret) {
+		if (values.appSecret) {
 			restart.push("indexer", "streamer");
 		}
 		return { ok: true, message: values.jwtSecret ? "Everyone will have to sign in again." : undefined, restart };

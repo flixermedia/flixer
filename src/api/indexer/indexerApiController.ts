@@ -13,7 +13,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 /**
  * The API flixer-indexer calls: which libraries to scan, how to behave, and where to save what it finds.
- * Requests are signed with the shared STREAM_TOKEN_SECRET (see indexerAuth.ts), not with a user token.
+ * Requests are signed with the shared APP_SECRET (see indexerAuth.ts), not with a user token.
  */
 @Controller("/indexer")
 export class IndexerApiController {

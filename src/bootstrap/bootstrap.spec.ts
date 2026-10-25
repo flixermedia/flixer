@@ -10,7 +10,7 @@ import { adoptEnvironmentInstall, adoptExistingUsers, setupStatus, updateRuntime
 import { waitForDatabase } from "./waitForDatabase.js";
 
 const SECRET = "s".repeat(40);
-const ENV = ["DATABASE_URL", "JWT_SECRET", "STREAM_TOKEN_SECRET"];
+const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET"];
 
 describe("bootstrap", () => {
 	let directory: string;
@@ -48,7 +48,7 @@ describe("bootstrap", () => {
 	});
 
 	it("never exposes configuration in the status", () => {
-		store.setMany({ databaseUrl: "postgres://user:hunter2@db/flixer", streamTokenSecret: SECRET });
+		store.setMany({ databaseUrl: "postgres://user:hunter2@db/flixer", appSecret: SECRET });
 		expect(JSON.stringify(setupStatus(config))).not.toMatch(/hunter2|postgres|s{10}/);
 	});
 
@@ -69,7 +69,7 @@ describe("bootstrap", () => {
 		process.env.JWT_SECRET = SECRET;
 		adoptEnvironmentInstall(config);
 		expect(store.setupState()).toBe("not_started");
-		process.env.STREAM_TOKEN_SECRET = SECRET;
+		process.env.APP_SECRET = SECRET;
 		adoptEnvironmentInstall(config);
 		expect(store.setupState()).toBe("completed");
 	});

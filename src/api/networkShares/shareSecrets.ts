@@ -6,14 +6,14 @@ const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
 
 function key(): Buffer {
-	const secret = appConfig().get("streamTokenSecret") ?? "";
+	const secret = appConfig().get("appSecret") ?? "";
 	if (Buffer.byteLength(secret) < 32) {
-		throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to store network share passwords.");
+		throw new Error("APP_SECRET must be set to at least 32 bytes to store network share passwords.");
 	}
 	return Buffer.from(hkdfSync("sha256", Buffer.from(secret), Buffer.alloc(0), CONTEXT, 32));
 }
 
-/** Encrypts a share password with a key derived from STREAM_TOKEN_SECRET. Changing that secret makes saved passwords unreadable. */
+/** Encrypts a share password with a key derived from APP_SECRET. Changing that secret makes saved passwords unreadable. */
 export function encryptSecret(plain: string): string {
 	const nonce = randomBytes(NONCE_BYTES);
 	const cipher = createCipheriv("aes-256-gcm", key(), nonce);

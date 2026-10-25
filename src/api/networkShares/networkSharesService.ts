@@ -185,7 +185,7 @@ export class NetworkSharesService {
 			try {
 				password = decryptSecret(share.passwordEncrypted);
 			} catch {
-				throw new MountError("The saved password cannot be read. STREAM_TOKEN_SECRET changed; re-enter the password.");
+				throw new MountError("The saved password cannot be read. APP_SECRET changed; re-enter the password.");
 			}
 		}
 		return { id: share.id, host: share.host, share: share.share, username: share.username, domain: share.domain, password, readOnly: share.readOnly };

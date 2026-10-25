@@ -3,12 +3,14 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { createCipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 import { appConfig } from "../../config/store/appConfig.js";
+import { MediaSegmentsService, type ItemSegments } from "../media/mediaSegmentsService.js";
+import { pickNextEpisode, type NextEpisode } from "./nextEpisode.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
@@ -52,6 +54,7 @@ export class PlaybackService {
 		private readonly authService: AuthService,
 		private readonly libraries: MediaLibrariesService,
 		private readonly roots: MediaRootsService,
+		private readonly segments: MediaSegmentsService,
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 	) {}
 
@@ -70,7 +73,7 @@ export class PlaybackService {
 	}
 
 	/** Playback for an indexed media item, using the root and path the indexer recorded for its file. */
-	async createItemPlaybackInfo(itemId: string, authorization?: string): Promise<PlaybackInfo & { title: string }> {
+	async createItemPlaybackInfo(itemId: string, authorization?: string): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null } & ItemSegments> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
 		if (!item || item.isPlaceholder) {
@@ -91,7 +94,25 @@ export class PlaybackService {
 			rootId: item.rootId,
 			relativePath: item.relativePath,
 		});
-		return { ...info, title: item.title };
+		return { ...info, title: item.title, nextEpisode: await this.findNextEpisode(item), ...(await this.segments.forItem(item)) };
+	}
+
+	/** The episode that follows this one across the whole series, or null for non-episodes and the final episode. */
+	private async findNextEpisode(item: MediaItem): Promise<NextEpisode | null> {
+		if (item.type !== "episode" || !item.parentId) {
+			return null;
+		}
+		const repository = this.dataSource.getRepository(MediaItem);
+		const season = await repository.findOneBy({ id: item.parentId });
+		const seasons = season?.parentId ? await repository.findBy({ parentId: season.parentId, type: "season" }) : season ? [season] : [];
+		const episodes = await repository.findBy({ parentId: In(seasons.map((entry) => entry.id)), type: "episode", isPlaceholder: false });
+		const seasonNumbers = new Map(seasons.map((entry) => [entry.id, entry.seasonNumber]));
+		return pickNextEpisode(
+			item.id,
+			episodes
+				.filter((episode) => episode.id === item.id || (episode.rootId && episode.relativePath))
+				.map((episode) => ({ id: episode.id, title: episode.title, seasonNumber: episode.seasonNumber ?? (episode.parentId ? seasonNumbers.get(episode.parentId) ?? null : null), episodeNumber: episode.episodeNumber })),
+		);
 	}
 
 	private issue(userId: string, sample: SampleEntry): PlaybackInfo {
@@ -129,9 +150,9 @@ export class PlaybackService {
 	}
 
 	private getSecret(): Buffer {
-		const secret = Buffer.from(appConfig().get("streamTokenSecret") ?? "");
+		const secret = Buffer.from(appConfig().get("appSecret") ?? "");
 		if (secret.length < 32) {
-			throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to issue stream tokens.");
+			throw new Error("APP_SECRET must be set to at least 32 bytes to issue stream tokens.");
 		}
 		return secret;
 	}

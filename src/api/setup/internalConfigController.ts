@@ -5,7 +5,7 @@ import { Get } from "@tsed/schema";
 import { indexerRuntimeConfig, internalConfigPath, isInternalConfigService } from "../../bootstrap/internalConfig.js";
 import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../indexer/indexerAuth.js";
 
-/** Runtime configuration for the other Flixer services, signed with the shared STREAM_TOKEN_SECRET like the rest of the indexer API. */
+/** Runtime configuration for the other Flixer services, signed with the shared APP_SECRET like the rest of the indexer API. */
 @Controller("/internal/config")
 export class InternalConfigController {
 

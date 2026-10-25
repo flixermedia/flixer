@@ -47,7 +47,7 @@ export function adoptEnvironmentInstall(config: AppConfig = appConfig()): void {
 	if (!store || store.setupState() === "completed") {
 		return;
 	}
-	const configured = (["databaseUrl", "jwtSecret", "streamTokenSecret"] as const).every((name) => config.source(name) === "env");
+	const configured = (["databaseUrl", "jwtSecret", "appSecret"] as const).every((name) => config.source(name) === "env");
 	if (configured) {
 		store.setSetupState("completed");
 	}

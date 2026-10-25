@@ -20,6 +20,8 @@ import { AddPersonProfileImage1794300000000 } from "../migrations/addPersonProfi
 import { AddMediaCreditImage1794100000000 } from "../migrations/addMediaCreditImage1794100000000.js";
 import { AddMediaCreditPersonId1794000000000 } from "../migrations/addMediaCreditPersonId1794000000000.js";
 import { CreateMediaCredits1793900000000 } from "../migrations/createMediaCredits1793900000000.js";
+import { CreateMediaSegments1794500000000 } from "../migrations/createMediaSegments1794500000000.js";
+import { MediaSegment } from "../entities/mediaSegment.entity.js";
 import { CreateWatchProgress1793800000000 } from "../migrations/createWatchProgress1793800000000.js";
 import { CreateNetworkShares1793600000000 } from "../migrations/createNetworkShares1793600000000.js";
 import { AddMediaItemLastSeenAt1793700000000 } from "../migrations/addMediaItemLastSeenAt1793700000000.js";
@@ -60,7 +62,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			url,
 			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
 			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, NetworkShare, WatchProgress, MediaCredit, PersonProfile, Notification, PushSubscription, PushKey],
+			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, MediaSegment, NetworkShare, WatchProgress, MediaCredit, PersonProfile, Notification, PushSubscription, PushKey],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -89,6 +91,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePersonProfiles1794200000000,
 				AddPersonProfileImage1794300000000,
 				CreateNotifications1794400000000,
+				CreateMediaSegments1794500000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

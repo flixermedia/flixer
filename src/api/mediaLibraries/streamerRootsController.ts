@@ -15,7 +15,7 @@ const MAX_CLOCK_SKEW_SECONDS = 5 * 60;
 
 /**
  * Tells flixer-streamer which root media folders it may read. The request is signed with the
- * shared STREAM_TOKEN_SECRET: signature = hex(HMAC-SHA256(secret, `${context}:${timestamp}`)).
+ * shared APP_SECRET: signature = hex(HMAC-SHA256(secret, `${context}:${timestamp}`)).
  */
 @Controller("/streamer")
 export class StreamerRootsController {
@@ -58,7 +58,7 @@ export class StreamerRootsController {
 	}
 
 	private verify(context: string, timestamp?: string, signature?: string): void {
-		const secret = appConfig().get("streamTokenSecret") ?? "";
+		const secret = appConfig().get("appSecret") ?? "";
 		const issuedAt = Number(timestamp);
 		if (Buffer.byteLength(secret) < 32 || !signature || !Number.isInteger(issuedAt)) {
 			throw new Unauthorized("Invalid streamer signature.");

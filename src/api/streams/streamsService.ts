@@ -82,9 +82,9 @@ export class StreamsService {
 
 	// Must match the streamer's AdminKey derivation.
 	private adminKey(): string {
-		const secret = appConfig().get("streamTokenSecret") ?? "";
+		const secret = appConfig().get("appSecret") ?? "";
 		if (Buffer.byteLength(secret) < 32) {
-			throw new Error("STREAM_TOKEN_SECRET must be set to at least 32 bytes to manage streamer sessions.");
+			throw new Error("APP_SECRET must be set to at least 32 bytes to manage streamer sessions.");
 		}
 		return createHmac("sha256", secret).update("flixer-streamer:admin:v1").digest("hex");
 	}

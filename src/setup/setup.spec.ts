@@ -11,7 +11,7 @@ import { handleSetupRequest, type SetupRequestContext } from "./setupApi.js";
 import type { Probes } from "./setupSteps.js";
 import { resolveUrls } from "./urlRules.js";
 
-const ENV = ["DATABASE_URL", "JWT_SECRET", "STREAM_TOKEN_SECRET", "REDIS_URL", "FLIXER_PUBLIC_URL", "APP_URL", "PASSKEY_RP_ID", "PASSKEY_ORIGINS", "INDEXER_URL", "INDEXER_INTERNAL_URL", "STREAMER_INTERNAL_URL", "STREAMER_PUBLIC_URL"];
+const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL", "FLIXER_PUBLIC_URL", "APP_URL", "PASSKEY_RP_ID", "PASSKEY_ORIGINS", "INDEXER_URL", "INDEXER_INTERNAL_URL", "STREAMER_INTERNAL_URL", "STREAMER_PUBLIC_URL"];
 
 describe("url rules", () => {
 	it("derives the app url, rp id and origin from the public url", () => {

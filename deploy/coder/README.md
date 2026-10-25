@@ -25,7 +25,7 @@ coder templates push flixer-dev --directory .
 ```
 
 Then create a workspace from `flixer-dev`. On every start it clones the five repos into `~/projects`, writes a `.env`
-in each (random `JWT_SECRET`/`STREAM_TOKEN_SECRET`, wired to the local Postgres/Redis), runs `npm ci` / `go mod download`
+in each (random `JWT_SECRET`/`APP_SECRET`, wired to the local Postgres/Redis), runs `npm ci` / `go mod download`
 when needed and starts the services. Existing `.env` files are never overwritten, so add provider keys
 (`TMDB_API_KEY`, `DISCOGS_TOKEN`, ...) there.
 
@@ -57,5 +57,5 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
 ## Notes
 
 - The Vite dev server uses a self-signed certificate, so the Coder app points at `https://localhost:5173`.
-- The indexer watches library folders, which only works for paths inside the workspace; mounted network shares need `WATCH_RESCAN_INTERVAL`.
+- The indexer watches library folders, which only works for paths inside the workspace; mounted network shares need `WATCH_RESCAN_INTERVAL`. The setup script points both the indexer and streamer at `~/projects/flixer-data/cache/metadata/trickplay`; the Vite proxy routes `/trickplay` to the streamer.
 - Not validated with `terraform validate`/`coder templates push` yet (no Terraform on the authoring machine).

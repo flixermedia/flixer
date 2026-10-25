@@ -38,7 +38,7 @@ export class SubtitleService {
 
 	async list(id: string): Promise<{ tracks: SubtitleTrack[]; configured: boolean }> {
 		const item = await this.video(id);
-		return this.indexer.request("POST", "/internal/subtitles/list", { body: { path: item.path } });
+		return this.indexer.request("POST", "/internal/subtitles/list", { body: { path: item.path, rootId: item.rootId ?? undefined, relativePath: item.relativePath ?? undefined } });
 	}
 
 	async search(id: string, options: { query?: string; languages?: string[] }): Promise<{ results: SubtitleResult[] }> {
@@ -51,12 +51,12 @@ export class SubtitleService {
 
 	async download(id: string, fileId: number, language: string): Promise<{ file: string }> {
 		const item = await this.video(id);
-		return this.indexer.request("POST", "/internal/subtitles/download", { body: { path: item.path, fileId, language }, timeoutMs: SUBTITLE_TIMEOUT_MS });
+		return this.indexer.request("POST", "/internal/subtitles/download", { body: { path: item.path, rootId: item.rootId ?? undefined, relativePath: item.relativePath ?? undefined, fileId, language }, timeoutMs: SUBTITLE_TIMEOUT_MS });
 	}
 
 	async remove(id: string, file: string): Promise<void> {
 		const item = await this.video(id);
-		await this.indexer.request("POST", "/internal/subtitles/delete", { body: { path: item.path, file } });
+		await this.indexer.request("POST", "/internal/subtitles/delete", { body: { path: item.path, rootId: item.rootId ?? undefined, relativePath: item.relativePath ?? undefined, file } });
 	}
 
 	private async video(id: string): Promise<MediaItem> {

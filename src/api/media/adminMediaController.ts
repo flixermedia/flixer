@@ -3,10 +3,11 @@ import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/platform-multer";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
-import { Delete, Get, Patch, Post, Returns, Security } from "@tsed/schema";
+import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
-import { SubtitleDownloadRequest, SubtitleSearchRequest, UpdateMediaItemRequest } from "./adminMediaRequests.js";
+import { SetSegmentRequest, SubtitleDownloadRequest, SubtitleSearchRequest, UpdateMediaItemRequest } from "./adminMediaRequests.js";
 import { AdminMediaService } from "./adminMediaService.js";
+import { MediaSegmentsService } from "./mediaSegmentsService.js";
 import { SubtitleService } from "./subtitleService.js";
 import { MAX_MEDIA_IMAGE_BYTES } from "./mediaImageStorage.js";
 
@@ -19,6 +20,7 @@ export class AdminMediaController {
 		private readonly authService: AuthService,
 		private readonly media: AdminMediaService,
 		private readonly subtitles: SubtitleService,
+		private readonly segments: MediaSegmentsService,
 	) {}
 
 	@Get("/items/:id/subtitles")
@@ -44,6 +46,20 @@ export class AdminMediaController {
 	async removeSubtitle(@PathParams("id") id: string, @QueryParams("file", String) file: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		await this.subtitles.remove(this.requireId(id), file ?? "");
+	}
+
+	@Put("/items/:id/segments/:type")
+	@Returns(204)
+	async setSegment(@PathParams("id") id: string, @PathParams("type") type: string, @BodyParams() request: SetSegmentRequest, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		await this.segments.setManual(this.requireId(id), type, request.startMs, request.endMs);
+	}
+
+	@Delete("/items/:id/segments/:type")
+	@Returns(204)
+	async clearSegment(@PathParams("id") id: string, @PathParams("type") type: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		await this.segments.clearManual(this.requireId(id), type);
 	}
 
 	@Get("/items")
@@ -73,6 +89,13 @@ export class AdminMediaController {
 	async update(@PathParams("id") id: string, @BodyParams() request: UpdateMediaItemRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.media.update(this.requireId(id), request);
+	}
+
+	/** Rescans one item. A series, season or album also rescans everything beneath it. */
+	@Post("/items/:id/refresh")
+	async refresh(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.media.refresh(this.requireId(id));
 	}
 
 	@Delete("/items/:id")

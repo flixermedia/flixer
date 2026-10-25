@@ -98,7 +98,7 @@ and streamer. Avatars live in `DATA_PATH/avatars`, metadata (indexer cache and u
 Docker volumes. Network shares can be added in the app instead of a local folder (see below).
 
 Compose also runs `flixer-indexer` (with Redis), which scans libraries and stores items through the signed
-`/api/indexer/*` endpoints using the same `STREAM_TOKEN_SECRET`. Admins start scans and tune workers through
+`/api/indexer/*` endpoints using the same `APP_SECRET`. Admins start scans and tune workers through
 `/api/admin/indexer/*`; flixer reaches the indexer at `INDEXER_URL` (default `http://localhost:8092` outside Compose).
 The indexer mounts the media directory read-write so artwork can be saved alongside media.
 

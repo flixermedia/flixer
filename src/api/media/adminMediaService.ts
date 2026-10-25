@@ -224,6 +224,15 @@ export class AdminMediaService {
 		return this.get(id);
 	}
 
+	/** Queues a forced re-index of the item; a series, season or album also re-indexes everything beneath it. */
+	async refresh(id: string): Promise<{ queued: boolean; alreadyQueued: boolean }> {
+		const item = await this.find(id);
+		if (item.isPlaceholder || !item.path) {
+			throw new BadRequest("This item has no files on disk to rescan.");
+		}
+		return this.indexer.request("POST", "/internal/refresh", { body: { libraryId: item.libraryId, path: item.path, itemType: item.type } });
+	}
+
 	/** Removes the item and everything under it. A later scan will add it back if the files still exist. */
 	async remove(id: string): Promise<void> {
 		const repository = this.dataSource.getRepository(MediaItem);

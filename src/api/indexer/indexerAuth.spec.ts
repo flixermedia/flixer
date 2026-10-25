@@ -5,9 +5,9 @@ const SECRET = "0123456789abcdef0123456789abcdef";
 const BODY = Buffer.from('{"a":1}');
 
 describe("indexerAuth", () => {
-	const original = process.env.STREAM_TOKEN_SECRET;
+	const original = process.env.APP_SECRET;
 	afterEach(() => {
-		process.env.STREAM_TOKEN_SECRET = original;
+		process.env.APP_SECRET = original;
 	});
 
 	it("matches the signature flixer-indexer (Go) produces", () => {
@@ -17,7 +17,7 @@ describe("indexerAuth", () => {
 	});
 
 	it("accepts a request signed with the shared secret and rejects tampering", () => {
-		process.env.STREAM_TOKEN_SECRET = SECRET;
+		process.env.APP_SECRET = SECRET;
 		const now = Date.now();
 		const headers = signIndexerRequest("POST", "/api/indexer/media/items", BODY, now);
 		const request = {
