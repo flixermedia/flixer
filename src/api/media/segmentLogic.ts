@@ -93,6 +93,5 @@ export function pickSkipmeTimestamp(entries: SkipmeTimestamp[] | undefined, dura
 	return best ? { startMs: Math.round(best.start_ms as number), endMs: Math.round(best.end_ms as number), submissions: best.submissions ?? 0 } : null;
 }
 
-/** Admin setting holding the SkipMe.db base URL, and the public instance used until it is changed. */
+/** Admin setting holding the SkipMe.db base URL; its default is seeded by a migration. */
 export const SKIPME_API_URL_KEY = "skipme_api_url";
-export const DEFAULT_SKIPME_API_URL = "https://database.skipme.deno.net/v3";

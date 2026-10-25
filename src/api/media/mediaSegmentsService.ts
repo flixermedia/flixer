@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { MediaSegment, SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.js";
-import { DEFAULT_SKIPME_API_URL, SKIPME_API_URL_KEY, type Chapter, type ResolvedSegment, type SkipmeTimestamp, chapterSegments, mergeSegments, parseChapters, pickSkipmeTimestamp } from "./segmentLogic.js";
+import { SKIPME_API_URL_KEY, type Chapter, type ResolvedSegment, type SkipmeTimestamp, chapterSegments, mergeSegments, parseChapters, pickSkipmeTimestamp } from "./segmentLogic.js";
 
 const SKIPME_TYPES: SegmentType[] = ["intro", "recap", "credits", "preview"];
 const SKIPME_TIMEOUT_MS = 4000;
@@ -56,7 +56,7 @@ export class MediaSegmentsService {
 	/** The admin-set SkipMe.db URL; an empty value turns lookups off. */
 	private async skipmeBaseUrl(): Promise<string> {
 		const stored = (await this.dataSource.getRepository(Setting).findOneBy({ key: SKIPME_API_URL_KEY }))?.value;
-		return typeof stored === "string" ? stored.trim() : DEFAULT_SKIPME_API_URL;
+		return typeof stored === "string" ? stored.trim() : "";
 	}
 
 	private async syncSkipme(item: MediaItem): Promise<void> {
