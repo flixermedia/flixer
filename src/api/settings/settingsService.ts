@@ -131,6 +131,16 @@ export class SettingsService {
 			}
 		}
 
+		if (key === "backups_state") {
+			throw new BadRequest("The backup state is managed by Flixer.");
+		}
+		if (key === "backups_schedule" && request.value !== "off" && request.value !== "daily" && request.value !== "weekly") {
+			throw new BadRequest("The backups_schedule setting must be \"off\", \"daily\" or \"weekly\".");
+		}
+		if (key === "backups_keep" && (typeof request.value !== "number" || !Number.isInteger(request.value) || request.value < 1 || request.value > 60)) {
+			throw new BadRequest("The backups_keep setting must be a whole number from 1 to 60.");
+		}
+
 		if (key.startsWith("sentry_")) {
 			this.validateSentrySetting(key, request.value);
 		}

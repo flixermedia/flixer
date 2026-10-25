@@ -169,7 +169,9 @@ services:
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
-            - flixer-secrets:/run/flixer-secrets:ro
+            - flixer-secrets:/run/flixer-secrets
+            - flixer-config:/var/lib/flixer/config
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro
             - updater-state:/state
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/backups

@@ -22,5 +22,6 @@ export { NetworkSharesController } from "./api/networkShares/networkSharesContro
 export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
 export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";
+export { AdminBackupsController, BackupDownloadController } from "./api/backups/backupsController.js";
 export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";
