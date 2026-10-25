@@ -89,6 +89,7 @@ run() {
 as_root() {
     if [ "$(id -u)" -eq 0 ]; then run "$@"; else run sudo "$@"; fi
 }
+# shellcheck disable=SC2088 # the tilde is matched literally on purpose
 expand() { case "$1" in "~") printf '%s' "$HOME" ;; "~/"*) printf '%s' "$HOME/${1#\~/}" ;; *) printf '%s' "$1" ;; esac; }
 rand_hex() { LC_ALL=C tr -dc 'a-f0-9' </dev/urandom | head -c "${1:-32}"; }
 
@@ -142,8 +143,7 @@ install_docker() {
 }
 
 wait_for_docker() {
-    local i
-    for i in $(seq 1 60); do
+    for _ in $(seq 1 60); do
         docker info >/dev/null 2>&1 && return 0
         sleep 2
     done
