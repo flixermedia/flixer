@@ -1,24 +1,35 @@
 {
 	"folders": [
 		{
+			"name": "flixer",
 			"path": "."
 		},
 		{
+			"name": "flixer-web",
 			"path": "../flixer-web"
 		},
 		{
+			"name": "flixer-streamer",
 			"path": "../flixer-streamer"
 		},
 		{
+			"name": "flixer-indexer",
 			"path": "../flixer-indexer"
 		},
 		{
+			"name": "flixer-plugins",
+			"path": "../flixer-plugins"
+		},
+		{
+			"name": "flixer-docs",
 			"path": "../flixer-docs"
 		},
 		{
+			"name": "flixer-updater",
 			"path": "../flixer-updater"
 		},
 		{
+			"name": "flixer-data",
 			"path": "../flixer-data"
 		}
 	]

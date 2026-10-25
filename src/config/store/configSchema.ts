@@ -16,8 +16,16 @@ export interface ConfigKeyDefinition {
 	validate?: ConfigValidator;
 }
 
-/** Sibling services are reachable by name on the Compose network and on localhost everywhere else. */
-const serviceHost = (name: string): string => (existsSync("/.dockerenv") ? name : "localhost");
+/**
+ * Sibling services are reachable by name on the Compose network and on localhost everywhere else. In a Coder workspace
+ * only the PostgreSQL and Redis sidecars have their own names; the indexer and streamer run inside the workspace itself.
+ */
+const serviceHost = (name: string): string => {
+	if (process.env.CODER === "true" && name !== "postgres" && name !== "redis") {
+		return "localhost";
+	}
+	return existsSync("/.dockerenv") ? name : "localhost";
+};
 
 /** Suggested when Redis was never configured; not applied implicitly so an unconfigured install still reports no Redis. */
 export const suggestedRedisUrl = (): string => `redis://${serviceHost("redis")}:6379`;
