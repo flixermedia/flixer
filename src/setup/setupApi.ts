@@ -1,5 +1,5 @@
 import { appConfig } from "../config/store/appConfig.js";
-import { CONFIG_KEYS, suggestedRedisUrl, type ConfigName } from "../config/store/configSchema.js";
+import { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl, type ConfigName } from "../config/store/configSchema.js";
 import { ConfigValidationError } from "../config/store/configStore.js";
 import { runtimeState, setupStatus } from "../bootstrap/setupStatus.js";
 import { $log } from "@tsed/logger";
@@ -93,7 +93,8 @@ function describeConfig() {
 	return Object.fromEntries(
 		(Object.keys(CONFIG_KEYS) as ConfigName[]).map((name) => {
 			const definition = CONFIG_KEYS[name];
-			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: definition.secret ? undefined : config.get(name), default: name === "redisUrl" ? suggestedRedisUrl() : (definition as { defaultValue?: string }).defaultValue }];
+			const defaultValue = name === "databaseUrl" ? suggestedDatabaseUrl() : name === "redisUrl" ? suggestedRedisUrl() : (definition as { defaultValue?: string }).defaultValue;
+			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: definition.secret ? undefined : config.get(name), default: defaultValue }];
 		}),
 	);
 }
@@ -160,6 +161,21 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 			return ok({ flow });
 		}
 		if (route === "/complete") {
+			if (store.wizardProgress().flow === "quick") {
+				const config = appConfig();
+				const defaults: Partial<Record<ConfigName, string>> = {};
+				for (const name of ["redisUrl", "indexerUrl", "streamerInternalUrl"] as const) {
+					if (config.source(name) === "unset" || config.source(name) === "default") {
+						const value = name === "redisUrl" ? suggestedRedisUrl() : config.get(name);
+						if (value) {
+							defaults[name] = value;
+						}
+					}
+				}
+				if (Object.keys(defaults).length > 0) {
+					store.setMany(defaults);
+				}
+			}
 			if (!appConfig().get("redisUrl")) {
 				store.setMany({ redisUrl: suggestedRedisUrl() });
 			}

@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { adoptExistingUsers, updateRuntime } from "../bootstrap/setupStatus.js";
-import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
+import { AppConfig, appConfig, setAppConfig } from "../config/store/appConfig.js";
+import { suggestedDatabaseUrl, suggestedRedisUrl } from "../config/store/configSchema.js";
 import { ConfigStore } from "../config/store/configStore.js";
 import { probeRedis } from "./redisProbe.js";
 import { handleSetupRequest, type SetupRequestContext } from "./setupApi.js";
@@ -177,6 +178,10 @@ describe("setup api", () => {
 		expect(JSON.stringify((await call("GET", "/progress"))?.body)).not.toContain("topsecret");
 	});
 
+	it("exposes the bundled PostgreSQL URL as the database default", async () => {
+		expect((await call("GET", "/progress"))?.body).toHaveProperty("config.databaseUrl.default", suggestedDatabaseUrl());
+	});
+
 	it("locks setup once an administrator exists", async () => {
 		updateRuntime({ mode: "ready", database: "ok" });
 		admins = true;
@@ -212,6 +217,20 @@ describe("setup api", () => {
 		caller = true;
 		expect((await call("POST", "/complete"))?.status).toBe(200);
 		expect(store.setupState()).toBe("completed");
+	});
+
+	it("saves bundled Redis, indexer, and streamer defaults when quick setup completes", async () => {
+		updateRuntime({ mode: "ready", database: "ok" });
+		admins = true;
+		caller = true;
+		store.setMany({ databaseUrl: "postgres://db/flixer", publicUrl: "https://x.example.com" });
+		const indexerDefault = appConfig().get("indexerUrl");
+		const streamerDefault = appConfig().get("streamerInternalUrl");
+
+		expect((await call("POST", "/complete"))?.status).toBe(200);
+		expect(store.get("redisUrl")).toBe(suggestedRedisUrl());
+		expect(store.get("indexerUrl")).toBe(indexerDefault);
+		expect(store.get("streamerInternalUrl")).toBe(streamerDefault);
 	});
 
 	it("resets only on explicit confirmation and by an administrator", async () => {
