@@ -1,6 +1,5 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict } from "@tsed/exceptions";
-import { createHmac } from "node:crypto";
 import { readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DataSource, IsNull } from "typeorm";
@@ -10,6 +9,9 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { NotificationService } from "../notifications/notificationService.js";
+import { UpdaterClient } from "./updaterClient.js";
+
+export { deriveUpdaterToken } from "./updaterClient.js";
 
 export const UPDATE_SETTING_KEYS = ["updates_check_enabled", "updates_auto_update", "updates_updater_url"];
 
@@ -23,7 +25,6 @@ export type ComponentId = (typeof COMPONENTS)[number]["id"];
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
 const LATEST_CACHE_MS = 10 * 60_000;
-const DEFAULT_UPDATER_URL = "http://updater:8093";
 const BACKUP_PATTERN = /^flixer-.*\.dump$/;
 
 export interface ComponentStatus {
@@ -63,11 +64,6 @@ export interface UpdateStatus {
 	backups: Array<{ name: string; sizeBytes: number; createdAt: string }>;
 }
 
-/** Must match the updater: hex(HMAC-SHA256(secret, "flixer-updater-token")). */
-export function deriveUpdaterToken(secret: string | undefined | null): string | undefined {
-	return secret ? createHmac("sha256", secret).update("flixer-updater-token").digest("hex") : undefined;
-}
-
 export function parseVersion(value: string | null | undefined): number[] | null {
 	const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec((value ?? "").trim());
 	return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
@@ -102,6 +98,7 @@ export class UpdateService {
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
+		private readonly updater: UpdaterClient,
 	) {}
 
 	$onReady(): void {
@@ -129,21 +126,21 @@ export class UpdateService {
 			};
 		});
 		const state = await this.readState();
-		const updater = await this.updaterStatus();
+		const updaterState = await this.updaterStatus();
 		return {
 			components,
 			updatesAvailable: components.filter((component) => component.updateAvailable).length,
 			lastCheckedAt: state.lastCheckedAt,
-			canApply: this.updaterToken() !== undefined,
-			updaterReachable: updater !== null,
-			run: updater?.run ?? null,
+			canApply: this.updater.token() !== undefined,
+			updaterReachable: updaterState !== null,
+			run: updaterState?.run ?? null,
 			backups: await this.listBackups(),
 		};
 	}
 
 	/** Asks the updater to move every outdated component to its newest release. It backs up, updates and rolls back. */
 	async apply(): Promise<UpdateRun> {
-		if (!this.updaterToken()) {
+		if (!this.updater.token()) {
 			throw new BadRequest("Updates are not available yet: Flixer has no stream token secret to authenticate with the updater. Finish the setup wizard first.");
 		}
 		const status = await this.status(true);
@@ -164,7 +161,7 @@ export class UpdateService {
 		if (!databaseUrl) {
 			throw new BadRequest("DATABASE_URL is not configured, so the database cannot be backed up.");
 		}
-		const response = await this.callUpdater("/v1/update", { method: "POST", body: JSON.stringify({ targets, current, databaseUrl }) });
+		const response = await this.updater.call("/v1/update", { method: "POST", body: JSON.stringify({ targets, current, databaseUrl }) });
 		const body = (await response.json().catch(() => ({}))) as UpdateRun & { error?: string };
 		if (response.status === 409) {
 			throw new Conflict("An update is already in progress.");
@@ -175,31 +172,19 @@ export class UpdateService {
 		return body;
 	}
 
-	private async callUpdater(path: string, init: RequestInit = {}): Promise<Response> {
-		const url = `${await this.updaterUrl()}${path}`;
-		try {
-			return await fetch(url, {
-				...init,
-				headers: { authorization: `Bearer ${this.updaterToken() ?? ""}`, "content-type": "application/json" },
-				signal: AbortSignal.timeout(10_000),
-			});
-		} catch (error) {
-			throw new BadRequest(`Could not reach the updater: ${error instanceof Error ? error.message : String(error)}`);
-		}
-	}
-
 	/** The latest run as the updater reports it, or null when the updater is not configured or not reachable. */
 	private async updaterStatus(): Promise<{ run: UpdateRun | null } | null> {
-		if (!this.updaterToken()) {
+		if (!this.updater.token()) {
 			return null;
 		}
 		try {
-			const response = await this.callUpdater("/v1/status");
+			const response = await this.updater.call("/v1/status");
 			if (!response.ok) {
 				return null;
 			}
-			const body = (await response.json()) as { state?: { run?: UpdateRun | null } };
-			return { run: body.state?.run ?? null };
+			const body = (await response.json()) as { state?: { run?: (UpdateRun & { kind?: string }) | null } };
+			const run = body.state?.run ?? null;
+			return { run: run && (run.kind === undefined || run.kind === "update") ? run : null };
 		} catch {
 			return null;
 		}
@@ -287,17 +272,6 @@ export class UpdateService {
 		this.latestCache = { at: Date.now(), versions };
 		await this.writeState({ ...(await this.readState()), lastCheckedAt: new Date().toISOString() });
 		return versions;
-	}
-
-	/** An explicit UPDATER_TOKEN wins; otherwise it is derived from the stream token secret the updater also reads. */
-	private updaterToken(): string | undefined {
-		return process.env.UPDATER_TOKEN?.trim() || deriveUpdaterToken(appConfig().get("streamTokenSecret"));
-	}
-
-	private async updaterUrl(): Promise<string> {
-		const configured = await this.settingValue("updates_updater_url");
-		const url = (typeof configured === "string" && configured.trim() !== "" ? configured.trim() : process.env.UPDATER_URL?.trim()) || DEFAULT_UPDATER_URL;
-		return url.replace(/\/+$/, "");
 	}
 
 	private backupDirectory(): string {

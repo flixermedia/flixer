@@ -170,6 +170,11 @@ export class ConfigStore {
 		this.db.prepare("INSERT INTO meta (key, value) VALUES ('setup_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(state);
 	}
 
+	/** Writes a consistent, WAL-free copy of the database to `destination`, which must not exist yet. */
+	snapshot(destination: string): void {
+		this.db.prepare("VACUUM INTO ?").run(destination);
+	}
+
 	close(): void {
 		this.db.close();
 	}

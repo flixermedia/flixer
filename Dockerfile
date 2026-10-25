@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.version=$APP_VERSION
 ENV WORKDIR /opt
 WORKDIR $WORKDIR
 
-RUN apk update && apk add build-base git curl cifs-utils && npm install -g pm2
+RUN apk update && apk add build-base git curl cifs-utils postgresql17-client && npm install -g pm2
 
 
 COPY --from=build /opt .

@@ -63,6 +63,7 @@
 		"pg-boss": "^12.38.0",
 		"sharp": "^0.35.5",
 		"socket.io": "^4.8.4",
+		"tar-stream": "^3.2.2",
 		"typeorm": "^1.1.2",
 		"web-push": "^3.6.7",
 		"ws": "^8.21.3"
@@ -80,6 +81,7 @@
 		"@types/node": "^26.6.5",
 		"@types/nodemailer": "^8.0.2",
 		"@types/supertest": "^7.2.1",
+		"@types/tar-stream": "^3.1.5",
 		"@types/web-push": "^3.6.4",
 		"@types/ws": "^8.18.2",
 		"husky": "^9.1.7",

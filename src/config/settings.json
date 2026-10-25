@@ -146,6 +146,21 @@
 		"isPublic": false
 	},
 	{
+		"key": "backups_schedule",
+		"defaultValue": "off",
+		"isPublic": false
+	},
+	{
+		"key": "backups_keep",
+		"defaultValue": 7,
+		"isPublic": false
+	},
+	{
+		"key": "backups_state",
+		"defaultValue": {},
+		"isPublic": false
+	},
+	{
 		"key": "sentry_enabled",
 		"defaultValue": true,
 		"isPublic": false
