@@ -75,7 +75,7 @@ printf 'DATA_PATH=/path/to/flixer-data\nMEDIA_PATH=/path/to/your/media\n' > .env
 docker compose up -d
 ```
 
-`DATA_PATH` is required and holds avatars, metadata, logs, SMB mount points and backups. `MEDIA_PATH` defaults to `./media`, and is mounted at `/media` (read-only in the API and streamer). `HTTP_PORT` defaults to `8080`. Optional `FLIXER_VERSION`, `STREAMER_VERSION`, `INDEXER_VERSION` and `WEB_VERSION` pin image versions. See [.env.example](./.env.example) for everything else.
+`DATA_PATH` is required and holds avatars, metadata, logs, SMB mount points, backups and the bundled PostgreSQL data (`postgres/`). `MEDIA_PATH` defaults to `./media`, and is mounted at `/media` (read-only in the API and streamer). `HTTP_PORT` defaults to `8080`. Optional `FLIXER_VERSION`, `STREAMER_VERSION`, `INDEXER_VERSION` and `WEB_VERSION` pin image versions. See [.env.example](./.env.example) for everything else.
 
 ### Update, stop and uninstall
 
@@ -84,7 +84,7 @@ cd ~/flixer
 docker compose pull && docker compose up -d   # update
 docker compose logs -f                        # logs
 docker compose down                           # stop (keeps your data)
-docker compose down -v                        # stop and delete database volumes
+docker compose down -v                        # stop and delete Redis/config volumes (PostgreSQL lives in DATA_PATH/postgres)
 ```
 
 ### Configuration notes
