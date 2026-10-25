@@ -19,7 +19,7 @@
 		"@fastify/accepts": "^5.0.7",
 		"@fastify/cookie": "^11.1.3",
 		"@fastify/formbody": "^9.0.1",
-		"@fastify/middie": "^9.3.5",
+		"@fastify/middie": "^9.3.6",
 		"@fastify/session": "^11.1.4",
 		"@fastify/static": "^10.1.6",
 		"@sentry/node": "^11.8.0",
