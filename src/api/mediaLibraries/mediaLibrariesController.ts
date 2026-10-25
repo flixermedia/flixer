@@ -3,6 +3,7 @@ import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
+import { IndexerClient } from "../indexer/indexerClient.js";
 import { MediaLibrariesService } from "./mediaLibrariesService.js";
 import { CreateMediaLibraryRequest, UpdateMediaLibraryRequest } from "./mediaLibraryRequests.js";
 import { MediaRootsService } from "./mediaRootsService.js";
@@ -16,6 +17,7 @@ export class MediaLibrariesController {
 		private readonly authService: AuthService,
 		private readonly libraries: MediaLibrariesService,
 		private readonly roots: MediaRootsService,
+		private readonly indexer: IndexerClient,
 	) {}
 
 	@Get("/")
@@ -64,5 +66,7 @@ export class MediaLibrariesController {
 		if (!AuthService.isUuid(id) || !(await this.libraries.remove(id.toLowerCase()))) {
 			throw new NotFound("Media library not found.");
 		}
+		// Best effort: the library is already gone, so an unreachable indexer must not fail the request.
+		await this.indexer.request("POST", `/internal/libraries/${id.toLowerCase()}/cancel-tasks`).catch(() => undefined);
 	}
 }

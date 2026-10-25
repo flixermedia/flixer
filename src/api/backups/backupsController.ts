@@ -92,8 +92,8 @@ export class BackupDownloadController {
 	@Get("/download/:name")
 	async download(
 		@PathParams("name") name: string,
-		@QueryParams("expires") expires: string | undefined,
-		@QueryParams("signature") signature: string | undefined,
+		@QueryParams("expires", String) expires: string | undefined,
+		@QueryParams("signature", String) signature: string | undefined,
 		@Context() ctx: PlatformContext,
 	) {
 		const { stream, size } = await this.backups.openDownload(name, expires, signature);

@@ -7,11 +7,11 @@ import { signIndexerRequest } from "../api/indexer/indexerAuth.js";
 import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
 import { ConfigStore } from "../config/store/configStore.js";
 import { parseRedisUrl } from "../config/store/redisConfig.js";
-import { ensureSecrets, publishStreamTokenSecret } from "../config/store/sharedSecret.js";
+import { ensureSecrets, publishAppSecret } from "../config/store/sharedSecret.js";
 import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.js";
 import { internalConfigPath } from "./internalConfig.js";
 
-const ENV = ["DATABASE_URL", "JWT_SECRET", "STREAM_TOKEN_SECRET", "REDIS_URL", "STREAM_TOKEN_SECRET_FILE"];
+const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL", "APP_SECRET_FILE"];
 
 describe("internal config and shared secrets", () => {
 	let directory: string;
@@ -56,32 +56,32 @@ describe("internal config and shared secrets", () => {
 	it("generates missing secrets once and keeps them across restarts", () => {
 		ensureSecrets(config);
 		const jwt = store.get("jwtSecret");
-		const stream = store.get("streamTokenSecret");
+		const stream = store.get("appSecret");
 		expect(Buffer.byteLength(jwt ?? "")).toBeGreaterThanOrEqual(32);
 		expect(stream).not.toBe(jwt);
 		ensureSecrets(config);
 		expect(store.get("jwtSecret")).toBe(jwt);
-		expect(store.get("streamTokenSecret")).toBe(stream);
+		expect(store.get("appSecret")).toBe(stream);
 	});
 
 	it("never replaces secrets that come from the environment", () => {
 		process.env.JWT_SECRET = "j".repeat(40);
-		process.env.STREAM_TOKEN_SECRET = "s".repeat(40);
+		process.env.APP_SECRET = "s".repeat(40);
 		ensureSecrets(config);
 		expect(store.has("jwtSecret")).toBe(false);
-		expect(store.has("streamTokenSecret")).toBe(false);
+		expect(store.has("appSecret")).toBe(false);
 	});
 
-	it("publishes the stream token secret to the shared file", () => {
-		const file = join(directory, "shared", "stream-token-secret");
+	it("publishes the app secret to the shared file", () => {
+		const file = join(directory, "shared", "app-secret");
 		ensureSecrets(config);
-		expect(publishStreamTokenSecret(config, file)).toBe(true);
-		expect(readFileSync(file, "utf8")).toBe(store.get("streamTokenSecret"));
+		expect(publishAppSecret(config, file)).toBe(true);
+		expect(readFileSync(file, "utf8")).toBe(store.get("appSecret"));
 		expect(statSync(file).mode & 0o777).toBe(0o644);
 		writeFileSync(file, "stale");
-		publishStreamTokenSecret(config, file);
-		expect(readFileSync(file, "utf8")).toBe(store.get("streamTokenSecret"));
-		expect(publishStreamTokenSecret(config, undefined)).toBe(false);
+		publishAppSecret(config, file);
+		expect(readFileSync(file, "utf8")).toBe(store.get("appSecret"));
+		expect(publishAppSecret(config, undefined)).toBe(false);
 	});
 
 	describe("signed endpoint during bootstrap", () => {

@@ -9,7 +9,7 @@ import { announceRecovery, logRecoveryKey, needsRecovery, recoveryCode, resetRec
 import { handleSetupRequest } from "./setupApi.js";
 import type { Probes } from "./setupSteps.js";
 
-const ENV = ["DATABASE_URL", "JWT_SECRET", "STREAM_TOKEN_SECRET", "REDIS_URL"];
+const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL"];
 
 describe("setup recovery", () => {
 	let directory: string;

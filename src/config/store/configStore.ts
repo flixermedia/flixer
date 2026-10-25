@@ -37,6 +37,10 @@ const MIGRATIONS: Migration[] = [
 			CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 		`,
 	},
+	{
+		version: 2,
+		sql: "UPDATE config SET key = 'app_secret' WHERE key = 'stream_token_secret' AND NOT EXISTS (SELECT 1 FROM config WHERE key = 'app_secret')",
+	},
 ];
 
 export class ConfigValidationError extends Error {}

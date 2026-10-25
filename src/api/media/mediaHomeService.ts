@@ -1,3 +1,4 @@
+import { parseChapters } from "./segmentLogic.js";
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
@@ -33,7 +34,8 @@ const FEATURED_CANDIDATES = 40;
 const ROW_SIZE = 20;
 /** Item types that make up a library's top level; seasons, episodes and tracks sit beneath them. */
 const TOP_LEVEL_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
-const SEARCH_TYPES: MediaItemType[] = [...TOP_LEVEL_TYPES, "episode"];
+/** Episodes stay out of search so a show appears once, as its series. */
+const SEARCH_TYPES: MediaItemType[] = TOP_LEVEL_TYPES;
 const SEARCH_LIMIT = 60;
 
 export interface SearchFilters {
@@ -403,6 +405,7 @@ export class MediaHomeService {
 						hdr: textOf(item.technical.hdr),
 					}
 				: null,
+			chapters: parseChapters(item.technical),
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),

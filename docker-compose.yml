@@ -26,7 +26,7 @@ services:
         environment:
             PORT: 8081
             CONFIG_DIR: /var/lib/flixer/config
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             AVATAR_DIR: /data/avatars
             METADATA_DIR: /data/metadata
             STREAM_MEDIA_ROOT: /media
@@ -66,14 +66,16 @@ services:
         image: ghcr.io/flixermedia/flixer-streamer:${STREAMER_VERSION:-latest}
         environment:
             PORT: 8091
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             TRANSCODE_DIR: /var/cache/flixer/transcode
+            TRICKPLAY_DIR: /data/metadata/trickplay
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata:ro
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
         expose:
             - "8091"
@@ -98,8 +100,9 @@ services:
             ROLE: all
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             CACHE_PATH: /var/cache/flixer/indexer
+            TRICKPLAY_DIR: /var/cache/flixer/indexer/trickplay
         volumes:
             # Read-write so artwork can be stored alongside media.
             - ${MEDIA_PATH:-./media}:/media
@@ -155,7 +158,7 @@ services:
         restart: unless-stopped
 
     # Optional, in-dashboard updates: `docker compose --profile updates up -d`. No token to set: Flixer and the
-    # updater derive it from the shared stream token secret. The updater is the only container with the Docker socket. When an admin asks from
+    # updater derive it from the shared app secret. The updater is the only container with the Docker socket. When an admin asks from
     # Admin > Updates it backs up the database, pins the new versions in its state volume, recreates the services one by one
     # and rolls back if one does not become healthy. It needs this folder mounted at the same path as on the host
     # (PROJECT_DIR defaults to the current directory). Update the updater itself by pulling its image manually.
@@ -166,7 +169,7 @@ services:
             data-init:
                 condition: service_completed_successfully
         environment:
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - flixer-secrets:/run/flixer-secrets
@@ -294,7 +297,7 @@ services:
                         proxy_read_timeout 120s;
                     }
 
-                    location ~ ^/(lyrics|subtitles)/ {
+                    location ~ ^/(lyrics|subtitles|trickplay)/ {
                         proxy_pass http://flixer_streamer;
                         proxy_http_version 1.1;
                         proxy_set_header Host $$host;

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$HOME/projects"
-mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/metadata" "$ROOT/flixer-data/logs"
+mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/metadata" "$ROOT/flixer-data/cache/metadata/trickplay" "$ROOT/flixer-data/logs"
 export PATH="$HOME/bin:$PATH"
 
 for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs; do
@@ -16,7 +16,7 @@ SECRETS="$HOME/.flixer-dev-secrets"
 if [ ! -f "$SECRETS" ]; then
   {
     echo "JWT_SECRET=$(openssl rand -hex 32)"
-    echo "STREAM_TOKEN_SECRET=$(openssl rand -hex 32)"
+    echo "APP_SECRET=$(openssl rand -hex 32)"
   } > "$SECRETS"
   chmod 600 "$SECRETS"
 fi
@@ -28,7 +28,7 @@ if [ ! -f "$ROOT/flixer/.env" ]; then
   cat > "$ROOT/flixer/.env" <<EOF
 DATABASE_URL=postgres://flixer:flixer@postgres:5432/flixer
 JWT_SECRET=$JWT_SECRET
-STREAM_TOKEN_SECRET=$STREAM_TOKEN_SECRET
+APP_SECRET=$APP_SECRET
 PORT=8083
 FLIXER_PUBLIC_URL=$PUBLIC_URL
 APP_URL=$PUBLIC_URL
@@ -50,6 +50,7 @@ if [ ! -f "$ROOT/flixer-streamer/.env" ]; then
 PORT=8091
 FLIXER_URL=http://localhost:8083
 TRANSCODE_DIR=$ROOT/flixer-data/transcodes
+TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay
 EOF
 fi
 
@@ -59,8 +60,17 @@ PORT=8092
 ROLE=all
 FLIXER_URL=http://localhost:8083
 CACHE_PATH=$ROOT/flixer-data/cache/metadata
+TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay
 EOF
 fi
+# The streamer and indexer must read/write the same hover-thumbnail cache, including on persistent workspaces.
+for env_file in "$ROOT/flixer-streamer/.env" "$ROOT/flixer-indexer/.env"; do
+  if grep -q '^TRICKPLAY_DIR=' "$env_file"; then
+    sed -i "s|^TRICKPLAY_DIR=.*|TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay|" "$env_file"
+  else
+    printf 'TRICKPLAY_DIR=%s\n' "$ROOT/flixer-data/cache/metadata/trickplay" >> "$env_file"
+  fi
+done
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash
@@ -125,8 +135,8 @@ signal_tree() {
 start_one() {
   if is_running "$1"; then echo "$1 already running"; return; fi
   IFS='|' read -r dir cmd <<< "$(command_for "$1")"
-  # The API publishes its stream token secret here and the streamer and indexer read it, so the three always agree.
-  export STREAM_TOKEN_SECRET_FILE="${STREAM_TOKEN_SECRET_FILE:-$RUN/stream-token-secret}"
+  # The API publishes its app secret here and the streamer and indexer read it, so the three always agree.
+  export APP_SECRET_FILE="${APP_SECRET_FILE:-$RUN/app-secret}"
   # The workspace has passwordless sudo and SYS_ADMIN, which is how flixer mounts SMB shares without running as root.
   export SMB_MOUNT_SUDO="${SMB_MOUNT_SUDO:-true}"
   # Own session/process group so stop can take down npm/go and their children together.

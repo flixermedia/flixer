@@ -26,9 +26,9 @@ export class UpdaterClient {
 
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
-	/** An explicit UPDATER_TOKEN wins; otherwise it is derived from the stream token secret the updater also reads. */
+	/** An explicit UPDATER_TOKEN wins; otherwise it is derived from the app secret the updater also reads. */
 	token(): string | undefined {
-		return process.env.UPDATER_TOKEN?.trim() || deriveUpdaterToken(appConfig().get("streamTokenSecret"));
+		return process.env.UPDATER_TOKEN?.trim() || deriveUpdaterToken(appConfig().get("appSecret"));
 	}
 
 	async url(): Promise<string> {

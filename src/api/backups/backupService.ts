@@ -226,7 +226,7 @@ export class BackupService {
 		}
 		const token = this.updater.token();
 		if (!token) {
-			throw new BadRequest("Restoring is not available yet: Flixer has no stream token secret to authenticate with the updater. Finish the setup wizard first.");
+			throw new BadRequest("Restoring is not available yet: Flixer has no app secret to authenticate with the updater. Finish the setup wizard first.");
 		}
 		const response = await this.updater.call(`/v1/backups/${encodeURIComponent(name)}/restore`, {
 			method: "POST",
@@ -316,9 +316,9 @@ export class BackupService {
 
 	downloadLink(name: string): { path: string; expiresAt: string } {
 		this.requireName(name);
-		const secret = appConfig().get("streamTokenSecret");
+		const secret = appConfig().get("appSecret");
 		if (!secret) {
-			throw new BadRequest("Flixer has no stream token secret yet. Finish the setup wizard first.");
+			throw new BadRequest("Flixer has no app secret yet. Finish the setup wizard first.");
 		}
 		const expires = Date.now() + DOWNLOAD_LINK_TTL_MS;
 		return { path: `/backups/download/${encodeURIComponent(name)}?expires=${expires}&signature=${signDownload(secret, name, expires)}`, expiresAt: new Date(expires).toISOString() };
@@ -326,7 +326,7 @@ export class BackupService {
 
 	/** Opens a backup for download after checking the signed link. */
 	async openDownload(name: string, expires: string | undefined, signature: string | undefined): Promise<{ stream: ReadStream; size: number }> {
-		const secret = appConfig().get("streamTokenSecret");
+		const secret = appConfig().get("appSecret");
 		const expiresAt = Number(expires);
 		if (!secret || !isBackupName(name) || !Number.isFinite(expiresAt) || expiresAt < Date.now() || !signature) {
 			throw new NotFound("This download link is invalid or has expired.");
@@ -478,7 +478,7 @@ export class BackupService {
 		} else {
 			note("The settings folder was not found; settings are not in this backup.");
 		}
-		const secretsFile = process.env.STREAM_TOKEN_SECRET_FILE?.trim();
+		const secretsFile = (process.env.APP_SECRET_FILE ?? process.env.STREAM_TOKEN_SECRET_FILE)?.trim();
 		const secretsDir = secretsFile ? dirname(resolve(secretsFile)) : undefined;
 		if (secretsDir && (await isDirectory(secretsDir))) {
 			sources.secrets = { dir: secretsDir };

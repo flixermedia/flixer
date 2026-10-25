@@ -27,6 +27,20 @@ export class SubtitleDownloadRequest {
 	language!: string;
 }
 
+/** A hand-set skippable span; it overrides chapters and crowd-sourced timestamps for its type. */
+export class SetSegmentRequest {
+
+	@Required()
+	@Integer()
+	@Minimum(0)
+	startMs!: number;
+
+	@Required()
+	@Integer()
+	@Minimum(1)
+	endMs!: number;
+}
+
 /** A playback position reported by a player. */
 export class WatchProgressRequest {
 

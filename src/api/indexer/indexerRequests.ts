@@ -6,6 +6,10 @@ export class ScanLibraryRequest {
 	/** Re-reads every item instead of only what changed on disk. */
 	@Property()
 	force?: boolean;
+
+	/** Only generates missing hover-preview thumbnails; nothing is re-indexed. */
+	@Property()
+	trickplayOnly?: boolean;
 }
 
 export class RefreshItemRequest {

@@ -7,7 +7,7 @@ import { ConfigStore, ConfigValidationError } from "./configStore.js";
 import { SecretBox } from "./secretBox.js";
 
 const SECRET = "a".repeat(40);
-const ENV_KEYS = ["DATABASE_URL", "STREAM_TOKEN_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL"];
+const ENV_KEYS = ["DATABASE_URL", "APP_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL"];
 
 describe("config store", () => {
 	let directory: string;
@@ -34,11 +34,11 @@ describe("config store", () => {
 
 	it("persists values across restarts and encrypts secrets at rest", () => {
 		const first = new ConfigStore(directory);
-		first.setMany({ streamTokenSecret: SECRET, publicUrl: "https://flixer.example.com" });
+		first.setMany({ appSecret: SECRET, publicUrl: "https://flixer.example.com" });
 		first.close();
 
 		const second = new ConfigStore(directory);
-		expect(second.get("streamTokenSecret")).toBe(SECRET);
+		expect(second.get("appSecret")).toBe(SECRET);
 		expect(second.get("publicUrl")).toBe("https://flixer.example.com");
 		second.close();
 
@@ -59,7 +59,7 @@ describe("config store", () => {
 
 	it("rejects invalid values without writing any of them", () => {
 		const store = new ConfigStore(directory);
-		expect(() => store.setMany({ publicUrl: "https://ok.example.com", streamTokenSecret: "short" })).toThrow(ConfigValidationError);
+		expect(() => store.setMany({ publicUrl: "https://ok.example.com", appSecret: "short" })).toThrow(ConfigValidationError);
 		expect(store.has("publicUrl")).toBe(false);
 		expect(store.version()).toBe(0);
 		store.close();
@@ -125,8 +125,8 @@ describe("config store", () => {
 			const config = new AppConfig(null);
 			expect(config.get("databaseUrl")).toBeUndefined();
 			expect(() => config.require("databaseUrl")).toThrow("DATABASE_URL");
-			process.env.STREAM_TOKEN_SECRET = SECRET;
-			expect(config.require("streamTokenSecret")).toBe(SECRET);
+			process.env.APP_SECRET = SECRET;
+			expect(config.require("appSecret")).toBe(SECRET);
 		});
 	});
 });

@@ -82,12 +82,12 @@ describe("BackupService", () => {
 		for (const sub of ["config", "secrets", "metadata/sub"]) {
 			mkdirSync(join(root, sub), { recursive: true });
 		}
-		writeFileSync(join(root, "secrets/stream-token-secret"), "tokensecret");
+		writeFileSync(join(root, "secrets/app-secret"), "tokensecret");
 		writeFileSync(join(root, "metadata/sub/a.txt"), "meta");
 		process.env.BACKUP_DIR = dir();
 		process.env.CONFIG_DIR = join(root, "config");
 		process.env.METADATA_DIR = join(root, "metadata");
-		process.env.STREAM_TOKEN_SECRET_FILE = join(root, "secrets/stream-token-secret");
+		process.env.APP_SECRET_FILE = join(root, "secrets/app-secret");
 		process.env.DATABASE_URL = "postgres://user:pw@db:5432/flixer";
 		delete process.env.BACKUP_PASSPHRASE_FILE;
 		setAppConfig(undefined);
@@ -123,7 +123,7 @@ describe("BackupService", () => {
 		await extractArchive(join(dir(), entry!.name), out);
 		expect(readFileSync(join(out, "database.dump"), "utf8")).toBe("PGDMP-fake");
 		expect(readFileSync(join(out, "metadata/sub/a.txt"), "utf8")).toBe("meta");
-		expect(readFileSync(join(out, "secrets/stream-token-secret"), "utf8")).toBe("tokensecret");
+		expect(readFileSync(join(out, "secrets/app-secret"), "utf8")).toBe("tokensecret");
 		expect(statSync(join(out, "config/flixer-config.db")).size).toBeGreaterThan(0);
 		expect(readdirSync(join(out, "config")).some((name) => name.endsWith("-wal"))).toBe(false);
 	});

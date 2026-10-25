@@ -59,7 +59,7 @@ export const CONFIG_KEYS = {
 	databaseUrl: { key: "database_url", env: "DATABASE_URL", secret: true, validate: validatePostgresUrl },
 	redisUrl: { key: "redis_url", env: "REDIS_URL", secret: true, validate: validateRedisUrl },
 	jwtSecret: { key: "jwt_secret", env: "JWT_SECRET", secret: true, validate: validateSecret },
-	streamTokenSecret: { key: "stream_token_secret", env: "STREAM_TOKEN_SECRET", secret: true, validate: validateSecret },
+	appSecret: { key: "app_secret", env: "APP_SECRET", envAliases: ["STREAM_TOKEN_SECRET"], secret: true, validate: validateSecret },
 	publicUrl: { key: "public_url", env: "FLIXER_PUBLIC_URL", secret: false, validate: validateHttpUrl },
 	appUrl: { key: "app_url", env: "APP_URL", secret: false, validate: validateHttpUrl },
 	passkeyRpId: { key: "passkey_rp_id", env: "PASSKEY_RP_ID", secret: false },

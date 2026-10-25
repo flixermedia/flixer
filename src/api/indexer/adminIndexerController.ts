@@ -42,7 +42,7 @@ export class AdminIndexerController {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media library not found.");
 		}
-		const result = await this.indexer.request("POST", "/internal/scan", { body: { libraryId: id.toLowerCase(), force: request?.force === true } });
+		const result = await this.indexer.request("POST", "/internal/scan", { body: { libraryId: id.toLowerCase(), force: request?.force === true, trickplayOnly: request?.trickplayOnly === true } });
 		this.live.invalidate("indexer", "overview");
 		return result;
 	}
@@ -92,6 +92,14 @@ export class AdminIndexerController {
 	) {
 		await this.authService.requireAdmin(authorization);
 		const result = await this.indexer.request("POST", `/internal/tasks/${this.requireQueue(queue)}/${this.requireTaskId(id)}/retry`);
+		this.live.invalidate("indexer");
+		return result;
+	}
+
+	@Post("/queues/:queue/cancel-active")
+	async cancelActive(@PathParams("queue") queue: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		const result = await this.indexer.request("POST", `/internal/queues/${this.requireQueue(queue)}/cancel-active`);
 		this.live.invalidate("indexer");
 		return result;
 	}

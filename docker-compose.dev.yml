@@ -30,7 +30,7 @@ services:
             PORT: 8081
             NODE_ENV: development
             CONFIG_DIR: /var/lib/flixer/config
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             AVATAR_DIR: /data/avatars
             METADATA_DIR: /data/metadata
             STREAM_MEDIA_ROOT: /media
@@ -70,14 +70,16 @@ services:
         environment:
             PORT: 8091
             LOG_LEVEL: debug
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             TRANSCODE_DIR: /var/cache/flixer/transcode
+            TRICKPLAY_DIR: /data/metadata/trickplay
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata:ro
             - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
         expose:
             - "8091"
@@ -106,8 +108,9 @@ services:
             ROLE: all
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
-            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/stream-token-secret
+            APP_SECRET_FILE: /run/flixer-secrets/app-secret
             CACHE_PATH: /var/cache/flixer/indexer
+            TRICKPLAY_DIR: /var/cache/flixer/indexer/trickplay
         volumes:
             # Read-write so artwork can be stored alongside media.
             - ${MEDIA_PATH:-./media}:/media
@@ -280,7 +283,7 @@ services:
                         proxy_read_timeout 120s;
                     }
 
-                    location ~ ^/(lyrics|subtitles)/ {
+                    location ~ ^/(lyrics|subtitles|trickplay)/ {
                         proxy_pass http://flixer_streamer;
                         proxy_http_version 1.1;
                         proxy_set_header Host $$host;

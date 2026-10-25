@@ -141,7 +141,7 @@ export class UpdateService {
 	/** Asks the updater to move every outdated component to its newest release. It backs up, updates and rolls back. */
 	async apply(): Promise<UpdateRun> {
 		if (!this.updater.token()) {
-			throw new BadRequest("Updates are not available yet: Flixer has no stream token secret to authenticate with the updater. Finish the setup wizard first.");
+			throw new BadRequest("Updates are not available yet: Flixer has no app secret to authenticate with the updater. Finish the setup wizard first.");
 		}
 		const status = await this.status(true);
 		if (!status.updaterReachable) {
