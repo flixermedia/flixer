@@ -1,5 +1,5 @@
 import { appConfig } from "../config/store/appConfig.js";
-import { CONFIG_KEYS, type ConfigName } from "../config/store/configSchema.js";
+import { CONFIG_KEYS, suggestedRedisUrl, type ConfigName } from "../config/store/configSchema.js";
 import { ConfigValidationError } from "../config/store/configStore.js";
 import { runtimeState, setupStatus } from "../bootstrap/setupStatus.js";
 import { $log } from "@tsed/logger";
@@ -78,7 +78,7 @@ async function authorize(context: SetupRequestContext, route: string): Promise<v
 function requireStore(): NonNullable<ReturnType<typeof appConfig>["persistent"]> {
 	const store = appConfig().persistent;
 	if (!store) {
-		throw new SetupError(503, "The configuration directory is not writable, so setup cannot save anything. Check CONFIG_DIR.");
+		throw new SetupError(503, "The configuration directory under DATA_PATH/config is not writable, so setup cannot save anything.");
 	}
 	return store;
 }
@@ -93,7 +93,7 @@ function describeConfig() {
 	return Object.fromEntries(
 		(Object.keys(CONFIG_KEYS) as ConfigName[]).map((name) => {
 			const definition = CONFIG_KEYS[name];
-			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: definition.secret ? undefined : config.get(name) }];
+			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: definition.secret ? undefined : config.get(name), default: name === "redisUrl" ? suggestedRedisUrl() : (definition as { defaultValue?: string }).defaultValue }];
 		}),
 	);
 }
@@ -160,6 +160,9 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 			return ok({ flow });
 		}
 		if (route === "/complete") {
+			if (!appConfig().get("redisUrl")) {
+				store.setMany({ redisUrl: suggestedRedisUrl() });
+			}
 			const blockers = await completionBlockers(context);
 			if (blockers.length > 0) {
 				throw new SetupError(409, blockers.join(" "));

@@ -616,7 +616,7 @@ export class MediaHomeService {
 	/** Prefers the indexer's on-disk cache, and goes straight to the provider only when the indexer is unreachable. */
 	private async loadPersonPhoto(url: string): Promise<{ data: Buffer; mime: string }> {
 		try {
-			return await this.indexer.fetchPersonImage(url);
+			return await this.indexer.fetchPersonImage(id.toLowerCase(), url);
 		} catch (error) {
 			if ((error as { status?: number }).status === 503) {
 				return fetchPersonImage(url);

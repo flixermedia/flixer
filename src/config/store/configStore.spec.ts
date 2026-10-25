@@ -2,12 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AppConfig } from "./appConfig.js";
+import { AppConfig, configDirectory } from "./appConfig.js";
 import { ConfigStore, ConfigValidationError } from "./configStore.js";
 import { SecretBox } from "./secretBox.js";
 
 const SECRET = "a".repeat(40);
-const ENV_KEYS = ["DATABASE_URL", "APP_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL"];
+const ENV_KEYS = ["DATABASE_URL", "APP_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL", "DATA_PATH"];
 
 describe("config store", () => {
 	let directory: string;
@@ -43,6 +43,11 @@ describe("config store", () => {
 		second.close();
 
 		expect(readFileSync(join(directory, "flixer-config.db")).includes(SECRET)).toBe(false);
+	});
+
+	it("stores bootstrap config under DATA_PATH/config", () => {
+		process.env.DATA_PATH = directory;
+		expect(configDirectory()).toBe(join(directory, "config"));
 	});
 
 	it("keeps the encryption key private to its owner", () => {

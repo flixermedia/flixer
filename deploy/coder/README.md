@@ -13,7 +13,8 @@ A [Coder](https://coder.com) template that gives each workspace the whole stack:
 | Redis 7 | sidecar container (`redis`) | 6379 |
 
 The workspace image has Node 26, Go 1.26, ffmpeg and the psql/redis CLIs. Postgres and Redis run as sidecar
-containers on a per-workspace Docker network, with their data in per-workspace volumes.
+containers on a per-workspace Docker network. The workspace and Postgres share the persistent data volume mounted
+at `~/projects/flixer-data` and `/data`, respectively; PostgreSQL stores its files under `database/`.
 
 ## Use
 
@@ -52,10 +53,11 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
   After changing it, update `APP_URL`, `FLIXER_PUBLIC_URL`, `PASSKEY_RP_ID` and `PASSKEY_ORIGINS` in `~/projects/flixer/.env`
   and run `flixer-stack restart api`. Empty means `http://localhost:5173`.
 - **Media folder on the Docker host**: optional read-only mount at `/media`. Create libraries from it in the admin dashboard.
-  Otherwise use `~/projects/flixer-data/media`.
+  Otherwise use `~/projects/flixer-data/media`. The API, streamer and indexer use
+  `DATA_DIR=~/projects/flixer-data` (services inherit it as `DATA_PATH`), so config, avatars, media cache and backups all stay under that root.
 
 ## Notes
 
 - The Vite dev server uses a self-signed certificate, so the Coder app points at `https://localhost:5173`.
-- The indexer watches library folders, which only works for paths inside the workspace; mounted network shares need `WATCH_RESCAN_INTERVAL`. The setup script points both the indexer and streamer at `~/projects/flixer-data/cache/metadata/trickplay`; the Vite proxy routes `/trickplay` to the streamer.
+- The indexer watches library folders, which only works for paths inside the workspace; mounted network shares need `WATCH_RESCAN_INTERVAL`. The setup script points both the indexer and streamer at `~/projects/flixer-data/cache/trickplay`; the Vite proxy routes `/trickplay` to the streamer.
 - Not validated with `terraform validate`/`coder templates push` yet (no Terraform on the authoring machine).

@@ -150,8 +150,9 @@ const servicesStep: SetupStep = {
 		const indexerUrl = requiredUrl(source, "indexerUrl", validateHttpUrl, errors);
 		const streamerInternalUrl = requiredUrl(source, "streamerInternalUrl", validateHttpUrl, errors);
 		const streamerPublicUrl = text(source, "streamerPublicUrl");
-		if (streamerPublicUrl && validateHttpUrl(streamerPublicUrl)) {
-			errors.streamerPublicUrl = validateHttpUrl(streamerPublicUrl) as string;
+		const publicProblem = streamerPublicUrl ? validateHttpUrl(streamerPublicUrl) : null;
+		if (publicProblem) {
+			errors.streamerPublicUrl = publicProblem;
 		}
 		return Object.keys(errors).length > 0 ? { errors } : { values: { indexerUrl, streamerInternalUrl, streamerPublicUrl } };
 	},

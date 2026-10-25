@@ -71,11 +71,11 @@ Requires Docker Engine and Docker Compose v2.
 ```bash
 mkdir flixer && cd flixer
 curl -fsSLO https://raw.githubusercontent.com/flixermedia/flixer/main/docker-compose.yml
-printf 'DATA_PATH=/path/to/flixer-data\nMEDIA_PATH=/path/to/your/media\n' > .env
+printf 'DATA_DIR=/path/to/flixer-data\nMEDIA_PATH=/path/to/your/media\n' > .env
 docker compose up -d
 ```
 
-`DATA_PATH` is required and holds avatars, metadata, logs, SMB mount points, backups and the bundled PostgreSQL data (`postgres/`). `MEDIA_PATH` defaults to `./media`, and is mounted at `/media` (read-only in the API and streamer). `HTTP_PORT` defaults to `8080`. Optional `FLIXER_VERSION`, `STREAMER_VERSION`, `INDEXER_VERSION` and `WEB_VERSION` pin image versions. See [.env.example](./.env.example) for everything else.
+`DATA_DIR` is required: the host folder Compose mounts at `/data` in every container, where it is `DATA_PATH`. Flixer stores avatars in `avatars/`, SQLite config in `config/`, PostgreSQL in `database/`, media caches in `cache/`, and logs, SMB mount points and backups under the same root. `MEDIA_PATH` defaults to `./media`, and is mounted at `/media` (read-only in the API and streamer). `HTTP_PORT` defaults to `8080`. Optional `FLIXER_VERSION`, `STREAMER_VERSION`, `INDEXER_VERSION` and `WEB_VERSION` pin image versions. See [.env.example](./.env.example) for everything else.
 
 ### Update, stop and uninstall
 
@@ -84,12 +84,12 @@ cd ~/flixer
 docker compose pull && docker compose up -d   # update
 docker compose logs -f                        # logs
 docker compose down                           # stop (keeps your data)
-docker compose down -v                        # stop and delete Redis/config volumes (PostgreSQL lives in DATA_PATH/postgres)
+docker compose down -v                        # stop and delete Redis/secrets volumes (database and config live under DATA_DIR)
 ```
 
 ### Configuration notes
 
-- Secrets are generated automatically. Settings are saved in a SQLite file on the `flixer-config` volume, with secrets encrypted by a key file next to it; keep both together when backing up. The stream secret is shared with the streamer and indexer through the `flixer-secrets` volume.
+- Secrets are generated automatically. Settings are saved in a SQLite file under `DATA_PATH/config`, with secrets encrypted by a key file next to it; keep both together when backing up. The stream secret is shared with the streamer and indexer through the `flixer-secrets` volume.
 - Environment variables in `.env` win over the setup wizard and show as locked there.
 - The bundled PostgreSQL and Redis are pre-filled in the wizard (`postgres:5432/flixer` and `redis://redis:6379`), or you can use your own.
 - **Recovery mode:** if setup was completed but no database is configured on start, the wizard opens in recovery mode. The API prints a one-time recovery code in its log (`docker compose logs api`); enter it to reconnect a database. The code changes on every start and repeated wrong codes are locked out for ten minutes.
@@ -99,7 +99,7 @@ docker compose down -v                        # stop and delete Redis/config vol
 
 ### Development
 
-`docker-compose.dev.yml` builds the API and the sibling `../flixer-web`, `../flixer-streamer` and `../flixer-indexer` checkouts from source, with debug logging. It needs `DATA_PATH` too and uses its own project name (`flixer-dev`) so volumes stay separate:
+`docker-compose.dev.yml` builds the API and the sibling `../flixer-web`, `../flixer-streamer` and `../flixer-indexer` checkouts from source, with debug logging. It needs `DATA_DIR` too and uses its own project name (`flixer-dev`) so volumes stay separate:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build

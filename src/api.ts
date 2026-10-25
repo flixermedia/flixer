@@ -21,6 +21,8 @@ export { MediaHomeController } from "./api/media/mediaHomeController.js";
 export { NetworkSharesController } from "./api/networkShares/networkSharesController.js";
 export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
 export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";
+export { RequestsController, AdminRequestsController } from "./api/requests/requestsController.js";
+export { ThemesController } from "./api/themes/themesController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";
 export { AdminBackupsController, BackupDownloadController } from "./api/backups/backupsController.js";
 export { OverviewController } from "./api/overview/overviewController.js";

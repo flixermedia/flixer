@@ -146,8 +146,8 @@ resource "docker_volume" "home" {
   }
 }
 
-resource "docker_volume" "postgres" {
-  name = "${local.workspace_name}-${data.coder_workspace.me.id}-postgres"
+resource "docker_volume" "data" {
+  name = "${local.workspace_name}-${data.coder_workspace.me.id}-data"
   lifecycle {
     ignore_changes = all
   }
@@ -169,14 +169,15 @@ resource "docker_container" "postgres" {
     "POSTGRES_USER=flixer",
     "POSTGRES_PASSWORD=flixer",
     "POSTGRES_DB=flixer",
+    "PGDATA=/data/database",
   ]
   networks_advanced {
     name    = docker_network.stack.name
     aliases = ["postgres"]
   }
   volumes {
-    volume_name    = docker_volume.postgres.name
-    container_path = "/var/lib/postgresql/data"
+    volume_name    = docker_volume.data.name
+    container_path = "/data"
   }
 }
 
@@ -223,6 +224,11 @@ resource "docker_container" "workspace" {
   volumes {
     volume_name    = docker_volume.home.name
     container_path = "/home/coder"
+  }
+
+  volumes {
+    volume_name    = docker_volume.data.name
+    container_path = "/home/coder/projects/flixer-data"
   }
 
   dynamic "volumes" {

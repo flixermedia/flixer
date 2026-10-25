@@ -5,11 +5,12 @@ import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tse
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { AuthService } from "../auth/authService.js";
+import { dataPath } from "../../config/dataPath.js";
 import { BackupService } from "./backupService.js";
 
-const uploadDirectory = () => join(resolve(process.env.BACKUP_DIR?.trim() || "./data/backups"), ".uploads");
+const uploadDirectory = () => dataPath("backups", "uploads");
 
 /** Full-system backups: create, list, download, upload, delete and the encryption passphrase handled here; restore is delegated to the updater. Administrators only. */
 @Controller("/admin/backups")

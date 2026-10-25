@@ -1,7 +1,7 @@
 # Flixer. Start with `docker compose up -d`, open http://localhost:8080 and follow the setup wizard.
 #
 # Two settings, in a .env file next to this file (or exported):
-#   DATA_PATH  (required) a folder Flixer keeps its own data in: avatars and a metadata folder (the indexer's cache and uploaded artwork).
+#   DATA_DIR   (required) a folder Flixer keeps its own data in: avatars, config, database, cache, logs and backups.
 #   MEDIA_PATH (optional) the folder that holds your media; defaults to ./media.
 # Everything else is configured in the wizard.
 services:
@@ -11,9 +11,9 @@ services:
         command:
             - /bin/sh
             - -c
-            - mkdir -p /data/avatars /data/metadata/artwork /data/logs /data/mounts /data/backups || exit 1; chown -R 1000:1000 /data/avatars /data/metadata/artwork 2>/dev/null || true; chown 65532:65532 /data/metadata 2>/dev/null || true; chown 1000:1000 /data/mounts /data/backups 2>/dev/null || true; chmod 0777 /data/logs 2>/dev/null || true
+            - set -e; mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups; chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups; chown 70:70 /data/database; chown -R 65532:65532 /data/cache; find /data/cache -type d -exec chmod 2775 {} +; chmod 0777 /data/logs
         volumes:
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}:/data
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
         restart: "no"
 
     api:
@@ -25,28 +25,26 @@ services:
                 condition: service_healthy
         environment:
             PORT: 8081
-            CONFIG_DIR: /var/lib/flixer/config
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
-            AVATAR_DIR: /data/avatars
-            METADATA_DIR: /data/metadata
+            DATA_PATH: /data
             STREAM_MEDIA_ROOT: /media
-            SMB_MOUNT_DIR: /data/mounts
             LOG_DIR: /data/logs
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
-            BACKUP_DIR: /data/backups
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://updater:8093
+        group_add:
+            - "65532"
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
-            - flixer-config:/var/lib/flixer/config
             - flixer-secrets:/run/flixer-secrets
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/avatars:/data/avatars
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/data/backups
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/avatars:/data/avatars
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/backups:/data/backups
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
         expose:
             - "8081"
         healthcheck:
@@ -68,15 +66,15 @@ services:
             PORT: 8091
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
             TRANSCODE_DIR: /var/cache/flixer/transcode
-            TRICKPLAY_DIR: /data/metadata/trickplay
+            TRICKPLAY_DIR: /data/cache/trickplay
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata:ro
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache:ro
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
         expose:
             - "8091"
         healthcheck:
@@ -101,15 +99,15 @@ services:
             FLIXER_URL: http://api:8081
             LOG_DIR: /data/logs
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
-            CACHE_PATH: /var/cache/flixer/indexer
-            TRICKPLAY_DIR: /var/cache/flixer/indexer/trickplay
+            CACHE_PATH: /data/cache
+            TRICKPLAY_DIR: /data/cache/trickplay
         volumes:
             # Read-write so artwork can be stored alongside media.
             - ${MEDIA_PATH:-./media}:/media
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/var/cache/flixer/indexer
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - flixer-secrets:/run/flixer-secrets:ro
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/logs:/data/logs
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts:/data/mounts
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
         expose:
             - "8092"
         restart: unless-stopped
@@ -119,12 +117,15 @@ services:
     # Only reachable inside the Compose network; point the wizard at your own server to skip it.
     postgres:
         image: postgres:16-alpine
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
         environment:
             POSTGRES_USER: flixer
             POSTGRES_PASSWORD: flixer
             POSTGRES_DB: flixer
         volumes:
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/postgres:/var/lib/postgresql/data
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/database:/var/lib/postgresql/data
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U flixer -d flixer"]
             interval: 10s
@@ -170,14 +171,15 @@ services:
                 condition: service_completed_successfully
         environment:
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
+            DATA_PATH: /data
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - flixer-secrets:/run/flixer-secrets
-            - flixer-config:/var/lib/flixer/config
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/metadata:/data/metadata
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro
             - updater-state:/state
-            - ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/backups:/backups
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/backups:/data/backups
         expose:
             - "8093"
         restart: unless-stopped
@@ -333,6 +335,5 @@ services:
 
 volumes:
     redis-data:
-    flixer-config:
     flixer-secrets:
     updater-state:

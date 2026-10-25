@@ -14,6 +14,11 @@ import { PersonProfile } from "../entities/personProfile.entity.js";
 import { Notification } from "../entities/notification.entity.js";
 import { PushSubscription } from "../entities/pushSubscription.entity.js";
 import { PushKey } from "../entities/pushKey.entity.js";
+import { MediaRequest } from "../entities/mediaRequest.entity.js";
+import { RequestService } from "../entities/requestService.entity.js";
+import { RequestUserLimit } from "../entities/requestUserLimit.entity.js";
+import { AddRequestServiceLibrary1794700000000 } from "../migrations/addRequestServiceLibrary1794700000000.js";
+import { CreateMediaRequests1794600000000 } from "../migrations/createMediaRequests1794600000000.js";
 import { CreateNotifications1794400000000 } from "../migrations/createNotifications1794400000000.js";
 import { CreatePersonProfiles1794200000000 } from "../migrations/createPersonProfiles1794200000000.js";
 import { AddPersonProfileImage1794300000000 } from "../migrations/addPersonProfileImage1794300000000.js";
@@ -62,7 +67,28 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			url,
 			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
 			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
-			entities: [User, UserSession, Setting, PasskeyCredential, PasskeyChallenge, UserPreference, ApiKey, MediaLibrary, MediaItem, MediaSegment, NetworkShare, WatchProgress, MediaCredit, PersonProfile, Notification, PushSubscription, PushKey],
+			entities: [
+				User,
+				UserSession,
+				Setting,
+				PasskeyCredential,
+				PasskeyChallenge,
+				UserPreference,
+				ApiKey,
+				MediaLibrary,
+				MediaItem,
+				MediaSegment,
+				NetworkShare,
+				WatchProgress,
+				MediaCredit,
+				PersonProfile,
+				Notification,
+				PushSubscription,
+				PushKey,
+				MediaRequest,
+				RequestService,
+				RequestUserLimit,
+			],
 			migrations: [
 				CreateUsersTable1792186500000,
 				AddUsername1792190000000,
@@ -92,6 +118,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddPersonProfileImage1794300000000,
 				CreateNotifications1794400000000,
 				CreateMediaSegments1794500000000,
+				CreateMediaRequests1794600000000,
+				AddRequestServiceLibrary1794700000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

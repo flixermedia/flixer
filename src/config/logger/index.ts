@@ -7,6 +7,7 @@ import { config as loadDotEnv } from "dotenv";
 import { join } from "node:path";
 import "../../logs/liveLogAppender.js";
 import "../../logs/unifiedLog.js";
+import { logDirectory } from "../dataPath.js";
 import { isProduction } from "../utils/index.js";
 
 // This module is evaluated before Ts.ED loads .env, so read LOG_DIR from it directly.
@@ -19,10 +20,11 @@ const LOG_FILE_BACKUPS = 3;
 $log.appenders.set("live", { type: "live" });
 
 // JSON lines in LOG_DIR let Alloy ship the logs to Loki without Docker; console output is unchanged.
-if (process.env.LOG_DIR) {
+const logDir = logDirectory();
+if (logDir) {
 	$log.appenders.set("file", {
 		type: "file",
-		filename: join(process.env.LOG_DIR, "flixer.log"),
+		filename: join(logDir, "flixer.log"),
 		maxLogSize: LOG_FILE_MAX_BYTES,
 		backups: LOG_FILE_BACKUPS,
 		layout: {

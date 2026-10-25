@@ -1,7 +1,7 @@
 import { $log } from "@tsed/logger";
-import { resolve } from "node:path";
 import { CONFIG_KEYS, type ConfigName } from "./configSchema.js";
 import { ConfigStore, type ConfigSource } from "./configStore.js";
+import { dataPath } from "../dataPath.js";
 
 /**
  * Reads configuration with a fixed priority: the environment variable for that key, then the saved SQLite value, then the
@@ -54,7 +54,7 @@ export class AppConfig {
 }
 
 export function configDirectory(): string {
-	return resolve(process.env.CONFIG_DIR?.trim() || "./data/config");
+	return dataPath("config");
 }
 
 let instance: AppConfig | undefined;

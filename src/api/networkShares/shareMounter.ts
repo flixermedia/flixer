@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdir, readdir, readFile, rmdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { dataPath } from "../../config/dataPath.js";
 
 export interface MountTarget {
 	id: string;
@@ -19,7 +20,7 @@ const COMMAND_TIMEOUT_MS = 20_000;
 
 /** Where shares are mounted on Linux and macOS. Windows connects to the UNC path directly. */
 export function mountBaseDir(): string {
-	return resolve(process.env.SMB_MOUNT_DIR?.trim() || "./data/mounts");
+	return dataPath("mounts");
 }
 
 /** The folder the share's contents appear in on this server. */

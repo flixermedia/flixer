@@ -66,6 +66,7 @@ describe("BackupService", () => {
 	let updater: { token: () => string | undefined; call: ReturnType<typeof vi.fn> };
 	let service: BackupService;
 	let dumped: string[];
+	let originalDataPath: string | undefined;
 
 	const dir = () => join(root, "backups");
 	const files = () => readdirSync(dir()).sort();
@@ -77,16 +78,15 @@ describe("BackupService", () => {
 	};
 
 	beforeEach(() => {
+		originalDataPath = process.env.DATA_PATH;
 		mkdirSync(base, { recursive: true });
 		root = mkdtempSync(join(base, "svc-"));
-		for (const sub of ["config", "secrets", "metadata/sub"]) {
+		for (const sub of ["config", "secrets", "cache/sub"]) {
 			mkdirSync(join(root, sub), { recursive: true });
 		}
 		writeFileSync(join(root, "secrets/app-secret"), "tokensecret");
-		writeFileSync(join(root, "metadata/sub/a.txt"), "meta");
-		process.env.BACKUP_DIR = dir();
-		process.env.CONFIG_DIR = join(root, "config");
-		process.env.METADATA_DIR = join(root, "metadata");
+		writeFileSync(join(root, "cache/sub/a.txt"), "cache");
+		process.env.DATA_PATH = root;
 		process.env.APP_SECRET_FILE = join(root, "secrets/app-secret");
 		process.env.DATABASE_URL = "postgres://user:pw@db:5432/flixer";
 		delete process.env.BACKUP_PASSPHRASE_FILE;
@@ -104,6 +104,11 @@ describe("BackupService", () => {
 
 	afterEach(() => {
 		setAppConfig(undefined);
+		if (originalDataPath === undefined) {
+			delete process.env.DATA_PATH;
+		} else {
+			process.env.DATA_PATH = originalDataPath;
+		}
 		rmSync(root, { recursive: true, force: true });
 	});
 
@@ -112,17 +117,17 @@ describe("BackupService", () => {
 		expect(run).toMatchObject({ kind: "backup", status: "running" });
 		const done = await waitDone(run);
 		expect(done.status).toBe("succeeded");
-		expect(done.steps!.map((step) => step.name)).toEqual(["dump-database", "archive-config", "archive-secrets", "archive-metadata", "encrypt-finish", "prune"]);
+		expect(done.steps!.map((step) => step.name)).toEqual(["dump-database", "archive-config", "archive-secrets", "archive-cache", "encrypt-finish", "prune"]);
 		expect(done.steps!.every((step) => step.status === "succeeded" && step.finishedAt)).toBe(true);
 		expect(done.encrypted).toBe(false);
 		expect(dumped).toEqual(["postgres://user:pw@db:5432/flixer"]);
 		expect(files().every((name) => isBackupName(name))).toBe(true);
 		const [entry] = await service.list();
-		expect(entry).toMatchObject({ encrypted: false, components: ["database", "config", "secrets", "metadata"], versions: { flixer: expect.any(String) } });
+		expect(entry).toMatchObject({ encrypted: false, components: ["database", "config", "secrets", "cache"], versions: { flixer: expect.any(String) } });
 		const out = join(root, "extracted");
 		await extractArchive(join(dir(), entry!.name), out);
 		expect(readFileSync(join(out, "database.dump"), "utf8")).toBe("PGDMP-fake");
-		expect(readFileSync(join(out, "metadata/sub/a.txt"), "utf8")).toBe("meta");
+		expect(readFileSync(join(out, "cache/sub/a.txt"), "utf8")).toBe("cache");
 		expect(readFileSync(join(out, "secrets/app-secret"), "utf8")).toBe("tokensecret");
 		expect(statSync(join(out, "config/flixer-config.db")).size).toBeGreaterThan(0);
 		expect(readdirSync(join(out, "config")).some((name) => name.endsWith("-wal"))).toBe(false);
@@ -187,13 +192,12 @@ describe("BackupService", () => {
 	});
 
 	it("fails cleanly when the archive step breaks", async () => {
-		rmSync(join(root, "metadata/sub"), { recursive: true });
-		process.env.METADATA_DIR = join(root, "missing");
+		rmSync(join(root, "cache"), { recursive: true });
 		const done = await waitDone(await service.create());
 		expect(done.status).toBe("succeeded");
 		const [entry] = await service.list();
-		expect(entry!.components).not.toContain("metadata");
-		expect(done.log.some((line) => line.includes("metadata folder was not found"))).toBe(true);
+		expect(entry!.components).not.toContain("cache");
+		expect(done.log.some((line) => line.includes("cache folder was not found"))).toBe(true);
 	});
 
 	it("lists only readable archives, newest first, and prunes only .flxbak", async () => {
@@ -227,14 +231,14 @@ describe("BackupService", () => {
 	});
 
 	it("sweeps stale partial files at startup", async () => {
-		mkdirSync(join(dir(), ".uploads"), { recursive: true });
-		for (const name of [".flixer-backup-abc123.tmp", ".dump-abc123.tmp", ".config-abc123.tmp", ".uploads/leftover"]) {
+		mkdirSync(join(dir(), "uploads"), { recursive: true });
+		for (const name of [".flixer-backup-abc123.tmp", ".dump-abc123.tmp", ".config-abc123.tmp", "uploads/leftover"]) {
 			writeFileSync(join(dir(), name), "x");
 		}
 		writeFileSync(join(dir(), "flixer-20260101T000000Z.dump"), "legacy");
 		await service.$onInit();
-		expect(files()).toEqual([".uploads", "flixer-20260101T000000Z.dump"]);
-		expect(readdirSync(join(dir(), ".uploads"))).toEqual([]);
+		expect(files()).toEqual(["flixer-20260101T000000Z.dump", "uploads"]);
+		expect(readdirSync(join(dir(), "uploads"))).toEqual([]);
 	});
 
 	it("validates names on delete and download", async () => {
@@ -248,13 +252,13 @@ describe("BackupService", () => {
 	});
 
 	it("rejects an upload that is not a backup and accepts a real one", async () => {
-		mkdirSync(join(dir(), ".uploads"), { recursive: true });
-		const junk = join(dir(), ".uploads", "junk");
+		mkdirSync(join(dir(), "uploads"), { recursive: true });
+		const junk = join(dir(), "uploads", "junk");
 		writeFileSync(junk, "hello");
 		await expect(service.upload(junk)).rejects.toThrow(/not a Flixer backup/);
 		expect(files().filter(isBackupName)).toEqual([]);
 
-		const valid = join(dir(), ".uploads", "valid");
+		const valid = join(dir(), "uploads", "valid");
 		const source = join(root, "d.bin");
 		writeFileSync(source, "d");
 		await writeArchive({ destination: valid, sources: { database: source }, versions: { flixer: "0.9.0" } });
