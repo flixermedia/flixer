@@ -9,9 +9,39 @@ export type Preferences = Record<string, unknown>;
 
 const LANGUAGE_PATTERN = /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/;
 
+const WIDGET_PATTERN = /^[a-z][a-z-]{0,31}$/;
+
+const isIntIn = (value: unknown, min: number, max: number): value is number => typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+
+/**
+ * The admin dashboard: where each panel sits on a 5-column grid. `y` and `h` count half-rows; a panel is 1 to 6 half-rows tall,
+ * must stay inside the columns, and each panel appears once.
+ */
+export const isDashboardGrid = (value: unknown): boolean => {
+	if (!Array.isArray(value) || value.length > 40) {
+		return false;
+	}
+	const ids = new Set<string>();
+	for (const item of value) {
+		if (typeof item !== "object" || item === null) {
+			return false;
+		}
+		const { id, x, y, w, h } = item as Record<string, unknown>;
+		if (typeof id !== "string" || !WIDGET_PATTERN.test(id) || ids.has(id)) {
+			return false;
+		}
+		ids.add(id);
+		if (!isIntIn(w, 1, 5) || !isIntIn(h, 1, 6) || !isIntIn(x, 0, 5 - w) || !isIntIn(y, 0, 99)) {
+			return false;
+		}
+	}
+	return true;
+};
+
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	language: (value) => typeof value === "string" && value.length <= 35 && LANGUAGE_PATTERN.test(value),
+	adminDashboardGrid: isDashboardGrid,
 };
 
 @Injectable()

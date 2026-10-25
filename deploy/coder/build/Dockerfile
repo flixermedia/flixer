@@ -5,7 +5,7 @@ ARG GO_VERSION=1.26.0
 
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg postgresql-client redis-tools build-essential cifs-utils gh \
+    && apt-get install -y --no-install-recommends ffmpeg postgresql-client redis-tools iputils-ping build-essential cifs-utils gh \
     && rm -rf /var/lib/apt/lists/*
 
 # Node (flixer, flixer-web) and Go (flixer-indexer, flixer-streamer) from the official tarballs, so versions match the repos' Dockerfiles.
