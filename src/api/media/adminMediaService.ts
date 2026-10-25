@@ -174,7 +174,10 @@ export class AdminMediaService {
 		if ((item.images ?? []).length >= MAX_IMAGES_PER_ITEM) {
 			throw new BadRequest("This item has too many images.");
 		}
-		const filename = await saveUpload(item.id, buffer, detected);
+		if (!item.rootId || !item.relativePath) {
+			throw new BadRequest("This item has no stable library path for image storage.");
+		}
+		const filename = await saveUpload(item.rootId, item.relativePath, item.id, buffer, detected);
 		item.images = [...(item.images ?? []), { type, path: `${UPLOAD_PREFIX}${filename}`, provider: MANUAL_PROVIDER }];
 		await repository.save(item);
 		return this.get(id);

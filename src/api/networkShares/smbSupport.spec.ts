@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mountBaseDir } from "./shareMounter.js";
 import { smbMountSupported } from "./smbSupport.js";
 
 describe("smbMountSupported", () => {
@@ -14,5 +15,22 @@ describe("smbMountSupported", () => {
 	it("can be overridden", () => {
 		expect(smbMountSupported("7.0.14-linuxkit", "true")).toBe(true);
 		expect(smbMountSupported("6.8.0-generic", "false")).toBe(false);
+	});
+});
+
+describe("mountBaseDir", () => {
+	it("stores SMB mounts under DATA_PATH/mounts", () => {
+		const originalDataPath = process.env.DATA_PATH;
+		const originalMountDir = process.env.SMB_MOUNT_DIR;
+		process.env.DATA_PATH = "/tmp/flixer-data";
+		process.env.SMB_MOUNT_DIR = "/legacy/mounts";
+		try {
+			expect(mountBaseDir()).toBe("/tmp/flixer-data/mounts");
+		} finally {
+			if (originalDataPath === undefined) delete process.env.DATA_PATH;
+			else process.env.DATA_PATH = originalDataPath;
+			if (originalMountDir === undefined) delete process.env.SMB_MOUNT_DIR;
+			else process.env.SMB_MOUNT_DIR = originalMountDir;
+		}
 	});
 });

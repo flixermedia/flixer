@@ -12,6 +12,7 @@ import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexer
 import { validateHttpUrl } from "../../config/store/configSchema.js";
 import { SKIPME_API_URL_KEY } from "../media/segmentLogic.js";
 import { SECRET_MASK } from "./secretMask.js";
+import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
 
@@ -55,7 +56,9 @@ export class SettingsService {
 				text: "This is a test email from your Flixer server. Your SMTP settings work.",
 			});
 		} catch (error: unknown) {
-			throw new BadRequest(`Could not send the test email: ${error instanceof Error ? error.message : "unknown error"}`);
+			throw new BadRequest(
+				`Could not send the test email: ${error instanceof Error ? error.message : "unknown error"}`,
+			);
 		}
 
 		return { sentTo: user.email };
@@ -82,7 +85,11 @@ export class SettingsService {
 			return typeof value === "string" ? value : "";
 		};
 
-		return { registrationEnabled: setting.value, serverName: await text("server_name"), loginBanner: await text("login_banner") };
+		return {
+			registrationEnabled: setting.value,
+			serverName: await text("server_name"),
+			loginBanner: await text("login_banner"),
+		};
 	}
 
 	async update(key: string, request: SettingRequest, authorization?: string): Promise<PublicSetting> {
@@ -91,14 +98,21 @@ export class SettingsService {
 		if (!SETTING_KEY_PATTERN.test(key)) {
 			throw new BadRequest("Setting key has an invalid format.");
 		}
-		if ((key === "registration_enabled" || key === "email_verification_required") && typeof request.value !== "boolean") {
+		if (
+			(key === "registration_enabled" || key === "email_verification_required") &&
+			typeof request.value !== "boolean"
+		) {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
 
 		if (key === "login_banner" && (typeof request.value !== "string" || request.value.length > 500)) {
 			throw new BadRequest("The login_banner setting must be text of at most 500 characters.");
 		}
-		if (key === "server_name" && request.value !== null && (typeof request.value !== "string" || request.value.length > 100)) {
+		if (
+			key === "server_name" &&
+			request.value !== null &&
+			(typeof request.value !== "string" || request.value.length > 100)
+		) {
 			throw new BadRequest("The server_name setting must be text of at most 100 characters.");
 		}
 
@@ -119,10 +133,22 @@ export class SettingsService {
 			}
 		}
 		if (key === "notifications_permission_prompt" && request.value !== "button" && request.value !== "load") {
-			throw new BadRequest("The notifications_permission_prompt setting must be \"button\" or \"load\".");
+			throw new BadRequest('The notifications_permission_prompt setting must be "button" or "load".');
 		}
-		if (key === "notifications_vapid_subject" && (typeof request.value !== "string" || (request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))) {
+		if (
+			key === "notifications_vapid_subject" &&
+			(typeof request.value !== "string" ||
+				(request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))
+		) {
 			throw new BadRequest("The VAPID subject must be empty, a mailto: address or an https:// URL.");
+		}
+
+		if ((REQUEST_SETTING_KEYS as readonly string[]).includes(key)) {
+			validateRequestSetting(key, request.value);
+		}
+
+		if (key === "themes_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The themes_enabled setting must be a boolean.");
 		}
 
 		if (key === "updates_state") {
@@ -143,10 +169,21 @@ export class SettingsService {
 		if (key === "backups_state") {
 			throw new BadRequest("The backup state is managed by Flixer.");
 		}
-		if (key === "backups_schedule" && request.value !== "off" && request.value !== "daily" && request.value !== "weekly") {
-			throw new BadRequest("The backups_schedule setting must be \"off\", \"daily\" or \"weekly\".");
+		if (
+			key === "backups_schedule" &&
+			request.value !== "off" &&
+			request.value !== "daily" &&
+			request.value !== "weekly"
+		) {
+			throw new BadRequest('The backups_schedule setting must be "off", "daily" or "weekly".');
 		}
-		if (key === "backups_keep" && (typeof request.value !== "number" || !Number.isInteger(request.value) || request.value < 1 || request.value > 60)) {
+		if (
+			key === "backups_keep" &&
+			(typeof request.value !== "number" ||
+				!Number.isInteger(request.value) ||
+				request.value < 1 ||
+				request.value > 60)
+		) {
 			throw new BadRequest("The backups_keep setting must be a whole number from 1 to 60.");
 		}
 
@@ -164,7 +201,9 @@ export class SettingsService {
 			throw new NotFound("Setting not found. Add new settings through a database migration.");
 		}
 
-		setting.value = INDEXER_SETTING_KEYS.includes(key) ? this.indexerSettings.validate(key, request.value, setting.value) : request.value;
+		setting.value = INDEXER_SETTING_KEYS.includes(key)
+			? this.indexerSettings.validate(key, request.value, setting.value)
+			: request.value;
 		const saved = await settings.save(setting);
 		if (SENTRY_SETTING_KEYS.includes(key)) {
 			await this.sentryService.apply();
@@ -184,7 +223,11 @@ export class SettingsService {
 			if (value === null) {
 				return;
 			}
-			if (typeof value !== "string" || !URL.canParse(value.trim()) || !/^https?:$/.test(new URL(value.trim()).protocol)) {
+			if (
+				typeof value !== "string" ||
+				!URL.canParse(value.trim()) ||
+				!/^https?:$/.test(new URL(value.trim()).protocol)
+			) {
 				throw new BadRequest(`The ${key} setting must be a valid DSN URL or null.`);
 			}
 		} else if (key === "sentry_enabled" || key.endsWith("_enabled")) {
@@ -214,7 +257,11 @@ export class SettingsService {
 		const isSecret = setting.key === "smtp_password";
 		return {
 			key: setting.key,
-			value: isSecret ? (setting.value ? SECRET_MASK : "") : this.indexerSettings.mask(setting.key, setting.value),
+			value: isSecret
+				? setting.value
+					? SECRET_MASK
+					: ""
+				: this.indexerSettings.mask(setting.key, setting.value),
 			isPublic: setting.isPublic,
 			updatedAt: setting.updatedAt,
 		};

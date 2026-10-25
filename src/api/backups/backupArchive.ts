@@ -21,7 +21,7 @@ export const KDF_ITERATIONS = 600_000;
 const GCM_TAG = 16;
 const CHECK_LABEL = "flixer-backup-passphrase-check";
 
-export const COMPONENTS = ["database", "config", "secrets", "metadata"] as const;
+export const COMPONENTS = ["database", "config", "secrets", "cache"] as const;
 export type BackupComponent = (typeof COMPONENTS)[number];
 
 export class BackupCorruptError extends Error {
@@ -58,7 +58,7 @@ export interface BackupManifest {
 	components: string[];
 	versions: Record<string, string>;
 	databaseBytes: number;
-	metadataFiles: number;
+	cacheFiles: number;
 }
 
 export interface DirectorySource {
@@ -73,7 +73,7 @@ export interface ArchiveSources {
 	database?: string;
 	config?: DirectorySource;
 	secrets?: DirectorySource;
-	metadata?: DirectorySource;
+	cache?: DirectorySource;
 }
 
 export interface WriteArchiveOptions {
@@ -81,7 +81,7 @@ export interface WriteArchiveOptions {
 	sources: ArchiveSources;
 	versions?: Record<string, string>;
 	passphrase?: string;
-	onStep?: (step: "archive-config" | "archive-secrets" | "archive-metadata" | "encrypt-finish") => void;
+	onStep?: (step: "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish") => void;
 	warn?: (message: string) => void;
 }
 
@@ -527,7 +527,7 @@ export async function writeArchive(options: WriteArchiveOptions): Promise<Backup
 		components: [...components],
 		versions,
 		databaseBytes: sources.database ? (await stat(sources.database)).size : 0,
-		metadataFiles: await countFiles(sources.metadata),
+		cacheFiles: await countFiles(sources.cache),
 	};
 	const prelude = Buffer.alloc(MAGIC.length + 4);
 	prelude.write(MAGIC, "latin1");

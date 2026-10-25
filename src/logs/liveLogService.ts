@@ -2,6 +2,7 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
 import { AuthService } from "../api/auth/authService.js";
+import { logDirectory } from "../config/dataPath.js";
 import { liveLogHub } from "./liveLogHub.js";
 import { LIVE_LOG_PATH, LiveLogSocketServer } from "./liveLogSocketServer.js";
 import { StreamerLogTailer } from "./streamerLogTailer.js";
@@ -29,7 +30,7 @@ export class LiveLogService {
 		this.socketServer.attach(server);
 		logger().info(`Live logs are streaming on ${LIVE_LOG_PATH}.`);
 
-		const logDir = process.env.LOG_DIR?.trim();
+		const logDir = logDirectory();
 		if (logDir) {
 			this.streamerTailer = new StreamerLogTailer(logDir, liveLogHub);
 			this.streamerTailer.start();

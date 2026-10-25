@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { dataPath } from "../../config/dataPath.js";
 
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -11,9 +12,9 @@ export interface AvatarType {
 	mime: string;
 }
 
-/** Folder profile pictures are stored in, configured with AVATAR_DIR. */
+/** Folder profile pictures are stored in. */
 export function getAvatarDirectory(): string {
-	return resolve(process.env.AVATAR_DIR?.trim() || "./data/avatars");
+	return dataPath("avatars");
 }
 
 /** Identifies the image type from its magic bytes instead of trusting the client's MIME type. */

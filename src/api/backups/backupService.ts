@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { DataSource, IsNull } from "typeorm";
 import { version as flixerVersion } from "../../config/config.js";
 import { appConfig, configDirectory } from "../../config/store/appConfig.js";
+import { dataPath } from "../../config/dataPath.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
@@ -37,7 +38,7 @@ export interface BackupEntry {
 	versions: Record<string, string>;
 }
 
-export type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-metadata" | "encrypt-finish" | "prune";
+export type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
 
 export interface BackupRunStep {
 	name: string;
@@ -352,7 +353,7 @@ export class BackupService {
 				await rm(join(directory, name), { force: true });
 			}
 		}
-		const uploads = join(directory, ".uploads");
+		const uploads = join(directory, "uploads");
 		for (const name of await readdir(uploads).catch(() => [] as string[])) {
 			await rm(join(uploads, name), { force: true, recursive: true });
 		}
@@ -440,7 +441,7 @@ export class BackupService {
 					logger().warn(message);
 				},
 				onStep: (step) => {
-					const messages = { "archive-config": "Archiving settings", "archive-secrets": "Archiving shared secrets", "archive-metadata": "Archiving metadata", "encrypt-finish": passphrase ? "Encrypting and finishing the archive" : "Finishing the archive" };
+					const messages = { "archive-config": "Archiving settings", "archive-secrets": "Archiving shared secrets", "archive-cache": "Archiving cache", "encrypt-finish": passphrase ? "Encrypting and finishing the archive" : "Finishing the archive" };
 					this.startStep(run, step, messages[step]);
 				},
 			});
@@ -485,11 +486,11 @@ export class BackupService {
 		} else {
 			note("The shared secrets folder was not found; secrets are not in this backup.");
 		}
-		const metadataDir = resolve(process.env.METADATA_DIR?.trim() || "./data/metadata");
-		if (await isDirectory(metadataDir)) {
-			sources.metadata = { dir: metadataDir };
+		const cacheDir = dataPath("cache");
+		if (await isDirectory(cacheDir)) {
+			sources.cache = { dir: cacheDir };
 		} else {
-			note("The metadata folder was not found; metadata is not in this backup.");
+			note("The cache folder was not found; cache is not in this backup.");
 		}
 		return sources;
 	}
@@ -532,7 +533,7 @@ export class BackupService {
 	}
 
 	private backupDirectory(): string {
-		return resolve(process.env.BACKUP_DIR?.trim() || "./data/backups");
+		return dataPath("backups");
 	}
 
 	private passphraseFile(): string {

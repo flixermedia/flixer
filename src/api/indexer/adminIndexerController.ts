@@ -72,6 +72,19 @@ export class AdminIndexerController {
 		return this.indexer.request("GET", "/internal/tasks", { query: { queue, state, page, size } });
 	}
 
+	/** Recorded log lines of one task, from `offset` on. Polled by the dashboard while a task runs. */
+	@Get("/tasks/:queue/:id/logs")
+	async taskLogs(
+		@PathParams("queue") queue: string,
+		@PathParams("id") id: string,
+		@QueryParams("offset", Number) offset?: number,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		await this.authService.requireAdmin(authorization);
+		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? offset : 0;
+		return this.indexer.request("GET", `/internal/tasks/${this.requireQueue(queue)}/${this.requireTaskId(id)}/logs`, { query: { offset: safeOffset } });
+	}
+
 	@Post("/tasks/:queue/:id/cancel")
 	async cancelTask(
 		@PathParams("queue") queue: string,

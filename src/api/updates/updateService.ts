@@ -1,9 +1,10 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict } from "@tsed/exceptions";
 import { readdir, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { DataSource, IsNull } from "typeorm";
 import { version as flixerVersion } from "../../config/config.js";
+import { dataPath } from "../../config/dataPath.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
@@ -275,7 +276,7 @@ export class UpdateService {
 	}
 
 	private backupDirectory(): string {
-		return resolve(process.env.BACKUP_DIR?.trim() || "./data/backups");
+		return dataPath("backups");
 	}
 
 	private async listBackups(): Promise<UpdateStatus["backups"]> {

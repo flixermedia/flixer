@@ -13,11 +13,9 @@ services:
             - DAC_READ_SEARCH
         security_opt:
             - apparmor:unconfined
-        environment:
-            SMB_MOUNT_DIR: /data/mounts
         volumes:
             - type: bind
-              source: ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
               target: /data/mounts
               bind:
                   propagation: rshared
@@ -25,7 +23,7 @@ services:
     streamer:
         volumes:
             - type: bind
-              source: ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
               target: /data/mounts
               read_only: true
               bind:
@@ -34,7 +32,7 @@ services:
     indexer:
         volumes:
             - type: bind
-              source: ${DATA_PATH:?Set DATA_PATH in .env to the folder for Flixer's data}/mounts
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
               target: /data/mounts
               bind:
                   propagation: rslave

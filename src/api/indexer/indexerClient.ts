@@ -12,6 +12,15 @@ export interface IndexerRequestOptions {
 	timeoutMs?: number;
 }
 
+export interface IndexerThemeTask {
+	libraryId: string;
+	path: string;
+	rootId: string;
+	relativePath: string;
+	itemType: "movie" | "series";
+	tmdbId: string;
+}
+
 /** Signed HTTP client for flixer-indexer's internal API. */
 @Injectable()
 export class IndexerClient {
@@ -53,7 +62,10 @@ export class IndexerClient {
 		}
 		if (!response.ok) {
 			const message = (payload as { error?: string } | null)?.error;
-			throw new Exception(response.status >= 500 ? 502 : response.status, message ?? `flixer-indexer returned status ${response.status}.`);
+			throw new Exception(
+				response.status >= 500 ? 502 : response.status,
+				message ?? `flixer-indexer returned status ${response.status}.`,
+			);
 		}
 		return payload as T;
 	}
@@ -74,14 +86,44 @@ export class IndexerClient {
 			throw new Exception(503, "flixer-indexer is not reachable.");
 		}
 		if (!response.ok) {
-			throw new Exception(response.status === 404 ? 404 : response.status >= 500 ? 502 : response.status, "The image could not be loaded.");
+			throw new Exception(
+				response.status === 404 ? 404 : response.status >= 500 ? 502 : response.status,
+				"The image could not be loaded.",
+			);
 		}
-		return { data: Buffer.from(await response.arrayBuffer()), contentType: response.headers.get("content-type") ?? "application/octet-stream" };
+		return {
+			data: Buffer.from(await response.arrayBuffer()),
+			contentType: response.headers.get("content-type") ?? "application/octet-stream",
+		};
+	}
+
+	/** An item's downloaded theme song, or null when the indexer has none. */
+	async fetchTheme(task: IndexerThemeTask): Promise<Buffer | null> {
+		const body = Buffer.from(JSON.stringify(task));
+		const url = new URL(`${this.baseUrl()}/internal/theme`);
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				method: "POST",
+				headers: { ...signIndexerRequest("POST", url.pathname, body), "content-type": "application/json" },
+				body,
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+			});
+		} catch {
+			throw new Exception(503, "flixer-indexer is not reachable.");
+		}
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Exception(response.status >= 500 ? 502 : response.status, "The theme could not be loaded.");
+		}
+		return Buffer.from(await response.arrayBuffer());
 	}
 
 	/** Fetches a person photo through the indexer, which downloads it once and serves it from its cache. */
-	async fetchPersonImage(photoUrl: string): Promise<{ data: Buffer; mime: string }> {
-		const body = Buffer.from(JSON.stringify({ url: photoUrl }));
+	async fetchPersonImage(id: string, photoUrl: string): Promise<{ data: Buffer; mime: string }> {
+		const body = Buffer.from(JSON.stringify({ id, url: photoUrl }));
 		const url = new URL(`${this.baseUrl()}/internal/people/image`);
 		let response: Response;
 		try {
@@ -97,11 +139,17 @@ export class IndexerClient {
 		if (!response.ok) {
 			throw new Exception(response.status === 404 ? 404 : 502, "The image could not be loaded.");
 		}
-		return { data: Buffer.from(await response.arrayBuffer()), mime: response.headers.get("content-type")?.split(";")[0].trim() ?? "image/jpeg" };
+		return {
+			data: Buffer.from(await response.arrayBuffer()),
+			mime: response.headers.get("content-type")?.split(";")[0].trim() ?? "image/jpeg",
+		};
 	}
 
 	/** Looks up a person's biography through the indexer; resolves to null when none exists. */
-	async fetchPersonBio(name: string, kind: string): Promise<{ description: string; biography: string; url: string; source: string; imageUrl?: string } | null> {
+	async fetchPersonBio(
+		name: string,
+		kind: string,
+	): Promise<{ description: string; biography: string; url: string; source: string; imageUrl?: string } | null> {
 		try {
 			return await this.request("POST", "/internal/people/bio", { body: { name, kind }, timeoutMs: 8_000 });
 		} catch (error) {

@@ -4,7 +4,9 @@
 set -euo pipefail
 
 ROOT="$HOME/projects"
-mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs" "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/metadata" "$ROOT/flixer-data/cache/metadata/trickplay" "$ROOT/flixer-data/logs"
+mkdir -p "$ROOT/flixer-data" "$HOME/bin" "$HOME/logs"
+sudo chown "$(id -u):$(id -g)" "$ROOT/flixer-data"
+mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups"
 export PATH="$HOME/bin:$PATH"
 
 for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs; do
@@ -34,11 +36,9 @@ FLIXER_PUBLIC_URL=$PUBLIC_URL
 APP_URL=$PUBLIC_URL
 PASSKEY_RP_ID=$PUBLIC_HOST
 PASSKEY_ORIGINS=$PUBLIC_URL
+DATA_DIR=$ROOT/flixer-data
 MEDIA_PATH=$ROOT/flixer-data/media
-AVATAR_DIR=$ROOT/flixer-data/avatars
-METADATA_DIR=$ROOT/flixer-data/metadata
 STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
-LOG_DIR=$ROOT/flixer-data/logs
 STREAMER_INTERNAL_URL=http://localhost:8091
 INDEXER_URL=http://localhost:8092
 SMB_MOUNT_SUDO=true
@@ -48,9 +48,8 @@ fi
 if [ ! -f "$ROOT/flixer-streamer/.env" ]; then
   cat > "$ROOT/flixer-streamer/.env" <<EOF
 PORT=8091
+DATA_DIR=$ROOT/flixer-data
 FLIXER_URL=http://localhost:8083
-TRANSCODE_DIR=$ROOT/flixer-data/transcodes
-TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay
 EOF
 fi
 
@@ -58,18 +57,16 @@ if [ ! -f "$ROOT/flixer-indexer/.env" ]; then
   cat > "$ROOT/flixer-indexer/.env" <<EOF
 PORT=8092
 ROLE=all
+DATA_DIR=$ROOT/flixer-data
 FLIXER_URL=http://localhost:8083
-CACHE_PATH=$ROOT/flixer-data/cache/metadata
-TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay
 EOF
 fi
-# The streamer and indexer must read/write the same hover-thumbnail cache, including on persistent workspaces.
-for env_file in "$ROOT/flixer-streamer/.env" "$ROOT/flixer-indexer/.env"; do
-  if grep -q '^TRICKPLAY_DIR=' "$env_file"; then
-    sed -i "s|^TRICKPLAY_DIR=.*|TRICKPLAY_DIR=$ROOT/flixer-data/cache/metadata/trickplay|" "$env_file"
-  else
-    printf 'TRICKPLAY_DIR=%s\n' "$ROOT/flixer-data/cache/metadata/trickplay" >> "$env_file"
-  fi
+
+# Existing local env files keep their provider keys. DATA_DIR is the one data root; services derive DATA_PATH and every
+# folder under it from it, so stale per-folder overrides are removed.
+for env_file in "$ROOT/flixer/.env" "$ROOT/flixer-streamer/.env" "$ROOT/flixer-indexer/.env"; do
+  sed -i -E '/^(DATA_PATH|DATA_DIR|LOG_DIR|CACHE_PATH|TRICKPLAY_DIR|TRANSCODE_DIR|SUBTITLE_DIR)=/d' "$env_file"
+  printf 'DATA_DIR=%s\n' "$ROOT/flixer-data" >> "$env_file"
 done
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
@@ -158,6 +155,12 @@ stop_one() {
 }
 
 # Runs a function for every given service at once and waits, so stopping or starting everything takes as long as the slowest one.
+# A secret file left by an earlier run can differ from the one the API publishes on boot, so clear it before the API starts.
+# The streamer and indexer wait for the fresh file instead of reading the old value.
+reset_secret() {
+  case " $* " in *" api "*) is_running api || rm -f "${STREAM_TOKEN_SECRET_FILE:-$RUN/stream-token-secret}" "${APP_SECRET_FILE:-$RUN/app-secret}" ;; esac
+}
+
 each_parallel() {
   local fn="$1"; shift
   local s
@@ -179,9 +182,9 @@ tail_logs() {
 targets() { if [ "$#" -eq 0 ] || [ "$1" = all ]; then echo $SERVICES; else echo "$@"; fi; }
 
 case "${1:-status}" in
-  start) each_parallel start_one $(targets "${@:2}") ;;
+  start) reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
   stop) each_parallel stop_one $(targets "${@:2}") ;;
-  restart) each_parallel stop_one $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
+  restart) each_parallel stop_one $(targets "${@:2}"); reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
   status) for s in $SERVICES; do is_running "$s" && echo "$s: running" || echo "$s: stopped"; done ;;
   logs) tail_logs $(targets "${@:2}") ;;
   *) echo "usage: flixer-stack [start|stop|restart|status|logs] [all|service]"; exit 1 ;;
