@@ -28,7 +28,6 @@ fi
 # Written only when missing so local edits (provider keys, etc.) survive restarts.
 if [ ! -f "$ROOT/flixer/.env" ]; then
   cat > "$ROOT/flixer/.env" <<EOF
-DATABASE_URL=postgres://flixer:flixer@postgres:5432/flixer
 JWT_SECRET=$JWT_SECRET
 APP_SECRET=$APP_SECRET
 PORT=8083
@@ -39,8 +38,6 @@ PASSKEY_ORIGINS=$PUBLIC_URL
 DATA_DIR=$ROOT/flixer-data
 MEDIA_PATH=$ROOT/flixer-data/media
 STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
-STREAMER_INTERNAL_URL=http://localhost:8091
-INDEXER_URL=http://localhost:8092
 SMB_MOUNT_SUDO=true
 EOF
 fi
@@ -205,6 +202,12 @@ install_node flixer-web
 install_node flixer-docs
 (cd "$ROOT/flixer-indexer" && go mod download)
 (cd "$ROOT/flixer-streamer" && go mod download)
+
+# Existing workspaces were built before ping was added to the image.
+command -v ping >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends iputils-ping; } || true
+
+# The indexer and streamer run inside this workspace, so their service names resolve to it (as in Compose).
+grep -qE '(^|[[:space:]])indexer([[:space:]]|$)' /etc/hosts || echo "127.0.0.1 indexer streamer" | sudo tee -a /etc/hosts >/dev/null
 
 # Wait for the sidecars, then start.
 for _ in $(seq 1 60); do
