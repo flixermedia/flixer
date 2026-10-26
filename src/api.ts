@@ -18,7 +18,7 @@ export { IndexerApiController } from "./api/indexer/indexerApiController.js";
 export { AdminIndexerController } from "./api/indexer/adminIndexerController.js";
 export { PluginsController } from "./api/plugins/pluginsController.js";
 export { PluginRuntimeController } from "./api/plugins/pluginRuntimeController.js";
-export { RequestsController, AdminRequestsController } from "./api/requests/requestsController.js";
+export { RequestImagesController, RequestsController, AdminRequestsController } from "./api/requests/requestsController.js";
 export { PluginSchedulerService } from "./api/plugins/pluginSchedulerService.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { MediaHomeController } from "./api/media/mediaHomeController.js";

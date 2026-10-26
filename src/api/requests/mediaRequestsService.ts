@@ -23,6 +23,7 @@ import { type RequestAccess, remainingSeasons, resolveAccess } from "./requestAc
 import type { ApproveRequestBody, CreateMediaRequest, RequestUserLimitInput } from "./requestRequests.js";
 import { type RequestSettings, parseRequestSettings, MAX_QUOTA_DAYS, MAX_QUOTA_LIMIT } from "./requestSettings.js";
 import { RequestServicesService, clientFor, targetOf } from "./requestServicesService.js";
+import { cachedImageUrl } from "./tmdbImageCache.js";
 
 const KIND_OF: Record<RequestMediaType, RequestServiceKind> = { movie: "radarr", tv: "sonarr", music: "lidarr" };
 const ALL_STATUSES: RequestStatus[] = ["pending", "approved", "declined", "failed", "available"];
@@ -635,7 +636,7 @@ export class MediaRequestsService {
 				externalId: request.externalId,
 				title: request.title,
 				year: request.year,
-				poster: request.poster,
+				poster: cachedImageUrl(request.poster),
 				seasons: request.seasons,
 				status: request.status,
 				requestedBy: {

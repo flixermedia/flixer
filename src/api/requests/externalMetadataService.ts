@@ -4,6 +4,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
+import { tmdbImagePath } from "./tmdbImageCache.js";
 import { INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY } from "../indexer/indexerSettingsService.js";
 import {
 	type DiscoverSection,
@@ -14,7 +15,6 @@ import {
 } from "./externalMetadata.js";
 
 const TMDB_API = "https://api.themoviedb.org/3";
-const TMDB_IMAGES = "https://image.tmdb.org/t/p";
 const DISCOGS_API = "https://api.discogs.com";
 const TIMEOUT_MS = 10_000;
 const USER_AGENT = "Flixer/1.0 (+https://flixer.dev)";
@@ -34,7 +34,7 @@ function text(value: unknown): string | null {
 }
 
 function image(path: unknown, size: string): string | null {
-	return typeof path === "string" && path.startsWith("/") ? `${TMDB_IMAGES}/${size}${path}` : null;
+	return typeof path === "string" && path.startsWith("/") ? tmdbImagePath(size, path.slice(1)) : null;
 }
 
 /** Looks titles up on TMDB (movies and shows) and Discogs (albums) for things that are not in the library yet. */

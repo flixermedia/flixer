@@ -1,6 +1,7 @@
 import { Controller } from "@tsed/di";
+import type { PlatformContext } from "@tsed/platform-http";
 import { BadRequest, NotFound } from "@tsed/exceptions";
-import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
+import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
 import { DISCOVER_SECTIONS, type DiscoverSection } from "./externalMetadata.js";
@@ -14,6 +15,7 @@ import {
 	TestServiceInput,
 } from "./requestRequests.js";
 import { RequestServicesService } from "./requestServicesService.js";
+import { TmdbImageCache } from "./tmdbImageCache.js";
 
 function requireId(id: string): string {
 
@@ -22,6 +24,23 @@ function requireId(id: string): string {
 	}
 	return id.toLowerCase();
 
+}
+
+/** Public so cached TMDB posters can be used as <img> sources; only whitelisted TMDB image paths are ever fetched. */
+@Controller("/requests/images")
+export class RequestImagesController {
+
+	constructor(private readonly images: TmdbImageCache) {}
+
+	@Get("/tmdb/:size/:file")
+	async tmdb(@PathParams("size") size: string, @PathParams("file") file: string, @Context() ctx: PlatformContext) {
+		const { data, mime } = await this.images.get(size, file);
+		ctx.response.setHeader("Content-Type", mime);
+		ctx.response.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
+		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+		return data;
+	}
 }
 
 /** Searching, discovering and requesting titles that are not in the library. */
