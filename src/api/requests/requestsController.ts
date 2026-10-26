@@ -15,7 +15,7 @@ import {
 	TestServiceInput,
 } from "./requestRequests.js";
 import { RequestServicesService } from "./requestServicesService.js";
-import { TmdbImageCache } from "./tmdbImageCache.js";
+import { DiscogsImageCache, TmdbImageCache } from "./tmdbImageCache.js";
 
 function requireId(id: string): string {
 
@@ -30,11 +30,24 @@ function requireId(id: string): string {
 @Controller("/requests/images")
 export class RequestImagesController {
 
-	constructor(private readonly images: TmdbImageCache) {}
+	constructor(
+		private readonly images: TmdbImageCache,
+		private readonly discogsImages: DiscogsImageCache,
+	) {}
 
 	@Get("/tmdb/:size/:file")
 	async tmdb(@PathParams("size") size: string, @PathParams("file") file: string, @Context() ctx: PlatformContext) {
 		const { data, mime } = await this.images.get(size, file);
+		ctx.response.setHeader("Content-Type", mime);
+		ctx.response.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
+		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+		return data;
+	}
+
+	@Get("/discogs")
+	async discogs(@QueryParams("u", String) source: string | undefined, @Context() ctx: PlatformContext) {
+		const { data, mime } = await this.discogsImages.get(typeof source === "string" ? source : "");
 		ctx.response.setHeader("Content-Type", mime);
 		ctx.response.setHeader("Cache-Control", "public, max-age=2592000, immutable");
 		ctx.response.setHeader("X-Content-Type-Options", "nosniff");

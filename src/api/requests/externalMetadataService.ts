@@ -4,7 +4,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
-import { tmdbImagePath } from "./tmdbImageCache.js";
+import { discogsImagePath, tmdbImagePath } from "./tmdbImageCache.js";
 import { INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY } from "../indexer/indexerSettingsService.js";
 import {
 	type DiscoverSection,
@@ -144,7 +144,7 @@ export class ExternalMetadataService {
 			id: String(id),
 			title,
 			year: yearOf(entry.year),
-			poster: cover && !cover.includes("spacer.gif") ? cover : null,
+			poster: cover && !cover.includes("spacer.gif") ? discogsImagePath(cover) : null,
 			overview: artist,
 			status: "none",
 			requestId: null,
@@ -293,7 +293,7 @@ export class ExternalMetadataService {
 			id,
 			title: label,
 			year: yearOf(body.year),
-			poster: cover,
+			poster: discogsImagePath(cover),
 			overview: text(body.notes),
 			status: "none",
 			requestId: null,
