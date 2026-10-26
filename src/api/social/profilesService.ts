@@ -60,7 +60,7 @@ export class ProfilesService {
 			`SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file,
 				(SELECT count(*) FROM favorites f WHERE f.user_id = u.id)::int AS favorite_count,
 				(SELECT count(*) FROM playlists p WHERE p.user_id = u.id AND p.is_public = true)::int AS playlist_count,
-				(SELECT count(*) FROM listening_history h WHERE h.user_id = u.id)::int AS play_count
+				(SELECT COALESCE(SUM(h.play_count), 0) FROM listening_history h WHERE h.user_id = u.id)::int AS play_count
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
 			WHERE u.disabled_at IS NULL AND COALESCE(up.profile_hidden, false) = false
 			${term ? `AND (u.username ILIKE $1 ESCAPE '\\' OR u.display_name ILIKE $1 ESCAPE '\\')` : ""}
