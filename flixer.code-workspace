@@ -31,6 +31,9 @@
 		{
 			"name": "flixer-data",
 			"path": "../flixer-data"
+		},
+		{
+			"path": "../flixer-plugins"
 		}
 	]
 }
