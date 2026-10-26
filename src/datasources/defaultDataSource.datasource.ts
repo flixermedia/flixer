@@ -9,6 +9,11 @@ import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
 import { MediaItem } from "../entities/mediaItem.entity.js";
 import { NetworkShare } from "../entities/networkShare.entity.js";
 import { WatchProgress } from "../entities/watchProgress.entity.js";
+import { Favorite } from "../entities/favorite.entity.js";
+import { Playlist } from "../entities/playlist.entity.js";
+import { PlaylistItem } from "../entities/playlistItem.entity.js";
+import { ListeningHistory } from "../entities/listeningHistory.entity.js";
+import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
 import { Notification } from "../entities/notification.entity.js";
@@ -90,6 +95,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				MediaSegment,
 				NetworkShare,
 				WatchProgress,
+				Favorite,
+				Playlist,
+				PlaylistItem,
+				ListeningHistory,
 				MediaCredit,
 				PersonProfile,
 				Notification,
@@ -140,6 +149,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePluginStorage1795000000000,
 				CreatePluginSecrets1795100000000,
 				RestoreCoreRequests1795300000000,
+				CreateSocial1795400000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

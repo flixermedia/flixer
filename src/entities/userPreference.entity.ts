@@ -24,6 +24,10 @@ export class UserPreference {
 	@Column({ name: "avatar_file", type: "varchar", length: 128, nullable: true })
 	avatarFile!: string | null;
 
+	/** Hidden profiles cannot be opened by other users and their playlists are not listed. */
+	@Column({ name: "profile_hidden", type: "boolean", default: false })
+	profileHidden!: boolean;
+
 	@UpdateDateColumn({ name: "updated_at", type: "timestamptz" })
 	updatedAt!: Date;
 }
