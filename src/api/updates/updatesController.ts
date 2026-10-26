@@ -15,7 +15,7 @@ export class AdminUpdatesController {
 	) {}
 
 	@Get("/")
-	async status(@QueryParams("refresh") refresh: string | undefined, @HeaderParams("authorization") authorization?: string) {
+	async status(@QueryParams("refresh", String) refresh: string | undefined, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.updates.status(refresh === "true");
 	}
