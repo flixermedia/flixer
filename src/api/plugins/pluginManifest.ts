@@ -26,6 +26,15 @@ export interface PluginManifest {
 	dependencies?: Record<string, string>;
 	optionalDependencies?: Record<string, string>;
 	settingsSchema?: string;
+	ui?: { adminPages?: PluginAdminPage[] };
+}
+
+/** A settings page a plugin contributes to an admin section; rendered from its settings schema, never plugin code. */
+export interface PluginAdminPage {
+	id: string;
+	title: string;
+	description?: string;
+	section: "providers";
 }
 
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile<PluginManifest>(schema);

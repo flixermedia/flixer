@@ -62,6 +62,11 @@ export class PluginSegmentProvider {
 		);
 		if (!provider) return { status: "no-provider" };
 
+		const pluginUrl = provider.settings.apiUrl;
+		const baseUrl = typeof pluginUrl === "string" && pluginUrl.trim() ? pluginUrl.trim() : settings.baseUrl;
+		// An empty URL turns lookups off, as it does for the built-in path.
+		if (!baseUrl) return { status: "ok", segments: {} };
+
 		try {
 			const result = (await this.runtime.execute(
 				provider,
@@ -69,7 +74,7 @@ export class PluginSegmentProvider {
 				{ id: "system", role: "system" },
 				{
 					item,
-					baseUrl: settings.baseUrl,
+					baseUrl,
 				},
 			)) as { segments?: Record<string, unknown> } | null;
 			const segments: ProvidedSegments = {};

@@ -11,6 +11,7 @@ function setup(overrides: Record<string, unknown> = {}, execute = vi.fn()) {
 		enabled: true,
 		manifest: { targets: { flixer: {} }, capabilities: ["media.segments"], permissions: ["media.segments.lookup"] },
 		approvedPermissions: ["media.segments.lookup"],
+		settings: {},
 		...overrides,
 	};
 	const dataSource = {
@@ -52,6 +53,20 @@ describe("PluginSegmentProvider", () => {
 			{ id: "system", role: "system" },
 			{ item, baseUrl: "https://x" },
 		);
+	});
+
+	it("prefers the plugin's own URL setting and treats an empty URL as off", async () => {
+		const execute = vi.fn(async () => ({ segments: {} }));
+		const { provider } = setup({ settings: { apiUrl: " https://mine.example/v3 " } }, execute);
+		await provider.lookup(item, { baseUrl: "https://x" });
+		expect(execute).toHaveBeenCalledWith(expect.anything(), "lookup", expect.anything(), {
+			item,
+			baseUrl: "https://mine.example/v3",
+		});
+
+		const off = setup({ settings: {} }, vi.fn());
+		await expect(off.provider.lookup(item, { baseUrl: "" })).resolves.toEqual({ status: "ok", segments: {} });
+		expect(off.execute).not.toHaveBeenCalled();
 	});
 
 	it("reports failure when the plugin errors", async () => {

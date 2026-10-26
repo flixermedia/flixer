@@ -77,7 +77,7 @@ export class MediaSegmentsService {
 
 	private async syncSkipme(item: MediaItem): Promise<void> {
 		const base = (await this.skipmeBaseUrl()).replace(/\/+$/, "");
-		if (!base || (item.type !== "movie" && item.type !== "episode")) {
+		if (item.type !== "movie" && item.type !== "episode") {
 			return;
 		}
 		const checkedAt = this.skipmeChecked.get(item.id);
@@ -92,6 +92,9 @@ export class MediaSegmentsService {
 			return;
 		}
 		if (await this.syncFromProvider(item, request, base)) {
+			return;
+		}
+		if (!base) {
 			return;
 		}
 		const media = await this.fetchSkipme(base, request);

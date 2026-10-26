@@ -65,7 +65,28 @@
 		},
 		"dependencies": { "$ref": "#/$defs/dependencies" },
 		"optionalDependencies": { "$ref": "#/$defs/dependencies" },
-		"settingsSchema": { "$ref": "#/$defs/packagePath" }
+		"settingsSchema": { "$ref": "#/$defs/packagePath" },
+		"ui": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"adminPages": {
+					"type": "array",
+					"maxItems": 8,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["id", "title", "section"],
+						"properties": {
+							"id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+							"title": { "type": "string", "minLength": 1, "maxLength": 100 },
+							"description": { "type": "string", "maxLength": 500 },
+							"section": { "enum": ["providers"] }
+						}
+					}
+				}
+			}
+		}
 	},
 	"$defs": {
 		"packagePath": {
