@@ -4,6 +4,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
+import { executeHostCalls, MAX_HOST_CALL_ROUNDS, type HttpGet } from "./pluginHostCalls.js";
 import { PluginStorageService } from "./pluginStorageService.js";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
@@ -19,6 +20,9 @@ export class PluginWasiRuntime {
 		private readonly indexer: IndexerClient,
 		private readonly storage: PluginStorageService,
 	) {}
+
+	/** Overridable in tests; production uses the pinned public HTTPS client. */
+	httpGet: HttpGet | undefined;
 
 	async invoke(
 		pluginId: string,
@@ -66,10 +70,16 @@ export class PluginWasiRuntime {
 		}
 
 		try {
-			const response: unknown = await this.indexer.request("POST", "/internal/plugins/invoke", {
-				body: { pluginId, input },
-				timeoutMs: 8_000,
-			});
+			let response = await this.call(pluginId, input);
+			for (let round = 0; isRecord(response) && Object.hasOwn(response, "hostCalls"); round++) {
+				if (round >= MAX_HOST_CALL_ROUNDS) throw new Error("Plugin exceeded the host call limit.");
+				const hostResults = await executeHostCalls(response.hostCalls, approvedPermissions, this.httpGet);
+				response = await this.call(pluginId, {
+					...input,
+					continuation: response.continuation ?? null,
+					hostResults,
+				});
+			}
 			if (!isRecord(response)) throw new Error("Plugin returned an invalid response.");
 			if (isRecord(response.error)) throw new Error("Plugin reported an execution error.");
 			if (!Object.hasOwn(response, "result")) throw new Error("Plugin response is missing its result.");
@@ -89,5 +99,15 @@ export class PluginWasiRuntime {
 			logger().error(`Backend plugin ${pluginId} invocation failed.`, error);
 			throw new Exception(502, `Plugin ${pluginId} could not complete this operation.`);
 		}
+	}
+
+	private async call(pluginId: string, input: Record<string, unknown>): Promise<unknown> {
+		if (Buffer.byteLength(JSON.stringify(input)) > MAX_REQUEST_BYTES) {
+			throw new Error("Plugin request exceeds the size limit.");
+		}
+		return this.indexer.request("POST", "/internal/plugins/invoke", {
+			body: { pluginId, input },
+			timeoutMs: 8_000,
+		});
 	}
 }

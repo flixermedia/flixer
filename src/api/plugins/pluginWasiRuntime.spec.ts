@@ -138,3 +138,85 @@ describe("PluginWasiRuntime", () => {
 		expect(failing.installation.targetStatus.flixer).toBe("error");
 	});
 });
+
+describe("PluginWasiRuntime host calls", () => {
+	const user = { id: "user-1", role: "user" };
+
+	it("runs permitted http.get host calls and resumes the plugin with results and its continuation", async () => {
+		const { runtime, indexerRequest } = setup(
+			undefined,
+			true,
+			["api.routes"],
+			["api.routes.lookup", "network.http.api.example.com"],
+		);
+		indexerRequest
+			.mockResolvedValueOnce({
+				hostCalls: [
+					{ id: "a", op: "http.get", url: "https://api.example.com/x" },
+					{ id: "b", op: "http.get", url: "https://evil.example.org/x" },
+				],
+				continuation: { step: 1 },
+			})
+			.mockResolvedValueOnce({ result: { done: true } });
+		const httpGet = vi.fn(async () => ({ status: 200, body: "{}" }));
+		runtime.httpGet = httpGet;
+
+		await expect(runtime.invoke("flixer.example", "lookup", user, {})).resolves.toEqual({ done: true });
+
+		expect(httpGet).toHaveBeenCalledTimes(1);
+		const second = (indexerRequest.mock.calls[1] as unknown[])[2] as { body: { input: Record<string, unknown> } };
+		expect(second.body.input.continuation).toEqual({ step: 1 });
+		expect(second.body.input.hostResults).toEqual([
+			{ id: "a", ok: true, status: 200, body: "{}" },
+			{ id: "b", ok: false, error: "permission_denied" },
+		]);
+	});
+
+	it("rejects non-https, credentialed and malformed host calls without fetching", async () => {
+		const { runtime, indexerRequest } = setup(
+			undefined,
+			true,
+			["api.routes"],
+			["api.routes.lookup", "network.http.api.example.com"],
+		);
+		indexerRequest
+			.mockResolvedValueOnce({
+				hostCalls: [
+					{ id: "a", op: "http.get", url: "http://api.example.com/" },
+					{ id: "b", op: "http.get", url: "https://u:p@api.example.com/" },
+					{ id: "c", op: "http.get", url: "https://api.example.com:8443/" },
+				],
+			})
+			.mockResolvedValueOnce({ result: 1 });
+		const httpGet = vi.fn();
+		runtime.httpGet = httpGet;
+
+		await runtime.invoke("flixer.example", "lookup", user, {});
+
+		expect(httpGet).not.toHaveBeenCalled();
+		const second = (indexerRequest.mock.calls[1] as unknown[])[2] as {
+			body: { input: { hostResults: { error: string }[] } };
+		};
+		expect(second.body.input.hostResults.map((r) => r.error)).toEqual([
+			"invalid_url",
+			"invalid_url",
+			"invalid_url",
+		]);
+	});
+
+	it("fails the invocation when a plugin keeps requesting host calls beyond the round limit", async () => {
+		const { runtime, indexerRequest } = setup(undefined, true, ["api.routes"], ["api.routes.lookup"]);
+		indexerRequest.mockResolvedValue({ hostCalls: [{ id: "a", op: "http.get", url: "https://api.example.com/" }] });
+		runtime.httpGet = vi.fn();
+
+		await expect(runtime.invoke("flixer.example", "lookup", user, {})).rejects.toThrow(/could not complete/);
+		expect(indexerRequest).toHaveBeenCalledTimes(5);
+	});
+
+	it("rejects malformed host call requests", async () => {
+		const { runtime, indexerRequest } = setup(undefined, true, ["api.routes"], ["api.routes.lookup"]);
+		indexerRequest.mockResolvedValueOnce({ hostCalls: [{ id: "a", op: "fs.read", url: "x" }] });
+
+		await expect(runtime.invoke("flixer.example", "lookup", user, {})).rejects.toThrow(/could not complete/);
+	});
+});
