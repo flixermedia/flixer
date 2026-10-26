@@ -172,7 +172,7 @@ services:
             data-init:
                 condition: service_completed_successfully
         environment:
-            APP_SECRET_FILE: /run/flixer-secrets/app-secret
+            STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/app-secret
             DATA_PATH: /data
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
