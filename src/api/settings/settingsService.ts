@@ -12,7 +12,6 @@ import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexer
 import { validateHttpUrl } from "../../config/store/configSchema.js";
 import { SKIPME_API_URL_KEY } from "../media/segmentLogic.js";
 import { SECRET_MASK } from "./secretMask.js";
-import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
 
@@ -141,10 +140,6 @@ export class SettingsService {
 				(request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))
 		) {
 			throw new BadRequest("The VAPID subject must be empty, a mailto: address or an https:// URL.");
-		}
-
-		if ((REQUEST_SETTING_KEYS as readonly string[]).includes(key)) {
-			validateRequestSetting(key, request.value);
 		}
 
 		if (key === "themes_enabled" && typeof request.value !== "boolean") {

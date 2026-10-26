@@ -14,9 +14,6 @@ import { PersonProfile } from "../entities/personProfile.entity.js";
 import { Notification } from "../entities/notification.entity.js";
 import { PushSubscription } from "../entities/pushSubscription.entity.js";
 import { PushKey } from "../entities/pushKey.entity.js";
-import { MediaRequest } from "../entities/mediaRequest.entity.js";
-import { RequestService } from "../entities/requestService.entity.js";
-import { RequestUserLimit } from "../entities/requestUserLimit.entity.js";
 import { AddRequestServiceLibrary1794700000000 } from "../migrations/addRequestServiceLibrary1794700000000.js";
 import { CreateMediaRequests1794600000000 } from "../migrations/createMediaRequests1794600000000.js";
 import { CreateNotifications1794400000000 } from "../migrations/createNotifications1794400000000.js";
@@ -31,6 +28,9 @@ import { PluginInstallation } from "../entities/pluginInstallation.entity.js";
 import { PluginRepository } from "../entities/pluginRepository.entity.js";
 import { PluginUpdateHistory } from "../entities/pluginUpdateHistory.entity.js";
 import { PluginStorageEntry } from "../entities/pluginStorageEntry.entity.js";
+import { PluginSecret } from "../entities/pluginSecret.entity.js";
+import { DropLegacyRequests1795200000000 } from "../migrations/dropLegacyRequests1795200000000.js";
+import { CreatePluginSecrets1795100000000 } from "../migrations/createPluginSecrets1795100000000.js";
 import { CreatePluginManager1794800000000 } from "../migrations/createPluginManager1794800000000.js";
 import { CreatePluginUpdateHistory1794900000000 } from "../migrations/createPluginUpdateHistory1794900000000.js";
 import { CreatePluginStorage1795000000000 } from "../migrations/createPluginStorage1795000000000.js";
@@ -92,13 +92,11 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				Notification,
 				PushSubscription,
 				PushKey,
-				MediaRequest,
-				RequestService,
-				RequestUserLimit,
 				PluginRepository,
 				PluginInstallation,
 				PluginUpdateHistory,
 				PluginStorageEntry,
+				PluginSecret,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -134,6 +132,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePluginManager1794800000000,
 				CreatePluginUpdateHistory1794900000000,
 				CreatePluginStorage1795000000000,
+				CreatePluginSecrets1795100000000,
+				DropLegacyRequests1795200000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

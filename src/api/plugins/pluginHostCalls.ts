@@ -9,9 +9,8 @@ const HTTP_TIMEOUT_MS = 4_000;
 
 export interface HostCall {
 	id: string;
-	op: "http.get" | "http.post";
-	url: string;
-	body?: string;
+	op: string;
+	[key: string]: unknown;
 }
 
 export interface HostResult {
@@ -20,9 +19,25 @@ export interface HostResult {
 	status?: number;
 	body?: string;
 	error?: string;
+	[key: string]: unknown;
 }
 
-export type HttpRequest = (url: URL, options?: { body?: string }) => Promise<{ status: number; body: string }>;
+export interface HttpOptions {
+	method?: string;
+	headers?: Record<string, string>;
+	body?: string;
+}
+
+export type HttpRequest = (url: URL, options?: HttpOptions) => Promise<{ status: number; body: string }>;
+export type ServiceHandler = (call: HostCall) => Promise<HostResult>;
+
+const HTTP_METHODS = new Set(["GET", "POST", "PUT", "DELETE"]);
+const ALLOWED_HEADERS = new Set(["authorization", "x-api-key", "x-emby-token", "content-type", "accept"]);
+const MAX_HEADERS = 8;
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+
+/** Permission that lets a plugin reach any public HTTPS host (user-configured servers). */
+export const HTTP_ANY_PERMISSION = "network.http.any";
 export type HttpGet = HttpRequest;
 
 const MAX_POST_BODY_BYTES = 16 * 1024;
@@ -53,7 +68,7 @@ export const publicHttpsGet: HttpRequest = async (url, options) => {
 				url,
 				{
 					agent,
-					method: options?.body === undefined ? "GET" : "POST",
+					method: options?.method ?? (options?.body === undefined ? "GET" : "POST"),
 					headers: {
 						accept: "application/json, text/plain",
 						"user-agent": "Flixer",
@@ -63,6 +78,7 @@ export const publicHttpsGet: HttpRequest = async (url, options) => {
 									"content-type": "application/json",
 									"content-length": Buffer.byteLength(options.body),
 								}),
+						...options?.headers,
 					},
 					timeout: HTTP_TIMEOUT_MS,
 				},
@@ -99,59 +115,94 @@ function parseCalls(value: unknown): HostCall[] {
 	}
 	const ids = new Set<string>();
 	return value.map((raw: unknown) => {
-		const call = raw as Partial<HostCall> | null;
+		const call = raw as HostCall | null;
 		if (
 			typeof call !== "object" ||
 			call === null ||
+			Array.isArray(call) ||
 			typeof call.id !== "string" ||
 			!/^[A-Za-z0-9_-]{1,64}$/.test(call.id) ||
 			ids.has(call.id) ||
-			(call.op !== "http.get" && call.op !== "http.post") ||
-			typeof call.url !== "string" ||
-			(call.op === "http.get"
-				? call.body !== undefined
-				: typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_POST_BODY_BYTES)
+			typeof call.op !== "string" ||
+			(call.op === "http.get" && call.body !== undefined) ||
+			(call.op === "http.post" &&
+				(typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_POST_BODY_BYTES))
 		) {
 			throw new Error("Plugin requested an invalid host call.");
 		}
 		ids.add(call.id);
-		return { id: call.id, op: call.op, url: call.url, ...(call.body === undefined ? {} : { body: call.body }) };
+		return call;
 	});
+}
+
+function parseHttpCall(call: HostCall): { url: URL; options?: HttpOptions } | null {
+	if (typeof call.url !== "string" || call.url.length > 2048) return null;
+	let url: URL;
+	try {
+		url = new URL(call.url);
+	} catch {
+		return null;
+	}
+	if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) return null;
+	if (call.op === "http.get") return call.body === undefined ? { url } : null;
+	if (call.op === "http.post") {
+		return typeof call.body === "string" && Buffer.byteLength(call.body) <= MAX_POST_BODY_BYTES
+			? { url, options: { body: call.body } }
+			: null;
+	}
+	const method = typeof call.method === "string" ? call.method.toUpperCase() : "GET";
+	if (!HTTP_METHODS.has(method)) return null;
+	if (call.body !== undefined && (typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_REQUEST_BODY_BYTES)) {
+		return null;
+	}
+	const headers: Record<string, string> = {};
+	if (call.headers !== undefined) {
+		if (typeof call.headers !== "object" || call.headers === null || Array.isArray(call.headers)) return null;
+		const entries = Object.entries(call.headers as Record<string, unknown>);
+		if (entries.length > MAX_HEADERS) return null;
+		for (const [name, value] of entries) {
+			const key = name.toLowerCase();
+			if (!ALLOWED_HEADERS.has(key) || typeof value !== "string" || value.length > 2048 || /[\r\n]/.test(value)) {
+				return null;
+			}
+			headers[key] = value;
+		}
+	}
+	return { url, options: { method, headers, ...(call.body === undefined ? {} : { body: call.body as string }) } };
 }
 
 /** Runs a plugin's host calls under its approved permissions; denied or failed calls yield per-call errors. */
 export async function executeHostCalls(
 	rawCalls: unknown,
 	approvedPermissions: ReadonlySet<string>,
-	httpGet: HttpGet = publicHttpsGet,
+	httpGet: HttpRequest = publicHttpsGet,
+	service?: ServiceHandler,
 ): Promise<HostResult[]> {
 	const calls = parseCalls(rawCalls);
-	return Promise.all(
-		calls.map(async (call): Promise<HostResult> => {
-			let url: URL;
-			try {
-				url = new URL(call.url);
-			} catch {
-				return { id: call.id, ok: false, error: "invalid_url" };
-			}
-			if (
-				url.protocol !== "https:" ||
-				url.username ||
-				url.password ||
-				(url.port && url.port !== "443") ||
-				call.url.length > 2048
-			) {
-				return { id: call.id, ok: false, error: "invalid_url" };
-			}
-			if (!approvedPermissions.has(httpHostPermission(url.hostname))) {
-				return { id: call.id, ok: false, error: "permission_denied" };
-			}
-			try {
-				const { status, body } = await httpGet(url, call.op === "http.post" ? { body: call.body } : undefined);
-				return { id: call.id, ok: status >= 200 && status < 300, status, body };
-			} catch {
-				return { id: call.id, ok: false, error: "request_failed" };
-			}
+	const results = new Map<string, HostResult>();
+
+	const runHttp = async (call: HostCall): Promise<HostResult> => {
+		const parsed = parseHttpCall(call);
+		if (!parsed) return { id: call.id, ok: false, error: "invalid_url" };
+		if (!approvedPermissions.has(HTTP_ANY_PERMISSION) && !approvedPermissions.has(httpHostPermission(parsed.url.hostname))) {
+			return { id: call.id, ok: false, error: "permission_denied" };
+		}
+		try {
+			const { status, body } = await httpGet(parsed.url, parsed.options);
+			return { id: call.id, ok: status >= 200 && status < 300, status, body };
+		} catch {
+			return { id: call.id, ok: false, error: "request_failed" };
+		}
+	};
+
+	const isHttp = (call: HostCall) => call.op === "http.get" || call.op === "http.post" || call.op === "http.request";
+	await Promise.all(
+		calls.filter(isHttp).map(async (call) => {
+			results.set(call.id, await runHttp(call));
 		}),
 	);
+	for (const call of calls.filter((entry) => !isHttp(entry))) {
+		results.set(call.id, service ? await service(call) : { id: call.id, ok: false, error: "invalid_request" });
+	}
+	return calls.map((call) => results.get(call.id)!);
 }

@@ -4,7 +4,9 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
-import { executeHostCalls, MAX_HOST_CALL_ROUNDS, type HttpGet } from "./pluginHostCalls.js";
+import { executeHostCalls, MAX_HOST_CALL_ROUNDS, type HttpRequest } from "./pluginHostCalls.js";
+import { PluginHostService } from "./pluginHostService.js";
+import { PluginSettingsService } from "./pluginSettingsService.js";
 import { PluginStorageService } from "./pluginStorageService.js";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
@@ -19,10 +21,12 @@ export class PluginWasiRuntime {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly indexer: IndexerClient,
 		private readonly storage: PluginStorageService,
+		private readonly host: PluginHostService,
+		private readonly settings: PluginSettingsService,
 	) {}
 
 	/** Overridable in tests; production uses the pinned public HTTPS client. */
-	httpGet: HttpGet | undefined;
+	httpGet: HttpRequest | undefined;
 
 	async invoke(
 		pluginId: string,
@@ -69,13 +73,16 @@ export class PluginWasiRuntime {
 			),
 		);
 		const storage = await this.storage.load(pluginId, user.id, approvedPermissions);
+		const settings = approvedPermissions.has("settings.read") ? await this.settings.effectiveValues(installation) : null;
 		const input = {
 			apiVersion: 1,
 			method: operation,
 			operation,
+			now: new Date().toISOString(),
 			user: { id: user.id, role: user.role },
 			request: { method: "POST", body: request },
 			...(Object.keys(storage).length > 0 ? { storage } : {}),
+			...(settings ? { settings } : {}),
 		};
 		if (Buffer.byteLength(JSON.stringify(input)) > MAX_REQUEST_BYTES) {
 			throw new BadRequest("Plugin request exceeds the size limit.");
@@ -85,7 +92,9 @@ export class PluginWasiRuntime {
 			let response = await this.call(pluginId, input);
 			for (let round = 0; isRecord(response) && Object.hasOwn(response, "hostCalls"); round++) {
 				if (round >= MAX_HOST_CALL_ROUNDS) throw new Error("Plugin exceeded the host call limit.");
-				const hostResults = await executeHostCalls(response.hostCalls, approvedPermissions, this.httpGet);
+				const hostResults = await executeHostCalls(response.hostCalls, approvedPermissions, this.httpGet, (call) =>
+					this.host.handle(installation, approvedPermissions, call),
+				);
 				response = await this.call(pluginId, {
 					...input,
 					continuation: response.continuation ?? null,

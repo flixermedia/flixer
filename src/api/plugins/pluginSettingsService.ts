@@ -119,6 +119,26 @@ export class PluginSettingsService {
 		return { schema: publicSchema, values, secretFields: [...secrets] };
 	}
 
+	/** Stored values with schema defaults and decrypted secrets, for handing to the plugin itself. */
+	async effectiveValues(installation: PluginInstallation): Promise<Record<string, unknown>> {
+		const schema = await this.loadSchema(installation);
+		if (!schema) return {};
+		const { secrets } = validateSchema(schema);
+		const properties = schema.properties ?? {};
+		const values: Record<string, unknown> = {};
+		for (const [name, property] of Object.entries(properties)) {
+			if (!secrets.has(name) && property.default !== undefined) values[name] = property.default;
+		}
+		for (const [name, value] of Object.entries(installation.settings)) {
+			if (Object.hasOwn(properties, name) && !secrets.has(name)) values[name] = value;
+		}
+		for (const name of secrets) {
+			const encrypted = installation.encryptedSecrets[name];
+			if (encrypted) values[name] = decryptPluginSettingSecret(installation.pluginId, name, encrypted);
+		}
+		return values;
+	}
+
 	async update(pluginId: string, request: PluginSettingsUpdate) {
 		const installation = await this.findInstallation(pluginId);
 		const schema = await this.loadSchema(installation);

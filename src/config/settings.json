@@ -200,15 +200,5 @@
 		"defaultValue": "https://d1b4ac66b848d6c4b977e6eecbb69a64@o4512285684596736.ingest.us.sentry.io/4512285695148032",
 		"isPublic": false
 	},
-	{ "key": "themes_enabled", "defaultValue": false, "isPublic": true },
-	{ "key": "requests_enabled", "defaultValue": false, "isPublic": true },
-	{ "key": "requests_auto_approve", "defaultValue": false, "isPublic": false },
-	{ "key": "requests_movies_enabled", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_tv_enabled", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_music_enabled", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_quota_limit", "defaultValue": 0, "isPublic": false },
-	{ "key": "requests_quota_days", "defaultValue": 7, "isPublic": false },
-	{ "key": "requests_default_can_request", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_notify_admins", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_notify_users", "defaultValue": true, "isPublic": false }
+	{ "key": "themes_enabled", "defaultValue": false, "isPublic": true }
 ]

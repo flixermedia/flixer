@@ -38,7 +38,7 @@ function setup(
 		runtime: new PluginWasiRuntime(dataSource, indexer, {
 			load: storageLoad,
 			save: storageSave,
-		} as unknown as PluginStorageService),
+		} as unknown as PluginStorageService, {} as never, { effectiveValues: vi.fn() } as never),
 	};
 }
 
@@ -56,6 +56,7 @@ describe("PluginWasiRuntime", () => {
 					apiVersion: 1,
 					method: "request",
 					operation: "request",
+					now: expect.any(String),
 					user: { id: "user-1", role: "user" },
 					request: { method: "POST", body: { title: "Example" } },
 				},
