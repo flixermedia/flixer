@@ -12,6 +12,10 @@ A [Coder](https://coder.com) template that gives each workspace the whole stack:
 | PostgreSQL 16 | sidecar container (`postgres`) | 5432 |
 | Redis 7 | sidecar container (`redis`) | 6379 |
 
+In the workspace the indexer and streamer run inside it, so `indexer` and `streamer` resolve to `127.0.0.1` (added to
+`/etc/hosts` by the setup script) and default to `localhost`, while Postgres and Redis resolve as `postgres` and `redis`. The setup wizard pre-fills these, and administrators can change all four addresses
+under Admin → Settings → Connections.
+
 The workspace image has Node 26, Go 1.26, ffmpeg and the psql/redis CLIs. Postgres and Redis run as sidecar
 containers on a per-workspace Docker network. The workspace and Postgres share the persistent data volume mounted
 at `~/projects/flixer-data` and `/data`, respectively; PostgreSQL stores its files under `database/`.
