@@ -18,7 +18,11 @@ export { IndexerApiController } from "./api/indexer/indexerApiController.js";
 export { AdminIndexerController } from "./api/indexer/adminIndexerController.js";
 export { PluginsController } from "./api/plugins/pluginsController.js";
 export { PluginRuntimeController } from "./api/plugins/pluginRuntimeController.js";
-export { RequestImagesController, RequestsController, AdminRequestsController } from "./api/requests/requestsController.js";
+export {
+	RequestImagesController,
+	RequestsController,
+	AdminRequestsController,
+} from "./api/requests/requestsController.js";
 export { PluginSchedulerService } from "./api/plugins/pluginSchedulerService.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { MediaHomeController } from "./api/media/mediaHomeController.js";
@@ -27,6 +31,7 @@ export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
 export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";
 export { FavoritesController } from "./api/social/favoritesController.js";
 export { PlaylistsController } from "./api/social/playlistsController.js";
+export { PartiesController } from "./api/social/partiesController.js";
 export { ProfilesController } from "./api/social/profilesController.js";
 export { ThemesController } from "./api/themes/themesController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";

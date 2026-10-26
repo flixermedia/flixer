@@ -1,7 +1,6 @@
 import { CollectionOf, Enum, MaxItems, MaxLength, MinLength, Nullable, Property, Required } from "@tsed/schema";
 
 export class CreatePlaylistRequest {
-
 	@Required()
 	@MinLength(1)
 	@MaxLength(100)
@@ -17,7 +16,6 @@ export class CreatePlaylistRequest {
 }
 
 export class UpdatePlaylistRequest {
-
 	@Property()
 	@MinLength(1)
 	@MaxLength(100)
@@ -33,14 +31,12 @@ export class UpdatePlaylistRequest {
 }
 
 export class PlaylistItemRequest {
-
 	@Required()
 	@MaxLength(36)
 	itemId!: string;
 }
 
 export class PlaylistOrderRequest {
-
 	@Required()
 	@CollectionOf(String)
 	@MaxItems(5000)
@@ -48,13 +44,11 @@ export class PlaylistOrderRequest {
 }
 
 export class UpdateProfileVisibilityRequest {
-
 	@Required()
 	hidden!: boolean;
 }
 
 export class ListeningReportRequest {
-
 	@Required()
 	@MaxLength(36)
 	itemId!: string;
@@ -65,4 +59,10 @@ export class ListeningReportRequest {
 
 	@Property()
 	positionSeconds?: number;
+}
+
+export class CreatePartyRequest {
+	@Required()
+	@MaxLength(36)
+	itemId!: string;
 }

@@ -15,10 +15,14 @@ import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
 import { LiveService } from "./live/liveService.js";
+import { PartyGateway } from "./party/partyGateway.js";
 import "./sentry/sentryErrorFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 
-const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
+const fastifyPlugins = [
+	"@fastify/accepts",
+	"@fastify/cookie",
+	{
 		use: "fastify-raw-body",
 		options: {
 			global: false,
@@ -30,7 +34,7 @@ const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LiveService],
+	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LiveService, PartyGateway],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
@@ -63,6 +67,5 @@ const fastifyPlugins = ["@fastify/accepts", "@fastify/cookie", {
 	plugins: fastifyPlugins,
 })
 export class Server {
-
 	protected app = application();
 }
