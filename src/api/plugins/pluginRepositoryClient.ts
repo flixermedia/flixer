@@ -64,7 +64,7 @@ async function fetchPinnedBytes(url: URL, maxBytes: number, accept: string): Pro
 					}
 
 					const contentLength = Number(response.headers["content-length"]);
-					if (Number.isFinite(contentLength) && contentLength > MAX_MANIFEST_BYTES) {
+					if (Number.isFinite(contentLength) && contentLength > maxBytes) {
 						response.destroy(new Error(`Repository response exceeds the ${maxBytes} byte size limit.`));
 						return;
 					}
@@ -74,7 +74,7 @@ async function fetchPinnedBytes(url: URL, maxBytes: number, accept: string): Pro
 					response.on("data", (chunk: Buffer | string) => {
 						const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
 						size += data.length;
-						if (size > MAX_MANIFEST_BYTES) {
+						if (size > maxBytes) {
 							response.destroy(new Error(`Repository response exceeds the ${maxBytes} byte size limit.`));
 							return;
 						}
