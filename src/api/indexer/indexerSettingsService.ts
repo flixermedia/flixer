@@ -23,7 +23,7 @@ export const KEYLESS_PROVIDERS = ["musicbrainz", "anilist"];
 export const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
-export const INDEXER_QUEUES = ["scan", "identify", "metadata", "images", "probe", "refresh", "trickplay", "themes"];
+export const INDEXER_QUEUES = ["scan", "identify", "metadata", "images", "probe", "refresh", "trickplay", "themes", "lyrics"];
 export const INDEXER_MAX_CONCURRENCY = 64;
 
 export interface IndexerProviderSetting {
