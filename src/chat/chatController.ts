@@ -107,6 +107,13 @@ export class ChatController {
 		return this.chat.addMembers(user.id, conversationId(id), request.usernames);
 	}
 
+	@Delete("/conversations/:id")
+	@Returns(204)
+	async deleteConversation(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		await this.chat.deleteConversation(user.id, conversationId(id));
+	}
+
 	@Delete("/conversations/:id/members/:username")
 	@Returns(204)
 	async removeMember(

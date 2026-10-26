@@ -339,6 +339,20 @@ export class ChatService {
 		return { messages: after ? page : page.reverse(), hasMore: after ? false : hasMore };
 	}
 
+	/** Deletes a conversation and its messages for everyone: any member of a direct chat, or the owner of a group. */
+	async deleteConversation(userId: string, id: string): Promise<void> {
+		const member = await this.assertMember(userId, id);
+		if (member.kind === "group" && member.role !== "owner") {
+			throw new Forbidden("Only the group owner can delete it.");
+		}
+		const members = await this.memberIds(id);
+		await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
+		await this.dataSource
+			.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1`, [`/chat/${id}`])
+			.catch(() => undefined);
+		this.publish(members, { type: "changed", conversationId: id });
+	}
+
 	async markRead(userId: string, id: string, announce = true): Promise<void> {
 		await this.dataSource.query(
 			`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`,
