@@ -109,15 +109,52 @@ const MESSAGE_SELECT = `SELECT m.id, m.conversation_id, m.kind, m.body, m.create
 	FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id`;
 
 /** Direct messages and group chats between the people on this server. */
+export type ChatEvent =
+	| { type: "message"; conversationId: string; message: ChatMessage }
+	| { type: "changed"; conversationId: string };
+
 @Injectable()
 export class ChatService {
 
 	private readonly recentSends = new Map<string, number[]>();
+	private readonly listeners = new Set<(userIds: string[], event: ChatEvent) => void>();
 
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
 	) {}
+
+	/** Subscribes to realtime events; returns an unsubscribe function. */
+	onEvent(listener: (userIds: string[], event: ChatEvent) => void): () => void {
+		this.listeners.add(listener);
+		return () => this.listeners.delete(listener);
+	}
+
+	private publish(userIds: string[], event: ChatEvent): void {
+		if (userIds.length === 0) {
+			return;
+		}
+		for (const listener of this.listeners) {
+			try {
+				listener(userIds, event);
+			} catch (error) {
+				logger().warn("Chat listener failed.", error);
+			}
+		}
+	}
+
+	private async memberIds(id: string): Promise<string[]> {
+		const rows = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [
+			id,
+		])) as Array<{ user_id: string }>;
+		return rows.map((row) => row.user_id);
+	}
+
+	/** Tells members (plus anyone just removed) to refresh a conversation. */
+	private async changed(id: string, extra: string[] = []): Promise<void> {
+		const ids = new Set([...(await this.memberIds(id)), ...extra]);
+		this.publish([...ids], { type: "changed", conversationId: id });
+	}
 
 	async conversations(userId: string): Promise<{ conversations: ChatConversation[]; unread: number }> {
 		const ids = (await this.dataSource.query(
@@ -160,6 +197,7 @@ export class ChatService {
 				[id, userId, other.id],
 			);
 		});
+		await this.changed(id);
 		return this.conversation(userId, id);
 	}
 
@@ -190,6 +228,7 @@ export class ChatService {
 			}
 		});
 		await this.system(id, userId, `created the group "${title}"`);
+		await this.changed(id);
 		return this.conversation(userId, id);
 	}
 
@@ -201,6 +240,7 @@ export class ChatService {
 		const title = cleanName(name);
 		await this.dataSource.query(`UPDATE chat_conversations SET name = $2 WHERE id = $1`, [id, title]);
 		await this.system(id, userId, `renamed the group to "${title}"`);
+		await this.changed(id);
 		return this.conversation(userId, id);
 	}
 
@@ -225,6 +265,9 @@ export class ChatService {
 			);
 			await this.system(id, userId, `added ${person.display_name || person.username}`);
 		}
+		if (fresh.length > 0) {
+			await this.changed(id);
+		}
 		return this.conversation(userId, id);
 	}
 
@@ -246,6 +289,7 @@ export class ChatService {
 		if (!leaving && member.role !== "owner") {
 			throw new Forbidden("Only the group owner can remove people.");
 		}
+		const before = await this.memberIds(id);
 		await this.dataSource.query(`DELETE FROM chat_members WHERE conversation_id = $1 AND user_id = $2`, [
 			id,
 			target[0].id,
@@ -256,6 +300,7 @@ export class ChatService {
 		)) as Array<{ user_id: string; role: string }>;
 		if (remaining.length === 0) {
 			await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
+			this.publish(before, { type: "changed", conversationId: id });
 			return;
 		}
 		if (!remaining.some((row) => row.role === "owner")) {
@@ -266,6 +311,7 @@ export class ChatService {
 		}
 		const name = target[0].display_name || target[0].username;
 		await this.system(id, null, leaving ? `${name} left` : `${name} was removed`);
+		await this.changed(id, before);
 	}
 
 	/** Messages oldest first. `before` pages back through history, `after` fetches what arrived since. Fetching marks the thread read. */
@@ -289,11 +335,11 @@ export class ChatService {
 		)) as MessageRow[];
 		const hasMore = rows.length > PAGE_SIZE;
 		const page = rows.slice(0, PAGE_SIZE).map(messageOf);
-		await this.markRead(userId, id);
+		await this.markRead(userId, id, false);
 		return { messages: after ? page : page.reverse(), hasMore: after ? false : hasMore };
 	}
 
-	async markRead(userId: string, id: string): Promise<void> {
+	async markRead(userId: string, id: string, announce = true): Promise<void> {
 		await this.dataSource.query(
 			`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`,
 			[id, userId],
@@ -304,6 +350,9 @@ export class ChatService {
 				[userId, `/chat/${id}`],
 			)
 			.catch(() => undefined);
+		if (announce) {
+			this.publish([userId], { type: "changed", conversationId: id });
+		}
 	}
 
 	async send(userId: string, id: string, text: unknown): Promise<ChatMessage> {
@@ -325,6 +374,7 @@ export class ChatService {
 		await this.notify(id, userId, message).catch((error: unknown) =>
 			logger().warn("Could not notify chat members.", error),
 		);
+		this.publish(await this.memberIds(id), { type: "message", conversationId: id, message });
 		return message;
 	}
 
