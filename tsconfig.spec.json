@@ -12,6 +12,11 @@
 		},
 		"types": ["node", "vitest/globals", "vitest/importMeta", "vite/client", "vitest"]
 	},
-	"include": ["src/**/*", "vitest.config.mts"],
+	"include": [
+		"src/**/*",
+		"src/api/plugins/plugin-manifest.schema.json",
+		"src/api/plugins/repository-manifest.schema.json",
+		"vitest.config.mts"
+	],
 	"exclude": ["dist", "coverage", "node_modules"]
 }

@@ -27,6 +27,13 @@ import { AddMediaCreditPersonId1794000000000 } from "../migrations/addMediaCredi
 import { CreateMediaCredits1793900000000 } from "../migrations/createMediaCredits1793900000000.js";
 import { CreateMediaSegments1794500000000 } from "../migrations/createMediaSegments1794500000000.js";
 import { MediaSegment } from "../entities/mediaSegment.entity.js";
+import { PluginInstallation } from "../entities/pluginInstallation.entity.js";
+import { PluginRepository } from "../entities/pluginRepository.entity.js";
+import { PluginUpdateHistory } from "../entities/pluginUpdateHistory.entity.js";
+import { PluginStorageEntry } from "../entities/pluginStorageEntry.entity.js";
+import { CreatePluginManager1794800000000 } from "../migrations/createPluginManager1794800000000.js";
+import { CreatePluginUpdateHistory1794900000000 } from "../migrations/createPluginUpdateHistory1794900000000.js";
+import { CreatePluginStorage1795000000000 } from "../migrations/createPluginStorage1795000000000.js";
 import { CreateWatchProgress1793800000000 } from "../migrations/createWatchProgress1793800000000.js";
 import { CreateNetworkShares1793600000000 } from "../migrations/createNetworkShares1793600000000.js";
 import { AddMediaItemLastSeenAt1793700000000 } from "../migrations/addMediaItemLastSeenAt1793700000000.js";
@@ -88,6 +95,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				MediaRequest,
 				RequestService,
 				RequestUserLimit,
+				PluginRepository,
+				PluginInstallation,
+				PluginUpdateHistory,
+				PluginStorageEntry,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -120,6 +131,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateMediaSegments1794500000000,
 				CreateMediaRequests1794600000000,
 				AddRequestServiceLibrary1794700000000,
+				CreatePluginManager1794800000000,
+				CreatePluginUpdateHistory1794900000000,
+				CreatePluginStorage1795000000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

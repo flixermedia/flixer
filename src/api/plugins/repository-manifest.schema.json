@@ -1,0 +1,72 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://flixer.media/schemas/plugin-repository-v1.json",
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["manifestVersion", "id", "name", "description", "plugins"],
+	"properties": {
+		"manifestVersion": { "const": 1 },
+		"id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 128 },
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+		"plugins": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/plugin" }
+		}
+	},
+	"$defs": {
+		"packagePath": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 512,
+			"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
+		},
+		"plugin": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["id", "name", "description", "author", "targets", "permissions", "versions"],
+			"properties": {
+				"id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 128 },
+				"name": { "type": "string", "minLength": 1, "maxLength": 100 },
+				"description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+				"author": { "type": "string", "minLength": 1, "maxLength": 200 },
+				"capabilities": {
+					"type": "array",
+					"uniqueItems": true,
+					"items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", "maxLength": 128 }
+				},
+				"permissions": {
+					"type": "array",
+					"uniqueItems": true,
+					"items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", "maxLength": 128 }
+				},
+				"targets": {
+					"type": "array",
+					"minItems": 1,
+					"uniqueItems": true,
+					"items": { "enum": ["flixer", "flixer-indexer", "flixer-streamer", "flixer-web"] }
+				},
+				"versions": {
+					"type": "array",
+					"minItems": 1,
+					"items": { "$ref": "#/$defs/version" }
+				}
+			}
+		},
+		"version": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["version", "manifest", "package", "sha256"],
+			"properties": {
+				"version": {
+					"type": "string",
+					"pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+				},
+				"manifest": { "$ref": "#/$defs/packagePath" },
+				"package": { "$ref": "#/$defs/packagePath" },
+				"sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+				"size": { "type": "integer", "minimum": 1, "maximum": 104857600 }
+			}
+		}
+	}
+}

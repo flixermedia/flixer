@@ -16,6 +16,8 @@ export { MediaLibrariesController } from "./api/mediaLibraries/mediaLibrariesCon
 export { StreamerRootsController } from "./api/mediaLibraries/streamerRootsController.js";
 export { IndexerApiController } from "./api/indexer/indexerApiController.js";
 export { AdminIndexerController } from "./api/indexer/adminIndexerController.js";
+export { PluginsController } from "./api/plugins/pluginsController.js";
+export { PluginRuntimeController } from "./api/plugins/pluginRuntimeController.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { MediaHomeController } from "./api/media/mediaHomeController.js";
 export { NetworkSharesController } from "./api/networkShares/networkSharesController.js";

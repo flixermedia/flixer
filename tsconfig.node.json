@@ -10,7 +10,12 @@
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["src/**/*", ".templates/**/*"],
+	"include": [
+		"src/**/*",
+		".templates/**/*",
+		"src/api/plugins/plugin-manifest.schema.json",
+		"src/api/plugins/repository-manifest.schema.json"
+	],
 	"exclude": ["src/**/*.spec.ts", "dist", "node_modules", "**/helpers/*Fixture.ts", "**/__mock__/**", "coverage"],
 	"linterOptions": {
 		"exclude": []

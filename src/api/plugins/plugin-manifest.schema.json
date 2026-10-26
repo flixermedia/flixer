@@ -1,0 +1,89 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://flixer.media/schemas/plugin-manifest-v1.json",
+	"type": "object",
+	"additionalProperties": false,
+	"required": [
+		"manifestVersion",
+		"id",
+		"name",
+		"version",
+		"description",
+		"author",
+		"license",
+		"compatibility",
+		"targets",
+		"capabilities",
+		"permissions"
+	],
+	"properties": {
+		"manifestVersion": { "const": 1 },
+		"id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 128 },
+		"name": { "type": "string", "minLength": 1, "maxLength": 100 },
+		"version": {
+			"type": "string",
+			"pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+		},
+		"description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+		"author": { "type": "string", "minLength": 1, "maxLength": 200 },
+		"license": { "type": "string", "minLength": 1, "maxLength": 100 },
+		"homepage": { "type": "string", "maxLength": 2048 },
+		"icon": { "$ref": "#/$defs/packagePath" },
+		"compatibility": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["pluginApi"],
+			"properties": {
+				"pluginApi": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"flixer": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"flixer-indexer": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"flixer-streamer": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"flixer-web": { "type": "string", "minLength": 1, "maxLength": 128 }
+			}
+		},
+		"targets": {
+			"type": "object",
+			"minProperties": 1,
+			"additionalProperties": false,
+			"properties": {
+				"flixer": { "$ref": "#/$defs/target" },
+				"flixer-indexer": { "$ref": "#/$defs/target" },
+				"flixer-streamer": { "$ref": "#/$defs/target" },
+				"flixer-web": { "$ref": "#/$defs/target" }
+			}
+		},
+		"capabilities": {
+			"type": "array",
+			"minItems": 1,
+			"uniqueItems": true,
+			"items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", "maxLength": 128 }
+		},
+		"permissions": {
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", "maxLength": 128 }
+		},
+		"dependencies": { "$ref": "#/$defs/dependencies" },
+		"optionalDependencies": { "$ref": "#/$defs/dependencies" },
+		"settingsSchema": { "$ref": "#/$defs/packagePath" }
+	},
+	"$defs": {
+		"packagePath": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 512,
+			"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
+		},
+		"target": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["entry"],
+			"properties": { "entry": { "$ref": "#/$defs/packagePath" } }
+		},
+		"dependencies": {
+			"type": "object",
+			"propertyNames": { "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$" },
+			"additionalProperties": { "type": "string", "minLength": 1, "maxLength": 128 }
+		}
+	}
+}

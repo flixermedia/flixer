@@ -21,6 +21,12 @@ export interface IndexerThemeTask {
 	tmdbId: string;
 }
 
+export interface IndexerPluginStatus {
+	id: string;
+	state: "registered" | "error" | string;
+	error?: string;
+}
+
 /** Signed HTTP client for flixer-indexer's internal API. */
 @Injectable()
 export class IndexerClient {
@@ -163,5 +169,10 @@ export class IndexerClient {
 	/** Asks the indexer to re-read settings and libraries; failures are not fatal because the indexer also polls. */
 	async reloadSettings(): Promise<void> {
 		await this.request("POST", "/internal/settings/reload").catch(() => undefined);
+	}
+
+	async pluginStatuses(): Promise<IndexerPluginStatus[]> {
+		const response = await this.request<{ plugins?: IndexerPluginStatus[] }>("GET", "/internal/plugins", { timeoutMs: 5_000 });
+		return Array.isArray(response.plugins) ? response.plugins : [];
 	}
 }

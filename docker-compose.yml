@@ -11,7 +11,7 @@ services:
         command:
             - /bin/sh
             - -c
-            - set -e; mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups; chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups; chown 70:70 /data/database; chown -R 65532:65532 /data/cache; find /data/cache -type d -exec chmod 2775 {} +; chmod 0777 /data/logs
+            - set -e; mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins; chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups /data/plugins; chown 70:70 /data/database; chown -R 65532:65532 /data/cache; find /data/cache -type d -exec chmod 2775 {} +; chmod 0777 /data/logs; chmod 0755 /data/plugins
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
         restart: "no"
@@ -45,6 +45,7 @@ services:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/backups:/data/backups
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins
         expose:
             - "8081"
         healthcheck:
@@ -100,6 +101,7 @@ services:
             LOG_DIR: /data/logs
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
             CACHE_PATH: /data/cache
+            PLUGINS_PATH: /data/plugins/installed
             TRICKPLAY_DIR: /data/cache/trickplay
         volumes:
             # Read-write so artwork can be stored alongside media.
@@ -108,6 +110,7 @@ services:
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins:ro
         expose:
             - "8092"
         restart: unless-stopped

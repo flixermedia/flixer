@@ -3,6 +3,7 @@ import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { SECRET_MASK } from "../settings/secretMask.js";
 
 export const INDEXER_LANGUAGE_KEY = "indexer_language";
@@ -44,6 +45,7 @@ export interface IndexerSettings {
 	language: string;
 	subtitles: IndexerSubtitleSetting;
 	themes: { enabled: boolean };
+	plugins: Array<{ id: string; version: string; entry: string; backendEntry?: string; capabilities: string[] }>;
 }
 
 const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
@@ -55,7 +57,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()
 export class IndexerSettingsService {
-
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Validates a new value for an indexer setting; masked secrets keep the stored value. */
@@ -129,7 +130,32 @@ export class IndexerSettingsService {
 			autoFetch: subs.autoFetch !== false,
 		};
 		const themes = { enabled: value("themes_enabled") === true };
-		return { providers, concurrency, language: typeof language === "string" ? language : "en", subtitles, themes };
+		const installations = await this.dataSource
+			.getRepository(PluginInstallation)
+			.find({ where: { enabled: true } });
+		const plugins = installations.flatMap((installation) => {
+			const indexerTarget = installation.manifest.targets["flixer-indexer"];
+			const backendTarget = installation.manifest.targets.flixer;
+			const entry = indexerTarget?.entry ?? backendTarget?.entry;
+			if (!entry) return [];
+			return [
+				{
+					id: installation.pluginId,
+					version: installation.version,
+					entry,
+					...(backendTarget ? { backendEntry: backendTarget.entry } : {}),
+					capabilities: installation.manifest.capabilities,
+				},
+			];
+		});
+		return {
+			providers,
+			concurrency,
+			language: typeof language === "string" ? language : "en",
+			subtitles,
+			themes,
+			plugins,
+		};
 	}
 
 	private validateSubtitles(value: unknown, current: Record<string, unknown>): IndexerSubtitleSetting {
