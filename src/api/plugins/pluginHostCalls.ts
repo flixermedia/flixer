@@ -9,8 +9,9 @@ const HTTP_TIMEOUT_MS = 4_000;
 
 export interface HostCall {
 	id: string;
-	op: "http.get";
+	op: "http.get" | "http.post";
 	url: string;
+	body?: string;
 }
 
 export interface HostResult {
@@ -21,7 +22,10 @@ export interface HostResult {
 	error?: string;
 }
 
-export type HttpGet = (url: URL) => Promise<{ status: number; body: string }>;
+export type HttpRequest = (url: URL, options?: { body?: string }) => Promise<{ status: number; body: string }>;
+export type HttpGet = HttpRequest;
+
+const MAX_POST_BODY_BYTES = 16 * 1024;
 
 /** Permission a plugin must declare and be granted to reach this exact hostname. */
 export function httpHostPermission(hostname: string): string {
@@ -29,7 +33,7 @@ export function httpHostPermission(hostname: string): string {
 }
 
 /** Performs a bounded HTTPS GET against a publicly routable address; redirects are never followed. */
-export const publicHttpsGet: HttpGet = async (url) => {
+export const publicHttpsGet: HttpRequest = async (url, options) => {
 	const addresses = await dnsLookup(url.hostname, { all: true, verbatim: true });
 	const selected = addresses[0];
 	if (!selected || addresses.some((resolved) => !isPublicRepositoryAddress(resolved.address))) {
@@ -47,7 +51,21 @@ export const publicHttpsGet: HttpGet = async (url) => {
 		return await new Promise<{ status: number; body: string }>((resolve, reject) => {
 			const request = httpsRequest(
 				url,
-				{ agent, method: "GET", headers: { accept: "application/json, text/plain" }, timeout: HTTP_TIMEOUT_MS },
+				{
+					agent,
+					method: options?.body === undefined ? "GET" : "POST",
+					headers: {
+						accept: "application/json, text/plain",
+						"user-agent": "Flixer",
+						...(options?.body === undefined
+							? {}
+							: {
+									"content-type": "application/json",
+									"content-length": Buffer.byteLength(options.body),
+								}),
+					},
+					timeout: HTTP_TIMEOUT_MS,
+				},
 				(response) => {
 					response.on("error", reject);
 					const chunks: Buffer[] = [];
@@ -68,7 +86,7 @@ export const publicHttpsGet: HttpGet = async (url) => {
 			);
 			request.on("timeout", () => request.destroy(new Error("timeout")));
 			request.on("error", reject);
-			request.end();
+			request.end(options?.body);
 		});
 	} finally {
 		agent.destroy();
@@ -88,13 +106,16 @@ function parseCalls(value: unknown): HostCall[] {
 			typeof call.id !== "string" ||
 			!/^[A-Za-z0-9_-]{1,64}$/.test(call.id) ||
 			ids.has(call.id) ||
-			call.op !== "http.get" ||
-			typeof call.url !== "string"
+			(call.op !== "http.get" && call.op !== "http.post") ||
+			typeof call.url !== "string" ||
+			(call.op === "http.get"
+				? call.body !== undefined
+				: typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_POST_BODY_BYTES)
 		) {
 			throw new Error("Plugin requested an invalid host call.");
 		}
 		ids.add(call.id);
-		return { id: call.id, op: call.op, url: call.url };
+		return { id: call.id, op: call.op, url: call.url, ...(call.body === undefined ? {} : { body: call.body }) };
 	});
 }
 
@@ -126,7 +147,7 @@ export async function executeHostCalls(
 				return { id: call.id, ok: false, error: "permission_denied" };
 			}
 			try {
-				const { status, body } = await httpGet(url);
+				const { status, body } = await httpGet(url, call.op === "http.post" ? { body: call.body } : undefined);
 				return { id: call.id, ok: status >= 200 && status < 300, status, body };
 			} catch {
 				return { id: call.id, ok: false, error: "request_failed" };

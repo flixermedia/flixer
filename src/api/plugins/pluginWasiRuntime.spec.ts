@@ -12,6 +12,7 @@ function setup(
 	approvedPermissions = permissions,
 ) {
 	const installation = {
+		pluginId: "flixer.example",
 		enabled,
 		manifest: { targets: { flixer: { entry: "backend.wasm" } }, capabilities, permissions },
 		approvedPermissions,
@@ -218,5 +219,36 @@ describe("PluginWasiRuntime host calls", () => {
 		indexerRequest.mockResolvedValueOnce({ hostCalls: [{ id: "a", op: "fs.read", url: "x" }] });
 
 		await expect(runtime.invoke("flixer.example", "lookup", user, {})).rejects.toThrow(/could not complete/);
+	});
+});
+
+describe("PluginWasiRuntime http.post host calls", () => {
+	it("sends a bounded JSON body for permitted http.post calls and rejects oversize or missing bodies", async () => {
+		const { runtime, indexerRequest } = setup(
+			undefined,
+			true,
+			["api.routes"],
+			["api.routes.lookup", "network.http.api.example.com"],
+		);
+		indexerRequest
+			.mockResolvedValueOnce({
+				hostCalls: [{ id: "a", op: "http.post", url: "https://api.example.com/x", body: "[1]" }],
+			})
+			.mockResolvedValueOnce({ result: 1 });
+		const httpGet = vi.fn(async () => ({ status: 200, body: "ok" }));
+		runtime.httpGet = httpGet;
+
+		await runtime.invoke("flixer.example", "lookup", { id: "u", role: "user" }, {});
+		expect(httpGet).toHaveBeenCalledWith(expect.any(URL), { body: "[1]" });
+
+		for (const bad of [
+			{ id: "a", op: "http.post", url: "https://api.example.com/x" },
+			{ id: "a", op: "http.post", url: "https://api.example.com/x", body: "x".repeat(17 * 1024) },
+		]) {
+			indexerRequest.mockResolvedValueOnce({ hostCalls: [bad] });
+			await expect(runtime.invoke("flixer.example", "lookup", { id: "u", role: "user" }, {})).rejects.toThrow(
+				/could not complete/,
+			);
+		}
 	});
 });

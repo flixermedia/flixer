@@ -51,6 +51,18 @@ export class PluginWasiRuntime {
 			throw new NotFound("Plugin endpoint not found.");
 		}
 
+		return this.execute(installation, operation, user, request);
+	}
+
+	/** Runs an already-authorised operation; callers must have verified enablement, target and permissions. */
+	async execute(
+		installation: PluginInstallation,
+		operation: string,
+		user: { id: string; role: string },
+		request: unknown,
+	): Promise<unknown> {
+		const pluginId = installation.pluginId;
+		const installations = this.dataSource.getRepository(PluginInstallation);
 		const approvedPermissions = new Set(
 			installation.approvedPermissions.filter((permission) =>
 				installation.manifest.permissions.includes(permission),
