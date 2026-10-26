@@ -3,7 +3,13 @@ import type { DataSource } from "typeorm";
 
 vi.mock("../api/social/socialItems.js", () => ({
 	loadSocialItems: vi.fn(async (_source: unknown, ids: string[]) =>
-		ids.map((id) => ({ id, type: id.startsWith("t") ? "track" : id.startsWith("s") ? "series" : "movie", title: `Item ${id}`, raw: {}, album: null })),
+		ids.map((id) => ({
+			id,
+			type: id.startsWith("t") ? "track" : id.startsWith("s") ? "series" : "movie",
+			title: `Item ${id}`,
+			raw: {},
+			album: null,
+		})),
 	),
 	toSocialItem: ({ raw: _raw, album: _album, ...card }: Record<string, unknown>) => card,
 }));
@@ -53,7 +59,9 @@ describe("PartiesService", () => {
 		const { id } = await service.create(person("host"), "m1");
 		await service.control(id, "host", { itemId: "m2", playing: true, position: 0 });
 		expect(service.get(id).item.id).toBe("m2");
-		await expect(service.control(id, "host", { itemId: "t1", playing: true, position: 0 })).rejects.toThrow(/switch/);
+		await expect(service.control(id, "host", { itemId: "t1", playing: true, position: 0 })).rejects.toThrow(
+			/switch/,
+		);
 	});
 
 	it("ends the party for everyone when the host ends it and replaces an older party", async () => {
@@ -82,5 +90,27 @@ describe("PartiesService", () => {
 		const { id } = await service.create(person("Host"), "m1");
 		expect(service.hostedByUsername("host")).toMatchObject({ id, kind: "video", title: "Item m1", memberCount: 1 });
 		expect(service.hostedByUsername("nobody")).toBeNull();
+	});
+
+	it("relays chat to everyone, keeps history, trims text and rate limits", async () => {
+		const service = new PartiesService({} as DataSource);
+		const { id } = await service.create(person("host"), "m1");
+		const hostMessages: PartyMessage[] = [];
+		const guestMessages: PartyMessage[] = [];
+		service.join(id, person("host"), (m) => hostMessages.push(m));
+		service.join(id, person("guest"), (m) => guestMessages.push(m));
+
+		service.chat(id, person("guest"), "  hello \n  there ");
+		expect(hostMessages.at(-1)).toMatchObject({
+			type: "chat",
+			message: { text: "hello there", from: { id: "guest" } },
+		});
+		expect(guestMessages.at(-1)).toMatchObject({ type: "chat" });
+		service.chat(id, person("guest"), "   ");
+		expect(service.chatHistory(id)).toHaveLength(1);
+
+		expect(() => service.chat(id, person("stranger"), "hi")).toThrow(/Join the party/);
+		for (let i = 0; i < 4; i++) service.chat(id, person("guest"), `m${i}`);
+		expect(() => service.chat(id, person("guest"), "too many")).toThrow(/too quickly/);
 	});
 });

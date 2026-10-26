@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@tsed/di";
-import { BadRequest, Forbidden, NotFound } from "@tsed/exceptions";
+import { BadRequest, Forbidden, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
@@ -38,8 +38,22 @@ export interface PartySummary {
 	memberCount: number;
 }
 
+export interface PartyChatMessage {
+	id: string;
+	from: PartyPerson;
+	text: string;
+	at: number;
+}
+
+export const MAX_CHAT_LENGTH = 500;
+const CHAT_HISTORY = 50;
+const CHAT_BURST = 5;
+const CHAT_WINDOW_MS = 5_000;
+
 export type PartyMessage =
 	| { type: "state"; party: PartySnapshot; serverTime: number }
+	| { type: "chat"; message: PartyChatMessage }
+	| { type: "chat-history"; messages: PartyChatMessage[] }
 	| { type: "ended"; reason: "host-ended" | "host-left" };
 
 export interface PartyControl {
@@ -63,13 +77,14 @@ interface Party {
 	at: number;
 	people: Map<string, PartyPerson>;
 	connections: Set<Connection>;
+	chat: PartyChatMessage[];
+	chatTimes: Map<string, number[]>;
 	hostTimer?: NodeJS.Timeout;
 }
 
 /** Keeps watch and listen parties in memory: the host drives playback and everybody else follows. */
 @Injectable()
 export class PartiesService {
-
 	private readonly parties = new Map<string, Party>();
 	private readonly byHost = new Map<string, string>();
 
@@ -91,6 +106,8 @@ export class PartiesService {
 			at: Date.now(),
 			people: new Map([[host.id, host]]),
 			connections: new Set(),
+			chat: [],
+			chatTimes: new Map(),
 		};
 		this.parties.set(party.id, party);
 		this.byHost.set(host.id, party.id);
@@ -105,7 +122,9 @@ export class PartiesService {
 	/** The party this person is currently hosting, for their profile. */
 	hostedBy(userId: string): PartySummary | null {
 		const party = this.parties.get(this.byHost.get(userId) ?? "");
-		return party ? { id: party.id, kind: party.kind, title: party.item.title, memberCount: party.people.size } : null;
+		return party
+			? { id: party.id, kind: party.kind, title: party.item.title, memberCount: party.people.size }
+			: null;
 	}
 
 	hostedByUsername(username: string): PartySummary | null {
@@ -118,7 +137,11 @@ export class PartiesService {
 	}
 
 	/** Adds a live connection and returns a function that removes it. Throws NotFound when the party is over. */
-	join(id: string, person: PartyPerson, send: (message: PartyMessage) => void): { snapshot: PartySnapshot; leave: () => void } {
+	join(
+		id: string,
+		person: PartyPerson,
+		send: (message: PartyMessage) => void,
+	): { snapshot: PartySnapshot; leave: () => void } {
 		const party = this.require(id);
 		if (!party.people.has(person.id) && party.people.size >= MAX_PARTY_MEMBERS) {
 			throw new BadRequest("This party is full.");
@@ -149,9 +172,42 @@ export class PartiesService {
 			party.item = item;
 		}
 		party.playing = control.playing === true;
-		party.position = Number.isFinite(control.position) ? Math.min(Math.max(0, control.position), MAX_POSITION_SECONDS) : 0;
+		party.position = Number.isFinite(control.position)
+			? Math.min(Math.max(0, control.position), MAX_POSITION_SECONDS)
+			: 0;
 		party.at = Date.now();
 		this.broadcast(party);
+	}
+
+	chatHistory(id: string): PartyChatMessage[] {
+		return [...this.require(id).chat];
+	}
+
+	/** Any member can chat; messages are relayed to everyone in the party and the latest few are kept for people who join later. */
+	chat(id: string, person: PartyPerson, rawText: string): void {
+		const party = this.require(id);
+		if (!party.people.has(person.id)) {
+			throw new Forbidden("Join the party to chat.");
+		}
+		const text = rawText.replace(/\s+/g, " ").trim().slice(0, MAX_CHAT_LENGTH);
+		if (text === "") {
+			return;
+		}
+		const now = Date.now();
+		const recent = (party.chatTimes.get(person.id) ?? []).filter((time) => now - time < CHAT_WINDOW_MS);
+		if (recent.length >= CHAT_BURST) {
+			throw new TooManyRequests("You're sending messages too quickly.");
+		}
+		recent.push(now);
+		party.chatTimes.set(person.id, recent);
+		const message: PartyChatMessage = { id: randomBytes(6).toString("base64url"), from: person, text, at: now };
+		party.chat.push(message);
+		if (party.chat.length > CHAT_HISTORY) {
+			party.chat.shift();
+		}
+		for (const connection of party.connections) {
+			connection.send({ type: "chat", message });
+		}
 	}
 
 	endBy(id: string, userId: string): void {

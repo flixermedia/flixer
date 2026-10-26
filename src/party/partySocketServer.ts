@@ -31,12 +31,12 @@ interface Connection {
  * The host sends `{"type":"control","playing":true,"position":12.5,"itemId":"..."}` whenever playback changes and as a heartbeat.
  */
 export class PartySocketServer {
-
 	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
 	private readonly connections = new Map<WebSocket, Connection>();
 	private server?: Server;
 	private heartbeat?: NodeJS.Timeout;
-	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
+	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) =>
+		this.handleUpgrade(request, socket, head);
 
 	constructor(
 		private readonly authenticate: PartyAuthenticator,
@@ -113,10 +113,15 @@ export class PartySocketServer {
 			if (message.type === "join" && typeof message.partyId === "string") {
 				connection.leave?.();
 				connection.leave = undefined;
-				const { snapshot, leave } = this.parties.join(message.partyId, person, (outgoing) => this.send(ws, outgoing));
+				const { snapshot, leave } = this.parties.join(message.partyId, person, (outgoing) =>
+					this.send(ws, outgoing),
+				);
 				connection.leave = leave;
 				connection.partyId = message.partyId;
 				this.send(ws, { type: "state", party: snapshot, serverTime: Date.now() });
+				this.send(ws, { type: "chat-history", messages: this.parties.chatHistory(message.partyId) });
+			} else if (message.type === "chat" && connection.partyId && typeof message.text === "string") {
+				this.parties.chat(connection.partyId, person, message.text);
 			} else if (message.type === "leave") {
 				connection.leave?.();
 				connection.leave = undefined;
@@ -188,12 +193,19 @@ interface ClientMessage {
 function parseMessage(raw: RawData): ClientMessage | null {
 	try {
 		const message = JSON.parse(raw.toString()) as Partial<ClientMessage>;
-		return typeof message === "object" && message !== null && typeof message.type === "string" ? (message as ClientMessage) : null;
+		return typeof message === "object" && message !== null && typeof message.type === "string"
+			? (message as ClientMessage)
+			: null;
 	} catch {
 		return null;
 	}
 }
 
 export function personFrom(user: Awaited<ReturnType<AuthService["getAuthenticatedUser"]>>): PartyPerson {
-	return { id: user.id, username: user.username, displayName: user.displayName || user.username, avatarUrl: user.avatarUrl };
+	return {
+		id: user.id,
+		username: user.username,
+		displayName: user.displayName || user.username,
+		avatarUrl: user.avatarUrl,
+	};
 }
