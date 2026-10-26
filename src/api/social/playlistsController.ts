@@ -61,10 +61,9 @@ export class PlaylistsController {
 	}
 
 	@Post("/:id/items")
-	@Returns(204)
-	async addTrack(@PathParams("id") id: string, @BodyParams() request: PlaylistItemRequest, @HeaderParams("authorization") authorization?: string) {
+	async addItem(@PathParams("id") id: string, @BodyParams() request: PlaylistItemRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		await this.playlists.addTrack(user.id, uuid(id), uuid(request.itemId, "Song"));
+		return this.playlists.addTrack(user.id, uuid(id), uuid(request.itemId, "Song"));
 	}
 
 	@Delete("/:id/items/:itemId")

@@ -117,24 +117,43 @@ export class PlaylistsService {
 		return { ...summary, isOwner, tracks };
 	}
 
-	async addTrack(userId: string, id: string, itemId: string): Promise<void> {
+	/** Adds a song, or every song of an album in disc and track order. Songs already in the playlist are skipped. */
+	async addTrack(userId: string, id: string, itemId: string): Promise<{ added: number }> {
 		await this.requireOwned(userId, id);
 		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
 		if (!item) {
 			throw new NotFound("Media item not found.");
 		}
-		if (item.type !== "track") {
-			throw new BadRequest("Only songs can be added to a playlist.");
+		if (item.type !== "track" && item.type !== "album") {
+			throw new BadRequest("Only songs and albums can be added to a playlist.");
 		}
-		await this.dataSource.transaction(async (manager) => {
+		return this.dataSource.transaction(async (manager) => {
 			// Serialises concurrent adds so positions stay unique and the size cap holds.
 			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
+			const trackIds =
+				item.type === "track"
+					? [itemId]
+					: ((await manager.query(
+							`SELECT id FROM media_items WHERE parent_id = $1 AND type = 'track' AND is_placeholder = false ORDER BY season_number NULLS FIRST, episode_number NULLS LAST, sort_title NULLS LAST, title`,
+							[itemId],
+						)) as Array<{ id: string }>).map((row) => row.id);
+			if (!trackIds.length) {
+				throw new BadRequest("This album has no songs to add.");
+			}
 			const [{ count, next }] = (await manager.query(`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ count: number; next: number }>;
-			if (count >= MAX_TRACKS) {
+			const existing = new Set(((await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ item_id: string }>).map((row) => row.item_id));
+			const fresh = trackIds.filter((trackId) => !existing.has(trackId));
+			if (count + fresh.length > MAX_TRACKS) {
 				throw new BadRequest(`A playlist can hold up to ${MAX_TRACKS} songs.`);
 			}
-			await manager.query(`INSERT INTO playlist_items (playlist_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [id, itemId, next]);
+			if (fresh.length) {
+				await manager.query(
+					`INSERT INTO playlist_items (playlist_id, item_id, position) SELECT $1, v.item_id, $3 + v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) ON CONFLICT DO NOTHING`,
+					[id, fresh, next],
+				);
+			}
 			await manager.query(`UPDATE playlists SET updated_at = now() WHERE id = $1`, [id]);
+			return { added: fresh.length };
 		});
 	}
 

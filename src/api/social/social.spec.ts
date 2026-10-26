@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Playlist } from "../../entities/playlist.entity.js";
 import { FavoritesService } from "./favoritesService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { ProfilesService, isFresh, likePattern, PRESENCE_MS } from "./profilesService.js";
@@ -92,5 +93,44 @@ describe("ProfilesService listening", () => {
 		(source.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce([row]);
 		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService);
 		await expect(service.profile(USER, "sam")).rejects.toThrow(/not found/i);
+	});
+});
+
+describe("PlaylistsService.addTrack with albums", () => {
+	const PLAYLIST = "44444444-4444-4444-8444-444444444444";
+	const T1 = "55555555-5555-4555-8555-555555555551";
+	const T2 = "55555555-5555-4555-8555-555555555552";
+
+	function setup(type: string, albumTracks: string[], existing: string[]) {
+		const inserts: unknown[][] = [];
+		const manager = {
+			query: vi.fn(async (sql: string, params: unknown[] = []): Promise<unknown[]> => {
+				if (sql.includes("FROM media_items")) return albumTracks.map((id) => ({ id }));
+				if (sql.includes("COUNT(*)")) return [{ count: existing.length, next: existing.length }];
+				if (sql.includes("SELECT item_id")) return existing.map((item_id) => ({ item_id }));
+				if (sql.startsWith("INSERT")) inserts.push(params);
+				return [];
+			}),
+		};
+		const repos = new Map<unknown, unknown>([
+			[MediaItem, { findOne: vi.fn(async () => ({ id: TRACK, type })) }],
+			[Playlist, { findOneBy: vi.fn(async () => ({ id: PLAYLIST, userId: USER })) }],
+		]);
+		const source = {
+			getRepository: (entity: unknown) => repos.get(entity) ?? {},
+			transaction: async (work: (m: typeof manager) => unknown) => work(manager),
+		} as unknown as DataSource;
+		return { service: new PlaylistsService(source), inserts };
+	}
+
+	it("adds every song of an album in order and skips ones already present", async () => {
+		const { service, inserts } = setup("album", [T1, T2], [T1]);
+		expect(await service.addTrack(USER, PLAYLIST, TRACK)).toEqual({ added: 1 });
+		expect(inserts[0]).toEqual([PLAYLIST, [T2], 1]);
+	});
+
+	it("rejects an album without songs and items that are neither songs nor albums", async () => {
+		await expect(setup("album", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/no songs/);
+		await expect(setup("movie", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/songs and albums/);
 	});
 });
