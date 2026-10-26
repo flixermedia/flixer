@@ -96,22 +96,6 @@ export class PluginManagerService {
 		clearInterval(this.healthTimer);
 	}
 
-	/** Settings pages contributed by enabled plugins that ship a settings schema. */
-	async adminPages() {
-		const installations = await this.dataSource
-			.getRepository(PluginInstallation)
-			.find({ where: { enabled: true }, order: { pluginId: "ASC" } });
-		return installations.flatMap((installation) =>
-			installation.manifest.settingsSchema
-				? (installation.manifest.ui?.adminPages ?? []).map((page) => ({
-						pluginId: installation.pluginId,
-						pluginName: installation.manifest.name,
-						...page,
-					}))
-				: [],
-		);
-	}
-
 	async listInstalled() {
 		const installations = await this.dataSource
 			.getRepository(PluginInstallation)

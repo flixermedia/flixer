@@ -23,13 +23,6 @@ describe("parsePluginManifest", () => {
 		expect(parsePluginManifest(validManifest)).toEqual(validManifest);
 	});
 
-	it("accepts admin pages and rejects unknown sections", () => {
-		const page = { id: "skipmedb", title: "SkipMe.db", section: "providers" };
-		const ui = { adminPages: [page] };
-		expect(parsePluginManifest({ ...validManifest, ui }).ui).toEqual(ui);
-		expect(() => parsePluginManifest({ ...validManifest, ui: { adminPages: [{ ...page, section: "x" }] } })).toThrow();
-	});
-
 	it.each(["../plugin.wasm", "/plugin.wasm", "backend\\plugin.wasm"])("rejects unsafe entry paths: %s", (entry) => {
 		const manifest = {
 			...validManifest,

@@ -25,12 +25,6 @@ export class PluginsController {
 		return this.plugins.listInstalled();
 	}
 
-	@Get("/admin-pages")
-	async adminPages(@HeaderParams("authorization") authorization?: string) {
-		await this.authService.requireAdmin(authorization);
-		return this.plugins.adminPages();
-	}
-
 	@Get("/repositories")
 	async repositories(@HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
