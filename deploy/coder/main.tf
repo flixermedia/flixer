@@ -11,6 +11,13 @@ terraform {
 
 provider "docker" {}
 
+variable "tailscale_auth_key" {
+  type        = string
+  description = "Optional Tailscale auth key. When set, workspaces join your tailnet as their own nodes."
+  default     = ""
+  sensitive   = true
+}
+
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
@@ -160,6 +167,13 @@ resource "docker_volume" "redis" {
   }
 }
 
+resource "docker_volume" "tailscale" {
+  name = "${local.workspace_name}-${data.coder_workspace.me.id}-tailscale"
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
 resource "docker_container" "postgres" {
   count   = data.coder_workspace.me.start_count
   image   = "postgres:16-alpine"
@@ -248,4 +262,37 @@ resource "docker_container" "workspace" {
   }
 
   depends_on = [docker_container.postgres, docker_container.redis]
+}
+
+resource "docker_container" "tailscale" {
+  count   = data.coder_workspace.me.start_count > 0 && var.tailscale_auth_key != "" ? 1 : 0
+  image   = "tailscale/tailscale:stable"
+  name    = "${local.workspace_name}-tailscale"
+  restart = "unless-stopped"
+
+  network_mode = "container:${docker_container.workspace[0].id}"
+
+  env = [
+    "TS_AUTHKEY=${var.tailscale_auth_key}",
+    "TS_AUTH_ONCE=true",
+    "TS_HOSTNAME=${local.workspace_name}",
+    "TS_STATE_DIR=/var/lib/tailscale",
+    "TS_USERSPACE=false",
+    "TS_EXTRA_ARGS=--accept-dns=false",
+  ]
+
+  capabilities {
+    add = ["NET_ADMIN", "NET_RAW"]
+  }
+
+  devices {
+    host_path      = "/dev/net/tun"
+    container_path = "/dev/net/tun"
+    permissions    = "rwm"
+  }
+
+  volumes {
+    volume_name    = docker_volume.tailscale.name
+    container_path = "/var/lib/tailscale"
+  }
 }

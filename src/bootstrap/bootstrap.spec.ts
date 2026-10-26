@@ -88,6 +88,25 @@ describe("bootstrap", () => {
 			const status = await fetch(`http://127.0.0.1:${port}/api/setup/status`);
 			expect(status.status).toBe(200);
 			expect((await status.json()).state).toBe("not_started");
+			const capacitorStatus = await fetch(`http://127.0.0.1:${port}/api/setup/status`, {
+				headers: { origin: "capacitor://localhost" },
+			});
+			expect(capacitorStatus.headers.get("access-control-allow-origin")).toBe("capacitor://localhost");
+			const preflight = await fetch(`http://127.0.0.1:${port}/api/setup/complete`, {
+				method: "OPTIONS",
+				headers: {
+					origin: "capacitor://localhost",
+					"access-control-request-method": "POST",
+					"access-control-request-headers": "content-type,x-setup-recovery-code",
+				},
+			});
+			expect(preflight.status).toBe(204);
+			expect(preflight.headers.get("access-control-allow-methods")).toContain("POST");
+			expect(preflight.headers.get("access-control-allow-headers")).toBe("content-type,x-setup-recovery-code");
+			const untrustedStatus = await fetch(`http://127.0.0.1:${port}/api/setup/status`, {
+				headers: { origin: "https://untrusted.example" },
+			});
+			expect(untrustedStatus.headers.get("access-control-allow-origin")).toBeNull();
 			expect((await fetch(`http://127.0.0.1:${port}/api/version`)).status).toBe(200);
 			const other = await fetch(`http://127.0.0.1:${port}/api/auth/login`, { method: "POST" });
 			expect(other.status).toBe(503);

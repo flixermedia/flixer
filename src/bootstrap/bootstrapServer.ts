@@ -6,6 +6,7 @@ import { indexerRuntimeConfig, internalConfigPath } from "./internalConfig.js";
 import { handleSetupRequest } from "../setup/setupApi.js";
 import { RECOVERY_CODE_HEADER } from "../setup/recovery.js";
 import { setupStatus } from "./setupStatus.js";
+import { CORS_METHODS, CORS_ORIGINS } from "../cors.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -75,6 +76,22 @@ function send(response: ServerResponse, status: number, body: unknown): void {
 
 /** Routes served before the full application is running. Everything else answers 503 so clients show "unavailable". */
 export async function handleBootstrapRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+	const origin = request.headers.origin;
+	const allowedOrigin = typeof origin === "string" && CORS_ORIGINS.some((allowed) => allowed === origin);
+	if (allowedOrigin) {
+		response.setHeader("access-control-allow-origin", origin);
+		response.setHeader("vary", "Origin");
+	}
+	if (request.method === "OPTIONS" && allowedOrigin) {
+		response.setHeader("access-control-allow-methods", CORS_METHODS.join(", "));
+		const requestedHeaders = request.headers["access-control-request-headers"];
+		if (typeof requestedHeaders === "string") {
+			response.setHeader("access-control-allow-headers", requestedHeaders);
+		}
+		response.writeHead(204);
+		response.end();
+		return;
+	}
 	const path = (request.url ?? "/").split("?")[0].replace(/\/+$/, "") || "/";
 	if (request.method === "GET" && path === "/api/setup/status") {
 		send(response, 200, setupStatus());
