@@ -21,6 +21,13 @@ import "./sentry/sentryErrorFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 
 const fastifyPlugins = [
+	{
+		use: "@fastify/cors",
+		options: {
+			origin: ["https://localhost"],
+			methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		},
+	},
 	"@fastify/accepts",
 	"@fastify/cookie",
 	{
