@@ -1,6 +1,6 @@
 {
 	"name": "flixer",
-	"version": "1.11.0",
+	"version": "1.11.1",
 	"description": "",
 	"scripts": {
 		"build": "npm run barrels && tsed build",
@@ -57,6 +57,7 @@
 		"dotenv-flow": "^4.1.0",
 		"fastify": "^5.12.7",
 		"fastify-raw-body": "^6.0.2",
+		"ipaddr.js": "^2.5.0",
 		"js-yaml": "^5.5.0",
 		"nodemailer": "^10.1.2",
 		"pg": "^8.23.1",
