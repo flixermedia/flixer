@@ -59,16 +59,6 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
 - **Media folder on the Docker host**: optional read-only mount at `/media`. Create libraries from it in the admin dashboard.
   Otherwise use `~/projects/flixer-data/media`. The API, streamer and indexer use
   `DATA_DIR=~/projects/flixer-data` (services inherit it as `DATA_PATH`), so config, avatars, media cache and backups all stay under that root.
-- **Tailscale auth key**: optional sensitive template variable. Set `tailscale_auth_key` under the template's
-  **Settings → Variables** (or during the initial template push). When set, a Tailscale sidecar joins each workspace
-  to your tailnet as its own node and shares that workspace's network namespace. The Tailscale state persists across
-  workspace restarts, and Tailscale DNS does not replace workspace DNS. Create a key with only the access and lifetime
-  you need; the Coder Docker host must provide `/dev/net/tun` and permit the `NET_ADMIN`/`NET_RAW` capabilities.
-  Tailnet ACLs should restrict which devices can reach workspace services.
-
-The variable is marked sensitive in Coder, but the Docker container environment and Terraform state can contain the
-key. Treat access to the Coder deployment and its state as access to this credential.
-
 ## Notes
 
 - The Vite dev server uses a self-signed certificate, so the Coder app points at `https://localhost:5173`.
