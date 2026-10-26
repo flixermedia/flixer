@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm";
 
-export type NotificationKind = "new_media" | "admin" | "request";
+export type NotificationKind = "new_media" | "admin" | "request" | "message";
 
 /** One message in a user's inbox. */
 @Entity("notifications")

@@ -13,6 +13,7 @@ import { Favorite } from "../entities/favorite.entity.js";
 import { Playlist } from "../entities/playlist.entity.js";
 import { PlaylistItem } from "../entities/playlistItem.entity.js";
 import { ListeningHistory } from "../entities/listeningHistory.entity.js";
+import { CreateChat1795500000000 } from "../migrations/createChat1795500000000.js";
 import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
@@ -150,6 +151,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePluginSecrets1795100000000,
 				RestoreCoreRequests1795300000000,
 				CreateSocial1795400000000,
+				CreateChat1795500000000,
 			],
 			synchronize: false,
 			migrationsRun: false,
