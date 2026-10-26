@@ -57,13 +57,38 @@ export class ProfilesService {
 	async directory(query?: string) {
 		const term = query?.trim().slice(0, 64);
 		const rows = (await this.dataSource.query(
-			`SELECT u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
+			`SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file,
+				(SELECT count(*) FROM favorites f WHERE f.user_id = u.id)::int AS favorite_count,
+				(SELECT count(*) FROM playlists p WHERE p.user_id = u.id AND p.is_public = true)::int AS playlist_count,
+				(SELECT count(*) FROM listening_history h WHERE h.user_id = u.id)::int AS play_count
+			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
 			WHERE u.disabled_at IS NULL AND COALESCE(up.profile_hidden, false) = false
 			${term ? `AND (u.username ILIKE $1 ESCAPE '\\' OR u.display_name ILIKE $1 ESCAPE '\\')` : ""}
 			ORDER BY lower(COALESCE(u.display_name, u.username)) LIMIT ${DIRECTORY_LIMIT}`,
 			term ? [likePattern(term)] : [],
-		)) as Array<{ username: string; display_name: string | null; avatar_file: string | null }>;
-		return { profiles: rows.map((row) => ({ username: row.username, displayName: row.display_name ?? row.username, avatarUrl: avatarUrl(row.avatar_file) })) };
+		)) as Array<{
+			id: string;
+			username: string;
+			display_name: string | null;
+			created_at: Date;
+			avatar_file: string | null;
+			favorite_count: number;
+			playlist_count: number;
+			play_count: number;
+		}>;
+		const profiles = await Promise.all(
+			rows.map(async (row) => ({
+				username: row.username,
+				displayName: row.display_name ?? row.username,
+				avatarUrl: avatarUrl(row.avatar_file),
+				joinedAt: row.created_at,
+				favoriteCount: row.favorite_count,
+				playlistCount: row.playlist_count,
+				playCount: row.play_count,
+				nowPlaying: await this.nowPlaying(row.id),
+			})),
+		);
+		return { profiles };
 	}
 
 	async setHidden(userId: string, hidden: boolean): Promise<{ hidden: boolean }> {
