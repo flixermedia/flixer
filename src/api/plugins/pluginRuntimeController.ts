@@ -19,7 +19,7 @@ export class PluginRuntimeController {
 		@BodyParams() body: unknown,
 		@HeaderParams("authorization") authorization?: string,
 	) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
+		const user = await this.authService.getUserFromKeyOrSession(authorization);
 		return this.runtime.invoke(pluginId, operation, { id: user.id, role: user.role }, body);
 	}
 }

@@ -164,6 +164,16 @@ export class AuthService {
 		return authenticated;
 	}
 
+	/** Resolves the caller from either an API key (acting as its owner) or a login session. */
+	async getUserFromKeyOrSession(authorization?: string): Promise<PublicUser> {
+		const token = /^Bearer\s+(\S+)$/i.exec(authorization ?? "")?.[1];
+		if (token && this.apiKeys.isApiKey(token)) {
+			return this.toPublicUser(await this.apiKeys.authenticate(token));
+		}
+
+		return this.getAuthenticatedUser(authorization);
+	}
+
 	async getAuthenticatedUser(authorization?: string): Promise<PublicUser> {
 		const { user } = await this.requireAuthenticatedSession(authorization);
 		return this.toPublicUser(user);
