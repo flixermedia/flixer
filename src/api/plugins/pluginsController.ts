@@ -3,12 +3,12 @@ import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platfor
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
 import {
-	AddPluginRepositoryRequest,
-	InstallPluginRequest,
+	type AddPluginRepositoryRequest,
+	type InstallPluginRequest,
 	PluginCatalogFilter,
 	PluginManagerService,
 } from "./pluginManagerService.js";
-import { PluginSettingsService, PluginSettingsUpdate } from "./pluginSettingsService.js";
+import { PluginSettingsService, type PluginSettingsUpdate } from "./pluginSettingsService.js";
 
 @Controller("/admin/plugins")
 @Security("BearerAuth")
