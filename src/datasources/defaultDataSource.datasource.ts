@@ -29,7 +29,10 @@ import { PluginRepository } from "../entities/pluginRepository.entity.js";
 import { PluginUpdateHistory } from "../entities/pluginUpdateHistory.entity.js";
 import { PluginStorageEntry } from "../entities/pluginStorageEntry.entity.js";
 import { PluginSecret } from "../entities/pluginSecret.entity.js";
-import { DropLegacyRequests1795200000000 } from "../migrations/dropLegacyRequests1795200000000.js";
+import { MediaRequest } from "../entities/mediaRequest.entity.js";
+import { RequestService } from "../entities/requestService.entity.js";
+import { RequestUserLimit } from "../entities/requestUserLimit.entity.js";
+import { RestoreCoreRequests1795300000000 } from "../migrations/restoreCoreRequests1795300000000.js";
 import { CreatePluginSecrets1795100000000 } from "../migrations/createPluginSecrets1795100000000.js";
 import { CreatePluginManager1794800000000 } from "../migrations/createPluginManager1794800000000.js";
 import { CreatePluginUpdateHistory1794900000000 } from "../migrations/createPluginUpdateHistory1794900000000.js";
@@ -96,6 +99,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				PluginInstallation,
 				PluginUpdateHistory,
 				PluginStorageEntry,
+				MediaRequest,
+				RequestService,
+				RequestUserLimit,
 				PluginSecret,
 			],
 			migrations: [
@@ -133,7 +139,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePluginUpdateHistory1794900000000,
 				CreatePluginStorage1795000000000,
 				CreatePluginSecrets1795100000000,
-				DropLegacyRequests1795200000000,
+				RestoreCoreRequests1795300000000,
 			],
 			synchronize: false,
 			migrationsRun: false,
