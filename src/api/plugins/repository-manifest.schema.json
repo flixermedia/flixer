@@ -1,6 +1,6 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://flixer.media/schemas/plugin-repository-v1.json",
+	"$id": "https://flixer.dev/schemas/plugin-repository-v1.json",
 	"type": "object",
 	"additionalProperties": false,
 	"required": ["manifestVersion", "id", "name", "description", "plugins"],

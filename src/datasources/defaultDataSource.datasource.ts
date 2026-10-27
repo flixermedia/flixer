@@ -14,6 +14,7 @@ import { Playlist } from "../entities/playlist.entity.js";
 import { PlaylistItem } from "../entities/playlistItem.entity.js";
 import { ListeningHistory } from "../entities/listeningHistory.entity.js";
 import { CreateChat1795500000000 } from "../migrations/createChat1795500000000.js";
+import { CreateNativePasskeyHandoffs1795600000000 } from "../migrations/createNativePasskeyHandoffs1795600000000.js";
 import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
@@ -53,6 +54,7 @@ import { AddDevicesAndApiKeys1793100000000 } from "../migrations/addDevicesAndAp
 import { AddUserDisabledAt1793200000000 } from "../migrations/addUserDisabledAt1793200000000.js";
 import { PasskeyChallenge } from "../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../entities/passkeyCredential.entity.js";
+import { NativePasskeyHandoff } from "../entities/nativePasskeyHandoff.entity.js";
 import { AddUsername1792190000000 } from "../migrations/addUsername1792190000000.js";
 import { AddUserRole1792190300000 } from "../migrations/addUserRole1792190300000.js";
 import { CreateUserSessions1792191000000 } from "../migrations/createUserSessions1792191000000.js";
@@ -89,6 +91,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				Setting,
 				PasskeyCredential,
 				PasskeyChallenge,
+				NativePasskeyHandoff,
 				UserPreference,
 				ApiKey,
 				MediaLibrary,
@@ -152,6 +155,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				RestoreCoreRequests1795300000000,
 				CreateSocial1795400000000,
 				CreateChat1795500000000,
+				CreateNativePasskeyHandoffs1795600000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

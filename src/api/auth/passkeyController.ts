@@ -5,6 +5,12 @@ import { DeleteAccountRequest } from "./deleteAccountRequest.js";
 import { PasskeySecondFactorRequest } from "./passkeySecondFactorRequest.js";
 import { PasskeyService } from "./passkeyService.js";
 import { PasskeyVerifyRequest } from "./passkeyVerifyRequest.js";
+import {
+	NativePasskeyHandoffExchangeRequest,
+	NativePasskeyHandoffIdRequest,
+	NativePasskeyHandoffStartRequest,
+	NativePasskeyHandoffVerifyRequest,
+} from "./nativePasskeyHandoffRequests.js";
 
 @Controller("/auth/passkeys")
 export class PasskeyController {
@@ -19,13 +25,19 @@ export class PasskeyController {
 
 	@Post("/register/options")
 	@Security("BearerAuth")
-	registrationOptions(@BodyParams() request: DeleteAccountRequest, @HeaderParams("authorization") authorization?: string) {
+	registrationOptions(
+		@BodyParams() request: DeleteAccountRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		return this.passkeyService.createRegistrationOptions(request.password, authorization);
 	}
 
 	@Post("/register/verify")
 	@Security("BearerAuth")
-	registrationVerify(@BodyParams() request: PasskeyVerifyRequest, @HeaderParams("authorization") authorization?: string) {
+	registrationVerify(
+		@BodyParams() request: PasskeyVerifyRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		return this.passkeyService.verifyRegistration(request.response, request.name, authorization);
 	}
 
@@ -49,9 +61,33 @@ export class PasskeyController {
 		return this.passkeyService.verifySecondFactor(request.ticket, request.response);
 	}
 
+	@Post("/native-handoff/start")
+	startNativeHandoff(@BodyParams() request: NativePasskeyHandoffStartRequest) {
+		return this.passkeyService.startNativeHandoff(request.codeChallenge, request.state, request.ticket);
+	}
+
+	@Post("/native-handoff/options")
+	nativeHandoffOptions(@BodyParams() request: NativePasskeyHandoffIdRequest) {
+		return this.passkeyService.createNativeHandoffOptions(request.handoffId);
+	}
+
+	@Post("/native-handoff/verify")
+	verifyNativeHandoff(@BodyParams() request: NativePasskeyHandoffVerifyRequest) {
+		return this.passkeyService.verifyNativeHandoff(request.handoffId, request.response);
+	}
+
+	@Post("/native-handoff/exchange")
+	exchangeNativeHandoff(@BodyParams() request: NativePasskeyHandoffExchangeRequest) {
+		return this.passkeyService.exchangeNativeHandoff(request.code, request.codeVerifier, request.state);
+	}
+
 	@Post("/:passkeyId/delete")
 	@Security("BearerAuth")
-	remove(@PathParams("passkeyId") passkeyId: string, @BodyParams() request: DeleteAccountRequest, @HeaderParams("authorization") authorization?: string) {
+	remove(
+		@PathParams("passkeyId") passkeyId: string,
+		@BodyParams() request: DeleteAccountRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		return this.passkeyService.deletePasskey(passkeyId, request.password, authorization);
 	}
 }

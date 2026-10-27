@@ -10,17 +10,20 @@ import {
 	type PublicKeyCredentialRequestOptionsJSON,
 	type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
-import { randomUUID } from "node:crypto";
-import { DataSource, LessThan } from "typeorm";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { DataSource, IsNull, LessThan, MoreThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PasskeyChallenge, type PasskeyChallengeType } from "../../entities/passkeyChallenge.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
+import { NativePasskeyHandoff } from "../../entities/nativePasskeyHandoff.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { AuthService, type AuthResult } from "./authService.js";
 
 const CHALLENGE_LIFETIME_MS = 5 * 60 * 1000;
+const NATIVE_HANDOFF_LIFETIME_MS = 5 * 60 * 1000;
+const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_PASSKEYS_PER_USER = 20;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -42,7 +45,10 @@ export class PasskeyService {
 		private readonly authService: AuthService,
 	) {}
 
-	async createRegistrationOptions(password: string | undefined, authorization?: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
+	async createRegistrationOptions(
+		password: string | undefined,
+		authorization?: string,
+	): Promise<PublicKeyCredentialCreationOptionsJSON> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		await this.authService.assertPassword(authorization, password);
 		const existing = await this.dataSource.getRepository(PasskeyCredential).findBy({ userId: user.id });
@@ -69,7 +75,11 @@ export class PasskeyService {
 		return options;
 	}
 
-	async verifyRegistration(response: unknown, name: string | undefined, authorization?: string): Promise<PublicPasskey> {
+	async verifyRegistration(
+		response: unknown,
+		name: string | undefined,
+		authorization?: string,
+	): Promise<PublicPasskey> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const registration = response as RegistrationResponseJSON;
 
@@ -116,21 +126,147 @@ export class PasskeyService {
 		return this.toPublicPasskey(saved);
 	}
 
-	async createAuthenticationOptions(): Promise<PublicKeyCredentialRequestOptionsJSON> {
+	async createAuthenticationOptions(
+		expectedUserId: string | null = null,
+	): Promise<PublicKeyCredentialRequestOptionsJSON> {
+		const credentials =
+			expectedUserId === null
+				? []
+				: await this.dataSource.getRepository(PasskeyCredential).findBy({ userId: expectedUserId });
+		if (expectedUserId !== null && credentials.length === 0) {
+			throw new BadRequest("This account has no passkeys.");
+		}
 		const options = await generateAuthenticationOptions({
 			rpID: this.getRelyingPartyId(),
 			userVerification: "preferred",
+			...(expectedUserId !== null && {
+				allowCredentials: credentials.map((credential) => ({
+					id: credential.credentialId,
+					transports: (credential.transports ?? undefined) as never,
+				})),
+			}),
 		});
 
-		await this.storeChallenge(options.challenge, "authentication", null);
+		await this.storeChallenge(options.challenge, "authentication", expectedUserId);
 		return options;
 	}
 
 	async verifyAuthentication(response: unknown, expectedUserId: string | null = null): Promise<AuthResult> {
+		const user = await this.verifyAuthenticationUser(response, expectedUserId);
+		return this.authService.issueAuthResult(user);
+	}
+
+	async startNativeHandoff(
+		codeChallenge: string,
+		state: string,
+		ticket?: string,
+	): Promise<{ handoffId: string; appUrl: string }> {
+		if (!BASE64URL_PATTERN.test(codeChallenge) || codeChallenge.length !== 43) {
+			throw new BadRequest("Invalid native passkey code challenge.");
+		}
+		if (!BASE64URL_PATTERN.test(state) || state.length < 16 || state.length > 64) {
+			throw new BadRequest("Invalid native passkey state.");
+		}
+
+		const userId = ticket ? this.authService.readPasskeyTicket(ticket) : null;
+		const appUrl = appConfig().get("appUrl") || appConfig().get("publicUrl");
+		if (!appUrl) {
+			throw new BadRequest("The server app address is not configured.");
+		}
+		const parsedAppUrl = new URL(appUrl);
+		if (
+			parsedAppUrl.username ||
+			parsedAppUrl.password ||
+			(parsedAppUrl.protocol !== "https:" &&
+				!(
+					parsedAppUrl.protocol === "http:" &&
+					["localhost", "127.0.0.1", "[::1]"].includes(parsedAppUrl.hostname)
+				))
+		) {
+			throw new BadRequest("The server app address must use HTTPS.");
+		}
+
+		const handoffId = randomBytes(32).toString("base64url");
+		const repository = this.dataSource.getRepository(NativePasskeyHandoff);
+		await repository.delete({ expiresAt: LessThan(new Date()) });
+		await repository.save(
+			repository.create({
+				idHash: this.hashHandoffValue(handoffId),
+				codeHash: null,
+				codeChallenge,
+				state,
+				userId,
+				expiresAt: new Date(Date.now() + NATIVE_HANDOFF_LIFETIME_MS),
+			}),
+		);
+		return { handoffId, appUrl: appUrl.replace(/\/+$/, "") };
+	}
+
+	async createNativeHandoffOptions(handoffId: string): Promise<PublicKeyCredentialRequestOptionsJSON> {
+		const handoff = await this.getPendingNativeHandoff(handoffId);
+		return this.createAuthenticationOptions(handoff.userId);
+	}
+
+	async verifyNativeHandoff(handoffId: string, response: unknown): Promise<{ code: string; state: string }> {
+		const handoff = await this.getPendingNativeHandoff(handoffId);
+		const user = await this.verifyAuthenticationUser(response, handoff.userId);
+		const code = randomBytes(32).toString("base64url");
+		const result = await this.dataSource
+			.createQueryBuilder()
+			.update(NativePasskeyHandoff)
+			.set({ codeHash: this.hashHandoffValue(code), userId: user.id })
+			.where("id_hash = :idHash AND code_hash IS NULL AND expires_at > now()", { idHash: handoff.idHash })
+			.execute();
+		if (result.affected !== 1) {
+			throw new Unauthorized("Your passkey sign-in expired. Start again.");
+		}
+		return { code, state: handoff.state };
+	}
+
+	async exchangeNativeHandoff(code: string, codeVerifier: string, state: string): Promise<AuthResult> {
+		if (
+			!BASE64URL_PATTERN.test(code) ||
+			code.length !== 43 ||
+			!BASE64URL_PATTERN.test(codeVerifier) ||
+			codeVerifier.length < 43 ||
+			codeVerifier.length > 128
+		) {
+			throw new Unauthorized("Your passkey sign-in expired. Start again.");
+		}
+		const verifierChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+		const result = await this.dataSource
+			.createQueryBuilder()
+			.delete()
+			.from(NativePasskeyHandoff)
+			.where(
+				"code_hash = :codeHash AND code_challenge = :codeChallenge AND state = :state AND expires_at > now()",
+				{
+					codeHash: this.hashHandoffValue(code),
+					codeChallenge: verifierChallenge,
+					state,
+				},
+			)
+			.returning("user_id")
+			.execute();
+		const rows = result.raw as { user_id: string }[];
+		if (rows.length !== 1 || typeof rows[0].user_id !== "string") {
+			throw new Unauthorized("Your passkey sign-in expired. Start again.");
+		}
+
+		const user = await this.dataSource.getRepository(User).findOneBy({ id: rows[0].user_id });
+		if (!user) {
+			throw new Unauthorized("The account for this passkey no longer exists.");
+		}
+		return this.authService.issueAuthResult(user);
+	}
+
+	private async verifyAuthenticationUser(response: unknown, expectedUserId: string | null): Promise<User> {
 		const authentication = response as AuthenticationResponseJSON;
 		const repository = this.dataSource.getRepository(PasskeyCredential);
 		const credential =
-			typeof authentication?.id === "string" ? await repository.findOneBy({ credentialId: authentication.id }) : null;
+			typeof authentication?.id === "string"
+				? await repository.findOneBy({ credentialId: authentication.id })
+				: null;
 
 		if (!credential || (expectedUserId !== null && credential.userId !== expectedUserId)) {
 			throw new Unauthorized("This passkey is not recognised.");
@@ -166,27 +302,12 @@ export class PasskeyService {
 			throw new Unauthorized("The account for this passkey no longer exists.");
 		}
 
-		return this.authService.issueAuthResult(user);
+		return user;
 	}
 
 	async createSecondFactorOptions(ticket: string): Promise<PublicKeyCredentialRequestOptionsJSON> {
 		const userId = this.authService.readPasskeyTicket(ticket);
-		const credentials = await this.dataSource.getRepository(PasskeyCredential).findBy({ userId });
-		if (credentials.length === 0) {
-			throw new BadRequest("This account has no passkeys.");
-		}
-
-		const options = await generateAuthenticationOptions({
-			rpID: this.getRelyingPartyId(),
-			userVerification: "preferred",
-			allowCredentials: credentials.map((credential) => ({
-				id: credential.credentialId,
-				transports: (credential.transports ?? undefined) as never,
-			})),
-		});
-
-		await this.storeChallenge(options.challenge, "authentication", userId);
-		return options;
+		return this.createAuthenticationOptions(userId);
 	}
 
 	async verifySecondFactor(ticket: string, response: unknown): Promise<AuthResult> {
@@ -204,7 +325,11 @@ export class PasskeyService {
 		return credentials.map((credential) => this.toPublicPasskey(credential));
 	}
 
-	async deletePasskey(passkeyId: string, password: string | undefined, authorization?: string): Promise<{ id: string; deleted: true }> {
+	async deletePasskey(
+		passkeyId: string,
+		password: string | undefined,
+		authorization?: string,
+	): Promise<{ id: string; deleted: true }> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		await this.authService.assertPassword(authorization, password);
 		if (!UUID_PATTERN.test(passkeyId)) {
@@ -247,7 +372,11 @@ export class PasskeyService {
 	}
 
 	// Challenges are single use: deleting the row is what authorises the verification.
-	private async consumeChallenge(challenge: string, type: PasskeyChallengeType, userId: string | null): Promise<boolean> {
+	private async consumeChallenge(
+		challenge: string,
+		type: PasskeyChallengeType,
+		userId: string | null,
+	): Promise<boolean> {
 		const result = await this.dataSource
 			.createQueryBuilder()
 			.delete()
@@ -258,6 +387,25 @@ export class PasskeyService {
 		const rows = result.raw as { user_id: string | null }[];
 
 		return rows.length === 1 && rows[0].user_id === userId;
+	}
+
+	private async getPendingNativeHandoff(handoffId: string): Promise<NativePasskeyHandoff> {
+		if (!BASE64URL_PATTERN.test(handoffId) || handoffId.length !== 43) {
+			throw new Unauthorized("Your passkey sign-in expired. Start again.");
+		}
+		const handoff = await this.dataSource.getRepository(NativePasskeyHandoff).findOneBy({
+			idHash: this.hashHandoffValue(handoffId),
+			expiresAt: MoreThan(new Date()),
+			codeHash: IsNull(),
+		});
+		if (!handoff) {
+			throw new Unauthorized("Your passkey sign-in expired. Start again.");
+		}
+		return handoff;
+	}
+
+	private hashHandoffValue(value: string): string {
+		return createHash("sha256").update(value).digest("hex");
 	}
 
 	private toPublicPasskey(credential: PasskeyCredential): PublicPasskey {
@@ -288,7 +436,9 @@ export class PasskeyService {
 	}
 
 	private getAllowedOrigins(): string[] {
-		const configured = appConfig().get("passkeyOrigins")?.split(",")
+		const configured = appConfig()
+			.get("passkeyOrigins")
+			?.split(",")
 			.map((origin) => origin.trim())
 			.filter(Boolean);
 
