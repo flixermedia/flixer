@@ -105,7 +105,7 @@ resource "coder_app" "web" {
   icon         = "/icon/play.svg"
   url          = "https://localhost:5173"
   subdomain    = true
-  share        = "owner"
+  share        = "public"
 }
 
 resource "coder_app" "docs" {
@@ -115,7 +115,7 @@ resource "coder_app" "docs" {
   icon         = "/icon/markdown.svg"
   url          = "http://localhost:3000"
   subdomain    = true
-  share        = "owner"
+  share        = "public"
 }
 
 module "code-server" {

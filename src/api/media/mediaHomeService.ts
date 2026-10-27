@@ -610,13 +610,13 @@ export class MediaHomeService {
 		if (!url) {
 			throw new NotFound("Image not found.");
 		}
-		return resizeImage(() => this.loadPersonPhoto(url), `person:${url}`, normalizeWidth(width));
+		return resizeImage(() => this.loadPersonPhoto(id.toLowerCase(), url), `person:${url}`, normalizeWidth(width));
 	}
 
 	/** Prefers the indexer's on-disk cache, and goes straight to the provider only when the indexer is unreachable. */
-	private async loadPersonPhoto(url: string): Promise<{ data: Buffer; mime: string }> {
+	private async loadPersonPhoto(id: string, url: string): Promise<{ data: Buffer; mime: string }> {
 		try {
-			return await this.indexer.fetchPersonImage(id.toLowerCase(), url);
+			return await this.indexer.fetchPersonImage(id, url);
 		} catch (error) {
 			if ((error as { status?: number }).status === 503) {
 				return fetchPersonImage(url);
