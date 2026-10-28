@@ -33,7 +33,10 @@
 			"path": "../flixer-data"
 		},
 		{
-			"path": "../flixer-plugins"
+			"path": "../flixer-cloud"
+		},
+		{
+			"path": "../flixer-cloud-api"
 		}
 	]
 }

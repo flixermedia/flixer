@@ -103,7 +103,17 @@ resource "coder_app" "web" {
   slug         = "web"
   display_name = "Flixer"
   icon         = "/icon/play.svg"
-  url          = "https://localhost:5173"
+  url          = "https://localhost:5175"
+  subdomain    = true
+  share        = "public"
+}
+
+resource "coder_app" "cloud" {
+  agent_id     = coder_agent.main.id
+  slug         = "cloud"
+  display_name = "Flixer Cloud"
+  icon         = "/icon/play.svg"
+  url          = "http://localhost:4173"
   subdomain    = true
   share        = "public"
 }

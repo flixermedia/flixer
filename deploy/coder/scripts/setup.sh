@@ -9,8 +9,15 @@ sudo chown "$(id -u):$(id -g)" "$ROOT/flixer-data"
 mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups"
 export PATH="$HOME/bin:$PATH"
 
-for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs; do
-  [ -d "$ROOT/$repo/.git" ] || git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo"
+for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-cloud-api; do
+  if [ ! -d "$ROOT/$repo/.git" ]; then
+    if [ "$repo" = flixer-cloud ]; then
+      git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo" || \
+        echo "Warning: could not clone optional repository $repo; continuing." >&2
+    else
+      git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo"
+    fi
+  fi
 done
 
 # Secrets are generated once and kept in the home volume.
