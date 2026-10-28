@@ -34,9 +34,6 @@
 		},
 		{
 			"path": "../flixer-cloud"
-		},
-		{
-			"path": "../flixer-cloud-api"
 		}
 	]
 }
