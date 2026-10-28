@@ -113,7 +113,7 @@ export class PartySocketServer {
 			if (message.type === "join" && typeof message.partyId === "string") {
 				connection.leave?.();
 				connection.leave = undefined;
-				const { snapshot, leave } = this.parties.join(message.partyId, person, (outgoing) =>
+				const { snapshot, leave } = await this.parties.join(message.partyId, person, (outgoing) =>
 					this.send(ws, outgoing),
 				);
 				connection.leave = leave;

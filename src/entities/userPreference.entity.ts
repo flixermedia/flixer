@@ -7,7 +7,6 @@ import { User } from "./user.entity.js";
  */
 @Entity("user_preferences")
 export class UserPreference {
-
 	@PrimaryColumn({ name: "user_id", type: "uuid" })
 	userId!: string;
 
@@ -24,9 +23,9 @@ export class UserPreference {
 	@Column({ name: "avatar_file", type: "varchar", length: 128, nullable: true })
 	avatarFile!: string | null;
 
-	/** Hidden profiles cannot be opened by other users and their playlists are not listed. */
-	@Column({ name: "profile_hidden", type: "boolean", default: false })
-	profileHidden!: boolean;
+	/** Controls who can discover and view the user's profile. */
+	@Column({ name: "profile_visibility", type: "varchar", length: 16, default: "public" })
+	profileVisibility!: "public" | "hidden" | "friends";
 
 	@UpdateDateColumn({ name: "updated_at", type: "timestamptz" })
 	updatedAt!: Date;

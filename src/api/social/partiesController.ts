@@ -30,13 +30,13 @@ export class PartiesController {
 		if (!AuthService.isUuid(request.itemId)) {
 			throw new NotFound("Media item not found.");
 		}
-		return this.parties.create(personFrom(user), request.itemId.toLowerCase());
+		return this.parties.create(personFrom(user), request.itemId.toLowerCase(), request.visibility ?? "public");
 	}
 
 	@Get("/:id")
 	async get(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
-		await this.authService.getAuthenticatedUser(authorization);
-		return this.parties.get(partyId(id));
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		return this.parties.get(partyId(id), user.id);
 	}
 
 	@Delete("/:id")

@@ -110,12 +110,10 @@ const MESSAGE_SELECT = `SELECT m.id, m.conversation_id, m.kind, m.body, m.create
 
 /** Direct messages and group chats between the people on this server. */
 export type ChatEvent =
-	| { type: "message"; conversationId: string; message: ChatMessage }
-	| { type: "changed"; conversationId: string };
+	{ type: "message"; conversationId: string; message: ChatMessage } | { type: "changed"; conversationId: string };
 
 @Injectable()
 export class ChatService {
-
 	private readonly recentSends = new Map<string, number[]>();
 	private readonly listeners = new Set<(userIds: string[], event: ChatEvent) => void>();
 
@@ -175,7 +173,7 @@ export class ChatService {
 	}
 
 	async startDirect(userId: string, username: string): Promise<ChatConversation> {
-		const [other] = await this.resolve([username]);
+		const [other] = await this.resolve([username], userId);
 		if (other.id === userId) {
 			throw new BadRequest("You can't message yourself.");
 		}
@@ -203,7 +201,7 @@ export class ChatService {
 
 	async createGroup(userId: string, name: unknown, usernames: string[]): Promise<ChatConversation> {
 		const title = cleanName(name);
-		const others = (await this.resolve(usernames)).filter((person) => person.id !== userId);
+		const others = (await this.resolve(usernames, userId)).filter((person) => person.id !== userId);
 		if (others.length === 0) {
 			throw new BadRequest("Pick at least one other person.");
 		}
@@ -249,7 +247,7 @@ export class ChatService {
 		if (member.kind !== "group") {
 			throw new BadRequest("People can only be added to groups.");
 		}
-		const people = await this.resolve(usernames);
+		const people = await this.resolve(usernames, userId);
 		const current = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [
 			id,
 		])) as Array<{ user_id: string }>;
@@ -315,7 +313,11 @@ export class ChatService {
 	}
 
 	/** Messages oldest first. `before` pages back through history, `after` fetches what arrived since. Fetching marks the thread read. */
-	async messages(userId: string, id: string, options: { before?: string; after?: string }): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+	async messages(
+		userId: string,
+		id: string,
+		options: { before?: string; after?: string },
+	): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
 		await this.assertMember(userId, id);
 		const before = this.date(options.before);
 		const after = this.date(options.after);
@@ -359,10 +361,10 @@ export class ChatService {
 			[id, userId],
 		);
 		await this.dataSource
-			.query(
-				`DELETE FROM notifications WHERE user_id = $1 AND kind = 'message' AND url = $2`,
-				[userId, `/chat/${id}`],
-			)
+			.query(`DELETE FROM notifications WHERE user_id = $1 AND kind = 'message' AND url = $2`, [
+				userId,
+				`/chat/${id}`,
+			])
 			.catch(() => undefined);
 		if (announce) {
 			this.publish([userId], { type: "changed", conversationId: id });
@@ -472,7 +474,7 @@ export class ChatService {
 	}
 
 	/** Finds active, visible people by username. Hidden profiles can't be started a chat with. */
-	private async resolve(usernames: string[]): Promise<PersonRow[]> {
+	private async resolve(usernames: string[], viewerId: string): Promise<PersonRow[]> {
 		const names = [...new Set(usernames.map((name) => String(name).trim().toLowerCase()).filter(Boolean))].slice(
 			0,
 			MAX_GROUP_MEMBERS,
@@ -482,8 +484,15 @@ export class ChatService {
 		}
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE lower(u.username) = ANY($1::text[]) AND u.disabled_at IS NULL AND COALESCE(up.profile_hidden, false) = false`,
-			[names],
+			WHERE lower(u.username) = ANY($1::text[]) AND u.disabled_at IS NULL AND (
+				u.id = $2 OR COALESCE(up.profile_visibility, 'public') = 'public'
+				OR (COALESCE(up.profile_visibility, 'public') = 'friends' AND EXISTS (
+					SELECT 1 FROM social_friendships sf
+					WHERE sf.accepted_at IS NOT NULL
+					AND ((sf.user_low_id = $2 AND sf.user_high_id = u.id) OR (sf.user_high_id = $2 AND sf.user_low_id = u.id))
+				))
+			)`,
+			[names, viewerId],
 		)) as PersonRow[];
 		if (rows.length !== names.length) {
 			throw new NotFound("One of those people couldn't be found.");
@@ -496,7 +505,10 @@ export class ChatService {
 			return [];
 		}
 		const [conversations, members, lastMessages, unread] = await Promise.all([
-			this.dataSource.query(`SELECT id, kind, name, last_message_at FROM chat_conversations WHERE id = ANY($1::uuid[])`, [ids]),
+			this.dataSource.query(
+				`SELECT id, kind, name, last_message_at FROM chat_conversations WHERE id = ANY($1::uuid[])`,
+				[ids],
+			),
 			this.dataSource.query(
 				`SELECT m.conversation_id, m.role, u.id, u.username, u.display_name, up.avatar_file
 				FROM chat_members m JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id
@@ -522,8 +534,12 @@ export class ChatService {
 			membersBy.set(row.conversation_id, list);
 		}
 		const lastBy = new Map((lastMessages as MessageRow[]).map((row) => [row.conversation_id, messageOf(row)]));
-		const unreadBy = new Map((unread as Array<{ conversation_id: string; n: number }>).map((row) => [row.conversation_id, row.n]));
-		return (conversations as Array<{ id: string; kind: "direct" | "group"; name: string | null; last_message_at: Date }>)
+		const unreadBy = new Map(
+			(unread as Array<{ conversation_id: string; n: number }>).map((row) => [row.conversation_id, row.n]),
+		);
+		return (
+			conversations as Array<{ id: string; kind: "direct" | "group"; name: string | null; last_message_at: Date }>
+		)
 			.map((row) => ({
 				id: row.id,
 				kind: row.kind,

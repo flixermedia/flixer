@@ -23,7 +23,13 @@ export interface PlaylistSummary {
 	updatedAt: Date;
 }
 
-export type PlaylistTrack = SocialItem & { artist: string | null; album: string | null; albumId: string | null; durationSeconds: number | null; position: number };
+export type PlaylistTrack = SocialItem & {
+	artist: string | null;
+	album: string | null;
+	albumId: string | null;
+	durationSeconds: number | null;
+	position: number;
+};
 
 interface OwnerRow {
 	id: string;
@@ -32,24 +38,31 @@ interface OwnerRow {
 	avatar_file: string | null;
 }
 
-/** Playlists are made of songs only; a playlist is visible to others while it is public and its owner's profile is not hidden. */
+/** Playlists are made of songs only; public playlists follow their owner's profile visibility. */
 @Injectable()
 export class PlaylistsService {
-
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listOwn(userId: string): Promise<PlaylistSummary[]> {
-		const rows = await this.dataSource.getRepository(Playlist).find({ where: { userId }, order: { updatedAt: "DESC" } });
+		const rows = await this.dataSource
+			.getRepository(Playlist)
+			.find({ where: { userId }, order: { updatedAt: "DESC" } });
 		return this.summaries(rows);
 	}
 
 	/** Playlists others may see on a profile: the public ones, or all of them for the owner. */
 	async listForProfile(ownerId: string, includePrivate: boolean): Promise<PlaylistSummary[]> {
-		const rows = await this.dataSource.getRepository(Playlist).find({ where: includePrivate ? { userId: ownerId } : { userId: ownerId, isPublic: true }, order: { updatedAt: "DESC" } });
+		const rows = await this.dataSource.getRepository(Playlist).find({
+			where: includePrivate ? { userId: ownerId } : { userId: ownerId, isPublic: true },
+			order: { updatedAt: "DESC" },
+		});
 		return this.summaries(rows);
 	}
 
-	async create(userId: string, input: { name: string; description?: string | null; isPublic?: boolean }): Promise<PlaylistSummary> {
+	async create(
+		userId: string,
+		input: { name: string; description?: string | null; isPublic?: boolean },
+	): Promise<PlaylistSummary> {
 		const name = input.name?.trim();
 		if (!name || name.length > 100) {
 			throw new BadRequest("Playlist name must be 1 to 100 characters.");
@@ -59,11 +72,17 @@ export class PlaylistsService {
 		if ((await repo.countBy({ userId })) >= MAX_PLAYLISTS) {
 			throw new BadRequest(`You can have up to ${MAX_PLAYLISTS} playlists.`);
 		}
-		const playlist = await repo.save(repo.create({ id: randomUUID(), userId, name, description, isPublic: input.isPublic ?? true }));
+		const playlist = await repo.save(
+			repo.create({ id: randomUUID(), userId, name, description, isPublic: input.isPublic ?? true }),
+		);
 		return (await this.summaries([playlist]))[0];
 	}
 
-	async update(userId: string, id: string, changes: { name?: string; description?: string | null; isPublic?: boolean }): Promise<PlaylistSummary> {
+	async update(
+		userId: string,
+		id: string,
+		changes: { name?: string; description?: string | null; isPublic?: boolean },
+	): Promise<PlaylistSummary> {
 		const repo = this.dataSource.getRepository(Playlist);
 		const playlist = await repo.findOneBy({ id, userId });
 		if (!playlist) {
@@ -97,12 +116,17 @@ export class PlaylistsService {
 			throw new NotFound("Playlist not found.");
 		}
 		const isOwner = playlist.userId === viewerId;
-		if (!isOwner && (!playlist.isPublic || (await this.ownerHidden(playlist.userId)))) {
+		if (!isOwner && (!playlist.isPublic || !(await this.ownerVisible(viewerId, playlist.userId)))) {
 			throw new NotFound("Playlist not found.");
 		}
 
-		const entries = await this.dataSource.getRepository(PlaylistItem).find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
-		const loaded = await loadSocialItems(this.dataSource, entries.map((entry) => entry.itemId));
+		const entries = await this.dataSource
+			.getRepository(PlaylistItem)
+			.find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
+		const loaded = await loadSocialItems(
+			this.dataSource,
+			entries.map((entry) => entry.itemId),
+		);
 		const positions = new Map(entries.map((entry, index) => [entry.itemId, index]));
 		const tracks: PlaylistTrack[] = loaded.map((card) => ({
 			...toSocialItem(card),
@@ -120,7 +144,9 @@ export class PlaylistsService {
 	/** Adds a song, or every song of an album in disc and track order. Songs already in the playlist are skipped. */
 	async addTrack(userId: string, id: string, itemId: string): Promise<{ added: number }> {
 		await this.requireOwned(userId, id);
-		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		const item = await this.dataSource
+			.getRepository(MediaItem)
+			.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
 		if (!item) {
 			throw new NotFound("Media item not found.");
 		}
@@ -133,15 +159,26 @@ export class PlaylistsService {
 			const trackIds =
 				item.type === "track"
 					? [itemId]
-					: ((await manager.query(
-							`SELECT id FROM media_items WHERE parent_id = $1 AND type = 'track' AND is_placeholder = false ORDER BY season_number NULLS FIRST, episode_number NULLS LAST, sort_title NULLS LAST, title`,
-							[itemId],
-						)) as Array<{ id: string }>).map((row) => row.id);
+					: (
+							(await manager.query(
+								`SELECT id FROM media_items WHERE parent_id = $1 AND type = 'track' AND is_placeholder = false ORDER BY season_number NULLS FIRST, episode_number NULLS LAST, sort_title NULLS LAST, title`,
+								[itemId],
+							)) as Array<{ id: string }>
+						).map((row) => row.id);
 			if (!trackIds.length) {
 				throw new BadRequest("This album has no songs to add.");
 			}
-			const [{ count, next }] = (await manager.query(`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ count: number; next: number }>;
-			const existing = new Set(((await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ item_id: string }>).map((row) => row.item_id));
+			const [{ count, next }] = (await manager.query(
+				`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`,
+				[id],
+			)) as Array<{ count: number; next: number }>;
+			const existing = new Set(
+				(
+					(await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{
+						item_id: string;
+					}>
+				).map((row) => row.item_id),
+			);
 			const fresh = trackIds.filter((trackId) => !existing.has(trackId));
 			if (count + fresh.length > MAX_TRACKS) {
 				throw new BadRequest(`A playlist can hold up to ${MAX_TRACKS} songs.`);
@@ -168,9 +205,15 @@ export class PlaylistsService {
 		await this.requireOwned(userId, id);
 		await this.dataSource.transaction(async (manager) => {
 			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
-			const current = (await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ item_id: string }>;
+			const current = (await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [
+				id,
+			])) as Array<{ item_id: string }>;
 			const wanted = new Set(itemIds);
-			if (wanted.size !== itemIds.length || wanted.size !== current.length || current.some((row) => !wanted.has(row.item_id))) {
+			if (
+				wanted.size !== itemIds.length ||
+				wanted.size !== current.length ||
+				current.some((row) => !wanted.has(row.item_id))
+			) {
 				throw new BadRequest("The order must list every song in the playlist exactly once.");
 			}
 			await manager.query(
@@ -206,9 +249,20 @@ export class PlaylistsService {
 		return playlist;
 	}
 
-	private async ownerHidden(ownerId: string): Promise<boolean> {
-		const rows = (await this.dataSource.query(`SELECT profile_hidden FROM user_preferences WHERE user_id = $1`, [ownerId])) as Array<{ profile_hidden: boolean }>;
-		return rows[0]?.profile_hidden === true;
+	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
+		const rows = (await this.dataSource.query(
+			`SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1`,
+			[ownerId],
+		)) as Array<{ visibility: "public" | "hidden" | "friends" }>;
+		const visibility = rows[0]?.visibility ?? "public";
+		if (visibility === "public" || viewerId === ownerId) return true;
+		if (visibility === "hidden") return false;
+		const friendship = (await this.dataSource.query(
+			`SELECT 1 FROM social_friendships WHERE accepted_at IS NOT NULL
+			AND ((user_low_id = $1 AND user_high_id = $2) OR (user_low_id = $2 AND user_high_id = $1))`,
+			[viewerId, ownerId],
+		)) as unknown[];
+		return friendship.length > 0;
 	}
 
 	/** Song counts, total length, cover and owner for a set of playlists, using a handful of queries however many there are. */
@@ -237,7 +291,10 @@ export class PlaylistsService {
 			) as Promise<OwnerRow[]>,
 		]);
 
-		const cards = await loadSocialItems(this.dataSource, firsts.map((row) => row.item_id));
+		const cards = await loadSocialItems(
+			this.dataSource,
+			firsts.map((row) => row.item_id),
+		);
 		const coverByItem = new Map(cards.map((card) => [card.id, card]));
 		const statByPlaylist = new Map(stats.map((row) => [row.playlist_id, row]));
 		const firstByPlaylist = new Map(firsts.map((row) => [row.playlist_id, row.item_id]));
@@ -254,7 +311,10 @@ export class PlaylistsService {
 				isPublic: playlist.isPublic,
 				trackCount: stat?.n ?? 0,
 				durationSeconds: Math.round(stat?.dur ?? 0),
-				cover: first && first.imageIndex !== null ? { itemId: first.imageItemId, index: first.imageIndex, updatedAt: first.imageUpdatedAt } : null,
+				cover:
+					first && first.imageIndex !== null
+						? { itemId: first.imageItemId, index: first.imageIndex, updatedAt: first.imageUpdatedAt }
+						: null,
 				owner: {
 					username: owner?.username ?? "",
 					displayName: owner?.display_name ?? owner?.username ?? "",

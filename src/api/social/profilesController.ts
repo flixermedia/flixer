@@ -7,7 +7,7 @@ import { PartiesService } from "../../party/partiesService.js";
 import { ProfilesService } from "./profilesService.js";
 import { ListeningReportRequest, UpdateProfileVisibilityRequest } from "./socialRequests.js";
 
-/** Public profiles of the people on this server. Hidden profiles are only visible to their owner. */
+/** Profiles visible according to each user's privacy setting. */
 @Controller("/profiles")
 @Security("BearerAuth")
 export class ProfilesController {
@@ -19,8 +19,8 @@ export class ProfilesController {
 
 	@Get("/")
 	async directory(@QueryParams("q") q?: string, @HeaderParams("authorization") authorization?: string) {
-		await this.authService.getAuthenticatedUser(authorization);
-		return this.profiles.directory(typeof q === "string" ? q : undefined);
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		return this.profiles.directory(user.id, typeof q === "string" ? q : undefined);
 	}
 
 	@Get("/me")
@@ -35,7 +35,7 @@ export class ProfilesController {
 		@HeaderParams("authorization") authorization?: string,
 	) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.profiles.setHidden(user.id, request.hidden === true);
+		return this.profiles.setVisibility(user.id, request.visibility);
 	}
 
 	@Post("/me/listening")
@@ -58,6 +58,6 @@ export class ProfilesController {
 	async get(@PathParams("username") username: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const profile = await this.profiles.profile(user.id, username);
-		return { ...profile, party: this.parties.hostedByUsername(profile.username) };
+		return { ...profile, party: await this.parties.hostedByUsername(profile.username, user.id) };
 	}
 }

@@ -3,6 +3,7 @@ import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { FavoritesService } from "./favoritesService.js";
+import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { ProfilesService, isFresh, likePattern, PRESENCE_MS } from "./profilesService.js";
 import { artistOf, durationOf, imageIndexOf } from "./socialItems.js";
@@ -33,13 +34,20 @@ describe("social helpers", () => {
 	});
 
 	it("picks the first downloaded image of the preferred types", () => {
-		const images = [{ type: "backdrop", path: "" }, { type: "backdrop", path: "b.jpg" }, { type: "poster", path: "p.jpg" }];
+		const images = [
+			{ type: "backdrop", path: "" },
+			{ type: "backdrop", path: "b.jpg" },
+			{ type: "poster", path: "p.jpg" },
+		];
 		expect(imageIndexOf(images, ["poster", "backdrop"])).toBe(2);
 		expect(imageIndexOf(images, ["thumb"])).toBeNull();
 	});
 
 	it("reads artist and duration from metadata", () => {
-		const item = { metadata: { albumArtist: " Coldplay " }, technical: { duration: 214.6 } } as unknown as MediaItem;
+		const item = {
+			metadata: { albumArtist: " Coldplay " },
+			technical: { duration: 214.6 },
+		} as unknown as MediaItem;
 		expect(artistOf(item)).toBe("Coldplay");
 		expect(durationOf(item)).toBe(215);
 	});
@@ -60,7 +68,12 @@ describe("FavoritesService", () => {
 describe("ProfilesService listening", () => {
 	function setup(item: Partial<MediaItem> | null = { id: TRACK, type: "track" }) {
 		const { source, query } = dataSource({ item });
-		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService);
+		const service = new ProfilesService(
+			source,
+			{} as FavoritesService,
+			{} as PlaylistsService,
+			{} as FriendsService,
+		);
 		return { service, query };
 	}
 
@@ -84,14 +97,28 @@ describe("ProfilesService listening", () => {
 		await service.reportListening(USER, TRACK, "playing");
 		await service.reportListening(OTHER, TRACK, "playing");
 		expect(query).toHaveBeenCalledTimes(2);
-		await expect(setup({ id: TRACK, type: "movie" }).service.reportListening(USER, TRACK, "playing")).rejects.toThrow(/not found/i);
+		await expect(
+			setup({ id: TRACK, type: "movie" }).service.reportListening(USER, TRACK, "playing"),
+		).rejects.toThrow(/not found/i);
 	});
 
 	it("hides a hidden profile from everyone but its owner", async () => {
 		const { source } = dataSource();
-		const row = { id: OTHER, username: "sam", display_name: null, created_at: new Date(), avatar_file: null, hidden: true };
+		const row = {
+			id: OTHER,
+			username: "sam",
+			display_name: null,
+			created_at: new Date(),
+			avatar_file: null,
+			visibility: "hidden" as const,
+		};
 		(source.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce([row]);
-		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService);
+		const service = new ProfilesService(
+			source,
+			{} as FavoritesService,
+			{} as PlaylistsService,
+			{} as FriendsService,
+		);
 		await expect(service.profile(USER, "sam")).rejects.toThrow(/not found/i);
 	});
 });
@@ -131,6 +158,8 @@ describe("PlaylistsService.addTrack with albums", () => {
 
 	it("rejects an album without songs and items that are neither songs nor albums", async () => {
 		await expect(setup("album", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/no songs/);
-		await expect(setup("movie", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/songs and albums/);
+		await expect(setup("movie", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(
+			/songs and albums/,
+		);
 	});
 });

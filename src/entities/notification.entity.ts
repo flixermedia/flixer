@@ -1,12 +1,11 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm";
 
-export type NotificationKind = "new_media" | "admin" | "request" | "message";
+export type NotificationKind = "new_media" | "admin" | "request" | "message" | "friend_request";
 
 /** One message in a user's inbox. */
 @Entity("notifications")
 @Index("idx_notifications_user_created", ["userId", "createdAt"])
 export class Notification {
-
 	@PrimaryColumn("uuid")
 	id!: string;
 

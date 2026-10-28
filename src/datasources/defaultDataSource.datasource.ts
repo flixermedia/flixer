@@ -15,6 +15,9 @@ import { PlaylistItem } from "../entities/playlistItem.entity.js";
 import { ListeningHistory } from "../entities/listeningHistory.entity.js";
 import { CreateChat1795500000000 } from "../migrations/createChat1795500000000.js";
 import { CreateNativePasskeyHandoffs1795600000000 } from "../migrations/createNativePasskeyHandoffs1795600000000.js";
+import { AddFriendshipsAndProfileVisibility1795700000000 } from "../migrations/addFriendshipsAndProfileVisibility1795700000000.js";
+import { AddFriendInviteTokens1795800000000 } from "../migrations/addFriendInviteTokens1795800000000.js";
+import { CreateSocialFriendInvites1795900000000 } from "../migrations/createSocialFriendInvites1795900000000.js";
 import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
@@ -156,6 +159,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateSocial1795400000000,
 				CreateChat1795500000000,
 				CreateNativePasskeyHandoffs1795600000000,
+				AddFriendshipsAndProfileVisibility1795700000000,
+				AddFriendInviteTokens1795800000000,
+				CreateSocialFriendInvites1795900000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

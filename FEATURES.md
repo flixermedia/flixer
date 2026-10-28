@@ -82,6 +82,13 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Web Push: VAPID key, subscription and unsubscription, and a status endpoint.
 - Admin settings for enabling notifications and new-media notifications.
 
+### Social profiles
+
+- Friend requests, acceptance, cancellation and removal between users on the same server.
+- Profile visibility can be public, friends-only or hidden; directory, profile and playlist access follow that setting.
+- Profile sharing creates configurable friend-invite links (one-time by default, unlimited or expiring by choice) that expose only a limited identity preview; accepting the invite immediately creates the friendship, including for restricted profiles.
+- Watch and listen parties have separate public, friends-only or private invite-link visibility; friends-only access is enforced by the API.
+
 ### Requests
 
 - Optional Jellyseerr-style request system, off by default and configured entirely from the admin dashboard.
@@ -115,6 +122,8 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Search with type and genre filters, also with infinite scroll.
 - Item pages for movies, series, seasons, episodes, albums and tracks.
 - Person pages.
+- People directory and profiles with friend requests, friend management and profile sharing.
+- Watch and listen party creation with public, friends-only or private invite-link visibility.
 - Settings, and an admin dashboard with an activity page.
 - Mobile tab bar and an offline banner.
 
@@ -141,6 +150,7 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 ### Account settings
 
 - Profile, avatar, password and language.
+- Profile visibility controls and incoming, outgoing and accepted friend lists.
 - Passkeys: add, list, remove and mark as required.
 - Dark, light and automatic themes.
 - Server information.

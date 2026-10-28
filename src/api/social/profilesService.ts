@@ -5,6 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { FavoritesService } from "./favoritesService.js";
+import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
@@ -20,7 +21,7 @@ interface UserRow {
 	display_name: string | null;
 	created_at: Date;
 	avatar_file: string | null;
-	hidden: boolean;
+	visibility: "public" | "hidden" | "friends";
 }
 
 export interface NowPlaying {
@@ -44,7 +45,6 @@ export function likePattern(term: string): string {
 
 @Injectable()
 export class ProfilesService {
-
 	/** What each user is playing right now. Short-lived by design, so it is kept in memory. */
 	private readonly listening = new Map<string, { itemId: string; at: number; position: number }>();
 
@@ -52,9 +52,10 @@ export class ProfilesService {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly favorites: FavoritesService,
 		private readonly playlists: PlaylistsService,
+		private readonly friends: FriendsService,
 	) {}
 
-	async directory(query?: string) {
+	async directory(viewerId: string, query?: string) {
 		const term = query?.trim().slice(0, 64);
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file,
@@ -62,10 +63,17 @@ export class ProfilesService {
 				(SELECT count(*) FROM playlists p WHERE p.user_id = u.id AND p.is_public = true)::int AS playlist_count,
 				(SELECT COALESCE(SUM(h.play_count), 0) FROM listening_history h WHERE h.user_id = u.id)::int AS play_count
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE u.disabled_at IS NULL AND COALESCE(up.profile_hidden, false) = false
-			${term ? `AND (u.username ILIKE $1 ESCAPE '\\' OR u.display_name ILIKE $1 ESCAPE '\\')` : ""}
+			WHERE u.disabled_at IS NULL AND (
+				COALESCE(up.profile_visibility, 'public') = 'public'
+				OR (COALESCE(up.profile_visibility, 'public') = 'friends' AND EXISTS (
+					SELECT 1 FROM social_friendships sf
+					WHERE sf.accepted_at IS NOT NULL
+					AND ((sf.user_low_id = $1 AND sf.user_high_id = u.id) OR (sf.user_high_id = $1 AND sf.user_low_id = u.id))
+				))
+			)
+			${term ? `AND (u.username ILIKE $2 ESCAPE '\\' OR u.display_name ILIKE $2 ESCAPE '\\')` : ""}
 			ORDER BY lower(COALESCE(u.display_name, u.username)) LIMIT ${DIRECTORY_LIMIT}`,
-			term ? [likePattern(term)] : [],
+			term ? [viewerId, likePattern(term)] : [viewerId],
 		)) as Array<{
 			id: string;
 			username: string;
@@ -91,18 +99,28 @@ export class ProfilesService {
 		return { profiles };
 	}
 
-	async setHidden(userId: string, hidden: boolean): Promise<{ hidden: boolean }> {
-		await this.dataSource.getRepository(UserPreference).upsert({ userId, profileHidden: hidden }, ["userId"]);
-		return { hidden };
+	async setVisibility(userId: string, visibility: "public" | "hidden" | "friends") {
+		await this.dataSource
+			.getRepository(UserPreference)
+			.upsert({ userId, profileVisibility: visibility }, ["userId"]);
+		return { visibility };
 	}
 
-	/** A hidden profile looks the same as a missing one to everybody but its owner. */
+	/** Profiles outside a user's visibility scope look the same as missing profiles. */
 	async profile(viewerId: string, username: string) {
 		const user = await this.findUser(username);
-		if (!user || (user.hidden && user.id !== viewerId)) {
+		if (!user) {
 			throw new NotFound("Profile not found.");
 		}
-		return this.build(user, user.id === viewerId);
+		const isSelf = user.id === viewerId;
+		if (!isSelf && user.visibility === "hidden") {
+			throw new NotFound("Profile not found.");
+		}
+		const isFriend = isSelf || (await this.friends.areFriends(viewerId, user.id));
+		if (!isSelf && user.visibility === "friends" && !isFriend) {
+			throw new NotFound("Profile not found.");
+		}
+		return this.build(user, viewerId, isSelf, isFriend);
 	}
 
 	async ownProfile(viewerId: string) {
@@ -110,18 +128,25 @@ export class ProfilesService {
 		if (!rows[0]) {
 			throw new NotFound("Profile not found.");
 		}
-		return this.build(rows[0], true);
+		return this.build(rows[0], viewerId, true, true);
 	}
 
 	/** Records that the user started, continued or stopped playing a song. */
-	async reportListening(userId: string, itemId: string, state: "playing" | "stopped", positionSeconds = 0): Promise<void> {
+	async reportListening(
+		userId: string,
+		itemId: string,
+		state: "playing" | "stopped",
+		positionSeconds = 0,
+	): Promise<void> {
 		if (state === "stopped") {
 			if (this.listening.get(userId)?.itemId === itemId) {
 				this.listening.delete(userId);
 			}
 			return;
 		}
-		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		const item = await this.dataSource
+			.getRepository(MediaItem)
+			.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
 		if (!item || item.type !== "track") {
 			throw new NotFound("Song not found.");
 		}
@@ -138,16 +163,18 @@ export class ProfilesService {
 	}
 
 	private userSql(where: string): string {
-		return `SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file, COALESCE(up.profile_hidden, false) AS hidden
+		return `SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file, COALESCE(up.profile_visibility, 'public') AS visibility
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE ${where} AND u.disabled_at IS NULL`;
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
-		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [username.slice(0, 64)])) as UserRow[];
+		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [
+			username.slice(0, 64),
+		])) as UserRow[];
 		return rows[0];
 	}
 
-	private async build(user: UserRow, isSelf: boolean) {
+	private async build(user: UserRow, viewerId: string, isSelf: boolean, isFriend: boolean) {
 		const [nowPlaying, recentlyWatched, recentlyListened, favorites, playlists] = await Promise.all([
 			this.nowPlaying(user.id),
 			this.recentlyWatched(user.id),
@@ -161,7 +188,10 @@ export class ProfilesService {
 			avatarUrl: avatarUrl(user.avatar_file),
 			joinedAt: user.created_at,
 			isSelf,
-			hidden: user.hidden,
+			hidden: user.visibility === "hidden",
+			visibility: user.visibility,
+			friendship: await this.friends.status(viewerId, user.id),
+			isFriend,
 			nowPlaying,
 			recentlyWatched,
 			recentlyListened,
@@ -193,8 +223,18 @@ export class ProfilesService {
 			return null;
 		}
 		return watching
-			? { kind: "watching", item: toSocialItem(card), positionSeconds: progress.position_seconds, durationSeconds: progress.duration_seconds > 0 ? progress.duration_seconds : null }
-			: { kind: "listening", item: toSocialItem(card), positionSeconds: fresh?.position ?? 0, durationSeconds: null };
+			? {
+					kind: "watching",
+					item: toSocialItem(card),
+					positionSeconds: progress.position_seconds,
+					durationSeconds: progress.duration_seconds > 0 ? progress.duration_seconds : null,
+				}
+			: {
+					kind: "listening",
+					item: toSocialItem(card),
+					positionSeconds: fresh?.position ?? 0,
+					durationSeconds: null,
+				};
 	}
 
 	private async recentlyWatched(userId: string): Promise<SocialItem[]> {
@@ -203,16 +243,27 @@ export class ProfilesService {
 			WHERE w.user_id = $1 AND m.type IN ('movie', 'episode', 'video') ORDER BY w.updated_at DESC LIMIT $2`,
 			[userId, RECENT_LIMIT],
 		)) as Array<{ item_id: string; updated_at: Date }>;
-		const cards = await loadSocialItems(this.dataSource, rows.map((row) => row.item_id), new Map(rows.map((row) => [row.item_id, row.updated_at])));
+		const cards = await loadSocialItems(
+			this.dataSource,
+			rows.map((row) => row.item_id),
+			new Map(rows.map((row) => [row.item_id, row.updated_at])),
+		);
 		return cards.map(toSocialItem);
 	}
 
 	private async recentlyListened(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(`SELECT item_id, played_at FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC LIMIT $2`, [userId, RECENT_LIMIT])) as Array<{
+		const rows = (await this.dataSource.query(
+			`SELECT item_id, played_at FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC LIMIT $2`,
+			[userId, RECENT_LIMIT],
+		)) as Array<{
 			item_id: string;
 			played_at: Date;
 		}>;
-		const cards = await loadSocialItems(this.dataSource, rows.map((row) => row.item_id), new Map(rows.map((row) => [row.item_id, row.played_at])));
+		const cards = await loadSocialItems(
+			this.dataSource,
+			rows.map((row) => row.item_id),
+			new Map(rows.map((row) => [row.item_id, row.played_at])),
+		);
 		return cards.map(toSocialItem);
 	}
 }

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { loadSocialItems, toSocialItem, type SocialItem } from "../api/social/socialItems.js";
+import { FriendsService } from "../api/social/friendsService.js";
 
 export const PARTY_TYPES = ["movie", "episode", "video", "track"] as const;
 export const MAX_PARTY_MEMBERS = 50;
@@ -21,6 +22,7 @@ export interface PartyPerson {
 export interface PartySnapshot {
 	id: string;
 	kind: "video" | "music";
+	visibility: "public" | "friends" | "private";
 	host: PartyPerson;
 	item: SocialItem;
 	playing: boolean;
@@ -70,6 +72,7 @@ interface Connection {
 interface Party {
 	id: string;
 	kind: "video" | "music";
+	visibility: "public" | "friends" | "private";
 	host: PartyPerson;
 	item: SocialItem;
 	playing: boolean;
@@ -88,9 +91,16 @@ export class PartiesService {
 	private readonly parties = new Map<string, Party>();
 	private readonly byHost = new Map<string, string>();
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly friends: FriendsService,
+	) {}
 
-	async create(host: PartyPerson, itemId: string): Promise<PartySnapshot> {
+	async create(
+		host: PartyPerson,
+		itemId: string,
+		visibility: "public" | "friends" | "private" = "public",
+	): Promise<PartySnapshot> {
 		const item = await this.loadItem(itemId);
 		const existing = this.byHost.get(host.id);
 		if (existing) {
@@ -99,6 +109,7 @@ export class PartiesService {
 		const party: Party = {
 			id: randomBytes(6).toString("base64url"),
 			kind: item.type === "track" ? "music" : "video",
+			visibility,
 			host,
 			item,
 			playing: false,
@@ -115,34 +126,44 @@ export class PartiesService {
 		return this.snapshot(party);
 	}
 
-	get(id: string): PartySnapshot {
-		return this.snapshot(this.require(id));
+	async get(id: string, viewerId: string): Promise<PartySnapshot> {
+		const party = this.require(id);
+		await this.requireAccess(party, viewerId, true);
+		return this.snapshot(party);
 	}
 
 	/** The party this person is currently hosting, for their profile. */
 	hostedBy(userId: string): PartySummary | null {
 		const party = this.parties.get(this.byHost.get(userId) ?? "");
-		return party
+		return party && party.visibility === "public"
 			? { id: party.id, kind: party.kind, title: party.item.title, memberCount: party.people.size }
 			: null;
 	}
 
-	hostedByUsername(username: string): PartySummary | null {
+	async hostedByUsername(username: string, viewerId: string): Promise<PartySummary | null> {
 		for (const party of this.parties.values()) {
 			if (party.host.username.toLowerCase() === username.toLowerCase()) {
-				return this.hostedBy(party.host.id);
+				if (party.visibility === "private") return null;
+				if (
+					party.visibility === "friends" &&
+					viewerId !== party.host.id &&
+					!(await this.friends.areFriends(viewerId, party.host.id))
+				)
+					return null;
+				return { id: party.id, kind: party.kind, title: party.item.title, memberCount: party.people.size };
 			}
 		}
 		return null;
 	}
 
 	/** Adds a live connection and returns a function that removes it. Throws NotFound when the party is over. */
-	join(
+	async join(
 		id: string,
 		person: PartyPerson,
 		send: (message: PartyMessage) => void,
-	): { snapshot: PartySnapshot; leave: () => void } {
+	): Promise<{ snapshot: PartySnapshot; leave: () => void }> {
 		const party = this.require(id);
+		await this.requireAccess(party, person.id, true);
 		if (!party.people.has(person.id) && party.people.size >= MAX_PARTY_MEMBERS) {
 			throw new BadRequest("This party is full.");
 		}
@@ -266,6 +287,7 @@ export class PartiesService {
 		return {
 			id: party.id,
 			kind: party.kind,
+			visibility: party.visibility,
 			host: party.host,
 			item: party.item,
 			playing: party.playing,
@@ -281,6 +303,17 @@ export class PartiesService {
 			throw new NotFound("This party has ended.");
 		}
 		return party;
+	}
+
+	private async requireAccess(party: Party, viewerId: string, allowPrivateLink: boolean): Promise<void> {
+		if (
+			party.host.id === viewerId ||
+			party.visibility === "public" ||
+			(allowPrivateLink && party.visibility === "private")
+		)
+			return;
+		if (party.visibility === "friends" && (await this.friends.areFriends(viewerId, party.host.id))) return;
+		throw new NotFound("This party is not available.");
 	}
 
 	private async loadItem(itemId: string): Promise<SocialItem> {

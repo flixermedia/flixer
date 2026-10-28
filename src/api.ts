@@ -34,6 +34,7 @@ export { PlaylistsController } from "./api/social/playlistsController.js";
 export { PartiesController } from "./api/social/partiesController.js";
 export { ChatController } from "./chat/chatController.js";
 export { ProfilesController } from "./api/social/profilesController.js";
+export { FriendsController } from "./api/social/friendsController.js";
 export { ThemesController } from "./api/themes/themesController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";
 export { AdminBackupsController, BackupDownloadController } from "./api/backups/backupsController.js";
