@@ -26,6 +26,7 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY processes.config.cjs ./
 COPY resources ./resources
+COPY deploy/proxy/nginx.conf ./resources/nginx.conf
 
 # Named volumes copy this ownership on first use, so the node user can write settings and the shared secret.
 RUN mkdir -p /var/lib/flixer/config /run/flixer-secrets /data/backups && chown -R node:node "$WORKDIR" /var/lib/flixer /run/flixer-secrets /data/backups

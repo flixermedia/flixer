@@ -59,7 +59,7 @@ docker compose up -d
 
 ## ⚙️ Configuration and operations
 
-- `DATA_DIR` is required for persisted settings, PostgreSQL data, logs, caches, avatars and backups.
+- `DATA_DIR` is required for persisted settings, PostgreSQL data, logs, caches, avatars, backups and the bundled Nginx config.
 - The onboarding wizard stores settings in SQLite; explicitly supplied environment values take precedence.
 - PostgreSQL provides application data; Redis supports supporting services.
 - Only the reverse proxy should be published to the host by the bundled stack.
