@@ -33,6 +33,7 @@ Then create a workspace from `flixer-dev`. On every start it clones the five rep
 in each (random `JWT_SECRET`/`APP_SECRET`, wired to the local Postgres/Redis), runs `npm ci` / `go mod download`
 when needed and starts the services. Existing `.env` files are never overwritten, so add provider keys
 (`TMDB_API_KEY`, `DISCOGS_TOKEN`, ...) there.
+The startup script also repairs ownership of `~/projects` and `~/projects/flixer-data` on persistent volumes.
 
 Open the **Flixer** app in the workspace page. Manage services from the terminal:
 

@@ -4,7 +4,9 @@
 set -euo pipefail
 
 ROOT="$HOME/projects"
-mkdir -p "$ROOT/flixer-data" "$HOME/bin" "$HOME/logs"
+mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs"
+sudo chown "$(id -u):$(id -g)" "$ROOT"
+mkdir -p "$ROOT/flixer-data"
 sudo chown "$(id -u):$(id -g)" "$ROOT/flixer-data"
 mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups"
 export PATH="$HOME/bin:$PATH"
