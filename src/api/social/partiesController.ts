@@ -43,6 +43,6 @@ export class PartiesController {
 	@Returns(204)
 	async end(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		this.parties.endBy(partyId(id), user.id);
+		await this.parties.endBy(partyId(id), user.id);
 	}
 }

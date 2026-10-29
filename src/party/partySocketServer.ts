@@ -19,16 +19,15 @@ interface Connection {
 	authenticated: boolean;
 	person?: PartyPerson;
 	partyId?: string;
-	leave?: () => void;
+	leave?: () => Promise<void>;
+	renew?: () => Promise<void>;
 	alive: boolean;
 }
 
 /**
  * Carries party state over one WebSocket per client.
  *
- * Protocol: `{"type":"auth","token":"..."}` first, then `{"type":"join","partyId":"..."}`. The server answers with
- * `{"type":"state","party":...,"serverTime":...}` on every change and `{"type":"ended"}` when the party is over.
- * The host sends `{"type":"control","playing":true,"position":12.5,"itemId":"..."}` whenever playback changes and as a heartbeat.
+ * The host sends playback commands; Redis commits the canonical timeline and fans the versioned state out to members.
  */
 export class PartySocketServer {
 	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
@@ -88,7 +87,7 @@ export class PartySocketServer {
 		ws.on("error", () => ws.terminate());
 		ws.on("close", () => {
 			clearTimeout(authTimer);
-			connection.leave?.();
+			if (connection.leave) void connection.leave();
 			this.connections.delete(ws);
 		});
 	}
@@ -110,30 +109,73 @@ export class PartySocketServer {
 		}
 
 		try {
-			if (message.type === "join" && typeof message.partyId === "string") {
-				connection.leave?.();
+			if (message.type === "time-ping" && typeof message.requestId === "string") {
+				const serverReceivedAt = await this.parties.serverTime();
+				const serverSentAt = await this.parties.serverTime();
+				this.send(ws, { type: "time-pong", requestId: message.requestId, serverReceivedAt, serverSentAt });
+			} else if (message.type === "join" && typeof message.partyId === "string") {
+				if (connection.leave) await connection.leave();
 				connection.leave = undefined;
-				const { snapshot, leave } = await this.parties.join(message.partyId, person, (outgoing) =>
-					this.send(ws, outgoing),
+				connection.renew = undefined;
+				connection.partyId = undefined;
+				const { snapshot, serverTime, leave, renew } = await this.parties.join(
+					message.partyId,
+					person,
+					(outgoing) => this.send(ws, outgoing),
 				);
 				connection.leave = leave;
+				connection.renew = renew;
 				connection.partyId = message.partyId;
-				this.send(ws, { type: "state", party: snapshot, serverTime: Date.now() });
-				this.send(ws, { type: "chat-history", messages: this.parties.chatHistory(message.partyId) });
+				this.send(ws, { type: "state", party: snapshot, serverTime });
+				this.send(ws, { type: "chat-history", messages: await this.parties.chatHistory(message.partyId) });
 			} else if (message.type === "chat" && connection.partyId && typeof message.text === "string") {
-				this.parties.chat(connection.partyId, person, message.text);
+				await this.parties.chat(connection.partyId, person, message.text);
 			} else if (message.type === "leave") {
-				connection.leave?.();
+				if (connection.leave) await connection.leave();
 				connection.leave = undefined;
+				connection.renew = undefined;
 				connection.partyId = undefined;
-			} else if (message.type === "control" && connection.partyId) {
-				await this.parties.control(connection.partyId, person.id, {
-					itemId: typeof message.itemId === "string" ? message.itemId : undefined,
-					playing: message.playing === true,
-					position: typeof message.position === "number" ? message.position : 0,
-				});
+			} else if (message.type === "command" && connection.partyId && isPartyAction(message.action)) {
+				const commandId = typeof message.commandId === "string" ? message.commandId : "";
+				const itemId = typeof message.itemId === "string" ? message.itemId : undefined;
+				if (message.action === "seek") {
+					if (typeof message.position !== "number" || !Number.isFinite(message.position)) {
+						this.send(ws, {
+							type: "error",
+							status: 400,
+							message: "A valid playback position is required.",
+						});
+						return;
+					}
+					await this.parties.control(connection.partyId, person.id, {
+						action: "seek",
+						commandId,
+						itemId,
+						position: message.position,
+					});
+				} else if (message.action === "change-item") {
+					if (!itemId) {
+						this.send(ws, {
+							type: "error",
+							status: 400,
+							message: "An item is required to change party playback.",
+						});
+						return;
+					}
+					await this.parties.control(connection.partyId, person.id, {
+						action: "change-item",
+						commandId,
+						itemId,
+					});
+				} else {
+					await this.parties.control(connection.partyId, person.id, {
+						action: message.action,
+						commandId,
+						itemId,
+					});
+				}
 			} else if (message.type === "end" && connection.partyId) {
-				this.parties.endBy(connection.partyId, person.id);
+				await this.parties.endBy(connection.partyId, person.id);
 			}
 		} catch (error) {
 			const { status, message: text } = error as { status?: number; message?: string };
@@ -177,6 +219,15 @@ export class PartySocketServer {
 			}
 			connection.alive = false;
 			ws.ping();
+			if (connection.partyId && connection.renew) {
+				void connection.renew().catch((error: unknown) => {
+					this.send(ws, {
+						type: "error",
+						status: 503,
+						message: error instanceof Error ? error.message : "Party presence could not be refreshed.",
+					});
+				});
+			}
 		}
 	}
 }
@@ -185,9 +236,16 @@ interface ClientMessage {
 	type: string;
 	token?: unknown;
 	partyId?: unknown;
+	action?: unknown;
+	commandId?: unknown;
 	itemId?: unknown;
-	playing?: unknown;
 	position?: unknown;
+	text?: unknown;
+	requestId?: unknown;
+}
+
+function isPartyAction(value: unknown): value is "play" | "pause" | "seek" | "change-item" {
+	return value === "play" || value === "pause" || value === "seek" || value === "change-item";
 }
 
 function parseMessage(raw: RawData): ClientMessage | null {
