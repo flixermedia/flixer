@@ -143,7 +143,7 @@ export class PlaybackService {
 			mediaSource: {
 				...publicSample,
 				mediaSourceId: sample.id,
-				streamUrl: `${streamerUrl}/stream/${signingInput}.${signature}`,
+				streamUrl: `${streamerUrl}/streamer/stream/${signingInput}.${signature}`,
 			},
 			expiresAt: new Date(claims.exp * 1000).toISOString(),
 		};

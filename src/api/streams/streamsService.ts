@@ -38,7 +38,7 @@ export class StreamsService {
 
 	/** Same as listSessions for callers that have already checked access, such as the live socket. */
 	async fetchSessions() {
-		const response = await this.request("/admin/sessions", "GET");
+		const response = await this.request("/streamer/admin/sessions", "GET");
 		const data = (await response.json()) as StreamerSessions;
 
 		const userIds = [...new Set(data.sessions.map((session) => session.userId).filter((id): id is string => !!id))];
@@ -53,7 +53,7 @@ export class StreamsService {
 
 	async cancelSession(sessionId: string, authorization?: string): Promise<void> {
 		await this.authService.requireAdmin(authorization);
-		const response = await this.request(`/admin/sessions/${encodeURIComponent(sessionId)}`, "DELETE", [404]);
+		const response = await this.request(`/streamer/admin/sessions/${encodeURIComponent(sessionId)}`, "DELETE", [404]);
 		if (response.status === 404) {
 			throw new NotFound("Session not found. It may have already ended.");
 		}

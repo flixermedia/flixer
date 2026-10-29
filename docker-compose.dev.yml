@@ -88,7 +88,6 @@ services:
             PORT: 8091
             LOG_LEVEL: debug
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
-            ALLOWED_ORIGINS: ${STREAMER_ALLOWED_ORIGINS:-https://localhost}
             TRANSCODE_DIR: /var/cache/flixer/transcode
             TRICKPLAY_DIR: /data/cache/trickplay
             FLIXER_URL: http://api:8081
@@ -102,7 +101,7 @@ services:
         expose:
             - "8091"
         healthcheck:
-            test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8091/healthz >/dev/null || exit 1"]
+            test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8091/streamer/healthz >/dev/null || exit 1"]
             interval: 15s
             timeout: 5s
             retries: 5

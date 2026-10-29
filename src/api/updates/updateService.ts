@@ -240,7 +240,9 @@ export class UpdateService {
 		};
 		const [web, streamer, indexer] = await Promise.all([
 			read(`${webUrl}/version.json`),
-			read(`${config.get("streamerInternalUrl")}/healthz`),
+			config.get("streamerInternalUrl")
+				? read(`${config.get("streamerInternalUrl")!.replace(/\/+$/, "")}/streamer/healthz`)
+				: Promise.resolve(undefined),
 			read(`${config.get("indexerUrl")}/health`),
 		]);
 		return { flixer: flixerVersion, ...(web ? { web } : {}), ...(streamer ? { streamer } : {}), ...(indexer ? { indexer } : {}) };
