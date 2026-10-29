@@ -48,6 +48,15 @@ data "coder_parameter" "media_host_path" {
   mutable      = true
 }
 
+data "coder_parameter" "projects_host_path" {
+  name         = "projects_host_path"
+  display_name = "Projects folder on the Docker host"
+  description  = "Absolute path on the Docker host mounted at /home/coder/projects for project repositories."
+  type         = "string"
+  default      = "/home/coder/projects"
+  mutable      = true
+}
+
 locals {
   workspace_name = lower("coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}")
   public_url     = data.coder_parameter.public_url.value != "" ? trimsuffix(data.coder_parameter.public_url.value, "/") : "http://localhost:5173"
@@ -241,6 +250,11 @@ resource "docker_container" "workspace" {
   volumes {
     volume_name    = docker_volume.home.name
     container_path = "/home/coder"
+  }
+
+  volumes {
+    host_path      = data.coder_parameter.projects_host_path.value
+    container_path = "/home/coder/projects"
   }
 
   volumes {

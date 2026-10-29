@@ -17,8 +17,10 @@ In the workspace the indexer and streamer run inside it, so `indexer` and `strea
 under Admin → Settings → Connections.
 
 The workspace image has Node 26, Go 1.26, ffmpeg and the psql/redis CLIs. Postgres and Redis run as sidecar
-containers on a per-workspace Docker network. The workspace and Postgres share the persistent data volume mounted
-at `~/projects/flixer-data` and `/data`, respectively; PostgreSQL stores its files under `database/`.
+containers on a per-workspace Docker network. Project repositories are stored in the Docker host's projects folder
+(default `/home/coder/projects`) and bind-mounted into the workspace at `~/projects`. The workspace and Postgres share
+the persistent data volume mounted at `~/projects/flixer-data` and `/data`, respectively; PostgreSQL stores its files
+under `database/`.
 
 ## Use
 
@@ -53,6 +55,7 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
 ## Parameters
 
 - **Git base URL**: where the repos are cloned from (default `https://github.com/flixermedia`). Private repos use Coder's git authentication.
+- **Projects folder on the Docker host**: absolute host path bind-mounted at `~/projects` in the workspace (default `/home/coder/projects`). Repositories, edits, and clones are stored directly in this folder.
 - **Public URL**: the browser address of the Flixer app, used for passkeys and links. Coder's app URL looks like
   `https://web--<agent>--<workspace>--<owner>.<wildcard-domain>`; it needs a wildcard access URL on your deployment.
   After changing it, update `APP_URL`, `FLIXER_PUBLIC_URL`, `PASSKEY_RP_ID` and `PASSKEY_ORIGINS` in `~/projects/flixer/.env`
@@ -60,6 +63,9 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
 - **Media folder on the Docker host**: optional read-only mount at `/media`. Create libraries from it in the admin dashboard.
   Otherwise use `~/projects/flixer-data/media`. The API, streamer and indexer use
   `DATA_DIR=~/projects/flixer-data` (services inherit it as `DATA_PATH`), so config, avatars, media cache and backups all stay under that root.
+
+The projects bind mount hides any existing `~/projects` contents in the workspace's persistent home volume. Move or back
+up changes you need from that old folder before switching to a host path that does not already contain them.
 ## Notes
 
 - The Vite dev server uses a self-signed certificate, so the Coder app points at `https://localhost:5173`.
