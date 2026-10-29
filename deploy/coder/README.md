@@ -61,7 +61,7 @@ creation Coder prompts the owner to link their account. Commits use the owner's 
 
 - **Git base URL**: where the repos are cloned from (default `https://github.com/flixermedia`). Private repos use Coder's git authentication.
 - **Tailscale auth key**: required sensitive template variable `tailscale_auth_key`. It joins each active workspace to your tailnet as its own node. The Tailscale state persists across workspace restarts. Create a reusable auth key with only the access and lifetime you need; the Coder Docker host must provide `/dev/net/tun` and permit the `NET_ADMIN`/`NET_RAW` capabilities.
-- **SMB password**: required sensitive template variable `smb_password`. Connect to `\\<workspace-tailnet-name>\projects` (or `smb://<workspace-tailnet-name>/projects`) as user `coder`.
+- **SMB password**: required sensitive template variable `smb_password`. Connect as user `coder` to `\\<workspace-tailnet-name>\projects` (Windows) or `smb://<workspace-tailnet-name>/projects` (macOS). If the name does not resolve, use the workspace's Tailscale IP instead, or enable MagicDNS and use the exact DNS name shown in the Tailscale admin console.
 - **Public URL**: the browser address of the Flixer app, used for passkeys and links. Coder's app URL looks like
   `https://web--<agent>--<workspace>--<owner>.<wildcard-domain>`; it needs a wildcard access URL on your deployment.
   After changing it, update `APP_URL`, `FLIXER_PUBLIC_URL`, `PASSKEY_RP_ID` and `PASSKEY_ORIGINS` in `~/projects/flixer/.env`
@@ -76,8 +76,8 @@ They remain on the host; separately copy or back up anything you need before app
 The SMB service mounts the same persistent home and data volumes as the workspace and forces file operations to UID/GID 1000
 (`coder`). Newly created files retain owner read/write/execute permissions, and directories retain owner
 read/write/execute permissions, so the workspace user can continue working with them. The SMB service shares the
-Tailscale network namespace, binds SMB to its Tailscale interface, and does not publish port 445 on the Docker host;
-only devices permitted by your tailnet ACLs can reach it. SMB still requires the separate `coder` password.
+Tailscale network namespace and does not publish port 445 on the Docker host. It listens on the shared namespace's
+interfaces; tailnet access is subject to your Tailscale ACLs, and SMB still requires the separate `coder` password.
 
 Sensitive template variables are redacted in Coder interfaces, but Docker container configuration and Terraform state
 can contain the Tailscale auth key and SMB password. Treat access to the Coder deployment, provisioner host, and
