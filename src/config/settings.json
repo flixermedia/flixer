@@ -81,6 +81,9 @@
 			"tmdb": {
 				"enabled": true,
 				"apiKey": "18a460ab40e9bb891c1c439870fe2ccd"
+			},
+			"theintrodb": {
+				"enabled": true
 			}
 		},
 		"isPublic": false
@@ -92,7 +95,9 @@
 	},
 	{
 		"key": "indexer_subtitles",
-		"defaultValue": {},
+		"defaultValue": {
+			"apiKey": "SaFR1Vqb1lPp4UYofJFQLQcHT7Ju5105"
+		},
 		"isPublic": false
 	},
 	{
@@ -183,11 +188,6 @@
 	{
 		"key": "sentry_streamer_dsn",
 		"defaultValue": "https://b3aa85a36bc644ddfd7165b5f0fd46e4@o4512285684596736.ingest.us.sentry.io/4512285696393216",
-		"isPublic": false
-	},
-	{
-		"key": "skipme_api_url",
-		"defaultValue": "https://database.skipme.deno.net/v3",
 		"isPublic": false
 	},
 	{

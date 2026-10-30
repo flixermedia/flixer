@@ -1,0 +1,172 @@
+import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteParameters, FlixerApiRouteQuery } from "./client.js";
+import type { ApiAuthAuthServicePasskeyRequired, ApiAuthAuthServiceVerificationPending } from "./generated.js";
+export type AuthResult = FlixerApiRouteData<"post", "/auth/passkeys/login/verify">;
+export type AuthSession = FlixerApiRouteData<"get", "/auth/sessions">[number];
+export type RegistrationStatus = FlixerApiRouteData<"get", "/settings/registration">;
+export type UserPreferences = FlixerApiRouteData<"get", "/preferences">;
+export type UserPreferencesUpdate = FlixerApiRouteBody<"patch", "/preferences">;
+export type PasskeyRequired = ApiAuthAuthServicePasskeyRequired;
+export type VerificationPending = ApiAuthAuthServiceVerificationPending;
+export type UserProfile = FlixerApiRouteData<"get", "/auth/me">;
+export type ServerSetting = FlixerApiRouteData<"get", "/settings">[number];
+export type Passkey = FlixerApiRouteData<"get", "/auth/passkeys">[number];
+export type StreamSessionList = FlixerApiRouteData<"get", "/admin/streams">;
+export type StreamSession = StreamSessionList["sessions"][number];
+export type AdminOverview = FlixerApiRouteData<"get", "/admin/overview">;
+export type AdminActivityPage = FlixerApiRouteData<"get", "/admin/overview/activity">;
+export type AdminActivityEntry = AdminActivityPage["items"][number];
+export type AdminActivityFilters = FlixerApiRouteQuery<"get", "/admin/overview/activity">;
+export type AdminDevice = FlixerApiRouteData<"get", "/admin/devices">[number];
+export type NewAdminUser = FlixerApiRouteBody<"post", "/admin/users">;
+export type AdminUserChanges = FlixerApiRouteBody<"patch", "/admin/users/{param}">;
+export type AdminUser = Omit<FlixerApiRouteData<"get", "/admin/users">[number], "role"> & {
+    role: NonNullable<AdminUserChanges["role"]>;
+};
+export type ApiKeyInfo = FlixerApiRouteData<"get", "/admin/api-keys">[number];
+export type CreatedApiKey = FlixerApiRouteData<"post", "/admin/api-keys">;
+export type IndexerStatus = FlixerApiRouteData<"get", "/admin/indexer/status">;
+export type IndexerScan = IndexerStatus["scans"][number];
+export type IndexerScanState = IndexerScan["state"];
+export type IndexerQueueStats = IndexerStatus["queues"][number];
+export type IndexerTask = FlixerApiRouteData<"get", "/admin/indexer/tasks">["tasks"][number];
+export type IndexerQueueName = IndexerQueueStats["queue"];
+export type IndexerTaskState = IndexerTask["state"];
+export type IndexerTaskLogs = FlixerApiRouteData<"get", "/admin/indexer/tasks/{param}/{param}/logs">;
+export type IndexerTaskLogEntry = IndexerTaskLogs["entries"][number];
+export type MediaItemPage = FlixerApiRouteData<"get", "/admin/media/items">;
+export type MediaItemSummary = MediaItemPage["items"][number];
+export type MediaItemType = MediaItemSummary["type"];
+export type MediaItemDetail = FlixerApiRouteData<"get", "/admin/media/items/{param}">;
+export type MediaItemQuery = FlixerApiRouteQuery<"get", "/admin/media/items">;
+export type MediaItemChanges = FlixerApiRouteBody<"patch", "/admin/media/items/{param}">;
+export type MediaImageType = NonNullable<FlixerApiRouteQuery<"post", "/admin/media/items/{param}/images">["type"]>;
+export type MediaItemImage = MediaItemDetail["images"][number];
+export type SubtitleFile = FlixerApiRouteData<"get", "/admin/media/items/{param}/subtitles">["tracks"][number];
+export type SubtitleSearchResult = FlixerApiRouteData<"post", "/admin/media/items/{param}/subtitles/search">["results"][number];
+export type HomeContent = FlixerApiRouteData<"get", "/media/home">;
+export type HomeCard = HomeContent["recentMovies"][number];
+export type HomeFeatured = HomeContent["featured"][number];
+export type HomeLibrary = HomeContent["libraries"][number];
+export type ContinueCard = HomeContent["continueWatching"][number];
+export type SearchFilters = FlixerApiRouteQuery<"get", "/media/search">;
+export type BrowseKind = FlixerApiRouteParameters<"get", "/media/browse/{param}">[0];
+export type BrowseSort = NonNullable<FlixerApiRouteQuery<"get", "/media/browse/{param}">["sort"]>;
+export type PersonCredits = FlixerApiRouteData<"get", "/media/people/{param}">;
+export type ItemDetail = FlixerApiRouteData<"get", "/media/items/{param}">;
+export type ItemSummary = Omit<ItemDetail["children"][number], "episodes">;
+export type IndexerProviderSetting = FlixerApiRouteData<"get", "/indexer/settings">["providers"][string];
+export type IndexerSubtitleSetting = FlixerApiRouteData<"get", "/indexer/settings">["subtitles"];
+export type MediaRoot = FlixerApiRouteData<"get", "/admin/media-libraries/roots">[number];
+export type MediaBrowseResult = FlixerApiRouteData<"get", "/admin/media-libraries/browse">;
+export type MediaLibrary = Omit<FlixerApiRouteData<"get", "/admin/media-libraries">[number], "type" | "imageStorage"> & {
+    type: MediaLibraryType;
+    imageStorage: NonNullable<MediaImageStorage>;
+};
+export type MediaLibraryFolderInput = FlixerApiRouteBody<"post", "/admin/media-libraries">["folders"][number];
+export type MediaLibraryFolder = MediaLibrary["folders"][number];
+export type MediaLibraryInput = FlixerApiRouteBody<"post", "/admin/media-libraries">;
+export type MediaLibraryType = MediaLibraryInput["type"];
+export type MediaImageStorage = MediaLibraryInput["imageStorage"];
+export type NetworkShare = FlixerApiRouteData<"get", "/admin/network-shares">[number];
+export type NetworkShareInput = FlixerApiRouteBody<"post", "/admin/network-shares">;
+export type RequestMediaType = FlixerApiRouteBody<"post", "/requests">["type"];
+export type ExternalMediaCard = Omit<FlixerApiRouteData<"get", "/requests/search">[number], "type"> & {
+    type: RequestMediaType;
+};
+export type RequestSource = ExternalMediaCard["source"];
+export type RequestStatus = FlixerApiRouteData<"get", "/requests">["items"][number]["status"];
+export type ExternalRequestStatus = ExternalMediaCard["status"];
+export type MediaRequestView = FlixerApiRouteData<"get", "/requests">["items"][number];
+export type ExternalMediaDetail = Omit<FlixerApiRouteData<"get", "/requests/details/{param}/{param}">, "type"> & {
+    type: RequestMediaType;
+};
+export type RequestsConfig = FlixerApiRouteData<"get", "/requests/config">;
+export type RequestServiceKind = FlixerApiRouteBody<"post", "/admin/requests/services">["kind"];
+export type RequestServiceView = Omit<FlixerApiRouteData<"get", "/admin/requests/services">[number], "kind"> & {
+    kind: RequestServiceKind;
+};
+export type RequestServiceTest = FlixerApiRouteData<"post", "/admin/requests/services/test">;
+export type RequestUserView = FlixerApiRouteData<"get", "/admin/requests/users">[number];
+export type AppNotification = FlixerApiRouteData<"get", "/notifications">["items"][number];
+export type BackupEntry = FlixerApiRouteData<"get", "/admin/backups">["backups"][number];
+export type BackupRun = NonNullable<FlixerApiRouteData<"get", "/admin/backups">["run"]>;
+export type BackupStatus = FlixerApiRouteData<"get", "/admin/backups">;
+export type UpdateComponent = FlixerApiRouteData<"get", "/admin/updates">["components"][number];
+export type UpdateRun = FlixerApiRouteData<"post", "/admin/updates/apply">;
+export type UpdateStatus = FlixerApiRouteData<"get", "/admin/updates">;
+export type PluginInstallation = FlixerApiRouteData<"get", "/admin/plugins">[number];
+export type PluginUpdateHistoryEntry = FlixerApiRouteData<"get", "/admin/plugins/{param}/history">[number];
+export type PluginRepository = FlixerApiRouteData<"get", "/admin/plugins/repositories">[number];
+export type PluginCatalogEntry = FlixerApiRouteData<"get", "/admin/plugins/catalog">[number];
+export type PluginSettingsView = FlixerApiRouteData<"get", "/admin/plugins/{param}/settings">;
+export type PluginSettingsSchema = NonNullable<PluginSettingsView["schema"]>;
+export type PluginPageEntry = FlixerApiRouteData<"get", "/plugins/pages">[number];
+export type SocialItem = FlixerApiRouteData<"get", "/favorites">["items"][number];
+export type SocialItemType = SocialItem["type"];
+export type PlaylistSummary = FlixerApiRouteData<"get", "/playlists">["playlists"][number];
+export type PlaylistTrack = FlixerApiRouteData<"get", "/playlists/{param}">["tracks"][number];
+export type ProfileVisibility = NonNullable<FlixerApiRouteBody<"put", "/profiles/me">["visibility"]>;
+export type MySocialProfile = Omit<FlixerApiRouteData<"get", "/profiles/me">, "visibility"> & {
+    visibility: ProfileVisibility;
+};
+export type Profile = Omit<FlixerApiRouteData<"get", "/profiles/{param}">, "visibility"> & {
+    visibility: ProfileVisibility;
+};
+export type ProfileVisibilityUpdate = Omit<FlixerApiRouteData<"put", "/profiles/me">, "visibility"> & {
+    visibility: ProfileVisibility;
+};
+export type PublicProfileSummary = FlixerApiRouteData<"get", "/profiles">["profiles"][number];
+export type FriendPerson = FlixerApiRouteData<"get", "/friends">["friends"][number];
+export type FriendLists = FlixerApiRouteData<"get", "/friends">;
+export type FriendInvite = FlixerApiRouteData<"get", "/friends/invites/{param}">;
+export type FriendInviteMode = FlixerApiRouteBody<"post", "/friends/invites/{param}">["mode"];
+export type PartyVisibility = NonNullable<FlixerApiRouteBody<"post", "/parties">["visibility"]>;
+export type PartySnapshot = Omit<FlixerApiRouteData<"get", "/parties/{param}">, "visibility"> & {
+    visibility: PartyVisibility;
+};
+export type PartyPerson = PartySnapshot["members"][number];
+export type PartySummary = NonNullable<Profile["party"]>;
+export interface PartyChatMessage {
+    id: string;
+    from: PartyPerson;
+    text: string;
+    at: number;
+}
+export type ChatConversation = FlixerApiRouteData<"get", "/chat/conversations/{param}">;
+export type ChatMember = ChatConversation["members"][number];
+export type ChatPerson = Omit<ChatMember, "role">;
+export type ChatMessage = NonNullable<ChatConversation["lastMessage"]>;
+export type NotificationConfig = FlixerApiRouteData<"get", "/notifications/config">;
+export type SentryConfig = FlixerApiRouteData<"get", "/sentry/config/{param}">;
+export type SetupStatus = FlixerApiRouteData<"get", "/setup/status">;
+export type SetupState = SetupStatus["state"];
+export type SetupFlow = "quick" | "advanced";
+export interface SetupConfigField {
+    source: "env" | "store" | "default" | "unset";
+    locked: boolean;
+    set: boolean;
+    value?: string;
+    default?: string;
+}
+export type SetupProgress = FlixerApiRouteData<"get", "/setup/progress"> & {
+    flow: SetupFlow;
+    completedSteps: string[];
+    steps: {
+        id: string;
+        title: string;
+        canTest: boolean;
+    }[];
+    adminExists: boolean;
+    config: Record<string, SetupConfigField>;
+};
+export type SetupStepResult = FlixerApiRouteData<"post", "/setup/steps/{param}/test"> & {
+    ok: boolean;
+    message?: string;
+    restart?: string[];
+};
+export type SampleVideo = FlixerApiRouteData<"get", "/playback/samples">[number];
+export type PlaybackInfo = FlixerApiRouteData<"post", "/playback/items/{param}/playback-info">;
+export type PlayerChapter = PlaybackInfo["chapters"][number];
+export type PlayerSegment = PlaybackInfo["segments"][number];
+export type SegmentType = PlayerSegment["type"];
+export type NextEpisode = NonNullable<PlaybackInfo["nextEpisode"]>;

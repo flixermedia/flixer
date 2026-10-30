@@ -142,7 +142,7 @@ export class MediaHomeController {
 		}
 		const { data, mime } = await this.media.image(id.toLowerCase(), index, width);
 		ctx.response.setHeader("Content-Type", mime);
-		ctx.response.setHeader("Cache-Control", "private, max-age=86400");
+		ctx.response.setHeader("Cache-Control", "private, no-store");
 		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
 		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
 		return data;

@@ -8,6 +8,9 @@
 		"prepare": "husky",
 		"start": "npm run barrels && tsed dev",
 		"start:prod": "cross-env NODE_ENV=production node dist/index.js",
+		"api-client:update-spec": "node scripts/update-api-client-spec.mjs",
+		"api-client:generate": "orval --config orval.config.ts && node scripts/generate-api-client-routes.mjs",
+		"api-client:build": "npm run api-client:generate && npm run build --prefix packages/flixer-api-client",
 		"kill:port": "node scripts/kill-port.mjs 8083",
 		"insomnia:update": "node scripts/update-insomnia.mjs",
 		"format": "node scripts/format.mjs --write",
@@ -90,10 +93,12 @@
 		"@types/web-push": "^3.6.4",
 		"@types/ws": "^8.18.2",
 		"husky": "^9.1.7",
+		"orval": "^8.45.0",
 		"prettier": "^3.9.10",
 		"supertest": "^7.3.1",
 		"tslib": "^2.8.1",
 		"typescript": "^7.0.2",
+		"typescript-compiler": "npm:typescript@^6.0.3",
 		"vite": "^8.3.4"
 	},
 	"tsed": {

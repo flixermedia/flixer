@@ -10,6 +10,7 @@ export interface IndexerRequestOptions {
 	query?: Record<string, string | number | undefined>;
 	body?: unknown;
 	timeoutMs?: number;
+	signal?: AbortSignal;
 }
 
 export interface IndexerThemeTask {
@@ -30,7 +31,6 @@ export interface IndexerPluginStatus {
 /** Signed HTTP client for flixer-indexer's internal API. */
 @Injectable()
 export class IndexerClient {
-
 	baseUrl(): string {
 		return (appConfig().get("indexerUrl") || DEFAULT_INDEXER_URL).replace(/\/+$/, "");
 	}
@@ -53,9 +53,12 @@ export class IndexerClient {
 					...(body.length > 0 ? { "content-type": "application/json" } : {}),
 				},
 				body: body.length > 0 ? body : undefined,
-				signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
+				signal: options.signal
+					? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)])
+					: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
 			});
-		} catch {
+		} catch (error) {
+			if (options.signal?.aborted) throw error;
 			throw new Exception(503, "flixer-indexer is not reachable.");
 		}
 
@@ -172,7 +175,9 @@ export class IndexerClient {
 	}
 
 	async pluginStatuses(): Promise<IndexerPluginStatus[]> {
-		const response = await this.request<{ plugins?: IndexerPluginStatus[] }>("GET", "/internal/plugins", { timeoutMs: 5_000 });
+		const response = await this.request<{ plugins?: IndexerPluginStatus[] }>("GET", "/internal/plugins", {
+			timeoutMs: 5_000,
+		});
 		return Array.isArray(response.plugins) ? response.plugins : [];
 	}
 }

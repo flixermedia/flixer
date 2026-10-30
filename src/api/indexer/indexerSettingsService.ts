@@ -19,11 +19,33 @@ export const INDEXER_SETTING_KEYS = [
 
 /** Providers that need an API key (or client name) and the ones that work without one. */
 export const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
-export const KEYLESS_PROVIDERS = ["musicbrainz", "anilist"];
+export const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
 export const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
-export const INDEXER_QUEUES = ["scan", "identify", "metadata", "images", "probe", "refresh", "trickplay", "themes", "lyrics"];
+export const INDEXER_QUEUES = [
+	"scan",
+	"identify",
+	"metadata",
+	"images",
+	"probe",
+	"refresh",
+	"trickplay",
+	"themes",
+	"lyrics",
+	"intro-movies",
+	"intro-episodes",
+] as const;
+export type IndexerQueueName = (typeof INDEXER_QUEUES)[number];
+export const INDEXER_TASK_QUEUES = [
+	...INDEXER_QUEUES,
+	"identify-priority",
+	"metadata-priority",
+	"images-priority",
+	"probe-priority",
+	"refresh-priority",
+] as const;
+export type IndexerTaskQueueName = (typeof INDEXER_TASK_QUEUES)[number];
 export const INDEXER_MAX_CONCURRENCY = 64;
 
 export interface IndexerProviderSetting {
@@ -57,6 +79,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()
 export class IndexerSettingsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Validates a new value for an indexer setting; masked secrets keep the stored value. */
@@ -108,6 +131,8 @@ export class IndexerSettingsService {
 				};
 			}
 		}
+		providers.theintrodb ??= { enabled: true, apiKey: "" };
+		providers.introdb ??= { enabled: true, apiKey: "" };
 
 		const concurrency: Record<string, number> = {};
 		const storedConcurrency = value(INDEXER_CONCURRENCY_KEY);
@@ -211,15 +236,33 @@ export class IndexerSettingsService {
 				throw new BadRequest(`Provider "${name}" needs an enabled flag.`);
 			}
 			const entry: IndexerProviderSetting = { enabled: provider.enabled };
+			const previous = current[name];
+			const previousKey = isRecord(previous) && typeof previous.apiKey === "string" ? previous.apiKey : "";
 			if (provider.apiKey !== undefined) {
 				if (typeof provider.apiKey !== "string" || provider.apiKey.length > 512) {
 					throw new BadRequest(`The API key for "${name}" must be text up to 512 characters.`);
 				}
-				const previous = current[name];
-				const previousKey = isRecord(previous) && typeof previous.apiKey === "string" ? previous.apiKey : "";
 				entry.apiKey = provider.apiKey === SECRET_MASK ? previousKey : provider.apiKey.trim();
+			} else if (previousKey) {
+				entry.apiKey = previousKey;
 			}
 			result[name] = entry;
+		}
+		for (const name of INDEXER_PROVIDERS) {
+			if (result[name]) {
+				continue;
+			}
+			const previous = current[name];
+			if (isRecord(previous) && typeof previous.enabled === "boolean") {
+				result[name] = {
+					enabled: previous.enabled,
+					...(typeof previous.apiKey === "string" ? { apiKey: previous.apiKey } : {}),
+				};
+			} else if (name === "theintrodb") {
+				result[name] = { enabled: true };
+			} else if (name === "introdb") {
+				result[name] = { enabled: true };
+			}
 		}
 		return result;
 	}
@@ -230,7 +273,7 @@ export class IndexerSettingsService {
 		}
 		const result: Record<string, number> = {};
 		for (const [queue, count] of Object.entries(value)) {
-			if (!INDEXER_QUEUES.includes(queue)) {
+			if (!(INDEXER_QUEUES as readonly string[]).includes(queue)) {
 				throw new BadRequest(`Unknown indexer queue "${queue}".`);
 			}
 			if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > INDEXER_MAX_CONCURRENCY) {

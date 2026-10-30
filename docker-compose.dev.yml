@@ -11,7 +11,7 @@ services:
         command:
             - /bin/sh
             - -c
-            - set -e; mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups; chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups; chown 70:70 /data/database; chown -R 65532:65532 /data/cache; find /data/cache -type d -exec chmod 2775 {} +; chmod 0777 /data/logs
+            - set -e; mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/logs /data/mounts /data/backups /data/meilisearch-dev; chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups; chown 70:70 /data/database; chown -R 65532:65532 /data/cache; find /data/cache -type d -exec chmod 2775 {} +; chmod 0777 /data/logs
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
         restart: "no"
@@ -46,6 +46,7 @@ services:
         environment:
             PORT: 8081
             NODE_ENV: development
+            APP_SECRET: ${APP_SECRET:-}
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
             DATA_PATH: /data
             STREAM_MEDIA_ROOT: /media
@@ -53,6 +54,7 @@ services:
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
+            MEILISEARCH_URL: http://meilisearch:7700
         group_add:
             - "65532"
         volumes:
@@ -171,6 +173,31 @@ services:
             interval: 10s
             timeout: 3s
             retries: 5
+        restart: unless-stopped
+
+    meilisearch:
+        image: getmeili/meilisearch:v1.12
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
+        environment:
+            MEILI_ENV: development
+            MEILI_MASTER_KEY: ${APP_SECRET:-}
+            MEILI_NO_ANALYTICS: "true"
+        command:
+            - /bin/sh
+            - -c
+            - |
+                if [ -z "$$MEILI_MASTER_KEY" ]; then
+                    while [ ! -s /run/flixer-secrets/app-secret ]; do sleep 1; done
+                    export MEILI_MASTER_KEY="$$(cat /run/flixer-secrets/app-secret)"
+                fi
+                exec /bin/meilisearch
+        volumes:
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/meilisearch-dev:/meili_data
+            - flixer-secrets:/run/flixer-secrets:ro
+        ports:
+            - "127.0.0.1:7700:7700"
         restart: unless-stopped
 
     web:

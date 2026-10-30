@@ -27,6 +27,7 @@ export interface IndexerItemPayload {
 	providerIds: Record<string, string>;
 	metadata: Record<string, unknown>;
 	images: unknown[];
+	updateFields?: IndexerUpdateField[];
 	technical?: Record<string, unknown>;
 	sizeBytes?: number;
 	modifiedAt?: Date;
@@ -34,13 +35,41 @@ export interface IndexerItemPayload {
 	localImagesUsed: boolean;
 }
 
+function parseUpdateFields(value: unknown): IndexerUpdateField[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value) || value.length === 0) {
+		throw new BadRequest("updateFields must contain unique supported fields.");
+	}
+	const fields: IndexerUpdateField[] = [];
+	for (const field of value) {
+		if (!isIndexerUpdateField(field)) {
+			throw new BadRequest("updateFields must contain unique supported fields.");
+		}
+		fields.push(field);
+	}
+	if (new Set(fields).size !== fields.length) {
+		throw new BadRequest("updateFields must contain unique supported fields.");
+	}
+	return fields;
+}
+
+function isIndexerUpdateField(value: unknown): value is IndexerUpdateField {
+	return typeof value === "string" && INDEXER_UPDATE_FIELDS.has(value);
+}
+
 /** The type a parent must have; other types have no parent item (a video's folder is not an item). */
-const PARENT_TYPES: Partial<Record<MediaItemType, MediaItemType>> = { season: "series", episode: "season", track: "album" };
+const PARENT_TYPES: Partial<Record<MediaItemType, MediaItemType>> = {
+	season: "series",
+	episode: "season",
+	track: "album",
+};
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_KEY_LENGTH = 2048;
 const PATH_KEY_PREFIX = "path:";
 const CLOCK_SKEW_MS = 60_000;
+type IndexerUpdateField = "images" | "descriptions" | "fileData" | "lyrics";
+const INDEXER_UPDATE_FIELDS: ReadonlySet<string> = new Set(["images", "descriptions", "fileData", "lyrics"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -76,6 +105,20 @@ function stringMap(value: unknown, field: string): Record<string, string> {
 	return value as Record<string, string>;
 }
 
+export function mergeIndexerProviderIds(
+	incoming: Record<string, string>,
+	current: Record<string, string>,
+	editedFields: readonly string[],
+): Record<string, string> {
+	const result = { ...incoming };
+	for (const field of editedFields) {
+		if (!field.startsWith("providerId:")) continue;
+		const provider = field.slice("providerId:".length);
+		if (Object.hasOwn(current, provider)) result[provider] = current[provider];
+	}
+	return result;
+}
+
 /** Validates the indexer's JSON body. */
 export function parseItemPayload(body: unknown): IndexerItemPayload {
 	if (!isRecord(body)) {
@@ -98,6 +141,7 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 	if (body.images !== undefined && body.images !== null && !Array.isArray(body.images)) {
 		throw new BadRequest("images must be a list.");
 	}
+	const updateFields = parseUpdateFields(body.updateFields);
 	if (body.technical !== undefined && body.technical !== null && !isRecord(body.technical)) {
 		throw new BadRequest("technical must be an object.");
 	}
@@ -125,6 +169,7 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 		providerIds: stringMap(body.providerIds, "providerIds"),
 		metadata: (body.metadata as Record<string, unknown> | null | undefined) ?? {},
 		images: (body.images as unknown[] | null | undefined) ?? [],
+		updateFields,
 		technical: (body.technical as Record<string, unknown> | null | undefined) ?? undefined,
 		sizeBytes: optionalInt(body.sizeBytes, "sizeBytes"),
 		modifiedAt,
@@ -140,7 +185,6 @@ function lastSegment(path: string): string {
 /** Stores what flixer-indexer finds and keeps the series → season → episode (and album → track) tree linked. */
 @Injectable()
 export class MediaItemsService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
@@ -159,10 +203,24 @@ export class MediaItemsService {
 			// An item is first matched by its stable key; otherwise by path, which covers an item whose
 			// key changed because it was identified (path:... becomes tmdb:...).
 			let item =
-				(await manager.findOneBy(MediaItem, { libraryId: payload.libraryId, externalKey: payload.externalKey })) ??
-				(await manager.findOneBy(MediaItem, { libraryId: payload.libraryId, path: payload.path, type: payload.type })) ??
+				(await manager.findOneBy(MediaItem, {
+					libraryId: payload.libraryId,
+					externalKey: payload.externalKey,
+				})) ??
+				(await manager.findOneBy(MediaItem, {
+					libraryId: payload.libraryId,
+					path: payload.path,
+					type: payload.type,
+				})) ??
 				// The library folder may have moved: the same content now sits under a different base path.
 				(await this.findByRelativeKey(manager, payload.libraryId, payload.type, payload.externalKey));
+			if (payload.updateFields?.length) {
+				if (!item || item.isPlaceholder) {
+					return { id: "" };
+				}
+				await this.updateSelectedFields(manager, item, payload);
+				return { id: item.id };
+			}
 			// A placeholder parent becoming real counts as new too; users never saw it.
 			const isNew = !item || item.isPlaceholder;
 			item ??= manager.create(MediaItem, { id: randomUUID(), libraryId: payload.libraryId });
@@ -179,7 +237,8 @@ export class MediaItemsService {
 				episodeNumber: payload.episodeNumber ?? null,
 				episodeEndNumber: payload.episodeEndNumber ?? null,
 			};
-			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) => (edited.has(field) ? current : incoming[field]);
+			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) =>
+				edited.has(field) ? current : incoming[field];
 			const keptOverview = edited.has("overview") ? item.metadata?.overview : undefined;
 
 			item.type = payload.type;
@@ -194,10 +253,12 @@ export class MediaItemsService {
 			item.seasonNumber = keep("seasonNumber", item.seasonNumber);
 			item.episodeNumber = keep("episodeNumber", item.episodeNumber);
 			item.episodeEndNumber = keep("episodeEndNumber", item.episodeEndNumber);
-			item.providerIds = payload.providerIds;
+			item.providerIds = mergeIndexerProviderIds(payload.providerIds, item.providerIds ?? {}, [...edited]);
 			item.metadata = edited.has("overview") ? { ...metadata, overview: keptOverview } : metadata;
 			// Images an admin added are not the indexer's to replace.
-			const manual = (item.images ?? []).filter((image) => (image as { provider?: unknown }).provider === "manual");
+			const manual = (item.images ?? []).filter(
+				(image) => (image as { provider?: unknown }).provider === "manual",
+			);
 			item.images = [...payload.images, ...manual];
 			item.technical = payload.technical ?? null;
 			item.sizeBytes = payload.sizeBytes ?? null;
@@ -220,6 +281,75 @@ export class MediaItemsService {
 		return result;
 	}
 
+	private async updateSelectedFields(
+		manager: EntityManager,
+		item: MediaItem,
+		payload: IndexerItemPayload,
+	): Promise<void> {
+		const fields = new Set(payload.updateFields);
+		item.lastSeenAt = new Date();
+		if (fields.has("images")) {
+			if (payload.images.length > 0) {
+				const incomingTypes = new Set(
+					payload.images
+						.map((image) => (image as { type?: unknown } | null)?.type)
+						.filter((type): type is string => typeof type === "string"),
+				);
+				const manual = (item.images ?? []).filter(
+					(image) => (image as { provider?: unknown }).provider === "manual",
+				);
+				const unchangedTypes = (item.images ?? []).filter((image) => {
+					const current = image as { type?: unknown; provider?: unknown };
+					return (
+						current.provider !== "manual" &&
+						typeof current.type === "string" &&
+						!incomingTypes.has(current.type)
+					);
+				});
+				item.images = [...payload.images, ...unchangedTypes, ...manual];
+				item.localImagesUsed = payload.localImagesUsed;
+			}
+		}
+		if (fields.has("descriptions")) {
+			const metadata = payload.metadata;
+			const edited = new Set(item.editedFields ?? []);
+			const incoming = {
+				title: (typeof metadata.title === "string" && metadata.title.trim()) || lastSegment(payload.path),
+				sortTitle: typeof metadata.sortTitle === "string" && metadata.sortTitle ? metadata.sortTitle : null,
+				year: typeof metadata.year === "number" && metadata.year > 0 ? metadata.year : null,
+			};
+			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) =>
+				edited.has(field) ? current : incoming[field];
+			const keptOverview = edited.has("overview") ? item.metadata?.overview : undefined;
+			item.title = keep("title", item.title);
+			item.sortTitle = keep("sortTitle", item.sortTitle);
+			item.year = keep("year", item.year);
+			item.providerIds = mergeIndexerProviderIds(payload.providerIds, item.providerIds ?? {}, [...edited]);
+			const mergedMetadata = { ...item.metadata };
+			for (const [key, value] of Object.entries(metadata)) {
+				if (
+					value === null ||
+					value === undefined ||
+					value === "" ||
+					(Array.isArray(value) && value.length === 0)
+				) {
+					continue;
+				}
+				mergedMetadata[key] = value;
+			}
+			item.metadata = edited.has("overview") ? { ...mergedMetadata, overview: keptOverview } : mergedMetadata;
+			await this.syncCredits(manager, item);
+		}
+		if (fields.has("fileData")) {
+			if (payload.rootId !== undefined) item.rootId = payload.rootId;
+			if (payload.relativePath !== undefined) item.relativePath = payload.relativePath;
+			if (payload.technical !== undefined) item.technical = payload.technical;
+			if (payload.sizeBytes !== undefined) item.sizeBytes = payload.sizeBytes;
+			if (payload.modifiedAt !== undefined) item.modifiedAt = payload.modifiedAt;
+		}
+		await manager.save(item);
+	}
+
 	/** Rewrites the item's credits from its metadata so they always match what the indexer last reported. */
 	private async syncCredits(manager: EntityManager, item: MediaItem): Promise<void> {
 		await manager.delete(MediaCredit, { itemId: item.id });
@@ -235,7 +365,19 @@ export class MediaItemsService {
 			const personKey = personKeyOf(name);
 			const key = `${personKey}|${role}`;
 			if (!credits.has(key)) {
-				credits.set(key, manager.create(MediaCredit, { itemId: item.id, personKey, personId: personIdOf(name), role, name: name.trim(), detail: typeof detail === "string" && detail.trim() ? detail.trim() : null, position, image: allowedPersonImage(image) }));
+				credits.set(
+					key,
+					manager.create(MediaCredit, {
+						itemId: item.id,
+						personKey,
+						personId: personIdOf(name),
+						role,
+						name: name.trim(),
+						detail: typeof detail === "string" && detail.trim() ? detail.trim() : null,
+						position,
+						image: allowedPersonImage(image),
+					}),
+				);
 			}
 		};
 		const people = (value: unknown, fallbackRole: string) => {
@@ -244,7 +386,10 @@ export class MediaItemsService {
 			}
 			value.forEach((entry, index) => {
 				const person = entry as { name?: unknown; type?: unknown; role?: unknown; image?: unknown } | null;
-				const type = typeof person?.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : fallbackRole;
+				const type =
+					typeof person?.type === "string" && person.type.trim()
+						? person.type.trim().toLowerCase()
+						: fallbackRole;
 				add(person?.name, type, person?.role, index + 1, person?.image);
 			});
 		};
@@ -268,7 +413,12 @@ export class MediaItemsService {
 	 * folder holding the same content, the old row is the one whose stored path ends with that relative path.
 	 * Only an unambiguous match is used.
 	 */
-	private async findByRelativeKey(manager: EntityManager, libraryId: string, type: MediaItemType, key: string): Promise<MediaItem | null> {
+	private async findByRelativeKey(
+		manager: EntityManager,
+		libraryId: string,
+		type: MediaItemType,
+		key: string,
+	): Promise<MediaItem | null> {
 		if (!key.startsWith(PATH_KEY_PREFIX)) {
 			return null;
 		}
@@ -368,7 +518,11 @@ export class MediaItemsService {
 		return (await manager.save(placeholder)).id;
 	}
 
-	private async findParentByProviderIds(manager: EntityManager, payload: IndexerItemPayload, parentType: MediaItemType): Promise<string | null> {
+	private async findParentByProviderIds(
+		manager: EntityManager,
+		payload: IndexerItemPayload,
+		parentType: MediaItemType,
+	): Promise<string | null> {
 		const ids = Object.entries(payload.parentProviderIds).filter(([, id]) => id);
 		if (ids.length === 0 || (parentType !== "series" && parentType !== "season")) {
 			return null;
@@ -378,7 +532,8 @@ export class MediaItemsService {
 			params[`provider${index}`] = provider;
 			params[`id${index}`] = id;
 		});
-		const matches = (alias: string) => ids.map((_, index) => `${alias}.providerIds ->> :provider${index} = :id${index}`).join(" OR ");
+		const matches = (alias: string) =>
+			ids.map((_, index) => `${alias}.providerIds ->> :provider${index} = :id${index}`).join(" OR ");
 
 		if (parentType === "series") {
 			const series = await manager

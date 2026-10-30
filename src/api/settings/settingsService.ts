@@ -9,8 +9,6 @@ import { SENTRY_SETTING_KEYS, SentryService } from "../../sentry/sentryService.j
 import { MailService, SMTP_SETTING_KEYS } from "../auth/mailService.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexerSettingsService.js";
-import { validateHttpUrl } from "../../config/store/configSchema.js";
-import { SKIPME_API_URL_KEY } from "../media/segmentLogic.js";
 import { SECRET_MASK } from "./secretMask.js";
 import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
@@ -114,13 +112,6 @@ export class SettingsService {
 			(typeof request.value !== "string" || request.value.length > 100)
 		) {
 			throw new BadRequest("The server_name setting must be text of at most 100 characters.");
-		}
-
-		if (key === SKIPME_API_URL_KEY) {
-			const url = typeof request.value === "string" ? request.value.trim() : null;
-			if (url === null || (url !== "" && validateHttpUrl(url))) {
-				throw new BadRequest("The skipme_api_url setting must be empty or an http(s) URL.");
-			}
 		}
 
 		if (TRANSCODING_SETTING_KEYS.includes(key)) {

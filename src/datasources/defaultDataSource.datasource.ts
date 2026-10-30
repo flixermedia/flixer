@@ -52,6 +52,7 @@ import { CreateNetworkShares1793600000000 } from "../migrations/createNetworkSha
 import { AddMediaItemLastSeenAt1793700000000 } from "../migrations/addMediaItemLastSeenAt1793700000000.js";
 import { CreateMediaItems1793400000000 } from "../migrations/createMediaItems1793400000000.js";
 import { AddMediaItemEditedFields1793500000000 } from "../migrations/addMediaItemEditedFields1793500000000.js";
+import { CreateMediaSearchOutbox1796100000000 } from "../migrations/createMediaSearchOutbox1796100000000.js";
 import { CreateMediaLibraries1793300000000 } from "../migrations/createMediaLibraries1793300000000.js";
 import { AddDevicesAndApiKeys1793100000000 } from "../migrations/addDevicesAndApiKeys1793100000000.js";
 import { AddUserDisabledAt1793200000000 } from "../migrations/addUserDisabledAt1793200000000.js";
@@ -162,6 +163,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddFriendshipsAndProfileVisibility1795700000000,
 				AddFriendInviteTokens1795800000000,
 				CreateSocialFriendInvites1795900000000,
+				CreateMediaSearchOutbox1796100000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

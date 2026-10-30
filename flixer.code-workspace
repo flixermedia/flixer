@@ -35,5 +35,8 @@
 		{
 			"path": "../flixer-cloud"
 		}
-	]
+	],
+	"settings": {
+		"postman.settings.dotenv-detection-notification-visibility": false
+	}
 }

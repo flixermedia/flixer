@@ -1,8 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
-import { NotFound } from "@tsed/exceptions";
+import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { IndexerClient, type IndexerThemeTask } from "../indexer/indexerClient.js";
 
@@ -14,7 +15,6 @@ const TMDB_KEY = /^tmdb:(\d+)$/;
 export function themeTaskFor(
 	item: Pick<MediaItem, "libraryId" | "path" | "rootId" | "relativePath" | "type" | "externalKey">,
 ): IndexerThemeTask | null {
-
 	const match = TMDB_KEY.exec(item.externalKey);
 	if (
 		!match ||
@@ -33,13 +33,11 @@ export function themeTaskFor(
 		itemType: item.type,
 		tmdbId: match[1],
 	};
-
 }
 
 /** Theme songs from ThemerrDB. The indexer downloads and stores them; flixer only asks for them. */
 @Injectable()
 export class ThemesService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly indexer: IndexerClient,
@@ -65,24 +63,33 @@ export class ThemesService {
 	}
 
 	/** Asks the indexer to download themes for every movie and show already in the library. */
-	async syncAll(): Promise<{ eligible: number; queued: number }> {
+	async syncAll(libraryId?: string): Promise<{ eligible: number; queued: number }> {
 		if (!(await this.enabled())) {
 			throw new NotFound("Theme songs are turned off.");
+		}
+		if (libraryId !== undefined) {
+			if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(libraryId)) {
+				throw new BadRequest("libraryId must be a library id.");
+			}
+			if (!(await this.dataSource.getRepository(MediaLibrary).existsBy({ id: libraryId.toLowerCase() }))) {
+				throw new NotFound("Media library not found.");
+			}
 		}
 		const repository = this.dataSource.getRepository(MediaItem);
 		let eligible = 0;
 		let queued = 0;
 		let lastId = "";
 		for (;;) {
-			const rows = await repository
+			const query = repository
 				.createQueryBuilder("item")
 				.where("item.type IN (:...types)", { types: ["movie", "series"] })
 				.andWhere("item.is_placeholder = false")
 				.andWhere("item.external_key ~ '^tmdb:[0-9]+$'")
-				.andWhere("item.id > :lastId", { lastId: lastId || "00000000-0000-0000-0000-000000000000" })
-				.orderBy("item.id", "ASC")
-				.take(BATCH_SIZE)
-				.getMany();
+				.andWhere("item.id > :lastId", { lastId: lastId || "00000000-0000-0000-0000-000000000000" });
+			if (libraryId) {
+				query.andWhere("item.library_id = :libraryId", { libraryId: libraryId.toLowerCase() });
+			}
+			const rows = await query.orderBy("item.id", "ASC").take(BATCH_SIZE).getMany();
 			if (rows.length === 0) {
 				break;
 			}

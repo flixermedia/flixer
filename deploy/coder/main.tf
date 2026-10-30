@@ -179,18 +179,18 @@ resource "docker_volume" "redis" {
   }
 }
 
+resource "docker_volume" "meilisearch" {
+  name = "${local.workspace_name}-${data.coder_workspace.me.id}-meilisearch"
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
 resource "docker_container" "postgres" {
   count   = data.coder_workspace.me.start_count
   image   = "postgres:16-alpine"
   name    = "${local.workspace_name}-postgres"
   restart = "unless-stopped"
-  # Run as the workspace user (uid 1000) so the data folder is readable from the workspace.
-  user = "1000:1000"
-  # initdb must resolve its uid to a name, and the image has no entry for 1000.
-  upload {
-    file    = "/etc/passwd"
-    content = "root:x:0:0:root:/root:/bin/sh\ncoder:x:1000:1000::/home/coder:/bin/sh\n"
-  }
   env = [
     "POSTGRES_USER=flixer",
     "POSTGRES_PASSWORD=flixer",
@@ -220,6 +220,35 @@ resource "docker_container" "redis" {
   volumes {
     volume_name    = docker_volume.redis.name
     container_path = "/data"
+  }
+}
+
+resource "docker_container" "meilisearch" {
+  count   = data.coder_workspace.me.start_count
+  image   = "getmeili/meilisearch:v1.12"
+  name    = "${local.workspace_name}-meilisearch"
+  restart = "unless-stopped"
+  env = [
+    "MEILI_ENV=development",
+    "MEILI_NO_ANALYTICS=true",
+  ]
+  command = [
+    "/bin/sh",
+    "-c",
+    "while [ ! -s /shared-home/.flixer-run/app-secret ]; do sleep 1; done; export MEILI_MASTER_KEY=\"$(cat /shared-home/.flixer-run/app-secret)\"; exec /bin/meilisearch",
+  ]
+  networks_advanced {
+    name    = docker_network.stack.name
+    aliases = ["meilisearch"]
+  }
+  volumes {
+    volume_name    = docker_volume.meilisearch.name
+    container_path = "/meili_data"
+  }
+  volumes {
+    volume_name    = docker_volume.home.name
+    container_path = "/shared-home"
+    read_only      = true
   }
 }
 
@@ -271,5 +300,5 @@ resource "docker_container" "workspace" {
     }
   }
 
-  depends_on = [docker_container.postgres, docker_container.redis]
+  depends_on = [docker_container.postgres, docker_container.redis, docker_container.meilisearch]
 }

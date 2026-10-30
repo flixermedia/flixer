@@ -59,7 +59,7 @@ const fastifyPlugins = [
 	},
 	scalar: [
 		{
-			path: "/scalar/doc",
+			path: "/api/scalar/doc",
 			specVersion: "3.1.0",
 			spec: {
 				components: {

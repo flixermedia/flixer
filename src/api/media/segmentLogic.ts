@@ -23,7 +23,7 @@ const CHAPTER_PATTERNS: [SegmentType, RegExp][] = [
 ];
 
 /** Lower number wins when several sources describe the same segment type. */
-const SOURCE_PRIORITY: Record<ResolvedSegment["source"], number> = { manual: 0, skipme: 1, chapter: 2 };
+const SOURCE_PRIORITY: Record<ResolvedSegment["source"], number> = { manual: 0, theintrodb: 1, plugin: 2, chapter: 3 };
 
 /** Reads the chapter list ffprobe stored with an item, dropping malformed entries. */
 export function parseChapters(technical: Record<string, unknown> | null | undefined): Chapter[] {
@@ -66,32 +66,3 @@ export function mergeSegments(candidates: ResolvedSegment[]): ResolvedSegment[] 
 	}
 	return [...best.values()].sort((a, b) => a.startMs - b.startMs);
 }
-
-export interface SkipmeTimestamp {
-	start_ms?: number;
-	end_ms?: number | null;
-	duration_ms?: number;
-	submissions?: number;
-}
-
-const DURATION_TOLERANCE_MS = 5000;
-
-/** Picks the crowd-sourced entry recorded against a file of about the same length, favouring the most submissions. */
-export function pickSkipmeTimestamp(entries: SkipmeTimestamp[] | undefined, durationMs: number): { startMs: number; endMs: number; submissions: number } | null {
-	let best: SkipmeTimestamp | null = null;
-	for (const entry of entries ?? []) {
-		if (!Number.isFinite(entry.start_ms) || !Number.isFinite(entry.end_ms) || (entry.end_ms as number) <= (entry.start_ms as number)) {
-			continue;
-		}
-		if (durationMs > 0 && entry.duration_ms && Math.abs(entry.duration_ms - durationMs) > DURATION_TOLERANCE_MS) {
-			continue;
-		}
-		if (!best || (entry.submissions ?? 0) > (best.submissions ?? 0)) {
-			best = entry;
-		}
-	}
-	return best ? { startMs: Math.round(best.start_ms as number), endMs: Math.round(best.end_ms as number), submissions: best.submissions ?? 0 } : null;
-}
-
-/** Admin setting holding the SkipMe.db base URL; its default is seeded by a migration. */
-export const SKIPME_API_URL_KEY = "skipme_api_url";

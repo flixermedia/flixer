@@ -58,7 +58,7 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Direct-play decision based on the container and file type.
 - Next-episode lookup across seasons, ending after the last episode of the last season.
 - Chapters and skippable segments (intro, recap, credits, preview, break) returned with each item.
-- Segment sources by priority: manual, SkipMe.db, then chapter titles. The SkipMe.db URL is an admin setting.
+- Segment sources by priority: manual, timings synced from TheIntroDB with IntroDB as a fallback for missing timings or request failures, optional plugin segments, then chapter titles.
 - Admin tools to set or clear a manual segment on an item.
 - Active stream sessions listing for admins.
 
@@ -70,7 +70,7 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 
 ### Indexer control
 
-- Providers: enable or disable each metadata provider and store its API key (keys are masked on read).
+- Providers: enable or disable each metadata provider, including default-on TheIntroDB and IntroDB fallback timing lookups (TheIntroDB works without an API key; an optional key can be configured), and store provider credentials (keys are masked on read).
 - Metadata language and per-queue worker concurrency.
 - Queue controls: pause, resume, clear failed, cancel all pending and running tasks, per queue or across all queues.
 - Task list with cancel and retry, and scan history.
@@ -165,7 +165,7 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Devices and active stream sessions.
 - Libraries and network shares.
 - Media: browse, edit, add artwork, rescan an item or series, subtitle search and download, and remove.
-- Indexer: providers and API keys, language, SkipMe.db URL, subtitle credentials, queues and workers with cancel buttons, tasks with cancel and retry.
+- Indexer: metadata providers, default-on TheIntroDB timings with IntroDB fallback, language, subtitle credentials, queues and workers with cancel buttons, tasks with cancel and retry.
 - Scheduled tasks.
 - Transcoding: hardware acceleration, presets and concurrency.
 - Networking, e-mail, notifications, error monitoring, backups and updates.

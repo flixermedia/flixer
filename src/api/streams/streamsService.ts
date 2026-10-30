@@ -9,17 +9,46 @@ import { AuthService } from "../auth/authService.js";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 
+interface StreamerSource {
+	videoCodec: string;
+	audioCodec?: string;
+	width: number;
+	height: number;
+	durationSeconds: number;
+}
+
 interface StreamerSession {
 	id: string;
 	userId?: string;
-	[key: string]: unknown;
+	mediaItemId?: string;
+	file: string;
+	delivery: "progressive" | "hls";
+	remoteAddr?: string;
+	userAgent?: string;
+	source: StreamerSource;
+	mode: "DirectPlay" | "DirectStream" | "Transcode";
+	height: number;
+	positionSeconds: number;
+	startedAt: string;
+	lastActivityAt: string;
+	bytesSent: number;
+	running: boolean;
+	pid?: number;
 }
 
-interface StreamerSessions {
+interface StreamerSessionsResponse {
 	transcodingAvailable: boolean;
 	maxTranscodes: number;
 	activeTranscodes: number;
 	sessions: StreamerSession[];
+}
+
+interface StreamSession extends StreamerSession {
+	user: { username: string; displayName: string } | null;
+}
+
+interface StreamSessionsResponse extends Omit<StreamerSessionsResponse, "sessions"> {
+	sessions: StreamSession[];
 }
 
 /** Talks to flixer-streamer's internal admin API to list and cancel playback sessions. */
@@ -31,15 +60,15 @@ export class StreamsService {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 	) {}
 
-	async listSessions(authorization?: string) {
+	async listSessions(authorization?: string): Promise<StreamSessionsResponse> {
 		await this.authService.requireAdmin(authorization);
 		return this.fetchSessions();
 	}
 
 	/** Same as listSessions for callers that have already checked access, such as the live socket. */
-	async fetchSessions() {
+	async fetchSessions(): Promise<StreamSessionsResponse> {
 		const response = await this.request("/streamer/admin/sessions", "GET");
-		const data = (await response.json()) as StreamerSessions;
+		const data = (await response.json()) as StreamerSessionsResponse;
 
 		const userIds = [...new Set(data.sessions.map((session) => session.userId).filter((id): id is string => !!id))];
 		const users = userIds.length ? await this.dataSource.getRepository(User).findBy({ id: In(userIds) }) : [];

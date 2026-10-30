@@ -4,19 +4,89 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { IndexerClient } from "./indexerClient.js";
-import { INDEXER_CONCURRENCY_KEY, IndexerSettingsService } from "./indexerSettingsService.js";
+import {
+	INDEXER_CONCURRENCY_KEY,
+	IndexerSettingsService,
+	type IndexerQueueName,
+	type IndexerTaskQueueName,
+} from "./indexerSettingsService.js";
+
+export type IndexerScanState = "scanning" | "indexing" | "complete" | "failed";
+export const INDEXER_TASK_STATES = ["pending", "active", "scheduled", "retry", "archived", "completed"] as const;
+export type IndexerTaskState = (typeof INDEXER_TASK_STATES)[number];
+
+export interface IndexerScan {
+	libraryId: string;
+	state: IndexerScanState;
+	discovered: number;
+	done: number;
+	failed: number;
+	startedAt?: string;
+	finishedAt?: string;
+	error?: string;
+}
+
+export interface IndexerQueueStats {
+	queue: IndexerQueueName;
+	pending: number;
+	active: number;
+	scheduled: number;
+	retry: number;
+	archived: number;
+	completed: number;
+	processed: number;
+	failed: number;
+	paused: boolean;
+	latencyMs: number;
+}
+
+export interface IndexerTask {
+	id: string;
+	queue: IndexerTaskQueueName;
+	type: string;
+	state: IndexerTaskState;
+	retried: number;
+	maxRetry: number;
+	lastError?: string;
+	lastFailedAt?: string;
+	libraryId?: string;
+	libraryName?: string;
+	itemType?: string;
+	path?: string;
+}
+
+export interface IndexerTaskPage {
+	queue: IndexerTaskQueueName;
+	state: IndexerTaskState;
+	page: number;
+	tasks: IndexerTask[];
+}
+
+export interface IndexerTaskLogEntry {
+	time: string;
+	level: string;
+	message: string;
+}
+
+export interface IndexerTaskLogs {
+	queue: IndexerTaskQueueName;
+	id: string;
+	state: IndexerTaskState | "";
+	total: number;
+	entries: IndexerTaskLogEntry[];
+}
 
 export interface IndexerStatus {
 	reachable: boolean;
-	scans: unknown[];
-	queues: unknown[];
+	scans: IndexerScan[];
+	queues: IndexerQueueStats[];
 	concurrency: Record<string, number>;
 	maxConcurrency: number | null;
 	enabledProviders: string[];
 }
 
 interface IndexerStats {
-	queues?: unknown[];
+	queues?: IndexerQueueStats[];
 	enabledProviders?: string[];
 }
 
@@ -33,9 +103,12 @@ export class AdminIndexerService {
 		const stored = (await this.settings.forIndexer()).concurrency;
 		try {
 			const [scans, stats, concurrency] = await Promise.all([
-				this.indexer.request<{ scans?: unknown[] }>("GET", "/internal/scans"),
+				this.indexer.request<{ scans?: IndexerScan[] }>("GET", "/internal/scans"),
 				this.indexer.request<IndexerStats>("GET", "/internal/stats"),
-				this.indexer.request<{ concurrency?: Record<string, number>; max?: number }>("GET", "/internal/concurrency"),
+				this.indexer.request<{ concurrency?: Record<string, number>; max?: number }>(
+					"GET",
+					"/internal/concurrency",
+				),
 			]);
 			return {
 				reachable: true,
@@ -46,7 +119,14 @@ export class AdminIndexerService {
 				enabledProviders: stats?.enabledProviders ?? [],
 			};
 		} catch {
-			return { reachable: false, scans: [], queues: [], concurrency: stored, maxConcurrency: null, enabledProviders: [] };
+			return {
+				reachable: false,
+				scans: [],
+				queues: [],
+				concurrency: stored,
+				maxConcurrency: null,
+				enabledProviders: [],
+			};
 		}
 	}
 
@@ -57,7 +137,10 @@ export class AdminIndexerService {
 		if (!setting) {
 			throw new BadRequest("The indexer_concurrency setting is missing.");
 		}
-		const current = typeof setting.value === "object" && setting.value !== null ? (setting.value as Record<string, unknown>) : {};
+		const current =
+			typeof setting.value === "object" && setting.value !== null
+				? (setting.value as Record<string, unknown>)
+				: {};
 		setting.value = this.settings.validate(INDEXER_CONCURRENCY_KEY, { ...current, ...request }, current);
 		await repository.save(setting);
 		await this.indexer.reloadSettings();

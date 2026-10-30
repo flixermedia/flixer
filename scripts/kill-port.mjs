@@ -1,6 +1,7 @@
 // Stops whatever process is listening on a TCP port (default 8083).
 // Works on Windows, macOS and Linux. Usage: node scripts/kill-port.mjs [port]
 import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 
 const port = Number(process.argv[2] ?? 8083);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -33,6 +34,38 @@ function findPids() {
 			// Fallback for systems without lsof
 			const match = run("ss", ["-ltnpH", `sport = :${port}`]).matchAll(/pid=(\d+)/g);
 			for (const m of match) pids.add(m[1]);
+		}
+		if (!pids.size && process.platform === "linux") {
+			const inodes = new Set();
+			for (const table of ["/proc/net/tcp", "/proc/net/tcp6"]) {
+				try {
+					for (const line of readFileSync(table, "utf8").split(/\r?\n/).slice(1)) {
+						const columns = line.trim().split(/\s+/);
+						if (columns.length >= 10 && columns[3] === "0A" && Number.parseInt(columns[1].split(":").at(-1), 16) === port) {
+							inodes.add(columns[9]);
+						}
+					}
+				} catch {
+					// The table may be unavailable in restricted containers.
+				}
+			}
+			if (inodes.size) {
+				try {
+					for (const pid of readdirSync("/proc").filter((entry) => /^\d+$/.test(entry))) {
+						try {
+							for (const fd of readdirSync(`/proc/${pid}/fd`)) {
+								const target = readlinkSync(`/proc/${pid}/fd/${fd}`);
+								const match = target.match(/^socket:\[(\d+)\]$/);
+								if (match && inodes.has(match[1])) pids.add(pid);
+							}
+						} catch {
+							// Processes can exit or be hidden while descriptors are scanned.
+						}
+					}
+				} catch {
+					// /proc may be unavailable or restricted.
+				}
+			}
 		}
 	}
 	pids.delete("0");

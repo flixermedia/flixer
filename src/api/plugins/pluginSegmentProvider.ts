@@ -42,7 +42,7 @@ function validSegment(value: unknown): value is ProvidedSegment {
 export type SegmentLookupOutcome =
 	{ status: "no-provider" } | { status: "failed" } | { status: "ok"; segments: ProvidedSegments };
 
-/** Lets an enabled, approved plugin supply crowd-sourced media segments (e.g. SkipMe.db). */
+/** Lets an enabled, approved plugin supply media segments. */
 @Injectable()
 export class PluginSegmentProvider {
 	constructor(
@@ -50,7 +50,7 @@ export class PluginSegmentProvider {
 		private readonly runtime: PluginWasiRuntime,
 	) {}
 
-	/** "no-provider" lets callers use the built-in path; "failed" means a provider owns lookups but could not answer. */
+	/** "no-provider" means no plugin is active; "failed" means the active provider could not answer. */
 	async lookup(item: SegmentLookupItem, settings: { baseUrl: string }): Promise<SegmentLookupOutcome> {
 		const installations = await this.dataSource.getRepository(PluginInstallation).findBy({ enabled: true });
 		const provider = installations.find(
@@ -64,7 +64,7 @@ export class PluginSegmentProvider {
 
 		const pluginUrl = provider.settings.apiUrl;
 		const baseUrl = typeof pluginUrl === "string" && pluginUrl.trim() ? pluginUrl.trim() : settings.baseUrl;
-		// An empty URL turns lookups off, as it does for the built-in path.
+		// An empty URL turns lookups off unless the plugin provides its own endpoint.
 		if (!baseUrl) return { status: "ok", segments: {} };
 
 		try {

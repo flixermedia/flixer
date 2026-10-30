@@ -7,7 +7,7 @@ const item = { type: "movie" as const, durationMs: 1000, providerIds: { tmdb: "1
 
 function setup(overrides: Record<string, unknown> = {}, execute = vi.fn()) {
 	const installation = {
-		pluginId: "flixer.skipmedb",
+		pluginId: "example.segment-provider",
 		enabled: true,
 		manifest: { targets: { flixer: {} }, capabilities: ["media.segments"], permissions: ["media.segments.lookup"] },
 		approvedPermissions: ["media.segments.lookup"],

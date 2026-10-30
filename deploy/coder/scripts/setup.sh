@@ -22,6 +22,36 @@ for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-
   fi
 done
 
+# Projects is a host bind mount, so changing its root owner does not change existing files inside it.
+# Repair ownership and tracked file modes once; both changes persist on the host mount.
+restore_tracked_modes() {
+  local repo_path="$1" entry metadata path mode stage
+  while IFS= read -r -d '' entry; do
+    metadata="${entry%%$'\t'*}"
+    path="${entry:${#metadata}+1}"
+    mode="${metadata%% *}"
+    stage="${metadata##* }"
+    [ "$stage" = 0 ] || continue
+    case "$mode" in
+      100644) chmod 644 -- "$repo_path/$path" ;;
+      100755) chmod 755 -- "$repo_path/$path" ;;
+    esac
+  done < <(git -C "$repo_path" ls-files --stage -z)
+}
+
+OWNERSHIP_MARKER="$ROOT/.flixer-repo-ownership-$(id -u)-$(id -g)-v2"
+if [ ! -e "$OWNERSHIP_MARKER" ]; then
+  for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud; do
+    if [ -d "$ROOT/$repo" ]; then
+      sudo chown -R "$(id -u):$(id -g)" "$ROOT/$repo"
+      if git -C "$ROOT/$repo" rev-parse --git-dir >/dev/null 2>&1; then
+        restore_tracked_modes "$ROOT/$repo"
+      fi
+    fi
+  done
+  touch "$OWNERSHIP_MARKER"
+fi
+
 # Secrets are generated once and kept in the home volume.
 SECRETS="$HOME/.flixer-dev-secrets"
 if [ ! -f "$SECRETS" ]; then
@@ -40,6 +70,7 @@ if [ ! -f "$ROOT/flixer/.env" ]; then
 JWT_SECRET=$JWT_SECRET
 APP_SECRET=$APP_SECRET
 PORT=8083
+REDIS_URL=redis://redis:6379
 FLIXER_PUBLIC_URL=$PUBLIC_URL
 APP_URL=$PUBLIC_URL
 PASSKEY_RP_ID=$PUBLIC_HOST
@@ -47,6 +78,7 @@ PASSKEY_ORIGINS=$PUBLIC_URL
 DATA_DIR=$ROOT/flixer-data
 MEDIA_PATH=$ROOT/flixer-data/media
 STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
+MEILISEARCH_URL=http://meilisearch:7700
 SMB_MOUNT_SUDO=true
 EOF
 fi
@@ -74,6 +106,14 @@ for env_file in "$ROOT/flixer/.env" "$ROOT/flixer-streamer/.env" "$ROOT/flixer-i
   sed -i -E '/^(DATA_PATH|DATA_DIR|LOG_DIR|CACHE_PATH|TRICKPLAY_DIR|TRANSCODE_DIR|SUBTITLE_DIR)=/d' "$env_file"
   printf 'DATA_DIR=%s\n' "$ROOT/flixer-data" >> "$env_file"
 done
+if ! grep -q '^REDIS_URL=' "$ROOT/flixer/.env"; then
+  printf 'REDIS_URL=redis://redis:6379\n' >> "$ROOT/flixer/.env"
+fi
+if grep -q '^MEILISEARCH_URL=' "$ROOT/flixer/.env"; then
+  sed -i 's|^MEILISEARCH_URL=.*|MEILISEARCH_URL=http://meilisearch:7700|' "$ROOT/flixer/.env"
+else
+  printf 'MEILISEARCH_URL=http://meilisearch:7700\n' >> "$ROOT/flixer/.env"
+fi
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapterSegments, mergeSegments, parseChapters, pickSkipmeTimestamp } from "./segmentLogic.js";
+import { chapterSegments, mergeSegments, parseChapters } from "./segmentLogic.js";
 
 describe("segmentLogic", () => {
 	it("reads stored chapters in seconds and skips malformed ones", () => {
@@ -30,28 +30,17 @@ describe("segmentLogic", () => {
 		expect(chapterSegments(chapters).map((s) => s.type)).toEqual(["intro", "recap", "commercial", "credits"]);
 	});
 
-	it("keeps one segment per type, preferring manual over skipme over chapters", () => {
+	it("keeps one segment per type, preferring manual over indexed provider data over chapters", () => {
 		const merged = mergeSegments([
 			{ type: "intro", startMs: 0, endMs: 1000, source: "chapter" },
-			{ type: "intro", startMs: 100, endMs: 900, source: "skipme" },
+			{ type: "intro", startMs: 100, endMs: 900, source: "theintrodb" },
 			{ type: "intro", startMs: 200, endMs: 800, source: "manual" },
+			{ type: "credits", startMs: 3000, endMs: 4000, source: "plugin" },
 			{ type: "credits", startMs: 5000, endMs: 6000, source: "chapter" },
 		]);
 		expect(merged).toEqual([
 			{ type: "intro", startMs: 200, endMs: 800, source: "manual" },
-			{ type: "credits", startMs: 5000, endMs: 6000, source: "chapter" },
+			{ type: "credits", startMs: 3000, endMs: 4000, source: "plugin" },
 		]);
-	});
-
-	it("picks the crowd-sourced entry that matches the file length with the most submissions", () => {
-		const entries = [
-			{ start_ms: 1000, end_ms: 2000, duration_ms: 1_400_000, submissions: 9 },
-			{ start_ms: 3000, end_ms: 4000, duration_ms: 1_320_000, submissions: 2 },
-			{ start_ms: 5000, end_ms: 4000, duration_ms: 1_320_000, submissions: 50 },
-			{ start_ms: 7000, end_ms: 8000, duration_ms: 1_321_000, submissions: 5 },
-		];
-		expect(pickSkipmeTimestamp(entries, 1_320_500)).toEqual({ startMs: 7000, endMs: 8000, submissions: 5 });
-		expect(pickSkipmeTimestamp(entries, 60_000)).toBeNull();
-		expect(pickSkipmeTimestamp(undefined, 1000)).toBeNull();
 	});
 });

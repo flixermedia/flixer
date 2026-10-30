@@ -9,6 +9,7 @@ export { PreferencesController } from "./api/preferences/preferencesController.j
 export { SettingsController } from "./api/settings/settingsController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";
 export { JobsController } from "./api/jobs/jobsController.js";
+export { AdminScheduledTasksController } from "./api/jobs/adminScheduledTasksController.js";
 export { StreamsController } from "./api/streams/streamsController.js";
 export { DevicesController } from "./api/devices/devicesController.js";
 export { ApiKeysController } from "./api/apiKeys/apiKeysController.js";
@@ -26,6 +27,7 @@ export {
 export { PluginSchedulerService } from "./api/plugins/pluginSchedulerService.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { MediaHomeController } from "./api/media/mediaHomeController.js";
+export { AdminMediaSearchController } from "./api/media/adminMediaSearchController.js";
 export { NetworkSharesController } from "./api/networkShares/networkSharesController.js";
 export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
 export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";

@@ -1,6 +1,6 @@
 # Flixer. Start with `docker compose up -d`, open http://localhost:8080 and follow the setup wizard.
 #
-# Two settings, in a .env file next to this file (or exported):
+# Settings, in a .env file next to this file (or exported):
 #   DATA_DIR   (required) a folder Flixer keeps its own data in: avatars, config, database, cache, logs, backups and Nginx config.
 #   MEDIA_PATH (optional) the folder that holds your media; defaults to ./media.
 # Everything else is configured in the wizard.
@@ -13,7 +13,7 @@ services:
               - -c
               - |
                 set -e
-                mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins
+                mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch
                 chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups /data/plugins /data/logs
                 chown 70:70 /data/database
                 chown -R 65532:65532 /data/cache
@@ -59,6 +59,7 @@ services:
             INDEXER_URL: http://indexer:8092
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://updater:8093
+            MEILISEARCH_URL: http://meilisearch:7700
         group_add:
             - "65532"
         volumes:
@@ -172,6 +173,26 @@ services:
             interval: 10s
             timeout: 3s
             retries: 5
+        restart: unless-stopped
+
+    meilisearch:
+        image: getmeili/meilisearch:v1.12
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
+        environment:
+            MEILI_ENV: production
+            MEILI_NO_ANALYTICS: "true"
+        command:
+            - /bin/sh
+            - -c
+            - |
+                while [ ! -s /run/flixer-secrets/app-secret ]; do sleep 1; done
+                export MEILI_MASTER_KEY="$$(cat /run/flixer-secrets/app-secret)"
+                exec /bin/meilisearch
+        volumes:
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/meilisearch:/meili_data
+            - flixer-secrets:/run/flixer-secrets:ro
         restart: unless-stopped
 
     web:

@@ -12,7 +12,7 @@ const collectionPath = isAbsolute(configuredCollectionPath)
 	? configuredCollectionPath
 	: resolve(projectRoot, configuredCollectionPath);
 const userFilePath = resolve(projectRoot, "insomnia", "flixer-user.json");
-const openApiUrl = process.env.OPENAPI_URL ?? "http://localhost:8083/scalar/doc/openapi.json";
+const openApiUrl = process.env.OPENAPI_URL ?? "http://localhost:8083/api/scalar/doc/openapi.json";
 const SERVER_START_TIMEOUT_MS = 120_000;
 const SERVER_POLL_INTERVAL_MS = 1_000;
 const OPENAPI_REQUEST_TIMEOUT_MS = 5_000;

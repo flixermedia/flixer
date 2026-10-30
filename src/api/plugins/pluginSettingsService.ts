@@ -16,6 +16,9 @@ export interface PluginSettingsUpdate {
 
 interface JsonSchemaProperty {
 	type?: string;
+	title?: string;
+	description?: string;
+	format?: string;
 	items?: { type?: string };
 	enum?: unknown[];
 	default?: unknown;
@@ -24,8 +27,8 @@ interface JsonSchemaProperty {
 }
 
 export interface PluginSettingsSchema {
-	type?: string;
-	properties?: Record<string, JsonSchemaProperty>;
+	type: "object";
+	properties: Record<string, JsonSchemaProperty>;
 	[key: string]: unknown;
 }
 

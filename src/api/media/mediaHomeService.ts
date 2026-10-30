@@ -9,6 +9,7 @@ import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { PersonProfile } from "../../entities/personProfile.entity.js";
 import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
+import { MediaSearchService } from "./mediaSearchService.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { allowedPersonImage, fetchPersonImage } from "./personImages.js";
 
@@ -174,6 +175,7 @@ export class MediaHomeService {
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		@Inject(IndexerClient) private readonly indexer: IndexerClient,
+		private readonly mediaSearch: MediaSearchService,
 	) {}
 
 	private readonly profileLookups = new Map<string, Promise<PersonProfile | null>>();
@@ -436,6 +438,14 @@ export class MediaHomeService {
 			return [];
 		}
 		const types = filters.type && SEARCH_TYPES.includes(filters.type as MediaItemType) ? [filters.type as MediaItemType] : SEARCH_TYPES;
+		const searchIds = await this.mediaSearch.searchIds(term, {
+			type: types,
+			genre,
+			yearFrom: filters.yearFrom,
+			yearTo: filters.yearTo,
+			sort: filters.sort,
+		});
+		if (searchIds?.length === 0) return [];
 		const query_ = this.dataSource
 			.getRepository(MediaItem)
 			.createQueryBuilder("item")
@@ -443,7 +453,9 @@ export class MediaHomeService {
 			.where("item.is_placeholder = false")
 			.andWhere("item.type IN (:...types)", { types });
 
-		if (term) {
+		if (searchIds) {
+			query_.andWhere("item.id IN (:...searchIds)", { searchIds });
+		} else if (term) {
 			const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
 			query_
 				.andWhere("(item.title ILIKE :contains OR item.sort_title ILIKE :contains OR (item.metadata -> 'cast')::text ILIKE :contains OR (item.metadata -> 'crew')::text ILIKE :contains)", { contains: `%${escaped}%` })
@@ -462,26 +474,29 @@ export class MediaHomeService {
 			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
 		}
 
-		switch (filters.sort) {
-			case "title":
-				query_.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
-				break;
-			case "year":
-				query_.orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("item.title", "ASC");
-				break;
-			case "added":
-				query_.orderBy("item.created_at", "DESC");
-				break;
-			default:
-				if (term) {
-					query_.orderBy("CASE WHEN item.title ILIKE :prefix THEN 0 WHEN item.title ILIKE :contains THEN 1 ELSE 2 END", "ASC").addOrderBy("item.title", "ASC");
-				} else {
-					query_.orderBy("item.title", "ASC");
-				}
+		if (!searchIds || filters.sort) {
+			switch (filters.sort) {
+				case "title":
+					query_.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
+					break;
+				case "year":
+					query_.orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("item.title", "ASC");
+					break;
+				case "added":
+					query_.orderBy("item.created_at", "DESC");
+					break;
+				default:
+					if (term && !searchIds) {
+						query_.orderBy("CASE WHEN item.title ILIKE :prefix THEN 0 WHEN item.title ILIKE :contains THEN 1 ELSE 2 END", "ASC").addOrderBy("item.title", "ASC");
+					} else {
+						query_.orderBy("item.title", "ASC");
+					}
+			}
 		}
-		const items = await query_.limit(SEARCH_LIMIT).getMany();
+		const items = await query_.limit(searchIds ? Math.min(searchIds.length, 1000) : SEARCH_LIMIT).getMany();
+		const orderedItems = searchIds && !filters.sort ? searchIds.map((id) => items.find((item) => item.id === id)).filter((item): item is MediaItem => item !== undefined) : items;
 
-		return items.map((item) => ({
+		return orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
 			id: item.id,
 			type: item.type,
 			title: item.title,

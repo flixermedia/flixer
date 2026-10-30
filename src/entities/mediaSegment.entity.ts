@@ -4,7 +4,7 @@ export const SEGMENT_TYPES = ["intro", "recap", "credits", "preview", "commercia
 export type SegmentType = (typeof SEGMENT_TYPES)[number];
 
 /** Where a stored segment came from. Chapter-derived segments are computed on read and never stored. */
-export const SEGMENT_SOURCES = ["manual", "skipme"] as const;
+export const SEGMENT_SOURCES = ["manual", "theintrodb", "plugin"] as const;
 export type SegmentSource = (typeof SEGMENT_SOURCES)[number];
 
 /** A skippable span of one item (an intro, credits, …) with its position in milliseconds. */
