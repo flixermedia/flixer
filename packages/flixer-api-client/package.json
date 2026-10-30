@@ -1,5 +1,5 @@
 {
-	"name": "@flixermedia/flixer-api-client",
+	"name": "flixer-api-client",
 	"version": "1.0.1",
 	"description": "Generated TypeScript client for the Flixer API",
 	"type": "module",
@@ -33,6 +33,6 @@
 		"typescript": "^7.0.2"
 	},
 	"publishConfig": {
-		"registry": "https://npm.pkg.github.com"
+		"registry": "https://registry.npmjs.org"
 	}
 }
