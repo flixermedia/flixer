@@ -15,6 +15,20 @@ export interface WizardProgress {
 	adoptedAccounts?: boolean;
 }
 
+export interface DatabaseTransferJournal {
+	id: string;
+	state: "running" | "failed" | "completed";
+	phase: string;
+	message: string;
+	sourceUrl: string;
+	targetUrl: string;
+	replaceTarget: boolean;
+	sourceWasReadOnly: boolean;
+	sourceLocked: boolean;
+	startedAt: string;
+	finishedAt: string | null;
+}
+
 export type ConfigSource = "env" | "store" | "default" | "unset";
 
 interface Migration {
@@ -51,7 +65,6 @@ function definitionOf(name: ConfigName): ConfigKeyDefinition {
 
 /** Persistent bootstrap configuration in SQLite. Values are read synchronously so it can be used before any service has started. */
 export class ConfigStore {
-
 	private readonly db: DatabaseSync;
 	private readonly box: SecretBox;
 
@@ -64,8 +77,14 @@ export class ConfigStore {
 	}
 
 	private migrate(): void {
-		this.db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
-		const applied = new Set((this.db.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]).map((row) => row.version));
+		this.db.exec(
+			"CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
+		);
+		const applied = new Set(
+			(this.db.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]).map(
+				(row) => row.version,
+			),
+		);
 		for (const migration of MIGRATIONS) {
 			if (applied.has(migration.version)) {
 				continue;
@@ -73,7 +92,9 @@ export class ConfigStore {
 			this.db.exec("BEGIN IMMEDIATE");
 			try {
 				this.db.exec(migration.sql);
-				this.db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(migration.version, new Date().toISOString());
+				this.db
+					.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+					.run(migration.version, new Date().toISOString());
 				this.db.exec("COMMIT");
 			} catch (error: unknown) {
 				this.db.exec("ROLLBACK");
@@ -84,12 +105,14 @@ export class ConfigStore {
 
 	/** Counts every saved change so other services can tell when to reload. */
 	version(): number {
-		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'config_version'").get() as { value: string } | undefined;
+		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'config_version'").get() as
+			{ value: string } | undefined;
 		return row ? Number(row.value) : 0;
 	}
 
 	get(name: ConfigName): string | undefined {
-		const row = this.db.prepare("SELECT value, encrypted FROM config WHERE key = ?").get(definitionOf(name).key) as { value: string; encrypted: number } | undefined;
+		const row = this.db.prepare("SELECT value, encrypted FROM config WHERE key = ?").get(definitionOf(name).key) as
+			{ value: string; encrypted: number } | undefined;
 		if (!row) {
 			return undefined;
 		}
@@ -123,9 +146,19 @@ export class ConfigStore {
 			);
 			for (const [name, value] of entries) {
 				const definition = definitionOf(name);
-				upsert.run(definition.key, definition.secret ? this.box.encrypt(value) : value, definition.secret ? 1 : 0, next, now);
+				upsert.run(
+					definition.key,
+					definition.secret ? this.box.encrypt(value) : value,
+					definition.secret ? 1 : 0,
+					next,
+					now,
+				);
 			}
-			this.db.prepare("INSERT INTO meta (key, value) VALUES ('config_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(next));
+			this.db
+				.prepare(
+					"INSERT INTO meta (key, value) VALUES ('config_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+				)
+				.run(String(next));
 			this.db.exec("COMMIT");
 			return next;
 		} catch (error: unknown) {
@@ -135,7 +168,8 @@ export class ConfigStore {
 	}
 
 	setupState(): SetupState {
-		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'setup_state'").get() as { value: string } | undefined;
+		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'setup_state'").get() as
+			{ value: string } | undefined;
 		return SETUP_STATES.find((state) => state === row?.value) ?? "not_started";
 	}
 
@@ -149,19 +183,61 @@ export class ConfigStore {
 
 	/** Which wizard flow was chosen and which steps are done, so a refresh or a second browser resumes where setup stopped. */
 	wizardProgress(): WizardProgress {
-		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'wizard_progress'").get() as { value: string } | undefined;
+		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'wizard_progress'").get() as
+			{ value: string } | undefined;
 		try {
 			const parsed = JSON.parse(row?.value ?? "") as Partial<WizardProgress>;
 			const flow = parsed.flow === "advanced" ? "advanced" : "quick";
-			const steps = Array.isArray(parsed.completedSteps) ? parsed.completedSteps.filter((step): step is string => typeof step === "string") : [];
-			return { flow, completedSteps: [...new Set(steps)], ...(parsed.adoptedAccounts === true ? { adoptedAccounts: true } : {}) };
+			const steps = Array.isArray(parsed.completedSteps)
+				? parsed.completedSteps.filter((step): step is string => typeof step === "string")
+				: [];
+			return {
+				flow,
+				completedSteps: [...new Set(steps)],
+				...(parsed.adoptedAccounts === true ? { adoptedAccounts: true } : {}),
+			};
 		} catch {
 			return { flow: "quick", completedSteps: [] };
 		}
 	}
 
 	setWizardProgress(progress: WizardProgress): void {
-		this.db.prepare("INSERT INTO meta (key, value) VALUES ('wizard_progress', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(progress));
+		this.db
+			.prepare(
+				"INSERT INTO meta (key, value) VALUES ('wizard_progress', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+			)
+			.run(JSON.stringify(progress));
+	}
+
+	getDatabaseTransferJournal(): DatabaseTransferJournal | null {
+		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'database_transfer_journal'").get() as
+			{ value: string } | undefined;
+		if (!row) {
+			return null;
+		}
+		return JSON.parse(this.box.decrypt(row.value)) as DatabaseTransferJournal;
+	}
+
+	setDatabaseTransferJournal(journal: DatabaseTransferJournal): void {
+		this.db
+			.prepare(
+				"INSERT INTO meta (key, value) VALUES ('database_transfer_journal', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+			)
+			.run(this.box.encrypt(JSON.stringify(journal)));
+	}
+
+	clearDatabaseTransferJournal(): void {
+		this.db.prepare("DELETE FROM meta WHERE key = 'database_transfer_journal'").run();
+	}
+
+	/** Promotes a completed transfer only during process startup, before the API opens its PostgreSQL connection. */
+	promoteCompletedDatabaseTransfer(): void {
+		const journal = this.getDatabaseTransferJournal();
+		if (journal?.state !== "completed") {
+			return;
+		}
+		this.setMany({ databaseUrl: journal.targetUrl });
+		this.clearDatabaseTransferJournal();
 	}
 
 	/** Reopens the wizard. Saved values stay, so the steps come back pre-filled. */
@@ -171,7 +247,11 @@ export class ConfigStore {
 	}
 
 	private writeSetupState(state: SetupState): void {
-		this.db.prepare("INSERT INTO meta (key, value) VALUES ('setup_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(state);
+		this.db
+			.prepare(
+				"INSERT INTO meta (key, value) VALUES ('setup_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+			)
+			.run(state);
 	}
 
 	/** Writes a consistent, WAL-free copy of the database to `destination`, which must not exist yet. */
@@ -182,5 +262,4 @@ export class ConfigStore {
 	close(): void {
 		this.db.close();
 	}
-
 }

@@ -184,6 +184,7 @@ services:
             MEILI_ENV: development
             MEILI_MASTER_KEY: ${APP_SECRET:-}
             MEILI_NO_ANALYTICS: "true"
+            MEILI_EXPERIMENTAL_DISABLE_VECTOR_STORE: "true"
         command:
             - /bin/sh
             - -c

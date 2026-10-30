@@ -26,7 +26,9 @@ export interface PersonProfileView {
 }
 
 function toProfileView(row: PersonProfile): PersonProfileView | null {
-	return row.biography || row.description ? { description: row.description, biography: row.biography, source: row.source, sourceUrl: row.sourceUrl } : null;
+	return row.biography || row.description
+		? { description: row.description, biography: row.biography, source: row.source, sourceUrl: row.sourceUrl }
+		: null;
 }
 
 const ROLE_ORDER = ["artist", "actor", "director", "writer", "producer", "composer"];
@@ -35,9 +37,13 @@ const FEATURED_CANDIDATES = 40;
 const ROW_SIZE = 20;
 /** Item types that make up a library's top level; seasons, episodes and tracks sit beneath them. */
 const TOP_LEVEL_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
-/** Episodes stay out of search so a show appears once, as its series. */
-const SEARCH_TYPES: MediaItemType[] = TOP_LEVEL_TYPES;
+const NESTED_SEARCH_TYPES: MediaItemType[] = ["episode", "track"];
+const SEARCH_TYPE_FAMILIES: Partial<Record<MediaItemType, MediaItemType[]>> = {
+	series: ["series", "episode"],
+	album: ["album", "track"],
+};
 const SEARCH_LIMIT = 60;
+export type MediaSearchEngine = "meilisearch" | "postgresql" | "none";
 
 export interface SearchFilters {
 	type?: string;
@@ -46,6 +52,7 @@ export interface SearchFilters {
 	yearTo?: number;
 	sort?: string;
 	unwatched?: boolean;
+	includeChildren?: boolean;
 }
 const BROWSE_KINDS: Record<string, MediaItemType[]> = {
 	movies: ["movie", "video"],
@@ -62,7 +69,9 @@ interface StoredImage {
 function imageIndex(images: unknown[] | null | undefined, types: string[]): number | null {
 	const list = (images ?? []) as StoredImage[];
 	for (const type of types) {
-		const index = list.findIndex((image) => image?.type === type && typeof image.path === "string" && image.path.length > 0);
+		const index = list.findIndex(
+			(image) => image?.type === type && typeof image.path === "string" && image.path.length > 0,
+		);
 		if (index >= 0) {
 			return index;
 		}
@@ -75,7 +84,9 @@ function textOf(value: unknown): string | null {
 }
 
 function stringsOf(value: unknown): string[] {
-	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0) : [];
+	return Array.isArray(value)
+		? value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+		: [];
 }
 
 function runtimeOf(item: MediaItem): number | null {
@@ -96,7 +107,12 @@ function peopleOf(value: unknown): Array<{ id: string; name: string; role: strin
 		.map((person) => person as { name?: unknown; role?: unknown; image?: unknown })
 		.filter((person) => typeof person?.name === "string" && person.name.trim().length > 0)
 		.slice(0, 20)
-		.map((person) => ({ id: personIdOf(person.name as string), name: person.name as string, role: textOf(person.role), hasImage: allowedPersonImage(person.image) !== null }));
+		.map((person) => ({
+			id: personIdOf(person.name as string),
+			name: person.name as string,
+			role: textOf(person.role),
+			hasImage: allowedPersonImage(person.image) !== null,
+		}));
 }
 
 /** Crew with their department (director, writer, ...), one entry per person and department. */
@@ -114,7 +130,12 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 		const role = typeof person.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : "crew";
 		if (!seen.has(`${person.name}|${role}`)) {
 			seen.add(`${person.name}|${role}`);
-			crew.push({ id: personIdOf(person.name), name: person.name.trim(), role, hasImage: allowedPersonImage(person.image) !== null });
+			crew.push({
+				id: personIdOf(person.name),
+				name: person.name.trim(),
+				role,
+				hasImage: allowedPersonImage(person.image) !== null,
+			});
 		}
 	}
 	return crew.slice(0, 30);
@@ -125,6 +146,7 @@ export interface HomeCard {
 	type: MediaItemType;
 	title: string;
 	year: number | null;
+	searchContext?: string | null;
 	/** Image indexes to request from /media/items/:id/images/:index, or null when none has been downloaded. */
 	poster: number | null;
 	backdrop: number | null;
@@ -171,7 +193,6 @@ const CONTINUE_LIMIT = 20;
 /** The content shown on the signed-in home page. */
 @Injectable()
 export class MediaHomeService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		@Inject(IndexerClient) private readonly indexer: IndexerClient,
@@ -212,7 +233,9 @@ export class MediaHomeService {
 
 	/** Records a position; finishing an item marks it completed so it leaves "Continue watching". */
 	async saveProgress(userId: string, itemId: string, positionSeconds: number, durationSeconds: number) {
-		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId }, select: { id: true, type: true } });
+		const item = await this.dataSource
+			.getRepository(MediaItem)
+			.findOne({ where: { id: itemId }, select: { id: true, type: true } });
 		if (!item || !CONTINUE_TYPES.includes(item.type)) {
 			throw new NotFound("Media item not found.");
 		}
@@ -224,13 +247,26 @@ export class MediaHomeService {
 				return;
 			}
 		}
-		await repo.upsert({ userId, itemId, positionSeconds: completed ? 0 : positionSeconds, durationSeconds, completed, updatedAt: new Date() }, ["userId", "itemId"]);
+		await repo.upsert(
+			{
+				userId,
+				itemId,
+				positionSeconds: completed ? 0 : positionSeconds,
+				durationSeconds,
+				completed,
+				updatedAt: new Date(),
+			},
+			["userId", "itemId"],
+		);
 	}
 
 	/** Marks an item watched or unwatched; a series or season applies to every episode beneath it. */
 	async setWatched(userId: string, itemId: string, watched: boolean) {
 		const repo = this.dataSource.getRepository(MediaItem);
-		const item = await repo.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		const item = await repo.findOne({
+			where: { id: itemId, isPlaceholder: false },
+			select: { id: true, type: true },
+		});
 		if (!item) {
 			throw new NotFound("Media item not found.");
 		}
@@ -268,17 +304,25 @@ export class MediaHomeService {
 
 	/** Unfinished movies, episodes and videos the user has started, most recent first. */
 	private async continueWatching(userId: string): Promise<ContinueCard[]> {
-		const rows = await this.dataSource.getRepository(WatchProgress).find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
+		const rows = await this.dataSource
+			.getRepository(WatchProgress)
+			.find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
 		if (rows.length === 0) {
 			return [];
 		}
 		const repo = this.dataSource.getRepository(MediaItem);
 		const items = await repo.find({ where: { id: In(rows.map((row) => row.itemId)), isPlaceholder: false } });
 		const byId = new Map(items.map((item) => [item.id, item]));
-		const seasonIds = [...new Set(items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string))];
+		const seasonIds = [
+			...new Set(
+				items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string),
+			),
+		];
 		const seasons = seasonIds.length > 0 ? await repo.findBy({ id: In(seasonIds) }) : [];
 		const seasonById = new Map(seasons.map((season) => [season.id, season]));
-		const seriesIds = [...new Set(seasons.filter((season) => season.parentId).map((season) => season.parentId as string))];
+		const seriesIds = [
+			...new Set(seasons.filter((season) => season.parentId).map((season) => season.parentId as string)),
+		];
 		const seriesList = seriesIds.length > 0 ? await repo.findBy({ id: In(seriesIds) }) : [];
 		const seriesById = new Map(seriesList.map((series) => [series.id, series]));
 
@@ -293,7 +337,10 @@ export class MediaHomeService {
 			let title = item.title;
 			let subtitle: string | null = item.year ? String(item.year) : null;
 			if (item.type === "episode" && series) {
-				const code = season?.seasonNumber != null && item.episodeNumber != null ? `S${season.seasonNumber}E${item.episodeNumber}` : null;
+				const code =
+					season?.seasonNumber != null && item.episodeNumber != null
+						? `S${season.seasonNumber}E${item.episodeNumber}`
+						: null;
 				title = series.title;
 				subtitle = [code, item.title].filter(Boolean).join(" · ");
 			}
@@ -313,7 +360,8 @@ export class MediaHomeService {
 				imageIndex: index,
 				imageUpdatedAt: imageSource.updatedAt,
 				positionSeconds: row.positionSeconds,
-				progress: duration > 0 ? Math.min(99, Math.max(1, Math.round((row.positionSeconds / duration) * 100))) : 0,
+				progress:
+					duration > 0 ? Math.min(99, Math.max(1, Math.round((row.positionSeconds / duration) * 100))) : 0,
 				updatedAt: row.updatedAt,
 			});
 			if (cards.length >= CONTINUE_LIMIT) {
@@ -331,7 +379,8 @@ export class MediaHomeService {
 			throw new NotFound("Media item not found.");
 		}
 		const parent = item.parentId ? await repo.findOneBy({ id: item.parentId }) : null;
-		const series = parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
+		const series =
+			parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
 
 		const children = await repo
 			.createQueryBuilder("child")
@@ -353,9 +402,18 @@ export class MediaHomeService {
 						.getMany()
 				: [];
 
-		const episodeIds = [...grandchildren, ...children, item].filter((entry) => entry.type === "episode" || entry.type === "movie" || entry.type === "video").map((entry) => entry.id);
+		const episodeIds = [...grandchildren, ...children, item]
+			.filter((entry) => entry.type === "episode" || entry.type === "movie" || entry.type === "video")
+			.map((entry) => entry.id);
 		const watchedIds = new Set(
-			userId && episodeIds.length > 0 ? (await this.dataSource.getRepository(WatchProgress).find({ where: { userId, itemId: In(episodeIds), completed: true }, select: { itemId: true } })).map((row) => row.itemId) : [],
+			userId && episodeIds.length > 0
+				? (
+						await this.dataSource.getRepository(WatchProgress).find({
+							where: { userId, itemId: In(episodeIds), completed: true },
+							select: { itemId: true },
+						})
+					).map((row) => row.itemId)
+				: [],
 		);
 
 		const summarize = (entry: MediaItem) => ({
@@ -390,7 +448,10 @@ export class MediaHomeService {
 			studios: stringsOf(metadata.studios),
 			cast: peopleOf(metadata.cast),
 			crew: crewOf(metadata.crew),
-			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<string, number>,
+			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<
+				string,
+				number
+			>,
 			status: textOf(metadata.status),
 			artist: textOf(metadata.artist ?? metadata.albumArtist),
 			artistId: (() => {
@@ -429,15 +490,26 @@ export class MediaHomeService {
 		return rows.map((row) => row.genre).filter(Boolean);
 	}
 
-	/** Search over everything playable or browsable. Matches titles first, then cast and crew; every filter is optional. */
-	async search(userId: string, query: string, filters: SearchFilters = {}): Promise<HomeCard[]> {
+	/** Searches configured media fields and returns matching nested tracks and episodes with their parent titles. */
+	async search(
+		userId: string,
+		query: string,
+		filters: SearchFilters = {},
+	): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
 		const term = query.trim().slice(0, 100);
 		const genre = filters.genre?.trim().slice(0, 60) || undefined;
 		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched);
 		if (term.length < 2 && !(term.length === 0 && hasFilter)) {
-			return [];
+			return { items: [], engine: "none" };
 		}
-		const types = filters.type && SEARCH_TYPES.includes(filters.type as MediaItemType) ? [filters.type as MediaItemType] : SEARCH_TYPES;
+		const includeChildren = filters.includeChildren === true;
+		const searchableTypes = includeChildren ? [...TOP_LEVEL_TYPES, ...NESTED_SEARCH_TYPES] : TOP_LEVEL_TYPES;
+		const types =
+			filters.type && searchableTypes.includes(filters.type as MediaItemType)
+				? includeChildren
+					? (SEARCH_TYPE_FAMILIES[filters.type as MediaItemType] ?? [filters.type as MediaItemType])
+					: [filters.type as MediaItemType]
+				: searchableTypes;
 		const searchIds = await this.mediaSearch.searchIds(term, {
 			type: types,
 			genre,
@@ -445,11 +517,19 @@ export class MediaHomeService {
 			yearTo: filters.yearTo,
 			sort: filters.sort,
 		});
-		if (searchIds?.length === 0) return [];
+		if (searchIds?.length === 0) return { items: [], engine: "meilisearch" };
 		const query_ = this.dataSource
 			.getRepository(MediaItem)
 			.createQueryBuilder("item")
-			.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"])
+			.select([
+				"item.id",
+				"item.type",
+				"item.title",
+				"item.year",
+				"item.parentId",
+				"item.images",
+				"item.updatedAt",
+			])
 			.where("item.is_placeholder = false")
 			.andWhere("item.type IN (:...types)", { types });
 
@@ -457,24 +537,86 @@ export class MediaHomeService {
 			query_.andWhere("item.id IN (:...searchIds)", { searchIds });
 		} else if (term) {
 			const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
-			query_
-				.andWhere("(item.title ILIKE :contains OR item.sort_title ILIKE :contains OR (item.metadata -> 'cast')::text ILIKE :contains OR (item.metadata -> 'crew')::text ILIKE :contains)", { contains: `%${escaped}%` })
-				.setParameter("prefix", `${escaped}%`);
+			query_.andWhere(
+				`(
+						item.title ILIKE :contains
+						OR item.metadata ->> 'overview' ILIKE :contains
+						OR item.metadata ->> 'tagline' ILIKE :contains
+						OR (item.type IN ('album', 'track') AND (
+							item.metadata ->> 'artist' ILIKE :contains
+							OR item.metadata ->> 'albumArtist' ILIKE :contains
+						))
+						OR (item.type IN ('movie', 'series', 'episode', 'video') AND (item.metadata -> 'studios')::text ILIKE :contains)
+						OR (item.type IN ('movie', 'series', 'episode') AND EXISTS (
+							SELECT 1 FROM jsonb_array_elements(
+								CASE WHEN jsonb_typeof(item.metadata -> 'cast') = 'array' THEN item.metadata -> 'cast' ELSE '[]'::jsonb END
+							) person
+							WHERE concat_ws(' ', person ->> 'name', person ->> 'role', person ->> 'character') ILIKE :contains
+						))
+						OR (item.type IN ('movie', 'series', 'episode') AND EXISTS (
+							SELECT 1 FROM jsonb_array_elements(
+								CASE WHEN jsonb_typeof(item.metadata -> 'crew') = 'array' THEN item.metadata -> 'crew' ELSE '[]'::jsonb END
+							) person
+							WHERE concat_ws(' ', person ->> 'name', person ->> 'role', person ->> 'job', person ->> 'department') ILIKE :contains
+						))
+						OR EXISTS (
+							SELECT 1 FROM media_items parent
+							WHERE item.type = 'track' AND parent.id = item.parent_id AND parent.type = 'album' AND parent.title ILIKE :contains
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_items season
+							JOIN media_items show ON show.id = season.parent_id
+							WHERE item.type = 'episode' AND season.id = item.parent_id AND show.title ILIKE :contains
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_items season
+							JOIN media_items episode ON episode.parent_id = season.id
+							WHERE item.type = 'series' AND season.parent_id = item.id AND episode.type = 'episode' AND episode.title ILIKE :contains
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_items track
+							WHERE item.type = 'album' AND track.parent_id = item.id AND track.type = 'track' AND track.title ILIKE :contains
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_items track
+							WHERE item.type = 'album' AND track.parent_id = item.id AND (
+								track.metadata ->> 'artist' ILIKE :contains OR track.metadata ->> 'albumArtist' ILIKE :contains
+							)
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_items album
+							WHERE item.type = 'track' AND album.id = item.parent_id AND (
+								album.metadata ->> 'artist' ILIKE :contains OR album.metadata ->> 'albumArtist' ILIKE :contains
+							)
+						)
+						OR EXISTS (
+							SELECT 1 FROM media_search_lyrics lyrics
+							WHERE item.type = 'track' AND lyrics.item_id = item.id AND lyrics.lyrics ILIKE :contains
+						)
+					)`,
+				{ contains: `%${escaped}%` },
+			);
 		}
-		if (genre) {
-			query_.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre });
+		if (genre && !searchIds) {
+			query_.andWhere(
+				"EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))",
+				{ genre },
+			);
 		}
-		if (Number.isInteger(filters.yearFrom)) {
+		if (!searchIds && Number.isInteger(filters.yearFrom)) {
 			query_.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
 		}
-		if (Number.isInteger(filters.yearTo)) {
+		if (!searchIds && Number.isInteger(filters.yearTo)) {
 			query_.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
 		}
 		if (filters.unwatched) {
-			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
+			query_.andWhere(
+				"NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)",
+				{ userId },
+			);
 		}
 
-		if (!searchIds || filters.sort) {
+		if (!searchIds || (filters.sort && filters.sort !== "relevance")) {
 			switch (filters.sort) {
 				case "title":
 					query_.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
@@ -486,25 +628,49 @@ export class MediaHomeService {
 					query_.orderBy("item.created_at", "DESC");
 					break;
 				default:
-					if (term && !searchIds) {
-						query_.orderBy("CASE WHEN item.title ILIKE :prefix THEN 0 WHEN item.title ILIKE :contains THEN 1 ELSE 2 END", "ASC").addOrderBy("item.title", "ASC");
-					} else {
-						query_.orderBy("item.title", "ASC");
-					}
+					query_.orderBy("item.title", "ASC");
 			}
 		}
-		const items = await query_.limit(searchIds ? Math.min(searchIds.length, 1000) : SEARCH_LIMIT).getMany();
-		const orderedItems = searchIds && !filters.sort ? searchIds.map((id) => items.find((item) => item.id === id)).filter((item): item is MediaItem => item !== undefined) : items;
+		const items = await query_
+			.limit(searchIds ? Math.min(searchIds.length + SEARCH_LIMIT, 1000 + SEARCH_LIMIT) : SEARCH_LIMIT)
+			.getMany();
+		let orderedItems = items;
+		if (searchIds) {
+			const searchOrder = new Map(searchIds.map((id, index) => [id, index]));
+			orderedItems = items.sort((left, right) => {
+				return (searchOrder.get(left.id) ?? items.length) - (searchOrder.get(right.id) ?? items.length);
+			});
+		}
+		const parentIds = [...new Set(items.flatMap((item) => (item.parentId ? [item.parentId] : [])))];
+		const parents =
+			parentIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(parentIds) }) : [];
+		const seriesIds = [
+			...new Set(parents.flatMap((item) => (item.type === "season" && item.parentId ? [item.parentId] : []))),
+		];
+		const series =
+			seriesIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(seriesIds) }) : [];
+		const contextById = new Map([...parents, ...series].map((item) => [item.id, item]));
 
-		return orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
-			id: item.id,
-			type: item.type,
-			title: item.title,
-			year: item.year,
-			poster: imageIndex(item.images, ["poster"]),
-			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
-			updatedAt: item.updatedAt,
-		}));
+		return {
+			items: orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
+				id: item.id,
+				type: item.type,
+				title: item.title,
+				year: item.year,
+				searchContext:
+					item.type === "track"
+						? (contextById.get(item.parentId ?? "")?.title ?? null)
+						: item.type === "episode"
+							? contextById.get(item.parentId ?? "")?.type === "series"
+								? (contextById.get(item.parentId ?? "")?.title ?? null)
+								: (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)
+							: null,
+				poster: imageIndex(item.images, ["poster"]),
+				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+				updatedAt: item.updatedAt,
+			})),
+			engine: searchIds === null ? "postgresql" : "meilisearch",
+		};
 	}
 
 	/** A paged, sorted listing of one section (movies, tv or music). */
@@ -531,14 +697,25 @@ export class MediaHomeService {
 	}
 
 	/** Everything a person is credited on (albums, movies, shows), grouped by role, matched by name ignoring case. */
-	async person(id: string): Promise<{ id: string; name: string; hasImage: boolean; profile: PersonProfileView | null; groups: Array<{ role: string; items: Array<HomeCard & { detail: string | null }> }> }> {
+	async person(id: string): Promise<{
+		id: string;
+		name: string;
+		hasImage: boolean;
+		profile: PersonProfileView | null;
+		groups: Array<{ role: string; items: Array<HomeCard & { detail: string | null }> }>;
+	}> {
 		if (!UUID_PATTERN.test(id)) {
 			throw new NotFound("Person not found.");
 		}
 		const credits = await this.dataSource
 			.getRepository(MediaCredit)
 			.createQueryBuilder("credit")
-			.innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false")
+			.innerJoinAndMapOne(
+				"credit.item",
+				MediaItem,
+				"item",
+				"item.id = credit.item_id AND item.is_placeholder = false",
+			)
 			.where("credit.person_id = :id", { id: id.toLowerCase() })
 			.orderBy("item.year", "DESC", "NULLS LAST")
 			.addOrderBy("COALESCE(item.sort_title, item.title)", "ASC")
@@ -563,9 +740,13 @@ export class MediaHomeService {
 		return {
 			id: credits[0].personId,
 			name: credits[0].name,
-			hasImage: credits.some((credit) => allowedPersonImage(credit.image) !== null) || allowedPersonImage(stored?.image) !== null,
+			hasImage:
+				credits.some((credit) => allowedPersonImage(credit.image) !== null) ||
+				allowedPersonImage(stored?.image) !== null,
 			profile: stored ? toProfileView(stored) : null,
-			groups: [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([role, cards]) => ({ role, items: [...cards.values()] })),
+			groups: [...groups.entries()]
+				.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+				.map(([role, cards]) => ({ role, items: [...cards.values()] })),
 		};
 	}
 
@@ -592,7 +773,8 @@ export class MediaHomeService {
 					description: bio?.description || null,
 					biography: bio?.biography || null,
 					source: bio?.source || null,
-					sourceUrl: bio?.url && PROFILE_LINK_PREFIXES.some((prefix) => bio.url.startsWith(prefix)) ? bio.url : null,
+					sourceUrl:
+						bio?.url && PROFILE_LINK_PREFIXES.some((prefix) => bio.url.startsWith(prefix)) ? bio.url : null,
 					image: allowedPersonImage(bio?.imageUrl),
 					fetchedAt: new Date(),
 				});
@@ -617,9 +799,13 @@ export class MediaHomeService {
 			.orderBy("credit.position", "ASC")
 			.limit(10)
 			.getMany();
-		let url = credits.map((credit) => allowedPersonImage(credit.image)).find((value): value is string => value !== null);
+		let url = credits
+			.map((credit) => allowedPersonImage(credit.image))
+			.find((value): value is string => value !== null);
 		if (!url) {
-			const profile = await this.dataSource.getRepository(PersonProfile).findOneBy({ personId: id.toLowerCase() });
+			const profile = await this.dataSource
+				.getRepository(PersonProfile)
+				.findOneBy({ personId: id.toLowerCase() });
 			url = allowedPersonImage(profile?.image) ?? undefined;
 		}
 		if (!url) {
@@ -690,7 +876,13 @@ export class MediaHomeService {
 						break;
 					}
 				}
-				return { id: library.id, name: library.name, type: library.type, itemCount: countByLibrary.get(library.id) ?? 0, cover };
+				return {
+					id: library.id,
+					name: library.name,
+					type: library.type,
+					itemCount: countByLibrary.get(library.id) ?? 0,
+					cover,
+				};
 			}),
 		);
 	}
@@ -724,7 +916,12 @@ export class MediaHomeService {
 			.getRawAndEntities();
 
 		return entities.map((item, index) => {
-			const row = raw[index] as { tagline: string | null; overview: string | null; rating: string | null; runtime: string | null };
+			const row = raw[index] as {
+				tagline: string | null;
+				overview: string | null;
+				rating: string | null;
+				runtime: string | null;
+			};
 			const runtime = Number.parseInt(row.runtime ?? "", 10);
 			const card: HomeCard = {
 				id: item.id,

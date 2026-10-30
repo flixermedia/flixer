@@ -8,6 +8,7 @@ import { IndexerSettingsService } from "./indexerSettingsService.js";
 import { IndexerIntroSegmentsService, parseIntroSegmentUpdate } from "./indexerIntroSegmentsService.js";
 import { MediaItemsService, parseItemPayload } from "./mediaItemsService.js";
 import { indexerWriteLimiter } from "./workLimiter.js";
+import { MediaSearchService } from "../media/mediaSearchService.js";
 
 const PREFIX = "/api/indexer";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -25,6 +26,7 @@ export class IndexerApiController {
 		private readonly settings: IndexerSettingsService,
 		private readonly items: MediaItemsService,
 		private readonly introSegments: IndexerIntroSegmentsService,
+		private readonly mediaSearch: MediaSearchService,
 	) {}
 
 	@Get("/libraries")
@@ -74,6 +76,42 @@ export class IndexerApiController {
 			throw new BadRequest("The request body must be valid JSON.");
 		}
 		return this.writes.run(() => this.items.upsert(parseItemPayload(parsed)));
+	}
+
+	/** Stores lyrics separately from media metadata so they can be rebuilt into the search index. */
+	@Post("/media/items/:id/lyrics")
+	async upsertItemLyrics(
+		@PathParams("id") id: string,
+		@RawBodyParams() raw: Buffer | string | undefined,
+		@HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string,
+		@HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string,
+	) {
+		const body = Buffer.from(raw ?? "");
+		verifyIndexerRequest({
+			method: "POST",
+			path: `${PREFIX}/media/items/${id}/lyrics`,
+			body,
+			timestamp,
+			signature,
+		});
+		if (!UUID_PATTERN.test(id)) throw new BadRequest("id must be a media item id.");
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			typeof (parsed as { lyrics?: unknown }).lyrics !== "string"
+		) {
+			throw new BadRequest("lyrics must be text.");
+		}
+		await this.writes.run(() =>
+			this.mediaSearch.storeTrackLyrics(id.toLowerCase(), (parsed as { lyrics: string }).lyrics),
+		);
+		return { ok: true };
 	}
 
 	@Get("/media/intro-sync")

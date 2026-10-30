@@ -129,7 +129,7 @@ command_for() {
     api) echo "$ROOT/flixer|npm start" ;;
     streamer) echo "$ROOT/flixer-streamer|go run ./cmd/flixer-streamer" ;;
     indexer) echo "$ROOT/flixer-indexer|go run ./cmd/flixer-indexer" ;;
-    web) echo "$ROOT/flixer-web|npm run dev -- --port 5173" ;;
+    web) echo "$ROOT/flixer-web|npm run dev -- --port 5175" ;;
     docs) echo "$ROOT/flixer-docs|npm start -- --host 0.0.0.0 --port 3000 --no-open" ;;
   esac
 }

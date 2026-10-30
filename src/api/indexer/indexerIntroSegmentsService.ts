@@ -75,7 +75,7 @@ export class IndexerIntroSegmentsService {
 	async existing(itemId: string): Promise<ExistingIntroSegments> {
 		const rows = await this.dataSource.getRepository(MediaSegment).find({
 			where: { itemId, type: In(INTRO_TYPES) },
-			select: ["type"],
+			select: { type: true },
 		});
 		const existing: ExistingIntroSegments = {};
 		for (const { type } of rows) {

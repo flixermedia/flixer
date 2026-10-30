@@ -18,6 +18,8 @@ import { CreateNativePasskeyHandoffs1795600000000 } from "../migrations/createNa
 import { AddFriendshipsAndProfileVisibility1795700000000 } from "../migrations/addFriendshipsAndProfileVisibility1795700000000.js";
 import { AddFriendInviteTokens1795800000000 } from "../migrations/addFriendInviteTokens1795800000000.js";
 import { CreateSocialFriendInvites1795900000000 } from "../migrations/createSocialFriendInvites1795900000000.js";
+import { AddMediaSearchReset1796200000000 } from "../migrations/addMediaSearchReset1796200000000.js";
+import { AddMediaSearchContent1796300000000 } from "../migrations/addMediaSearchContent1796300000000.js";
 import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
@@ -164,6 +166,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddFriendInviteTokens1795800000000,
 				CreateSocialFriendInvites1795900000000,
 				CreateMediaSearchOutbox1796100000000,
+				AddMediaSearchReset1796200000000,
+				AddMediaSearchContent1796300000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

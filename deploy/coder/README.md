@@ -45,12 +45,17 @@ Set the `tailscale_auth_key` and `smb_password` sensitive template variables in 
 For an initial template push, use `coder templates push flixer-dev --directory . --variables-file /secure/path/flixer-coder.tfvars`
 with a protected variables file kept outside the repository rather than putting secrets in shell history.
 
+The workspace has the provisioner's `/var/run/docker.sock` mounted, so Docker CLI commands run from the workspace
+use the provisioner's Docker daemon. This is not an isolated daemon: anyone with workspace access can control
+containers and other resources managed by that daemon, so use this template only on a trusted deployment.
+
 Open the **Flixer** app in the workspace page. Manage services from the terminal:
 
 ```sh
 flixer-stack status
 flixer-stack restart indexer
 flixer-stack logs api        # logs are in ~/logs/<service>.log
+docker ps
 ```
 
 ## GitHub access
@@ -59,6 +64,7 @@ The template uses Coder's GitHub external authentication: `git` authenticates th
 reads `GH_TOKEN`, both as the GitHub account linked to the workspace owner. The Coder deployment needs a GitHub provider
 (`CODER_EXTERNAL_AUTH_0_ID=github`, `CODER_EXTERNAL_AUTH_0_TYPE=github`, plus client ID and secret). On first workspace
 creation Coder prompts the owner to link their account. Commits use the owner's Coder name and email. Check with `gh auth status`.
+The web app installs its generated API client from the public npm registry; no GitHub Packages authentication is needed.
 
 ## Parameters
 

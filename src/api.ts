@@ -40,5 +40,6 @@ export { FriendsController } from "./api/social/friendsController.js";
 export { ThemesController } from "./api/themes/themesController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";
 export { AdminBackupsController, BackupDownloadController } from "./api/backups/backupsController.js";
+export { AdminDatabaseTransferController } from "./api/connections/adminDatabaseTransferController.js";
 export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";

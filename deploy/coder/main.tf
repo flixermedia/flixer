@@ -45,7 +45,7 @@ data "coder_parameter" "git_base_url" {
 data "coder_parameter" "public_url" {
   name         = "public_url"
   display_name = "Public URL of the web app"
-  description  = "Browser address of the workspace's \"Flixer\" app, e.g. https://web--main--my-workspace--me.coder.example.com. Used for links, passkeys and CORS. Leave empty for http://localhost:5173 (port-forward)."
+  description  = "Browser address of the workspace's \"Flixer\" app, e.g. https://web--main--my-workspace--me.coder.example.com. Used for links, passkeys and CORS. Leave empty for http://localhost:5175 (port-forward)."
   type         = "string"
   default      = ""
   mutable      = true
@@ -62,7 +62,7 @@ data "coder_parameter" "media_host_path" {
 
 locals {
   workspace_name = lower("coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}")
-  public_url     = data.coder_parameter.public_url.value != "" ? trimsuffix(data.coder_parameter.public_url.value, "/") : "http://localhost:5173"
+  public_url     = data.coder_parameter.public_url.value != "" ? trimsuffix(data.coder_parameter.public_url.value, "/") : "http://localhost:5175"
   public_host    = regex("^https?://([^/:]+)", local.public_url)[0]
 }
 
@@ -249,6 +249,7 @@ resource "docker_container" "meilisearch" {
   env = [
     "MEILI_ENV=development",
     "MEILI_NO_ANALYTICS=true",
+    "MEILI_EXPERIMENTAL_DISABLE_VECTOR_STORE=true",
   ]
   command = [
     "/bin/sh",
@@ -292,6 +293,11 @@ resource "docker_container" "workspace" {
 
   networks_advanced {
     name = docker_network.stack.name
+  }
+
+  volumes {
+    host_path      = "/var/run/docker.sock"
+    container_path = "/var/run/docker.sock"
   }
 
   volumes {

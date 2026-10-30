@@ -22,9 +22,10 @@ describe("mergeIndexerProviderIds", () => {
 		};
 
 		it("accepts unique targeted update fields", () => {
-			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData"] }).updateFields).toEqual([
+			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData", "lyrics"] }).updateFields).toEqual([
 				"images",
 				"fileData",
+				"lyrics",
 			]);
 		});
 

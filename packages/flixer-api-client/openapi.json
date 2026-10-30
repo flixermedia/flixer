@@ -19464,6 +19464,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "includeChildren",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,

@@ -7,16 +7,17 @@ import { announceRecovery } from "./setup/recovery.js";
 import { updateRuntime } from "./bootstrap/setupStatus.js";
 import { waitForDatabase } from "./bootstrap/waitForDatabase.js";
 import { ensureSecrets } from "./config/store/sharedSecret.js";
+import { appConfig } from "./config/store/appConfig.js";
 import { Server } from "./server.js";
 import { freePortIfBusy } from "./utils/freePort.js";
 
 async function startServer(): Promise<void> {
-
 	const port = Number(process.env.PORT || 8083);
 	await freePortIfBusy(port, (message) => $log.warn(message));
 
 	// Until PostgreSQL is configured and reachable only the setup endpoints answer; the full app takes the port over afterwards.
 	ensureSecrets();
+	appConfig().persistent?.promoteCompletedDatabaseTransfer();
 	const bootstrapServer = await startBootstrapServer(port);
 	announceRecovery((message) => $log.warn(message));
 	await waitForDatabase((message) => $log.warn(message));
@@ -49,7 +50,6 @@ async function startServer(): Promise<void> {
 
 	process.on("SIGINT", close);
 	process.on("SIGTERM", close);
-
 }
 
 await startServer();

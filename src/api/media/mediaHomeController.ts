@@ -12,7 +12,6 @@ import { MediaHomeService } from "./mediaHomeService.js";
 @Controller("/media")
 @Security("BearerAuth")
 export class MediaHomeController {
-
 	constructor(
 		private readonly authService: AuthService,
 		private readonly home: MediaHomeService,
@@ -36,7 +35,11 @@ export class MediaHomeController {
 
 	@Put("/items/:id/progress")
 	@Returns(204)
-	async saveProgress(@PathParams("id") id: string, @BodyParams() request: WatchProgressRequest, @HeaderParams("authorization") authorization?: string) {
+	async saveProgress(
+		@PathParams("id") id: string,
+		@BodyParams() request: WatchProgressRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
@@ -46,7 +49,11 @@ export class MediaHomeController {
 
 	@Put("/items/:id/watched")
 	@Returns(204)
-	async setWatched(@PathParams("id") id: string, @BodyParams() request: WatchedRequest, @HeaderParams("authorization") authorization?: string) {
+	async setWatched(
+		@PathParams("id") id: string,
+		@BodyParams() request: WatchedRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
@@ -69,17 +76,22 @@ export class MediaHomeController {
 		@QueryParams("yearTo", Number) yearTo: number | undefined,
 		@QueryParams("sort", String) sort: string | undefined,
 		@QueryParams("unwatched", String) unwatched: string | undefined,
+		@QueryParams("includeChildren", Boolean) includeChildren: boolean | undefined,
+		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
 	) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.home.search(user.id, typeof q === "string" ? q : "", {
+		const result = await this.home.search(user.id, typeof q === "string" ? q : "", {
 			type: typeof type === "string" ? type : undefined,
 			genre: typeof genre === "string" ? genre : undefined,
 			yearFrom: Number.isInteger(yearFrom) ? yearFrom : undefined,
 			yearTo: Number.isInteger(yearTo) ? yearTo : undefined,
 			sort: typeof sort === "string" ? sort : undefined,
 			unwatched: unwatched === "true",
+			includeChildren: includeChildren === true,
 		});
+		ctx.response.setHeader("X-Flixer-Search-Engine", result.engine);
+		return result.items;
 	}
 
 	@Get("/people/:id/image")

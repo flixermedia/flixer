@@ -257,16 +257,16 @@ export interface CreateApiKeyRequest {
  */
 export type CreateMediaLibraryRequestType = typeof CreateMediaLibraryRequestType[keyof typeof CreateMediaLibraryRequestType];
 export declare const CreateMediaLibraryRequestType: {
-    readonly movies: "movies";
-    readonly tvshows: "tvshows";
-    readonly music: "music";
-    readonly homevideos: "homevideos";
-    readonly mixed: "mixed";
+    readonly movies: 'movies';
+    readonly tvshows: 'tvshows';
+    readonly music: 'music';
+    readonly homevideos: 'homevideos';
+    readonly mixed: 'mixed';
 };
 export type CreateMediaLibraryRequestImageStorage = typeof CreateMediaLibraryRequestImageStorage[keyof typeof CreateMediaLibraryRequestImageStorage];
 export declare const CreateMediaLibraryRequestImageStorage: {
-    readonly cache: "cache";
-    readonly alongside: "alongside";
+    readonly cache: 'cache';
+    readonly alongside: 'alongside';
 };
 export interface MediaLibraryFolderRequest {
     /**
@@ -294,16 +294,16 @@ export interface CreateMediaLibraryRequest {
 }
 export type UpdateMediaLibraryRequestType = typeof UpdateMediaLibraryRequestType[keyof typeof UpdateMediaLibraryRequestType];
 export declare const UpdateMediaLibraryRequestType: {
-    readonly movies: "movies";
-    readonly tvshows: "tvshows";
-    readonly music: "music";
-    readonly homevideos: "homevideos";
-    readonly mixed: "mixed";
+    readonly movies: 'movies';
+    readonly tvshows: 'tvshows';
+    readonly music: 'music';
+    readonly homevideos: 'homevideos';
+    readonly mixed: 'mixed';
 };
 export type UpdateMediaLibraryRequestImageStorage = typeof UpdateMediaLibraryRequestImageStorage[keyof typeof UpdateMediaLibraryRequestImageStorage];
 export declare const UpdateMediaLibraryRequestImageStorage: {
-    readonly cache: "cache";
-    readonly alongside: "alongside";
+    readonly cache: 'cache';
+    readonly alongside: 'alongside';
 };
 export interface UpdateMediaLibraryRequest {
     /**
@@ -329,8 +329,8 @@ export interface ScanLibraryRequest {
  */
 export type LibrarySegmentScanRequestType = typeof LibrarySegmentScanRequestType[keyof typeof LibrarySegmentScanRequestType];
 export declare const LibrarySegmentScanRequestType: {
-    readonly movie: "movie";
-    readonly episode: "episode";
+    readonly movie: 'movie';
+    readonly episode: 'episode';
 };
 export interface LibrarySegmentScanRequest {
     /** @minLength 1 */
@@ -341,13 +341,13 @@ export interface LibrarySegmentScanRequest {
  */
 export type RefreshItemRequestItemType = typeof RefreshItemRequestItemType[keyof typeof RefreshItemRequestItemType];
 export declare const RefreshItemRequestItemType: {
-    readonly movie: "movie";
-    readonly series: "series";
-    readonly season: "season";
-    readonly episode: "episode";
-    readonly album: "album";
-    readonly track: "track";
-    readonly video: "video";
+    readonly movie: 'movie';
+    readonly series: 'series';
+    readonly season: 'season';
+    readonly episode: 'episode';
+    readonly album: 'album';
+    readonly track: 'track';
+    readonly video: 'video';
 };
 export interface RefreshItemRequest {
     /**
@@ -368,9 +368,9 @@ export interface RefreshItemRequest {
  */
 export type CreateMediaRequestType = typeof CreateMediaRequestType[keyof typeof CreateMediaRequestType];
 export declare const CreateMediaRequestType: {
-    readonly movie: "movie";
-    readonly tv: "tv";
-    readonly music: "music";
+    readonly movie: 'movie';
+    readonly tv: 'tv';
+    readonly music: 'music';
 };
 export interface CreateMediaRequest {
     /** @minLength 1 */
@@ -407,9 +407,9 @@ export interface DeclineRequestBody {
  */
 export type TestServiceInputKind = typeof TestServiceInputKind[keyof typeof TestServiceInputKind];
 export declare const TestServiceInputKind: {
-    readonly sonarr: "sonarr";
-    readonly radarr: "radarr";
-    readonly lidarr: "lidarr";
+    readonly sonarr: 'sonarr';
+    readonly radarr: 'radarr';
+    readonly lidarr: 'lidarr';
 };
 export interface TestServiceInput {
     /** @minLength 1 */
@@ -429,9 +429,9 @@ export interface TestServiceInput {
  */
 export type RequestServiceInputKind = typeof RequestServiceInputKind[keyof typeof RequestServiceInputKind];
 export declare const RequestServiceInputKind: {
-    readonly sonarr: "sonarr";
-    readonly radarr: "radarr";
-    readonly lidarr: "lidarr";
+    readonly sonarr: 'sonarr';
+    readonly radarr: 'radarr';
+    readonly lidarr: 'lidarr';
 };
 export interface RequestServiceInput {
     /** @minLength 1 */
@@ -557,7 +557,7 @@ export interface WatchedRequest {
 }
 export type CreateNetworkShareRequestProtocol = typeof CreateNetworkShareRequestProtocol[keyof typeof CreateNetworkShareRequestProtocol];
 export declare const CreateNetworkShareRequestProtocol: {
-    readonly smb: "smb";
+    readonly smb: 'smb';
 };
 export interface CreateNetworkShareRequest {
     /**
@@ -610,8 +610,8 @@ export interface UpdateNetworkShareRequest {
 }
 export type CreateAdminUserRequestRole = typeof CreateAdminUserRequestRole[keyof typeof CreateAdminUserRequestRole];
 export declare const CreateAdminUserRequestRole: {
-    readonly admin: "admin";
-    readonly user: "user";
+    readonly admin: 'admin';
+    readonly user: 'user';
 };
 export interface CreateAdminUserRequest {
     /**
@@ -639,8 +639,8 @@ export interface CreateAdminUserRequest {
 }
 export type UpdateAdminUserRequestRole = typeof UpdateAdminUserRequestRole[keyof typeof UpdateAdminUserRequestRole];
 export declare const UpdateAdminUserRequestRole: {
-    readonly admin: "admin";
-    readonly user: "user";
+    readonly admin: 'admin';
+    readonly user: 'user';
 };
 export interface UpdateAdminUserRequest {
     /**
@@ -749,9 +749,9 @@ export interface PlaylistOrderRequest {
 }
 export type CreatePartyRequestVisibility = typeof CreatePartyRequestVisibility[keyof typeof CreatePartyRequestVisibility];
 export declare const CreatePartyRequestVisibility: {
-    readonly public: "public";
-    readonly friends: "friends";
-    readonly private: "private";
+    readonly public: 'public';
+    readonly friends: 'friends';
+    readonly private: 'private';
 };
 export interface CreatePartyRequest {
     /**
@@ -792,9 +792,9 @@ export interface AddMembersRequest {
  */
 export type UpdateProfileVisibilityRequestVisibility = typeof UpdateProfileVisibilityRequestVisibility[keyof typeof UpdateProfileVisibilityRequestVisibility];
 export declare const UpdateProfileVisibilityRequestVisibility: {
-    readonly public: "public";
-    readonly hidden: "hidden";
-    readonly friends: "friends";
+    readonly public: 'public';
+    readonly hidden: 'hidden';
+    readonly friends: 'friends';
 };
 export interface UpdateProfileVisibilityRequest {
     /** @minLength 1 */
@@ -805,8 +805,8 @@ export interface UpdateProfileVisibilityRequest {
  */
 export type ListeningReportRequestState = typeof ListeningReportRequestState[keyof typeof ListeningReportRequestState];
 export declare const ListeningReportRequestState: {
-    readonly playing: "playing";
-    readonly stopped: "stopped";
+    readonly playing: 'playing';
+    readonly stopped: 'stopped';
 };
 export interface ListeningReportRequest {
     /**
@@ -823,9 +823,9 @@ export interface ListeningReportRequest {
  */
 export type CreateFriendInviteRequestMode = typeof CreateFriendInviteRequestMode[keyof typeof CreateFriendInviteRequestMode];
 export declare const CreateFriendInviteRequestMode: {
-    readonly once: "once";
-    readonly unlimited: "unlimited";
-    readonly expires: "expires";
+    readonly once: 'once';
+    readonly unlimited: 'unlimited';
+    readonly expires: 'expires';
 };
 export interface CreateFriendInviteRequest {
     /** @minLength 1 */
@@ -3054,6 +3054,7 @@ export type MediaHomeControllerSearchParams = {
     yearTo?: number;
     sort?: string;
     unwatched?: string;
+    includeChildren?: boolean;
 };
 export type MediaHomeControllerPersonImageParams = {
     w?: number;

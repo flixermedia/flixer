@@ -7,7 +7,15 @@ import { ConfigStore, ConfigValidationError } from "./configStore.js";
 import { SecretBox } from "./secretBox.js";
 
 const SECRET = "a".repeat(40);
-const ENV_KEYS = ["DATABASE_URL", "APP_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL", "DATA_PATH"];
+const ENV_KEYS = [
+	"DATABASE_URL",
+	"APP_SECRET",
+	"INDEXER_URL",
+	"INDEXER_INTERNAL_URL",
+	"PASSKEY_RP_NAME",
+	"APP_URL",
+	"DATA_PATH",
+];
 
 describe("config store", () => {
 	let directory: string;
@@ -45,6 +53,36 @@ describe("config store", () => {
 		expect(readFileSync(join(directory, "flixer-config.db")).includes(SECRET)).toBe(false);
 	});
 
+	it("keeps database transfer credentials encrypted and promotes the new URL only at startup", () => {
+		const journal = {
+			id: "transfer-1",
+			state: "completed" as const,
+			phase: "Ready to switch",
+			message: "Transfer completed.",
+			replaceTarget: false,
+			sourceUrl: "postgres://old-user:old-secret@old-host:5432/flixer",
+			targetUrl: "postgres://new-user:new-secret@new-host:5432/flixer",
+			sourceWasReadOnly: false,
+			sourceLocked: true,
+			startedAt: new Date().toISOString(),
+			finishedAt: new Date().toISOString(),
+		};
+		const first = new ConfigStore(directory);
+		first.setMany({ databaseUrl: journal.sourceUrl });
+		first.setDatabaseTransferJournal(journal);
+		first.close();
+
+		expect(readFileSync(join(directory, "flixer-config.db"), "utf8")).not.toContain("new-secret");
+
+		const second = new ConfigStore(directory);
+		expect(second.get("databaseUrl")).toBe(journal.sourceUrl);
+		expect(second.getDatabaseTransferJournal()).toEqual(journal);
+		second.promoteCompletedDatabaseTransfer();
+		expect(second.get("databaseUrl")).toBe(journal.targetUrl);
+		expect(second.getDatabaseTransferJournal()).toBeNull();
+		second.close();
+	});
+
 	it("stores bootstrap config under DATA_PATH/config", () => {
 		process.env.DATA_PATH = directory;
 		expect(configDirectory()).toBe(join(directory, "config"));
@@ -64,7 +102,9 @@ describe("config store", () => {
 
 	it("rejects invalid values without writing any of them", () => {
 		const store = new ConfigStore(directory);
-		expect(() => store.setMany({ publicUrl: "https://ok.example.com", appSecret: "short" })).toThrow(ConfigValidationError);
+		expect(() => store.setMany({ publicUrl: "https://ok.example.com", appSecret: "short" })).toThrow(
+			ConfigValidationError,
+		);
 		expect(store.has("publicUrl")).toBe(false);
 		expect(store.version()).toBe(0);
 		store.close();

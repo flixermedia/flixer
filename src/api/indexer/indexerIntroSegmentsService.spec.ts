@@ -42,7 +42,7 @@ describe("IndexerIntroSegmentsService", () => {
 		await expect(service.existing(itemId)).resolves.toEqual({ intro: true, credits: true });
 		expect(repository.find).toHaveBeenCalledWith({
 			where: { itemId, type: In(["intro", "credits"]) },
-			select: ["type"],
+			select: { type: true },
 		});
 	});
 

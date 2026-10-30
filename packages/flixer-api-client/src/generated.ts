@@ -3343,6 +3343,7 @@ yearFrom?: number;
 yearTo?: number;
 sort?: string;
 unwatched?: string;
+includeChildren?: boolean;
 };
 
 export type MediaHomeControllerPersonImageParams = {
