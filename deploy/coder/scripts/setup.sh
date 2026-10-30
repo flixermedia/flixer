@@ -22,8 +22,7 @@ for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-
   fi
 done
 
-# Projects is a host bind mount, so changing its root owner does not change existing files inside it.
-# Repair ownership and tracked file modes once; both changes persist on the host mount.
+# Repair ownership and tracked file modes in the persistent projects volume once per workspace user.
 restore_tracked_modes() {
   local repo_path="$1" entry metadata path mode stage
   while IFS= read -r -d '' entry; do

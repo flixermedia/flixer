@@ -11,6 +11,18 @@ terraform {
 
 provider "docker" {}
 
+variable "tailscale_auth_key" {
+  type        = string
+  description = "Tailscale auth key used to join each workspace to the tailnet."
+  sensitive   = true
+}
+
+variable "smb_password" {
+  type        = string
+  description = "Password for the coder account on the workspace SMB share."
+  sensitive   = true
+}
+
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
@@ -45,15 +57,6 @@ data "coder_parameter" "media_host_path" {
   description  = "Optional absolute path on the Docker host mounted read-only at /media for libraries. Leave empty to use ~/projects/flixer-data/media."
   type         = "string"
   default      = ""
-  mutable      = true
-}
-
-data "coder_parameter" "projects_host_path" {
-  name         = "projects_host_path"
-  display_name = "Projects folder on the Docker host"
-  description  = "Absolute path on the Docker host mounted at /home/coder/projects for project repositories."
-  type         = "string"
-  default      = "/home/coder/projects"
   mutable      = true
 }
 
@@ -154,6 +157,14 @@ resource "docker_image" "workspace" {
   keep_locally = true
 }
 
+resource "docker_image" "samba" {
+  name = "coder-flixer-samba:${substr(sha1(join("", [file("${path.module}/samba/Dockerfile"), file("${path.module}/samba/entrypoint.sh"), file("${path.module}/samba/smb.conf")])), 0, 12)}"
+  build {
+    context = "${path.module}/samba"
+  }
+  keep_locally = true
+}
+
 resource "docker_network" "stack" {
   name = "${local.workspace_name}-${data.coder_workspace.me.id}"
 }
@@ -181,6 +192,13 @@ resource "docker_volume" "redis" {
 
 resource "docker_volume" "meilisearch" {
   name = "${local.workspace_name}-${data.coder_workspace.me.id}-meilisearch"
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+resource "docker_volume" "tailscale" {
+  name = "${local.workspace_name}-${data.coder_workspace.me.id}-tailscale"
   lifecycle {
     ignore_changes = all
   }
@@ -282,11 +300,6 @@ resource "docker_container" "workspace" {
   }
 
   volumes {
-    host_path      = data.coder_parameter.projects_host_path.value
-    container_path = "/home/coder/projects"
-  }
-
-  volumes {
     volume_name    = docker_volume.data.name
     container_path = "/home/coder/projects/flixer-data"
   }
@@ -301,4 +314,62 @@ resource "docker_container" "workspace" {
   }
 
   depends_on = [docker_container.postgres, docker_container.redis, docker_container.meilisearch]
+}
+
+resource "docker_container" "tailscale" {
+  count   = data.coder_workspace.me.start_count
+  image   = "tailscale/tailscale:stable"
+  name    = "${local.workspace_name}-tailscale"
+  restart = "unless-stopped"
+
+  network_mode = "container:${docker_container.workspace[count.index].id}"
+
+  env = [
+    "TS_AUTHKEY=${var.tailscale_auth_key}",
+    "TS_AUTH_ONCE=true",
+    "TS_HOSTNAME=${local.workspace_name}",
+    "TS_STATE_DIR=/var/lib/tailscale",
+    "TS_USERSPACE=false",
+    "TS_EXTRA_ARGS=--accept-dns=false",
+  ]
+
+  capabilities {
+    add = ["NET_ADMIN", "NET_RAW"]
+  }
+
+  devices {
+    host_path      = "/dev/net/tun"
+    container_path = "/dev/net/tun"
+    permissions    = "rwm"
+  }
+
+  volumes {
+    volume_name    = docker_volume.tailscale.name
+    container_path = "/var/lib/tailscale"
+  }
+
+  depends_on = [docker_container.workspace]
+}
+
+resource "docker_container" "samba" {
+  count   = data.coder_workspace.me.start_count
+  image   = docker_image.samba.name
+  name    = "${local.workspace_name}-samba"
+  restart = "unless-stopped"
+
+  network_mode = "container:${docker_container.tailscale[count.index].id}"
+
+  env = ["SMB_PASSWORD=${var.smb_password}"]
+
+  volumes {
+    volume_name    = docker_volume.home.name
+    container_path = "/home/coder"
+  }
+
+  volumes {
+    volume_name    = docker_volume.data.name
+    container_path = "/home/coder/projects/flixer-data"
+  }
+
+  depends_on = [docker_container.tailscale]
 }
