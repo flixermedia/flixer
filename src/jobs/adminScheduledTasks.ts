@@ -66,6 +66,30 @@ export function defaultAdminScheduledTaskConfigs(): AdminScheduledTaskConfigs {
 	) as AdminScheduledTaskConfigs;
 }
 
+export function readAdminScheduledTaskConfigs(stored: unknown): AdminScheduledTaskConfigs {
+	if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
+		throw new Error("Stored scheduled task configuration is invalid.");
+	}
+	const configs = defaultAdminScheduledTaskConfigs();
+	for (const task of ADMIN_SCHEDULED_TASKS) {
+		const value = (stored as Record<string, unknown>)[task.id];
+		if (value === undefined) continue;
+		if (
+			typeof value !== "object" ||
+			value === null ||
+			typeof (value as Record<string, unknown>).enabled !== "boolean" ||
+			typeof (value as Record<string, unknown>).cron !== "string"
+		) {
+			throw new Error(`Stored schedule for ${task.id} is invalid.`);
+		}
+		configs[task.id] = {
+			enabled: (value as AdminScheduledTaskConfig).enabled,
+			cron: (value as AdminScheduledTaskConfig).cron,
+		};
+	}
+	return configs;
+}
+
 export function isAdminScheduledTaskId(value: string): value is AdminScheduledTaskId {
 	return ADMIN_SCHEDULED_TASKS.some(({ id }) => id === value);
 }

@@ -4,6 +4,8 @@ import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { Setting } from "../entities/setting.entity.js";
 import { UserPreference } from "../entities/userPreference.entity.js";
+import { GuideSettings, GuideSource } from "../entities/guideSource.entity.js";
+import { GuideProgramme } from "../entities/guideProgramme.entity.js";
 import { ApiKey } from "../entities/apiKey.entity.js";
 import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
 import { MediaItem } from "../entities/mediaItem.entity.js";
@@ -20,6 +22,8 @@ import { AddFriendInviteTokens1795800000000 } from "../migrations/addFriendInvit
 import { CreateSocialFriendInvites1795900000000 } from "../migrations/createSocialFriendInvites1795900000000.js";
 import { AddMediaSearchReset1796200000000 } from "../migrations/addMediaSearchReset1796200000000.js";
 import { AddMediaSearchContent1796300000000 } from "../migrations/addMediaSearchContent1796300000000.js";
+import { CreateGuideSources1796400000000 } from "../migrations/createGuideSources1796400000000.js";
+import { CreateGuideProgrammes1796500000000 } from "../migrations/createGuideProgrammes1796500000000.js";
 import { CreateSocial1795400000000 } from "../migrations/createSocial1795400000000.js";
 import { MediaCredit } from "../entities/mediaCredit.entity.js";
 import { PersonProfile } from "../entities/personProfile.entity.js";
@@ -77,6 +81,9 @@ import { MoveUserSettingsToPreferences1793000000000 } from "../migrations/moveUs
 import { synchronizeSettings } from "../config/settingsSync.js";
 import { appConfig } from "../config/store/appConfig.js";
 import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
+import { AiRecommendationCache } from "../entities/aiRecommendationCache.entity.js";
+import { CreateAiRecommendationCaches1796600000000 } from "../migrations/createAiRecommendationCaches1796600000000.js";
+import { AddAiRecommendationCacheScopes1796700000000 } from "../migrations/addAiRecommendationCacheScopes1796700000000.js";
 
 export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 	.type("typeorm:datasource")
@@ -122,6 +129,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				RequestService,
 				RequestUserLimit,
 				PluginSecret,
+				GuideSource,
+				GuideSettings,
+				GuideProgramme,
+				AiRecommendationCache,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -168,6 +179,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateMediaSearchOutbox1796100000000,
 				AddMediaSearchReset1796200000000,
 				AddMediaSearchContent1796300000000,
+				CreateGuideSources1796400000000,
+				CreateGuideProgrammes1796500000000,
+				CreateAiRecommendationCaches1796600000000,
+				AddAiRecommendationCacheScopes1796700000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

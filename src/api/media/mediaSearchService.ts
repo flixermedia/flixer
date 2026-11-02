@@ -656,7 +656,7 @@ export class MediaSearchService {
 		if (deletes.length > 0) {
 			const task = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}/documents/delete-batch`, {
 				method: "POST",
-				body: JSON.stringify({ ids: deletes }),
+				body: JSON.stringify(deletes),
 			});
 			if (task.taskUid !== undefined) await this.waitForTask(task.taskUid);
 		}

@@ -15,6 +15,7 @@ export interface DashboardGridItem {
 
 export interface Preferences {
 	language?: string;
+	audioLanguage?: string;
 	adminDashboardGrid?: DashboardGridItem[];
 	browseColumns?: number;
 	autoSkipIntroCredits: boolean;
@@ -58,6 +59,7 @@ export const isAutoSkipIntroCredits = (value: unknown): value is boolean => type
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	language: (value) => typeof value === "string" && value.length <= 35 && LANGUAGE_PATTERN.test(value),
+	audioLanguage: (value) => typeof value === "string" && value.length <= 35 && LANGUAGE_PATTERN.test(value),
 	adminDashboardGrid: isDashboardGrid,
 	browseColumns: isBrowseColumns,
 	autoSkipIntroCredits: isAutoSkipIntroCredits,
@@ -69,6 +71,9 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 	};
 	if (typeof data.language === "string" && PREFERENCE_VALIDATORS.language(data.language)) {
 		preferences.language = data.language;
+	}
+	if (typeof data.audioLanguage === "string" && PREFERENCE_VALIDATORS.audioLanguage(data.audioLanguage)) {
+		preferences.audioLanguage = data.audioLanguage;
 	}
 	if (isDashboardGrid(data.adminDashboardGrid)) {
 		preferences.adminDashboardGrid = data.adminDashboardGrid;

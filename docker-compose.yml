@@ -13,13 +13,14 @@ services:
               - -c
               - |
                 set -e
-                mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch
+                mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch /data/ai/models
                 chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups /data/plugins /data/logs
                 chown 70:70 /data/database
                 chown -R 65532:65532 /data/cache
                 find /data/cache -type d -exec chmod 2775 {} +
                 chmod -R 0777 /data/logs
                 chmod 0755 /data/plugins
+                chown 10001:10001 /data/ai /data/ai/models
             volumes:
               - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
             restart: "no"
@@ -57,6 +58,7 @@ services:
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
+            FLIXER_AI_URL: http://ai:8094
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://updater:8093
             MEILISEARCH_URL: http://meilisearch:7700
@@ -139,6 +141,30 @@ services:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins:ro
         expose:
             - "8092"
+        restart: unless-stopped
+        init: true
+
+    ai:
+        image: ghcr.io/flixermedia/flixer-ai:${AI_VERSION:-latest}
+        profiles: ["ai"]
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
+            api:
+                condition: service_healthy
+        environment:
+            PORT: 8094
+            DATA_DIR: /data
+            MODELS_DIR: /data/ai/models
+            FLIXER_URL: http://api:8081
+            FLIXER_INTERNAL_TOKEN_FILE: /run/flixer-secrets/app-secret
+            RECOMMENDER_PROFILE: ${RECOMMENDER_PROFILE:-auto}
+            ALLOW_DOWNLOADS: ${AI_ALLOW_DOWNLOADS:-true}
+        volumes:
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/ai:/data/ai
+            - flixer-secrets:/run/flixer-secrets:ro
+        expose:
+            - "8094"
         restart: unless-stopped
         init: true
 

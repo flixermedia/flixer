@@ -1,5 +1,12 @@
 export declare const routes: readonly [{
     readonly method: "post";
+    readonly path: "/admin/database-transfer/restore-writes";
+    readonly operationId: "adminDatabaseTransferControllerRestoreWrites";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/auth/passkeys/native-handoff/exchange";
     readonly operationId: "passkeyControllerExchangeNativeHandoff";
     readonly pathParameters: readonly [];
@@ -39,6 +46,20 @@ export declare const routes: readonly [{
     readonly operationId: "passkeyControllerStartNativeHandoff";
     readonly pathParameters: readonly [];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/internal/ai/runtime-configuration";
+    readonly operationId: "aiControllerRuntimeConfiguration";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/internal/ai/recommendation-cache";
+    readonly operationId: "aiControllerClearRecommendationCache";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "put";
@@ -104,6 +125,13 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/internal/ai/library-context";
+    readonly operationId: "aiControllerLibraryContext";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/auth/passkeys/login/options";
     readonly operationId: "passkeyControllerLoginOptions";
@@ -114,6 +142,13 @@ export declare const routes: readonly [{
     readonly method: "get";
     readonly path: "/admin/media-libraries/roots";
     readonly operationId: "mediaLibrariesControllerListRoots";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/recommendations/home/music";
+    readonly operationId: "recommendationsControllerMusicRecommendations";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -152,6 +187,13 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: true;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/ai/recommendations";
+    readonly operationId: "aiAdminControllerRecommendations";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
 }, {
     readonly method: "patch";
     readonly path: "/auth/me/passkey-required";
@@ -210,6 +252,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/database-transfer";
+    readonly operationId: "adminDatabaseTransferControllerStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/database-transfer";
+    readonly operationId: "adminDatabaseTransferControllerStart";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/admin/overview/activity";
     readonly operationId: "overviewControllerActivityList";
     readonly pathParameters: readonly [];
@@ -221,6 +277,13 @@ export declare const routes: readonly [{
     readonly operationId: "setupControllerRequestRecoveryKey";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/ai/configuration";
+    readonly operationId: "aiAdminControllerUpdateConfiguration";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "get";
@@ -272,9 +335,37 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: true;
 }, {
+    readonly method: "put";
+    readonly path: "/admin/search/settings";
+    readonly operationId: "adminMediaSearchControllerSaveSettings";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/profiles/me/listening";
     readonly operationId: "profilesControllerListening";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/recommendations/home";
+    readonly operationId: "recommendationsControllerHomeRecommendations";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/guide/channels";
+    readonly operationId: "adminGuideControllerUpdateChannels";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/guide/settings";
+    readonly operationId: "adminGuideControllerUpdateSettings";
     readonly pathParameters: readonly [];
     readonly hasBody: true;
     readonly hasQuery: false;
@@ -303,6 +394,13 @@ export declare const routes: readonly [{
     readonly method: "get";
     readonly path: "/admin/requests/users";
     readonly operationId: "adminRequestsControllerListUsers";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/search/rebuild";
+    readonly operationId: "adminMediaSearchControllerRebuild";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -342,6 +440,20 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/admin/guide/sources";
+    readonly operationId: "adminGuideControllerSources";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/guide/sources";
+    readonly operationId: "adminGuideControllerCreateSource";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/indexer/media/items";
     readonly operationId: "indexerApiControllerUpsertItem";
@@ -363,6 +475,13 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/admin/search/status";
+    readonly operationId: "adminMediaSearchControllerStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/admin/notifications";
     readonly operationId: "adminNotificationsControllerSend";
@@ -373,6 +492,13 @@ export declare const routes: readonly [{
     readonly method: "post";
     readonly path: "/admin/updates/apply";
     readonly operationId: "adminUpdatesControllerApply";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/search/reset";
+    readonly operationId: "adminMediaSearchControllerReset";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -447,6 +573,20 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/recommendations";
+    readonly operationId: "recommendationsControllerRecommend";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/ai/status";
+    readonly operationId: "aiAdminControllerStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/requests/config";
     readonly operationId: "requestsControllerConfig";
@@ -471,6 +611,13 @@ export declare const routes: readonly [{
     readonly method: "post";
     readonly path: "/setup/complete";
     readonly operationId: "setupControllerComplete";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/ai/retry";
+    readonly operationId: "aiAdminControllerRetry";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -658,6 +805,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/guide";
+    readonly operationId: "adminGuideControllerOverview";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/jobs/queues";
     readonly operationId: "jobsControllerGetQueues";
     readonly pathParameters: readonly [];
@@ -818,6 +972,48 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/guide";
+    readonly operationId: "guideControllerGet";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
+}, {
+    readonly method: "get";
+    readonly path: "/internal/ai/users/{userId}/recommendation-context";
+    readonly operationId: "aiControllerRecommendationContext";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/internal/ai/users/{userId}/recommendation-cache";
+    readonly operationId: "aiControllerRecommendationCacheState";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/internal/ai/users/{userId}/recommendation-cache";
+    readonly operationId: "aiControllerSaveRecommendationCache";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/ai/users/{userId}/recommendations/refresh";
+    readonly operationId: "aiAdminControllerRefreshUserRecommendations";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/playback/guide-channels/{id}/playback-info";
+    readonly operationId: "playbackControllerChannelPlaybackInfo";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/admin/indexer/queues/{queue}/cancel-active";
     readonly operationId: "adminIndexerControllerCancelActive";
@@ -910,10 +1106,24 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/recommendations/similar/{itemId}";
+    readonly operationId: "recommendationsControllerSimilar";
+    readonly pathParameters: readonly ["itemId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/auth/passkeys/{passkeyId}/delete";
     readonly operationId: "passkeyControllerRemove";
     readonly pathParameters: readonly ["passkeyId"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/guide/sources/{id}/refresh";
+    readonly operationId: "adminGuideControllerRefreshSource";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "get";
@@ -949,6 +1159,13 @@ export declare const routes: readonly [{
     readonly operationId: "adminScheduledTasksControllerStop";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/indexer/media/items/{id}/lyrics";
+    readonly operationId: "indexerApiControllerUpsertItemLyrics";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "delete";
@@ -1210,11 +1427,32 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "patch";
+    readonly path: "/admin/guide/sources/{id}";
+    readonly operationId: "adminGuideControllerUpdateSource";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/guide/sources/{id}";
+    readonly operationId: "adminGuideControllerRemoveSource";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "put";
     readonly path: "/media/items/{id}/watched";
     readonly operationId: "mediaHomeControllerSetWatched";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/search/tasks/{uid}";
+    readonly operationId: "adminMediaSearchControllerTask";
+    readonly pathParameters: readonly ["uid"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "post";

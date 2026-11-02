@@ -201,6 +201,22 @@ export class MediaHomeService {
 
 	private readonly profileLookups = new Map<string, Promise<PersonProfile | null>>();
 
+	async cardsByIds(ids: string[]): Promise<HomeCard[]> {
+		const orderedIds = [...new Set(ids.filter((id) => UUID_PATTERN.test(id)))];
+		if (orderedIds.length === 0) {
+			return [];
+		}
+		const items = await this.dataSource.getRepository(MediaItem).findBy({
+			id: In(orderedIds),
+			isPlaceholder: false,
+		});
+		const cards = new Map(items.map((item) => [item.id, this.toCard(item)]));
+		return orderedIds.flatMap((id) => {
+			const card = cards.get(id);
+			return card ? [card] : [];
+		});
+	}
+
 	async home(userId: string) {
 		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([
 			this.libraries(),

@@ -1,3 +1,7 @@
+import { createWriteStream } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
@@ -45,6 +49,32 @@ function quoteIdentifier(value: string): string {
 	return `"${value.replace(/"/g, '""')}"`;
 }
 
+function postgresPatternLiteral(value: string): string {
+	return value.replace(/[\\*?[\]]/g, "\\$&");
+}
+
+export function excludedSchemaArguments(schemas: string[]): string[] {
+	return schemas.flatMap((schema) => ["--exclude-schema", postgresPatternLiteral(schema)]);
+}
+
+export function transferSchemaArguments(sourceSchemas: string[], excludedSchemas: string[] = []): string[] {
+	const selectedSchemas = sourceSchemas.filter((schema) => schema === "public" || schema === "pgboss");
+	if (!selectedSchemas.includes("public")) {
+		throw new Error('The source database does not contain Flixer’s "public" schema.');
+	}
+	return [
+		...selectedSchemas.flatMap((schema) => ["--schema", schema]),
+		...excludedSchemaArguments(excludedSchemas.filter((schema) => selectedSchemas.includes(schema))),
+	];
+}
+
+export function restoreListWithoutPublicSchema(list: string): string {
+	return list
+		.split("\n")
+		.filter((line) => !/^\d+;\s+\d+\s+\d+\s+SCHEMA\s+-\s+public(?:\s|$)/.test(line))
+		.join("\n");
+}
+
 export function redactDatabaseUrl(value: string | undefined): string | null {
 	if (!value) return null;
 	try {
@@ -69,11 +99,16 @@ interface TargetSchema {
 interface TargetReplacementPlan {
 	currentUser: string;
 	schemasToDrop: string[];
+	schemasToPreserve: string[];
 	publicSchemaOwned: boolean;
 }
 
 export function replaceableSchemas(schemas: TargetSchema[], currentUser: string): string[] {
 	return schemas.filter(({ name, owner }) => name !== "public" && owner === currentUser).map(({ name }) => name);
+}
+
+export function preservedSchemas(schemas: TargetSchema[], currentUser: string): string[] {
+	return schemas.filter(({ name, owner }) => name !== "public" && owner !== currentUser).map(({ name }) => name);
 }
 
 async function targetReplacementPlan(client: pg.Client): Promise<TargetReplacementPlan> {
@@ -125,6 +160,7 @@ async function targetReplacementPlan(client: pg.Client): Promise<TargetReplaceme
 	return {
 		currentUser,
 		schemasToDrop: replaceableSchemas(schemaResult.rows, currentUser),
+		schemasToPreserve: preservedSchemas(schemaResult.rows, currentUser),
 		publicSchemaOwned,
 	};
 }
@@ -196,12 +232,53 @@ function childExit(child: ChildProcessWithoutNullStreams, name: string, urls: st
 				),
 			);
 		});
-		child.once("close", (code) => {
+		child.once("close", (code, signal) => {
 			if (code === 0) {
 				resolve();
 				return;
 			}
-			reject(new Error(`${name} failed (exit ${code}): ${redact(stderr, urls) || "No details provided."}`));
+			const termination = code === null ? `signal ${signal ?? "unknown"}` : `exit ${code}`;
+			reject(new Error(`${name} failed (${termination}): ${redact(stderr, urls) || "No details provided."}`));
+		});
+	});
+}
+
+function childOutput(child: ChildProcessWithoutNullStreams, name: string, urls: string[]): Promise<string> {
+	let stderr = "";
+	const output: Buffer[] = [];
+	let outputLength = 0;
+	child.stderr.on("data", (chunk: Buffer) => {
+		if (stderr.length < 2000) stderr += chunk.toString();
+	});
+	child.stdout.on("data", (chunk: Buffer) => {
+		outputLength += chunk.length;
+		if (outputLength > 16 * 1024 * 1024) {
+			child.kill();
+			return;
+		}
+		output.push(chunk);
+	});
+	return new Promise((resolve, reject) => {
+		child.once("error", (error: NodeJS.ErrnoException) => {
+			reject(
+				new Error(
+					error.code === "ENOENT"
+						? `${name} is not installed in the API container.`
+						: `${name}: ${redact(error.message, urls)}`,
+				),
+			);
+		});
+		child.once("close", (code, signal) => {
+			if (outputLength > 16 * 1024 * 1024) {
+				reject(new Error(`${name} output exceeded the allowed size.`));
+				return;
+			}
+			if (code === 0) {
+				resolve(Buffer.concat(output).toString("utf8"));
+				return;
+			}
+			const termination = code === null ? `signal ${signal ?? "unknown"}` : `exit ${code}`;
+			reject(new Error(`${name} failed (${termination}): ${redact(stderr, urls) || "No details provided."}`));
 		});
 	});
 }
@@ -443,7 +520,7 @@ export class DatabaseTransferService {
 		}
 	}
 
-	private async clearTarget(targetUrl: string): Promise<void> {
+	private async clearTarget(targetUrl: string): Promise<string[]> {
 		const client = clientFor(targetUrl);
 		try {
 			await client.connect();
@@ -463,6 +540,31 @@ export class DatabaseTransferService {
 				await client.query("ROLLBACK");
 				throw error;
 			}
+			return plan.schemasToPreserve;
+		} finally {
+			await client.end().catch(() => undefined);
+		}
+	}
+
+	private async targetSchemasToPreserve(targetUrl: string): Promise<string[]> {
+		const client = clientFor(targetUrl);
+		try {
+			await client.connect();
+			return (await targetReplacementPlan(client)).schemasToPreserve;
+		} finally {
+			await client.end().catch(() => undefined);
+		}
+	}
+
+	private async sourceSchemasToCopy(sourceUrl: string): Promise<string[]> {
+		const client = clientFor(sourceUrl);
+		try {
+			await client.connect();
+			const result = await client.query<{ name: string }>(
+				"SELECT nspname AS name FROM pg_namespace WHERE nspname = ANY($1::text[])",
+				[["public", "pgboss"]],
+			);
+			return result.rows.map(({ name }) => name);
 		} finally {
 			await client.end().catch(() => undefined);
 		}
@@ -487,7 +589,9 @@ export class DatabaseTransferService {
 			const terminated = await client.query<{ terminated: boolean }>(
 				`SELECT pg_terminate_backend(pid) AS terminated
 				FROM pg_stat_activity
-				WHERE datname = current_database() AND pid <> pg_backend_pid()`,
+				WHERE datname = current_database()
+					AND usename = current_user
+					AND pid <> pg_backend_pid()`,
 			);
 			if (terminated.rows.some((row) => row.terminated !== true)) {
 				throw new Error("PostgreSQL did not allow all existing database sessions to be disconnected.");
@@ -539,41 +643,69 @@ export class DatabaseTransferService {
 	}
 
 	private async copyDatabase(sourceUrl: string, targetUrl: string, replaceTarget: boolean): Promise<void> {
+		let schemasToPreserve: string[];
 		if (replaceTarget) {
-			await this.clearTarget(targetUrl);
+			schemasToPreserve = await this.clearTarget(targetUrl);
 		} else {
 			await this.assertTargetEmpty(targetUrl);
+			schemasToPreserve = await this.targetSchemasToPreserve(targetUrl);
 		}
 		const urls = [sourceUrl, targetUrl];
-		const dump = spawn("pg_dump", ["--format=custom", "--no-owner", "--no-acl"], {
-			env: connectionEnvironment(sourceUrl),
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-		const restore = spawn(
-			"pg_restore",
-			["--single-transaction", "--exit-on-error", "--no-owner", "--no-acl", "--dbname", databaseName(targetUrl)],
-			{ env: connectionEnvironment(targetUrl), stdio: ["pipe", "ignore", "pipe"] },
-		);
-		const dumpExit = childExit(dump, "pg_dump", urls);
-		const restoreExit = childExit(restore, "pg_restore", urls);
-		let streamError: unknown;
+		const sourceSchemas = await this.sourceSchemasToCopy(sourceUrl);
+		const dumpArguments = [
+			"--format=custom",
+			"--no-owner",
+			"--no-acl",
+			...transferSchemaArguments(sourceSchemas, schemasToPreserve),
+		];
+		const temporaryDirectory = await mkdtemp(join(tmpdir(), "flixer-database-transfer-"));
+		const archivePath = join(temporaryDirectory, "database.dump");
+		const restoreListPath = join(temporaryDirectory, "restore.list");
 		try {
-			await pipeline(dump.stdout, restore.stdin);
-		} catch (error) {
-			streamError = error;
-		}
+			const dump = spawn("pg_dump", dumpArguments, {
+				env: connectionEnvironment(sourceUrl),
+				stdio: ["ignore", "pipe", "pipe"],
+			});
+			const dumpExit = childExit(dump, "pg_dump", urls);
+			let dumpStreamError: unknown;
+			try {
+				await pipeline(dump.stdout, createWriteStream(archivePath, { flags: "wx", mode: 0o600 }));
+			} catch (error) {
+				dumpStreamError = error;
+			}
+			const dumpResult = await Promise.allSettled([dumpExit]);
+			const dumpFailure = dumpResult.find((result) => result.status === "rejected");
+			if (dumpFailure?.status === "rejected") throw dumpFailure.reason;
+			if (dumpStreamError) {
+				throw new Error(redact(dumpStreamError instanceof Error ? dumpStreamError.message : String(dumpStreamError), urls));
+			}
 
-		const processResults = await Promise.allSettled([dumpExit, restoreExit]);
-		const processErrors = processResults.flatMap((result) =>
-			result.status === "rejected"
-				? [result.reason instanceof Error ? result.reason.message : String(result.reason)]
-				: [],
-		);
-		if (processErrors.length > 0) {
-			throw new Error(processErrors.join(" "));
-		}
-		if (streamError) {
-			throw new Error(redact(streamError instanceof Error ? streamError.message : String(streamError), urls));
+			const listProcess = spawn("pg_restore", ["--list", archivePath], {
+				env: connectionEnvironment(targetUrl),
+				stdio: ["ignore", "pipe", "pipe"],
+			});
+			const restoreList = await childOutput(listProcess, "pg_restore --list", urls);
+			await writeFile(restoreListPath, restoreListWithoutPublicSchema(restoreList), { mode: 0o600 });
+
+			const restoreArguments = [
+				"--single-transaction",
+				"--exit-on-error",
+				"--no-owner",
+				"--no-acl",
+				...excludedSchemaArguments(schemasToPreserve),
+				"--use-list",
+				restoreListPath,
+				archivePath,
+				"--dbname",
+				databaseName(targetUrl),
+			];
+			const restore = spawn("pg_restore", restoreArguments, {
+				env: connectionEnvironment(targetUrl),
+				stdio: ["ignore", "ignore", "pipe"],
+			});
+			await childExit(restore, "pg_restore", urls);
+		} finally {
+			await rm(temporaryDirectory, { recursive: true, force: true });
 		}
 	}
 }

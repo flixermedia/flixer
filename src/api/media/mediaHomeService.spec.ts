@@ -1,10 +1,47 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaSearchService } from "./mediaSearchService.js";
 import { MediaHomeService } from "./mediaHomeService.js";
 
 describe("MediaHomeService search ranking", () => {
+	it("returns recommendation cards in AI-ranked order and ignores missing ids", async () => {
+		const items = [
+			{
+				id: "00000000-0000-4000-8000-000000000002",
+				type: "movie",
+				title: "Second",
+				year: 2020,
+				images: [],
+				updatedAt: new Date("2020-01-01T00:00:00.000Z"),
+			},
+			{
+				id: "00000000-0000-4000-8000-000000000001",
+				type: "series",
+				title: "First",
+				year: 2021,
+				images: [],
+				updatedAt: new Date("2021-01-01T00:00:00.000Z"),
+			},
+		] as MediaItem[];
+		const repository = { findBy: vi.fn().mockResolvedValue(items) };
+		const dataSource = {
+			getRepository: vi.fn(() => repository),
+		} as unknown as DataSource;
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, {} as MediaSearchService);
+
+		const cards = await service.cardsByIds([
+			items[1].id,
+			"00000000-0000-4000-8000-000000000003",
+			items[0].id,
+			items[1].id,
+		]);
+
+		expect(repository.findBy).toHaveBeenCalledOnce();
+		expect(cards.map(({ title }) => title)).toEqual(["First", "Second"]);
+	});
+
 	it("preserves Meilisearch ranking and returns only indexed hits", async () => {
 		const rows = [
 			{

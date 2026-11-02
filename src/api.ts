@@ -1,6 +1,9 @@
 export { VersionController } from "./api/versionController.js";
 export { SetupController } from "./api/setup/setupController.js";
 export { InternalConfigController } from "./api/setup/internalConfigController.js";
+export { AiController } from "./api/ai/aiController.js";
+export { RecommendationsController } from "./api/ai/recommendationsController.js";
+export { AiAdminController } from "./api/ai/aiAdminController.js";
 export { AuthController } from "./api/auth/authController.js";
 export { AvatarController } from "./api/auth/avatarController.js";
 export { PasskeyController } from "./api/auth/passkeyController.js";
@@ -8,6 +11,7 @@ export { UserController } from "./api/user/userController.js";
 export { PreferencesController } from "./api/preferences/preferencesController.js";
 export { SettingsController } from "./api/settings/settingsController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";
+export { GuideController, AdminGuideController } from "./api/guide/guideController.js";
 export { JobsController } from "./api/jobs/jobsController.js";
 export { AdminScheduledTasksController } from "./api/jobs/adminScheduledTasksController.js";
 export { StreamsController } from "./api/streams/streamsController.js";

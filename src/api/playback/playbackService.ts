@@ -12,6 +12,7 @@ import { appConfig } from "../../config/store/appConfig.js";
 import { MediaSegmentsService, type ItemSegments } from "../media/mediaSegmentsService.js";
 import { pickNextEpisode, type NextEpisode } from "./nextEpisode.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
+import { GuideService, type LiveStreamContainer } from "../guide/guideService.js";
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
 const LOCATOR_AAD = "flixer-streamer:media-locator:v1";
@@ -49,13 +50,13 @@ const base64Url = (value: Buffer | string) => Buffer.from(value).toString("base6
  */
 @Injectable()
 export class PlaybackService {
-
 	constructor(
 		private readonly authService: AuthService,
 		private readonly libraries: MediaLibrariesService,
 		private readonly roots: MediaRootsService,
 		private readonly segments: MediaSegmentsService,
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly guide: GuideService,
 	) {}
 
 	async listSamples(authorization?: string): Promise<SampleVideo[]> {
@@ -72,8 +73,17 @@ export class PlaybackService {
 		return this.issue(user.id, sample);
 	}
 
+	async createGuideChannelPlaybackInfo(channelId: string, authorization?: string): Promise<PlaybackInfo> {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		const channel = await this.guide.getPlaybackTarget(channelId);
+		return this.issueLive(user.id, channel);
+	}
+
 	/** Playback for an indexed media item, using the root and path the indexer recorded for its file. */
-	async createItemPlaybackInfo(itemId: string, authorization?: string): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null } & ItemSegments> {
+	async createItemPlaybackInfo(
+		itemId: string,
+		authorization?: string,
+	): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null } & ItemSegments> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
 		if (!item || item.isPlaceholder) {
@@ -84,8 +94,8 @@ export class PlaybackService {
 		}
 		const extension = extname(item.relativePath).toLowerCase();
 		if (!SAMPLE_EXTENSIONS.has(extension) && !AUDIO_EXTENSIONS.has(extension)) {
-					throw new BadRequest("This file type can't be played in the browser yet.");
-				}
+			throw new BadRequest("This file type can't be played in the browser yet.");
+		}
 		const info = this.issue(user.id, {
 			id: item.id,
 			title: item.title,
@@ -94,7 +104,12 @@ export class PlaybackService {
 			rootId: item.rootId,
 			relativePath: item.relativePath,
 		});
-		return { ...info, title: item.title, nextEpisode: await this.findNextEpisode(item), ...(await this.segments.forItem(item)) };
+		return {
+			...info,
+			title: item.title,
+			nextEpisode: await this.findNextEpisode(item),
+			...(await this.segments.forItem(item)),
+		};
 	}
 
 	/** The episode that follows this one across the whole series, or null for non-episodes and the final episode. */
@@ -104,14 +119,29 @@ export class PlaybackService {
 		}
 		const repository = this.dataSource.getRepository(MediaItem);
 		const season = await repository.findOneBy({ id: item.parentId });
-		const seasons = season?.parentId ? await repository.findBy({ parentId: season.parentId, type: "season" }) : season ? [season] : [];
-		const episodes = await repository.findBy({ parentId: In(seasons.map((entry) => entry.id)), type: "episode", isPlaceholder: false });
+		const seasons = season?.parentId
+			? await repository.findBy({ parentId: season.parentId, type: "season" })
+			: season
+				? [season]
+				: [];
+		const episodes = await repository.findBy({
+			parentId: In(seasons.map((entry) => entry.id)),
+			type: "episode",
+			isPlaceholder: false,
+		});
 		const seasonNumbers = new Map(seasons.map((entry) => [entry.id, entry.seasonNumber]));
 		return pickNextEpisode(
 			item.id,
 			episodes
 				.filter((episode) => episode.id === item.id || (episode.rootId && episode.relativePath))
-				.map((episode) => ({ id: episode.id, title: episode.title, seasonNumber: episode.seasonNumber ?? (episode.parentId ? seasonNumbers.get(episode.parentId) ?? null : null), episodeNumber: episode.episodeNumber })),
+				.map((episode) => ({
+					id: episode.id,
+					title: episode.title,
+					seasonNumber:
+						episode.seasonNumber ??
+						(episode.parentId ? (seasonNumbers.get(episode.parentId) ?? null) : null),
+					episodeNumber: episode.episodeNumber,
+				})),
 		);
 	}
 
@@ -157,8 +187,50 @@ export class PlaybackService {
 		return secret;
 	}
 
-	private encryptLocator(locator: { rootId: string; relativePath: string }, secret: Buffer): string {
-		const key = createHash("sha256").update(Buffer.concat([Buffer.from(`${LOCATOR_AAD}\0`), secret])).digest();
+	private issueLive(
+		userId: string,
+		channel: { id: string; name: string; url: string; container: LiveStreamContainer },
+	): PlaybackInfo {
+		const secret = this.getSecret();
+		const now = Math.floor(Date.now() / 1000);
+		const playSessionId = randomUUID();
+		const claims = {
+			iss: "flixer",
+			aud: "flixer-streamer",
+			sub: userId,
+			userId,
+			mediaItemId: channel.id,
+			mediaSourceId: channel.id,
+			playSessionId,
+			mediaLocator: this.encryptLocator({ type: "iptv", url: channel.url }, secret),
+			iat: now,
+			exp: now + TOKEN_LIFETIME_SECONDS,
+			jti: randomUUID(),
+		};
+		const signingInput = `${base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${base64Url(JSON.stringify(claims))}`;
+		const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
+		const streamerUrl = (appConfig().get("streamerPublicUrl") || "").replace(/\/+$/, "");
+		return {
+			playSessionId,
+			mediaSource: {
+				id: channel.id,
+				title: channel.name,
+				container: channel.container,
+				directPlay: true,
+				mediaSourceId: channel.id,
+				streamUrl: `${streamerUrl}/streamer/live/${signingInput}.${signature}`,
+			},
+			expiresAt: new Date(claims.exp * 1000).toISOString(),
+		};
+	}
+
+	private encryptLocator(
+		locator: { rootId: string; relativePath: string } | { type: "iptv"; url: string },
+		secret: Buffer,
+	): string {
+		const key = createHash("sha256")
+			.update(Buffer.concat([Buffer.from(`${LOCATOR_AAD}\0`), secret]))
+			.digest();
 		const nonce = randomBytes(12);
 		const cipher = createCipheriv("aes-256-gcm", key, nonce);
 		cipher.setAAD(Buffer.from(LOCATOR_AAD));

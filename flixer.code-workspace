@@ -34,6 +34,9 @@
 		},
 		{
 			"path": "../flixer-cloud"
+		},
+		{
+			"path": "../flixer-ai"
 		}
 	],
 	"settings": {

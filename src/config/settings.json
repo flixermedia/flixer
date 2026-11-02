@@ -210,5 +210,9 @@
 	{ "key": "requests_quota_days", "defaultValue": 7, "isPublic": false },
 	{ "key": "requests_default_can_request", "defaultValue": true, "isPublic": false },
 	{ "key": "requests_notify_admins", "defaultValue": true, "isPublic": false },
-	{ "key": "requests_notify_users", "defaultValue": true, "isPublic": false }
+	{ "key": "requests_notify_users", "defaultValue": true, "isPublic": false },
+	{ "key": "ai_enabled", "defaultValue": false, "isPublic": false },
+	{ "key": "ai_profile", "defaultValue": "auto", "isPublic": false },
+	{ "key": "ai_allow_downloads", "defaultValue": true, "isPublic": false },
+	{ "key": "ai_cache_refresh_interval_minutes", "defaultValue": 10, "isPublic": false }
 ]

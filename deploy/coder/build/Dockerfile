@@ -5,7 +5,13 @@ ARG GO_VERSION=1.26.0
 
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg postgresql-client redis-tools iputils-ping build-essential cifs-utils gh \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+    && . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg postgresql-client-17 redis-tools iputils-ping build-essential cifs-utils gh python3 python3-venv python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Node (flixer, flixer-web) and Go (flixer-indexer, flixer-streamer) from the official tarballs, so versions match the repos' Dockerfiles.

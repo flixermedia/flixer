@@ -7,7 +7,6 @@ import { PlaybackService } from "./playbackService.js";
 
 @Controller("/playback")
 export class PlaybackController {
-
 	constructor(private readonly playbackService: PlaybackService) {}
 
 	@Get("/samples")
@@ -23,6 +22,15 @@ export class PlaybackController {
 			throw new NotFound("Media item not found.");
 		}
 		return this.playbackService.createItemPlaybackInfo(id.toLowerCase(), authorization);
+	}
+
+	@Post("/guide-channels/:id/playback-info")
+	@Security("BearerAuth")
+	channelPlaybackInfo(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		if (!AuthService.isUuid(id)) {
+			throw new NotFound("Guide channel not found.");
+		}
+		return this.playbackService.createGuideChannelPlaybackInfo(id.toLowerCase(), authorization);
 	}
 
 	@Post("/samples/:id/playback-info")

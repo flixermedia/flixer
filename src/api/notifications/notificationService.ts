@@ -40,6 +40,10 @@ export interface NotificationInput {
 	kind: NotificationKind;
 }
 
+export interface NotificationEvent {
+	type: "changed";
+}
+
 export interface PushSubscriptionInput {
 	endpoint: string;
 	p256dh: string;
@@ -53,11 +57,17 @@ export class NotificationService {
 	private vapid: Promise<PushKey> | null = null;
 	private pendingNew = new Set<string>();
 	private announceTimer: ReturnType<typeof setTimeout> | undefined;
+	private readonly listeners = new Set<(userIds: string[], event: NotificationEvent) => void>();
 
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async $onDestroy(): Promise<void> {
 		clearTimeout(this.announceTimer);
+	}
+
+	onEvent(listener: (userIds: string[], event: NotificationEvent) => void): () => void {
+		this.listeners.add(listener);
+		return () => this.listeners.delete(listener);
 	}
 
 	async getConfig(): Promise<NotificationConfig> {
@@ -108,6 +118,7 @@ export class NotificationService {
 	async markRead(userId: string, ids?: string[]): Promise<void> {
 		const where = ids && ids.length > 0 ? { userId, id: In(ids), readAt: IsNull() } : { userId, readAt: IsNull() };
 		await this.dataSource.getRepository(Notification).update(where, { readAt: new Date() });
+		this.publish([userId]);
 	}
 
 	async remove(userId: string, id: string): Promise<void> {
@@ -115,6 +126,7 @@ export class NotificationService {
 		if (!result.affected) {
 			throw new NotFound("Notification not found.");
 		}
+		this.publish([userId]);
 	}
 
 	async subscribe(userId: string, input: PushSubscriptionInput): Promise<void> {
@@ -165,10 +177,21 @@ export class NotificationService {
 		for (let start = 0; start < rows.length; start += 500) {
 			await this.dataSource.getRepository(Notification).insert(rows.slice(start, start + 500));
 		}
+		this.publish(recipients);
 		await this.dataSource.getRepository(Notification).delete({ createdAt: LessThan(new Date(Date.now() - RETENTION_DAYS * 86_400_000)) }).catch(() => undefined);
 
 		const pushed = await this.push(recipients, { title, body, url: input.url ?? "/" });
 		return { recipients: recipients.length, pushed };
+	}
+
+	private publish(userIds: string[]): void {
+		for (const listener of this.listeners) {
+			try {
+				listener(userIds, { type: "changed" });
+			} catch (error) {
+				logger().warn("Could not publish notification event.", error);
+			}
+		}
 	}
 
 	private async push(userIds: string[], payload: { title: string; body: string; url: string }): Promise<number> {

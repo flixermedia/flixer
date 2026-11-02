@@ -37,6 +37,9 @@ describe("user preferences", () => {
 			expect(schema.properties?.autoSkipIntroCredits).toMatchObject({
 				type: ["null", "boolean"],
 			});
+			expect(schema.properties?.audioLanguage).toMatchObject({
+				type: ["null", "string"],
+			});
 		});
 	});
 
@@ -59,6 +62,11 @@ describe("user preferences", () => {
 	it("defaults automatic intro and credits skipping on while honoring saved values", () => {
 		expect(publicPreferences({}).autoSkipIntroCredits).toBe(true);
 		expect(publicPreferences({ autoSkipIntroCredits: false }).autoSkipIntroCredits).toBe(false);
+	});
+
+	it("returns a valid saved default audio language", () => {
+		expect(publicPreferences({ audioLanguage: "pt-BR" }).audioLanguage).toBe("pt-BR");
+		expect(publicPreferences({ audioLanguage: "<script>" }).audioLanguage).toBeUndefined();
 	});
 
 	it("rejects panels outside the grid or with unsupported sizes", () => {

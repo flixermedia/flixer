@@ -36,7 +36,7 @@ data "coder_external_auth" "github" {
 data "coder_parameter" "git_base_url" {
   name         = "git_base_url"
   display_name = "Git base URL"
-  description  = "Where flixer, flixer-web, flixer-indexer, flixer-streamer and flixer-docs are cloned from."
+  description  = "Where flixer, flixer-web, flixer-indexer, flixer-streamer, flixer-docs and flixer-ai are cloned from."
   type         = "string"
   default      = "https://github.com/flixermedia"
   mutable      = false
@@ -100,7 +100,7 @@ resource "coder_agent" "main" {
   }
 }
 
-# Clones the repos, installs dependencies and starts api, streamer, indexer, web and docs.
+# Clones the repos, installs dependencies and starts api, streamer, indexer, AI, web and docs.
 resource "coder_script" "stack" {
   agent_id           = coder_agent.main.id
   display_name       = "Flixer dev stack"

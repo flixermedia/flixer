@@ -4,7 +4,15 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
 import { ConfigStore } from "../../config/store/configStore.js";
-import { DatabaseTransferService, redactDatabaseUrl, replaceableSchemas } from "./databaseTransferService.js";
+import {
+	DatabaseTransferService,
+	excludedSchemaArguments,
+	preservedSchemas,
+	redactDatabaseUrl,
+	restoreListWithoutPublicSchema,
+	replaceableSchemas,
+	transferSchemaArguments,
+} from "./databaseTransferService.js";
 
 describe("DatabaseTransferService", () => {
 	let directory: string | undefined;
@@ -19,16 +27,58 @@ describe("DatabaseTransferService", () => {
 	});
 
 	it("preserves schemas owned by managed PostgreSQL roles during replacement", () => {
+		const schemas = [
+			{ name: "auth", owner: "supabase_admin" },
+			{ name: "public", owner: "postgres" },
+			{ name: "flixer_data", owner: "postgres" },
+		];
 		expect(
-			replaceableSchemas(
-				[
-					{ name: "auth", owner: "supabase_admin" },
-					{ name: "public", owner: "postgres" },
-					{ name: "flixer_data", owner: "postgres" },
-				],
-				"postgres",
-			),
+			replaceableSchemas(schemas, "postgres"),
 		).toEqual(["flixer_data"]);
+		expect(preservedSchemas(schemas, "postgres")).toEqual(["auth"]);
+	});
+
+	it("excludes preserved schemas from both the dump and restore patterns", () => {
+		expect(excludedSchemaArguments(["auth", "schema*name"])).toEqual([
+			"--exclude-schema",
+			"auth",
+			"--exclude-schema",
+			"schema\\*name",
+		]);
+	});
+
+	it("dumps only Flixer's public and pg-boss schemas", () => {
+		expect(transferSchemaArguments(["public", "auth", "storage", "pgboss"])).toEqual([
+			"--schema",
+			"public",
+			"--schema",
+			"pgboss",
+		]);
+		expect(transferSchemaArguments(["public", "pgboss"], ["auth", "pgboss"])).toEqual([
+			"--schema",
+			"public",
+			"--schema",
+			"pgboss",
+			"--exclude-schema",
+			"pgboss",
+		]);
+		expect(() => transferSchemaArguments(["auth", "storage"])).toThrow('does not contain Flixer’s "public" schema');
+	});
+
+	it("omits public schema creation from the restore list while keeping its objects", () => {
+		const toc = [
+			"; Archive header",
+			"1; 2615 2200 SCHEMA - public postgres",
+			"2; 1259 33001 TABLE public users postgres",
+			"3; 2615 2201 SCHEMA - pgboss postgres",
+		].join("\n");
+		expect(restoreListWithoutPublicSchema(toc)).toBe(
+			[
+				"; Archive header",
+				"2; 1259 33001 TABLE public users postgres",
+				"3; 2615 2201 SCHEMA - pgboss postgres",
+			].join("\n"),
+		);
 	});
 
 	it("redacts URL and query-string passwords before exposing database addresses", () => {

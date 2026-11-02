@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Api documentation",
-    "version": "1.12.1"
+    "version": "1.13.0"
   },
   "components": {
     "securitySchemes": {
@@ -13,6 +13,81 @@
       }
     },
     "schemas": {
+      "RecommendationRequest": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "maximum": 100,
+            "minimum": 1
+          },
+          "filters": {
+            "$ref": "#/components/schemas/RecommendationFiltersRequest"
+          }
+        }
+      },
+      "RecommendationFiltersRequest": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 7
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30
+          },
+          "year_from": {
+            "type": "number",
+            "maximum": 2200,
+            "minimum": 1800
+          },
+          "year_to": {
+            "type": "number",
+            "maximum": 2200,
+            "minimum": 1800
+          }
+        }
+      },
+      "UpdateAiConfigurationRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "classic",
+              "micro",
+              "mini"
+            ],
+            "minLength": 1
+          },
+          "allowDownloads": {
+            "type": "boolean"
+          },
+          "cacheRefreshIntervalMinutes": {
+            "type": "integer",
+            "maximum": 1440,
+            "minimum": 1,
+            "multipleOf": 1
+          }
+        },
+        "required": [
+          "enabled",
+          "profile",
+          "allowDownloads",
+          "cacheRefreshIntervalMinutes"
+        ]
+      },
       "RegisterRequest": {
         "type": "object",
         "properties": {
@@ -405,6 +480,12 @@
               "string"
             ]
           },
+          "audioLanguage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "adminDashboardGrid": {
             "type": [
               "null",
@@ -479,6 +560,112 @@
         },
         "required": [
           "value"
+        ]
+      },
+      "CreateGuideSourceRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "epg",
+              "iptv"
+            ],
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "url"
+        ]
+      },
+      "UpdateGuideSourceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number",
+            "maximum": 10000,
+            "minimum": 0
+          }
+        }
+      },
+      "UpdateGuideChannelsRequest": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuideChannelChange"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "channels"
+        ]
+      },
+      "GuideChannelChange": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number",
+            "maximum": 100000,
+            "minimum": 0
+          },
+          "iptvChannelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdateGuideSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "regionalMergeThresholdPercent": {
+            "type": "number",
+            "maximum": 100,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "regionalMergeThresholdPercent"
         ]
       },
       "EnqueueJobRequest": {
@@ -1070,6 +1257,23 @@
           "watched"
         ]
       },
+      "MediaSearchSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "enabled",
+          "url"
+        ]
+      },
       "CreateNetworkShareRequest": {
         "type": "object",
         "properties": {
@@ -1651,6 +1855,173 @@
           "redis"
         ]
       },
+      "api_ai_aiAdminService_AiAdminConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "auto"
+              },
+              {
+                "type": "string",
+                "const": "classic"
+              },
+              {
+                "type": "string",
+                "const": "micro"
+              },
+              {
+                "type": "string",
+                "const": "mini"
+              }
+            ]
+          },
+          "allowDownloads": {
+            "type": "boolean"
+          },
+          "cacheRefreshIntervalMinutes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "profile",
+          "allowDownloads",
+          "cacheRefreshIntervalMinutes"
+        ]
+      },
+      "api_ai_aiRecommendationCacheService_CachedRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "score"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "api_ai_aiRecommendationCacheService_RecommendationCacheState": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/api_ai_aiRecommendationCacheService_CachedRecommendationResponse"
+            }
+          },
+          "lastRefreshAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "entryScopes": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "movies"
+                },
+                {
+                  "type": "string",
+                  "const": "music"
+                },
+                {
+                  "type": "string",
+                  "const": "general"
+                }
+              ]
+            }
+          },
+          "refreshTimes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "entries",
+          "lastRefreshAt",
+          "entryScopes",
+          "refreshTimes"
+        ]
+      },
+      "api_ai_aiRecommendationsService_ScoredRecommendation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "score"
+        ]
+      },
+      "api_ai_aiRecommendationsService_RecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/api_ai_aiRecommendationsService_ScoredRecommendation"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "api_auth_authService_AuthResult": {
         "type": "object",
         "properties": {
@@ -1947,6 +2318,9 @@
           "language": {
             "type": "string"
           },
+          "audioLanguage": {
+            "type": "string"
+          },
           "adminDashboardGrid": {
             "type": "array",
             "items": {
@@ -2183,6 +2557,197 @@
         "required": [
           "chapters",
           "segments"
+        ]
+      },
+      "api_guide_guideService_GuideChannelView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "alternateNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variantCount": {
+            "type": "number"
+          },
+          "iptvChannelId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "watchable": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "alternateNames",
+          "variantCount",
+          "iptvChannelId",
+          "watchable",
+          "sortOrder"
+        ]
+      },
+      "api_guide_guideService_GuideProgrammeView": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "channelExternalId": {
+            "type": "string"
+          },
+          "start": {
+            "type": "number"
+          },
+          "stop": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "channelId",
+          "channelExternalId",
+          "start",
+          "stop",
+          "title",
+          "subtitle",
+          "description",
+          "category"
+        ]
+      },
+      "api_guide_guideService_PublicGuideSource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "epg"
+              },
+              {
+                "type": "string",
+                "const": "iptv"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "channelCount": {
+            "type": "number"
+          },
+          "programmeCount": {
+            "type": "number"
+          },
+          "lastRefreshedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "url",
+          "enabled",
+          "isDefault",
+          "sortOrder",
+          "channelCount",
+          "programmeCount",
+          "lastRefreshedAt",
+          "lastError"
         ]
       },
       "jobs_jobScheduler_AdminTaskRunStatus": {
@@ -2674,11 +3239,11 @@
               },
               {
                 "type": "string",
-                "const": "tvshows"
+                "const": "music"
               },
               {
                 "type": "string",
-                "const": "music"
+                "const": "tvshows"
               },
               {
                 "type": "string",
@@ -2962,6 +3527,14 @@
             "anyOf": [
               {
                 "type": "string",
+                "const": "metadata"
+              },
+              {
+                "type": "string",
+                "const": "images"
+              },
+              {
+                "type": "string",
                 "const": "trickplay"
               },
               {
@@ -2971,14 +3544,6 @@
               {
                 "type": "string",
                 "const": "identify"
-              },
-              {
-                "type": "string",
-                "const": "metadata"
-              },
-              {
-                "type": "string",
-                "const": "images"
               },
               {
                 "type": "string",
@@ -3111,6 +3676,14 @@
             "anyOf": [
               {
                 "type": "string",
+                "const": "metadata"
+              },
+              {
+                "type": "string",
+                "const": "images"
+              },
+              {
+                "type": "string",
                 "const": "trickplay"
               },
               {
@@ -3120,14 +3693,6 @@
               {
                 "type": "string",
                 "const": "identify"
-              },
-              {
-                "type": "string",
-                "const": "metadata"
-              },
-              {
-                "type": "string",
-                "const": "images"
               },
               {
                 "type": "string",
@@ -3247,6 +3812,14 @@
             "anyOf": [
               {
                 "type": "string",
+                "const": "metadata"
+              },
+              {
+                "type": "string",
+                "const": "images"
+              },
+              {
+                "type": "string",
                 "const": "trickplay"
               },
               {
@@ -3256,14 +3829,6 @@
               {
                 "type": "string",
                 "const": "identify"
-              },
-              {
-                "type": "string",
-                "const": "metadata"
-              },
-              {
-                "type": "string",
-                "const": "images"
               },
               {
                 "type": "string",
@@ -3382,6 +3947,14 @@
             "anyOf": [
               {
                 "type": "string",
+                "const": "metadata"
+              },
+              {
+                "type": "string",
+                "const": "images"
+              },
+              {
+                "type": "string",
                 "const": "trickplay"
               },
               {
@@ -3391,14 +3964,6 @@
               {
                 "type": "string",
                 "const": "identify"
-              },
-              {
-                "type": "string",
-                "const": "metadata"
-              },
-              {
-                "type": "string",
-                "const": "images"
               },
               {
                 "type": "string",
@@ -5498,15 +6063,19 @@
               },
               {
                 "type": "string",
-                "const": "episode"
-              },
-              {
-                "type": "string",
                 "const": "series"
               },
               {
                 "type": "string",
+                "const": "video"
+              },
+              {
+                "type": "string",
                 "const": "season"
+              },
+              {
+                "type": "string",
+                "const": "episode"
               },
               {
                 "type": "string",
@@ -5515,10 +6084,6 @@
               {
                 "type": "string",
                 "const": "track"
-              },
-              {
-                "type": "string",
-                "const": "video"
               }
             ]
           },
@@ -5590,15 +6155,19 @@
               },
               {
                 "type": "string",
-                "const": "episode"
-              },
-              {
-                "type": "string",
                 "const": "series"
               },
               {
                 "type": "string",
+                "const": "video"
+              },
+              {
+                "type": "string",
                 "const": "season"
+              },
+              {
+                "type": "string",
+                "const": "episode"
               },
               {
                 "type": "string",
@@ -5607,10 +6176,6 @@
               {
                 "type": "string",
                 "const": "track"
-              },
-              {
-                "type": "string",
-                "const": "video"
               }
             ]
           },
@@ -5624,6 +6189,16 @@
               },
               {
                 "type": "number"
+              }
+            ]
+          },
+          "searchContext": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
               }
             ]
           },
@@ -5676,15 +6251,19 @@
               },
               {
                 "type": "string",
-                "const": "episode"
-              },
-              {
-                "type": "string",
                 "const": "series"
               },
               {
                 "type": "string",
+                "const": "video"
+              },
+              {
+                "type": "string",
                 "const": "season"
+              },
+              {
+                "type": "string",
+                "const": "episode"
               },
               {
                 "type": "string",
@@ -5693,10 +6272,6 @@
               {
                 "type": "string",
                 "const": "track"
-              },
-              {
-                "type": "string",
-                "const": "video"
               }
             ]
           },
@@ -5710,6 +6285,16 @@
               },
               {
                 "type": "number"
+              }
+            ]
+          },
+          "searchContext": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
               }
             ]
           },
@@ -5797,6 +6382,324 @@
           "biography",
           "source",
           "sourceUrl"
+        ]
+      },
+      "api_media_mediaSearchService_MeilisearchTaskSummary": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "number"
+          },
+          "indexUid": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "enqueuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "uid",
+          "indexUid",
+          "status",
+          "type",
+          "enqueuedAt",
+          "startedAt",
+          "finishedAt",
+          "duration",
+          "error"
+        ]
+      },
+      "api_media_mediaSearchService_MediaSearchAdminStatus": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          },
+          "customUrl": {
+            "type": "string"
+          },
+          "urlSource": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "default"
+              },
+              {
+                "type": "string",
+                "const": "database"
+              },
+              {
+                "type": "string",
+                "const": "environment"
+              }
+            ]
+          },
+          "apiKeyConfigured": {
+            "type": "boolean"
+          },
+          "connected": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "boolean",
+                "const": false
+              },
+              {
+                "type": "boolean",
+                "const": true
+              }
+            ]
+          },
+          "indexExists": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "boolean",
+                "const": false
+              },
+              {
+                "type": "boolean",
+                "const": true
+              }
+            ]
+          },
+          "documentCount": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "outboxPending": {
+            "type": "number"
+          },
+          "outboxFailed": {
+            "type": "number"
+          },
+          "lastOutboxError": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/api_media_mediaSearchService_MeilisearchTaskSummary"
+            }
+          },
+          "tasksError": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "url",
+          "customUrl",
+          "urlSource",
+          "apiKeyConfigured",
+          "connected",
+          "indexExists",
+          "documentCount",
+          "outboxPending",
+          "outboxFailed",
+          "lastOutboxError",
+          "tasks",
+          "tasksError",
+          "error"
+        ]
+      },
+      "api_media_mediaSearchService_MediaSearchTaskDetails": {
+        "type": "object",
+        "properties": {
+          "details": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "link": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "uid": {
+            "type": "number"
+          },
+          "indexUid": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "enqueuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "details",
+          "error",
+          "uid",
+          "indexUid",
+          "status",
+          "type",
+          "enqueuedAt",
+          "startedAt",
+          "finishedAt",
+          "duration"
         ]
       },
       "api_networkShares_networkSharesService_PublicNetworkShare": {
@@ -5998,15 +6901,19 @@
               },
               {
                 "type": "string",
-                "const": "episode"
-              },
-              {
-                "type": "string",
                 "const": "series"
               },
               {
                 "type": "string",
+                "const": "video"
+              },
+              {
+                "type": "string",
                 "const": "season"
+              },
+              {
+                "type": "string",
+                "const": "episode"
               },
               {
                 "type": "string",
@@ -6015,10 +6922,6 @@
               {
                 "type": "string",
                 "const": "track"
-              },
-              {
-                "type": "string",
-                "const": "video"
               }
             ]
           },
@@ -7015,6 +7918,83 @@
           "backups"
         ]
       },
+      "api_connections_databaseTransferService_DatabaseTransferStatus": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "completed"
+              },
+              {
+                "type": "string",
+                "const": "failed"
+              },
+              {
+                "type": "string",
+                "const": "running"
+              },
+              {
+                "type": "string",
+                "const": "idle"
+              },
+              {
+                "type": "string",
+                "const": "interrupted"
+              }
+            ]
+          },
+          "phase": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "sourceLocked": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "currentDatabaseUrl": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "phase",
+          "message",
+          "sourceLocked",
+          "startedAt",
+          "finishedAt",
+          "currentDatabaseUrl"
+        ]
+      },
       "sentry_sentryService_SentryAppConfig": {
         "type": "object",
         "properties": {
@@ -7421,6 +8401,1490 @@
           "InternalConfigController"
         ],
         "operationId": "internalConfigControllerGet"
+      }
+    },
+    "/api/internal/ai/library-context": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "parent_genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "parent_title": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "overview": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "tagline": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "studios": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cast": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "crew": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "artist": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "overview",
+                          "tagline",
+                          "genres",
+                          "studios",
+                          "cast",
+                          "crew",
+                          "artist"
+                        ]
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "favorites": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  },
+                  "required": [
+                    "candidates",
+                    "history",
+                    "favorites"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerLibraryContext"
+      }
+    },
+    "/api/internal/ai/users/{userId}/recommendation-context": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "position_seconds": {
+                            "type": "number"
+                          },
+                          "duration_seconds": {
+                            "type": "number"
+                          },
+                          "completed": {
+                            "type": "boolean"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          },
+                          "parent_genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "parent_title": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "overview": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "tagline": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "studios": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cast": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "crew": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "artist": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "position_seconds",
+                          "duration_seconds",
+                          "completed",
+                          "updated_at",
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "overview",
+                          "tagline",
+                          "genres",
+                          "studios",
+                          "cast",
+                          "crew",
+                          "artist"
+                        ]
+                      }
+                    },
+                    "favorites": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "parent_genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "parent_title": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "overview": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "tagline": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "studios": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cast": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "crew": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "artist": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "created_at",
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "overview",
+                          "tagline",
+                          "genres",
+                          "studios",
+                          "cast",
+                          "crew",
+                          "artist"
+                        ]
+                      }
+                    },
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "parent_genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "parent_title": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "overview": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "tagline": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "genres": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "studios": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cast": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "crew": {
+                            "type": "array",
+                            "items": {}
+                          },
+                          "artist": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "overview",
+                          "tagline",
+                          "genres",
+                          "studios",
+                          "cast",
+                          "crew",
+                          "artist"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "history",
+                    "favorites",
+                    "candidates"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerRecommendationContext"
+      }
+    },
+    "/api/internal/ai/runtime-configuration": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_ai_aiAdminService_AiAdminConfiguration"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerRuntimeConfiguration"
+      }
+    },
+    "/api/internal/ai/users/{userId}/recommendation-cache": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_ai_aiRecommendationCacheService_RecommendationCacheState"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerRecommendationCacheState"
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "saved": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "saved"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerSaveRecommendationCache"
+      }
+    },
+    "/api/internal/ai/recommendation-cache": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cleared": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "cleared"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-flixer-ai-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-flixer-ai-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiController"
+        ],
+        "operationId": "aiControllerClearRecommendationCache"
+      }
+    },
+    "/api/recommendations/home": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "movie"
+                              },
+                              {
+                                "type": "string",
+                                "const": "series"
+                              },
+                              {
+                                "type": "string",
+                                "const": "video"
+                              },
+                              {
+                                "type": "string",
+                                "const": "season"
+                              },
+                              {
+                                "type": "string",
+                                "const": "episode"
+                              },
+                              {
+                                "type": "string",
+                                "const": "album"
+                              },
+                              {
+                                "type": "string",
+                                "const": "track"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "searchContext": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "poster": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "backdrop": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "score",
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "poster",
+                          "backdrop",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "RecommendationsController"
+        ],
+        "operationId": "recommendationsControllerHomeRecommendations"
+      }
+    },
+    "/api/recommendations/home/music": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "movie"
+                              },
+                              {
+                                "type": "string",
+                                "const": "series"
+                              },
+                              {
+                                "type": "string",
+                                "const": "video"
+                              },
+                              {
+                                "type": "string",
+                                "const": "season"
+                              },
+                              {
+                                "type": "string",
+                                "const": "episode"
+                              },
+                              {
+                                "type": "string",
+                                "const": "album"
+                              },
+                              {
+                                "type": "string",
+                                "const": "track"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "searchContext": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "poster": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "backdrop": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "score",
+                          "id",
+                          "type",
+                          "title",
+                          "year",
+                          "poster",
+                          "backdrop",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "RecommendationsController"
+        ],
+        "operationId": "recommendationsControllerMusicRecommendations"
+      }
+    },
+    "/api/recommendations": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_ai_aiRecommendationsService_RecommendationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "RecommendationsController"
+        ],
+        "operationId": "recommendationsControllerRecommend"
+      }
+    },
+    "/api/recommendations/similar/{itemId}": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_ai_aiRecommendationsService_RecommendationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itemId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "RecommendationsController"
+        ],
+        "operationId": "recommendationsControllerSimilar"
+      }
+    },
+    "/api/admin/ai/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiAdminController"
+        ],
+        "operationId": "aiAdminControllerStatus"
+      }
+    },
+    "/api/admin/ai/configuration": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applied": {
+                      "type": "boolean"
+                    },
+                    "configuration": {
+                      "$ref": "#/components/schemas/api_ai_aiAdminService_AiAdminConfiguration"
+                    }
+                  },
+                  "required": [
+                    "applied",
+                    "configuration"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAiConfigurationRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AiAdminController"
+        ],
+        "operationId": "aiAdminControllerUpdateConfiguration"
+      }
+    },
+    "/api/admin/ai/retry": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiAdminController"
+        ],
+        "operationId": "aiAdminControllerRetry"
+      }
+    },
+    "/api/admin/ai/recommendations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "userId": {
+                        "type": "string"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "lastRefreshAt": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "entries": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "scope": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "const": "movies"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "music"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "general"
+                                }
+                              ]
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "anyOf": [
+                                      {
+                                        "type": "null"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "movie"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "series"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "video"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "season"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "episode"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "album"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "const": "track"
+                                      }
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "number"
+                                  },
+                                  "reason": {
+                                    "anyOf": [
+                                      {
+                                        "type": "null"
+                                      },
+                                      {
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "title",
+                                  "type",
+                                  "id",
+                                  "score"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "scope",
+                            "items"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "userId",
+                      "username",
+                      "displayName",
+                      "lastRefreshAt",
+                      "entries"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiAdminController"
+        ],
+        "operationId": "aiAdminControllerRecommendations"
+      }
+    },
+    "/api/admin/ai/users/{userId}/recommendations/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "score": {
+                            "type": "number"
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "score"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AiAdminController"
+        ],
+        "operationId": "aiAdminControllerRefreshUserRecommendations"
       }
     },
     "/api/auth/register": {
@@ -8406,7 +10870,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -8416,7 +10880,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -8439,7 +10903,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -8449,7 +10913,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -8464,7 +10928,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -8473,7 +10937,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -8510,7 +10974,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -8520,7 +10984,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -8543,7 +11007,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -8553,7 +11017,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -8568,7 +11032,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -8577,7 +11041,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -8624,7 +11088,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -8634,7 +11098,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -8657,7 +11121,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -8667,7 +11131,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -8682,7 +11146,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -8691,7 +11155,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -8728,7 +11192,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -8738,7 +11202,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -8761,7 +11225,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -8771,7 +11235,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -8786,7 +11250,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -8795,7 +11259,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -9056,7 +11520,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -9066,7 +11530,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -9089,7 +11553,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -9099,7 +11563,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -9114,7 +11578,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -9123,7 +11587,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -9160,7 +11624,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -9170,7 +11634,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -9193,7 +11657,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -9203,7 +11667,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -9218,7 +11682,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -9227,7 +11691,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -9274,7 +11738,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -9284,7 +11748,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -9307,7 +11771,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -9317,7 +11781,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -9332,7 +11796,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -9341,7 +11805,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -9378,7 +11842,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -9388,7 +11852,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -9411,7 +11875,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -9421,7 +11885,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -9436,7 +11900,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -9445,7 +11909,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -9665,7 +12129,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -9675,7 +12139,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -9698,7 +12162,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -9708,7 +12172,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -9723,7 +12187,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -9732,7 +12196,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -9769,7 +12233,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -9779,7 +12243,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -9802,7 +12266,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -9812,7 +12276,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -9827,7 +12291,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -9836,7 +12300,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -9883,7 +12347,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -9893,7 +12357,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -9916,7 +12380,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -9926,7 +12390,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -9941,7 +12405,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -9950,7 +12414,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -9987,7 +12451,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -9997,7 +12461,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -10020,7 +12484,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -10030,7 +12494,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -10045,7 +12509,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -10054,7 +12518,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -10327,7 +12791,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -10337,7 +12801,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -10360,7 +12824,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -10370,7 +12834,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -10385,7 +12849,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -10394,7 +12858,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -10431,7 +12895,7 @@
                                         "detached": {
                                           "type": "boolean"
                                         },
-                                        "__@toStringTag@612": {
+                                        "__@toStringTag@391": {
                                           "type": "string",
                                           "const": "ArrayBuffer"
                                         }
@@ -10441,7 +12905,7 @@
                                         "maxByteLength",
                                         "resizable",
                                         "detached",
-                                        "__@toStringTag@612"
+                                        "__@toStringTag@391"
                                       ]
                                     },
                                     {
@@ -10464,7 +12928,7 @@
                                                 "detached": {
                                                   "type": "boolean"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "ArrayBuffer"
                                                 }
@@ -10474,7 +12938,7 @@
                                                 "maxByteLength",
                                                 "resizable",
                                                 "detached",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             },
                                             {
@@ -10489,7 +12953,7 @@
                                                 "maxByteLength": {
                                                   "type": "number"
                                                 },
-                                                "__@toStringTag@612": {
+                                                "__@toStringTag@391": {
                                                   "type": "string",
                                                   "const": "SharedArrayBuffer"
                                                 }
@@ -10498,7 +12962,7 @@
                                                 "byteLength",
                                                 "growable",
                                                 "maxByteLength",
-                                                "__@toStringTag@612"
+                                                "__@toStringTag@391"
                                               ]
                                             }
                                           ]
@@ -10545,7 +13009,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -10555,7 +13019,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -10578,7 +13042,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -10588,7 +13052,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -10603,7 +13067,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -10612,7 +13076,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -10649,7 +13113,7 @@
                                           "detached": {
                                             "type": "boolean"
                                           },
-                                          "__@toStringTag@612": {
+                                          "__@toStringTag@391": {
                                             "type": "string",
                                             "const": "ArrayBuffer"
                                           }
@@ -10659,7 +13123,7 @@
                                           "maxByteLength",
                                           "resizable",
                                           "detached",
-                                          "__@toStringTag@612"
+                                          "__@toStringTag@391"
                                         ]
                                       },
                                       {
@@ -10682,7 +13146,7 @@
                                                   "detached": {
                                                     "type": "boolean"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "ArrayBuffer"
                                                   }
@@ -10692,7 +13156,7 @@
                                                   "maxByteLength",
                                                   "resizable",
                                                   "detached",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               },
                                               {
@@ -10707,7 +13171,7 @@
                                                   "maxByteLength": {
                                                     "type": "number"
                                                   },
-                                                  "__@toStringTag@612": {
+                                                  "__@toStringTag@391": {
                                                     "type": "string",
                                                     "const": "SharedArrayBuffer"
                                                   }
@@ -10716,7 +13180,7 @@
                                                   "byteLength",
                                                   "growable",
                                                   "maxByteLength",
-                                                  "__@toStringTag@612"
+                                                  "__@toStringTag@391"
                                                 ]
                                               }
                                             ]
@@ -11416,6 +13880,49 @@
         "operationId": "playbackControllerItemPlaybackInfo"
       }
     },
+    "/api/playback/guide-channels/{id}/playback-info": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_playback_playbackService_PlaybackInfo"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "PlaybackController"
+        ],
+        "operationId": "playbackControllerChannelPlaybackInfo"
+      }
+    },
     "/api/playback/samples/{id}/playback-info": {
       "post": {
         "responses": {
@@ -11457,6 +13964,658 @@
           "PlaybackController"
         ],
         "operationId": "playbackControllerPlaybackInfo"
+      }
+    },
+    "/api/guide": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/api_guide_guideService_GuideChannelView"
+                      }
+                    },
+                    "programmes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/api_guide_guideService_GuideProgrammeView"
+                      }
+                    },
+                    "totalChannels": {
+                      "type": "number"
+                    },
+                    "channelOffset": {
+                      "type": "number"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "regionalMergeThresholdPercent": {
+                      "type": "number"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "epg"
+                              },
+                              {
+                                "type": "string",
+                                "const": "iptv"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "lastRefreshedAt": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          },
+                          "lastError": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "lastRefreshedAt",
+                          "lastError"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "channels",
+                    "programmes",
+                    "totalChannels",
+                    "channelOffset",
+                    "from",
+                    "to",
+                    "regionalMergeThresholdPercent",
+                    "sources"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channelOffset",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channelLimit",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "tags": [
+          "GuideController"
+        ],
+        "operationId": "guideControllerGet"
+      }
+    },
+    "/api/admin/guide": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/api_guide_guideService_PublicGuideSource"
+                      }
+                    },
+                    "settings": {
+                      "type": "object",
+                      "properties": {
+                        "regionalMergeThresholdPercent": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "regionalMergeThresholdPercent"
+                      ]
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "sourceId": {
+                            "type": "string"
+                          },
+                          "sourceName": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "number"
+                          },
+                          "iptvChannelId": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "automaticIptvChannelId": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sourceId",
+                          "sourceName",
+                          "name",
+                          "icon",
+                          "enabled",
+                          "sortOrder",
+                          "iptvChannelId",
+                          "automaticIptvChannelId"
+                        ]
+                      }
+                    },
+                    "iptvChannels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "sourceId": {
+                            "type": "string"
+                          },
+                          "sourceName": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "group": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "playable": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sourceId",
+                          "sourceName",
+                          "name",
+                          "icon",
+                          "group",
+                          "playable",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "sources",
+                    "settings",
+                    "channels",
+                    "iptvChannels"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerOverview"
+      }
+    },
+    "/api/admin/guide/sources": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/api_guide_guideService_PublicGuideSource"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerSources"
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_guide_guideService_PublicGuideSource"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGuideSourceRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerCreateSource"
+      }
+    },
+    "/api/admin/guide/sources/{id}": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_guide_guideService_PublicGuideSource"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGuideSourceRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerUpdateSource"
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerRemoveSource"
+      }
+    },
+    "/api/admin/guide/sources/{id}/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_guide_guideService_PublicGuideSource"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerRefreshSource"
+      }
+    },
+    "/api/admin/guide/channels": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "updated"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGuideChannelsRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerUpdateChannels"
+      }
+    },
+    "/api/admin/guide/settings": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "regionalMergeThresholdPercent": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "regionalMergeThresholdPercent"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGuideSettingsRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminGuideController"
+        ],
+        "operationId": "adminGuideControllerUpdateSettings"
       }
     },
     "/api/jobs/queues": {
@@ -13925,11 +17084,11 @@
                               },
                               {
                                 "type": "string",
-                                "const": "tvshows"
+                                "const": "music"
                               },
                               {
                                 "type": "string",
-                                "const": "music"
+                                "const": "tvshows"
                               },
                               {
                                 "type": "string",
@@ -14110,6 +17269,70 @@
           "IndexerApiController"
         ],
         "operationId": "indexerApiControllerUpsertItem"
+      }
+    },
+    "/api/indexer/media/items/{id}/lyrics": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-indexer-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-indexer-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "tags": [
+          "IndexerApiController"
+        ],
+        "operationId": "indexerApiControllerUpsertItemLyrics"
       }
     },
     "/api/indexer/media/intro-sync": {
@@ -14794,6 +18017,14 @@
                       "anyOf": [
                         {
                           "type": "string",
+                          "const": "metadata"
+                        },
+                        {
+                          "type": "string",
+                          "const": "images"
+                        },
+                        {
+                          "type": "string",
                           "const": "trickplay"
                         },
                         {
@@ -14803,14 +18034,6 @@
                         {
                           "type": "string",
                           "const": "identify"
-                        },
-                        {
-                          "type": "string",
-                          "const": "metadata"
-                        },
-                        {
-                          "type": "string",
-                          "const": "images"
                         },
                         {
                           "type": "string",
@@ -14922,6 +18145,14 @@
                       "anyOf": [
                         {
                           "type": "string",
+                          "const": "metadata"
+                        },
+                        {
+                          "type": "string",
+                          "const": "images"
+                        },
+                        {
+                          "type": "string",
                           "const": "trickplay"
                         },
                         {
@@ -14931,14 +18162,6 @@
                         {
                           "type": "string",
                           "const": "identify"
-                        },
-                        {
-                          "type": "string",
-                          "const": "metadata"
-                        },
-                        {
-                          "type": "string",
-                          "const": "images"
                         },
                         {
                           "type": "string",
@@ -17517,15 +20740,19 @@
                               },
                               {
                                 "type": "string",
-                                "const": "episode"
-                              },
-                              {
-                                "type": "string",
                                 "const": "series"
                               },
                               {
                                 "type": "string",
+                                "const": "video"
+                              },
+                              {
+                                "type": "string",
                                 "const": "season"
+                              },
+                              {
+                                "type": "string",
+                                "const": "episode"
                               },
                               {
                                 "type": "string",
@@ -17534,10 +20761,6 @@
                               {
                                 "type": "string",
                                 "const": "track"
-                              },
-                              {
-                                "type": "string",
-                                "const": "video"
                               }
                             ]
                           },
@@ -17762,15 +20985,19 @@
                                 },
                                 {
                                   "type": "string",
-                                  "const": "episode"
-                                },
-                                {
-                                  "type": "string",
                                   "const": "series"
                                 },
                                 {
                                   "type": "string",
+                                  "const": "video"
+                                },
+                                {
+                                  "type": "string",
                                   "const": "season"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "episode"
                                 },
                                 {
                                   "type": "string",
@@ -17779,10 +21006,6 @@
                                 {
                                   "type": "string",
                                   "const": "track"
-                                },
-                                {
-                                  "type": "string",
-                                  "const": "video"
                                 }
                               ]
                             }
@@ -17822,15 +21045,19 @@
                         },
                         {
                           "type": "string",
-                          "const": "episode"
-                        },
-                        {
-                          "type": "string",
                           "const": "series"
                         },
                         {
                           "type": "string",
+                          "const": "video"
+                        },
+                        {
+                          "type": "string",
                           "const": "season"
+                        },
+                        {
+                          "type": "string",
+                          "const": "episode"
                         },
                         {
                           "type": "string",
@@ -17839,10 +21066,6 @@
                         {
                           "type": "string",
                           "const": "track"
-                        },
-                        {
-                          "type": "string",
-                          "const": "video"
                         }
                       ]
                     },
@@ -18103,15 +21326,19 @@
                                 },
                                 {
                                   "type": "string",
-                                  "const": "episode"
-                                },
-                                {
-                                  "type": "string",
                                   "const": "series"
                                 },
                                 {
                                   "type": "string",
+                                  "const": "video"
+                                },
+                                {
+                                  "type": "string",
                                   "const": "season"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "episode"
                                 },
                                 {
                                   "type": "string",
@@ -18120,10 +21347,6 @@
                                 {
                                   "type": "string",
                                   "const": "track"
-                                },
-                                {
-                                  "type": "string",
-                                  "const": "video"
                                 }
                               ]
                             }
@@ -18163,15 +21386,19 @@
                         },
                         {
                           "type": "string",
-                          "const": "episode"
-                        },
-                        {
-                          "type": "string",
                           "const": "series"
                         },
                         {
                           "type": "string",
+                          "const": "video"
+                        },
+                        {
+                          "type": "string",
                           "const": "season"
+                        },
+                        {
+                          "type": "string",
+                          "const": "episode"
                         },
                         {
                           "type": "string",
@@ -18180,10 +21407,6 @@
                         {
                           "type": "string",
                           "const": "track"
-                        },
-                        {
-                          "type": "string",
-                          "const": "video"
                         }
                       ]
                     },
@@ -18613,15 +21836,19 @@
                                 },
                                 {
                                   "type": "string",
-                                  "const": "episode"
-                                },
-                                {
-                                  "type": "string",
                                   "const": "series"
                                 },
                                 {
                                   "type": "string",
+                                  "const": "video"
+                                },
+                                {
+                                  "type": "string",
                                   "const": "season"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "episode"
                                 },
                                 {
                                   "type": "string",
@@ -18630,10 +21857,6 @@
                                 {
                                   "type": "string",
                                   "const": "track"
-                                },
-                                {
-                                  "type": "string",
-                                  "const": "video"
                                 }
                               ]
                             }
@@ -18673,15 +21896,19 @@
                         },
                         {
                           "type": "string",
-                          "const": "episode"
-                        },
-                        {
-                          "type": "string",
                           "const": "series"
                         },
                         {
                           "type": "string",
+                          "const": "video"
+                        },
+                        {
+                          "type": "string",
                           "const": "season"
+                        },
+                        {
+                          "type": "string",
+                          "const": "episode"
                         },
                         {
                           "type": "string",
@@ -18690,10 +21917,6 @@
                         {
                           "type": "string",
                           "const": "track"
-                        },
-                        {
-                          "type": "string",
-                          "const": "video"
                         }
                       ]
                     },
@@ -19065,15 +22288,19 @@
                               },
                               {
                                 "type": "string",
-                                "const": "episode"
-                              },
-                              {
-                                "type": "string",
                                 "const": "series"
                               },
                               {
                                 "type": "string",
+                                "const": "video"
+                              },
+                              {
+                                "type": "string",
                                 "const": "season"
+                              },
+                              {
+                                "type": "string",
+                                "const": "episode"
                               },
                               {
                                 "type": "string",
@@ -19082,10 +22309,6 @@
                               {
                                 "type": "string",
                                 "const": "track"
-                              },
-                              {
-                                "type": "string",
-                                "const": "video"
                               }
                             ]
                           },
@@ -19099,6 +22322,16 @@
                               },
                               {
                                 "type": "number"
+                              }
+                            ]
+                          },
+                          "searchContext": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "string"
                               }
                             ]
                           },
@@ -19758,15 +22991,19 @@
                         },
                         {
                           "type": "string",
-                          "const": "episode"
-                        },
-                        {
-                          "type": "string",
                           "const": "series"
                         },
                         {
                           "type": "string",
+                          "const": "video"
+                        },
+                        {
+                          "type": "string",
                           "const": "season"
+                        },
+                        {
+                          "type": "string",
+                          "const": "episode"
                         },
                         {
                           "type": "string",
@@ -19775,10 +23012,6 @@
                         {
                           "type": "string",
                           "const": "track"
-                        },
-                        {
-                          "type": "string",
-                          "const": "video"
                         }
                       ]
                     },
@@ -20101,15 +23334,19 @@
                                 },
                                 {
                                   "type": "string",
-                                  "const": "episode"
-                                },
-                                {
-                                  "type": "string",
                                   "const": "series"
                                 },
                                 {
                                   "type": "string",
+                                  "const": "video"
+                                },
+                                {
+                                  "type": "string",
                                   "const": "season"
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "episode"
                                 },
                                 {
                                   "type": "string",
@@ -20118,10 +23355,6 @@
                                 {
                                   "type": "string",
                                   "const": "track"
-                                },
-                                {
-                                  "type": "string",
-                                  "const": "video"
                                 }
                               ]
                             },
@@ -20183,15 +23416,19 @@
                                     },
                                     {
                                       "type": "string",
-                                      "const": "episode"
-                                    },
-                                    {
-                                      "type": "string",
                                       "const": "series"
                                     },
                                     {
                                       "type": "string",
+                                      "const": "video"
+                                    },
+                                    {
+                                      "type": "string",
                                       "const": "season"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "const": "episode"
                                     },
                                     {
                                       "type": "string",
@@ -20200,10 +23437,6 @@
                                     {
                                       "type": "string",
                                       "const": "track"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "const": "video"
                                     }
                                   ]
                                 },
@@ -20315,15 +23548,19 @@
                               },
                               {
                                 "type": "string",
-                                "const": "episode"
-                              },
-                              {
-                                "type": "string",
                                 "const": "series"
                               },
                               {
                                 "type": "string",
+                                "const": "video"
+                              },
+                              {
+                                "type": "string",
                                 "const": "season"
+                              },
+                              {
+                                "type": "string",
+                                "const": "episode"
                               },
                               {
                                 "type": "string",
@@ -20332,10 +23569,6 @@
                               {
                                 "type": "string",
                                 "const": "track"
-                              },
-                              {
-                                "type": "string",
-                                "const": "video"
                               }
                             ]
                           },
@@ -20557,6 +23790,215 @@
           "MediaHomeController"
         ],
         "operationId": "mediaHomeControllerImage"
+      }
+    },
+    "/api/admin/search/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_media_mediaSearchService_MediaSearchAdminStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminMediaSearchController"
+        ],
+        "operationId": "adminMediaSearchControllerStatus"
+      }
+    },
+    "/api/admin/search/tasks/{uid}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_media_mediaSearchService_MediaSearchTaskDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminMediaSearchController"
+        ],
+        "operationId": "adminMediaSearchControllerTask"
+      }
+    },
+    "/api/admin/search/settings": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_media_mediaSearchService_MediaSearchAdminStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaSearchSettingsRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminMediaSearchController"
+        ],
+        "operationId": "adminMediaSearchControllerSaveSettings"
+      }
+    },
+    "/api/admin/search/rebuild": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "queued"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminMediaSearchController"
+        ],
+        "operationId": "adminMediaSearchControllerRebuild"
+      }
+    },
+    "/api/admin/search/reset": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "queued"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminMediaSearchController"
+        ],
+        "operationId": "adminMediaSearchControllerReset"
       }
     },
     "/api/admin/network-shares": {
@@ -24764,6 +28206,119 @@
         "operationId": "backupDownloadControllerDownload"
       }
     },
+    "/api/admin/database-transfer": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_connections_databaseTransferService_DatabaseTransferStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminDatabaseTransferController"
+        ],
+        "operationId": "adminDatabaseTransferControllerStatus"
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_connections_databaseTransferService_DatabaseTransferStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminDatabaseTransferController"
+        ],
+        "operationId": "adminDatabaseTransferControllerStart"
+      }
+    },
+    "/api/admin/database-transfer/restore-writes": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_connections_databaseTransferService_DatabaseTransferStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminDatabaseTransferController"
+        ],
+        "operationId": "adminDatabaseTransferControllerRestoreWrites"
+      }
+    },
     "/api/admin/overview": {
       "get": {
         "responses": {
@@ -24824,11 +28379,11 @@
                               },
                               {
                                 "type": "string",
-                                "const": "tvshows"
+                                "const": "music"
                               },
                               {
                                 "type": "string",
-                                "const": "music"
+                                "const": "tvshows"
                               },
                               {
                                 "type": "string",
@@ -25358,6 +28913,15 @@
       "name": "InternalConfigController"
     },
     {
+      "name": "AiController"
+    },
+    {
+      "name": "RecommendationsController"
+    },
+    {
+      "name": "AiAdminController"
+    },
+    {
       "name": "AuthController"
     },
     {
@@ -25377,6 +28941,12 @@
     },
     {
       "name": "PlaybackController"
+    },
+    {
+      "name": "GuideController"
+    },
+    {
+      "name": "AdminGuideController"
     },
     {
       "name": "JobsController"
@@ -25427,6 +28997,9 @@
       "name": "MediaHomeController"
     },
     {
+      "name": "AdminMediaSearchController"
+    },
+    {
       "name": "NetworkSharesController"
     },
     {
@@ -25467,6 +29040,9 @@
     },
     {
       "name": "BackupDownloadController"
+    },
+    {
+      "name": "AdminDatabaseTransferController"
     },
     {
       "name": "OverviewController"

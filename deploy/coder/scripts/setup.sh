@@ -8,10 +8,10 @@ mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs"
 sudo chown "$(id -u):$(id -g)" "$ROOT"
 mkdir -p "$ROOT/flixer-data"
 sudo chown "$(id -u):$(id -g)" "$ROOT/flixer-data"
-mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups"
+mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups" "$ROOT/flixer-data/ai/models"
 export PATH="$HOME/bin:$PATH"
 
-for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud; do
+for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-ai; do
   if [ ! -d "$ROOT/$repo/.git" ]; then
     if [ "$repo" = flixer-cloud ]; then
       git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo" || \
@@ -40,7 +40,7 @@ restore_tracked_modes() {
 
 OWNERSHIP_MARKER="$ROOT/.flixer-repo-ownership-$(id -u)-$(id -g)-v2"
 if [ ! -e "$OWNERSHIP_MARKER" ]; then
-  for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud; do
+  for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-ai; do
     if [ -d "$ROOT/$repo" ]; then
       sudo chown -R "$(id -u):$(id -g)" "$ROOT/$repo"
       if git -C "$ROOT/$repo" rev-parse --git-dir >/dev/null 2>&1; then
@@ -79,6 +79,7 @@ MEDIA_PATH=$ROOT/flixer-data/media
 STREAM_MEDIA_ROOT=$ROOT/flixer-data/media
 MEILISEARCH_URL=http://meilisearch:7700
 SMB_MOUNT_SUDO=true
+FLIXER_AI_URL=http://localhost:8094
 EOF
 fi
 
@@ -108,27 +109,59 @@ done
 if ! grep -q '^REDIS_URL=' "$ROOT/flixer/.env"; then
   printf 'REDIS_URL=redis://redis:6379\n' >> "$ROOT/flixer/.env"
 fi
+if grep -q '^FLIXER_AI_URL=' "$ROOT/flixer/.env"; then
+  sed -i 's|^FLIXER_AI_URL=.*|FLIXER_AI_URL=http://localhost:8094|' "$ROOT/flixer/.env"
+else
+  printf 'FLIXER_AI_URL=http://localhost:8094\n' >> "$ROOT/flixer/.env"
+fi
 if grep -q '^MEILISEARCH_URL=' "$ROOT/flixer/.env"; then
   sed -i 's|^MEILISEARCH_URL=.*|MEILISEARCH_URL=http://meilisearch:7700|' "$ROOT/flixer/.env"
 else
   printf 'MEILISEARCH_URL=http://meilisearch:7700\n' >> "$ROOT/flixer/.env"
 fi
 
+# The AI process runs in the workspace alongside the API. Keep the model cache on the persistent data volume.
+if [ ! -f "$ROOT/flixer-ai/.env" ]; then
+  cat > "$ROOT/flixer-ai/.env" <<EOF
+PORT=8094
+DATA_DIR=$ROOT/flixer-data
+MODELS_DIR=$ROOT/flixer-data/ai/models
+FLIXER_URL=http://localhost:8083
+FLIXER_INTERNAL_TOKEN_FILE=$HOME/.flixer-run/app-secret
+RECOMMENDER_PROFILE=auto
+ALLOW_DOWNLOADS=true
+EOF
+fi
+set_managed_env() {
+  local env_file="$1" key="$2" value="$3"
+  if grep -q "^${key}=" "$env_file"; then
+    sed -i "s#^${key}=.*#${key}=${value}#" "$env_file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$env_file"
+  fi
+}
+set_managed_env "$ROOT/flixer-ai/.env" PORT 8094
+set_managed_env "$ROOT/flixer-ai/.env" DATA_DIR "$ROOT/flixer-data"
+set_managed_env "$ROOT/flixer-ai/.env" MODELS_DIR "$ROOT/flixer-data/ai/models"
+set_managed_env "$ROOT/flixer-ai/.env" FLIXER_URL http://localhost:8083
+set_managed_env "$ROOT/flixer-ai/.env" FLIXER_INTERNAL_TOKEN_FILE "$HOME/.flixer-run/app-secret"
+
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash
-# Usage: flixer-stack [start|stop|restart|status|logs [service]] — service defaults to all: api streamer indexer web docs
+# Usage: flixer-stack [start|stop|restart|status|logs [service]] — service defaults to all: api streamer indexer ai web docs
 set -uo pipefail
 ROOT="$HOME/projects"
 RUN="$HOME/.flixer-run"
 LOGS="$HOME/logs"
 mkdir -p "$RUN" "$LOGS"
-SERVICES="api streamer indexer web docs"
+SERVICES="api streamer indexer ai web docs"
 
 command_for() {
   case "$1" in
     api) echo "$ROOT/flixer|npm start" ;;
     streamer) echo "$ROOT/flixer-streamer|go run ./cmd/flixer-streamer" ;;
     indexer) echo "$ROOT/flixer-indexer|go run ./cmd/flixer-indexer" ;;
+    ai) echo "$ROOT/flixer-ai|$ROOT/flixer-ai/.venv/bin/uvicorn flixer_ai.main:app --host 127.0.0.1 --port 8094" ;;
     web) echo "$ROOT/flixer-web|npm run dev -- --port 5175" ;;
     docs) echo "$ROOT/flixer-docs|npm start -- --host 0.0.0.0 --port 3000 --no-open" ;;
   esac
@@ -139,6 +172,7 @@ match_for() {
     api) echo 'npm start|npm run barrels|tsed' ;;
     streamer) echo 'go run|go-build|flixer-streamer' ;;
     indexer) echo 'go run|go-build|flixer-indexer' ;;
+    ai) echo 'uvicorn flixer_ai.main:app|python.*flixer_ai.main' ;;
     web) echo 'npm run dev|vite' ;;
     docs) echo 'npm start|docusaurus' ;;
   esac
@@ -182,7 +216,12 @@ start_one() {
   # The workspace has passwordless sudo and SYS_ADMIN, which is how flixer mounts SMB shares without running as root.
   export SMB_MOUNT_SUDO="${SMB_MOUNT_SUDO:-true}"
   # Own session/process group so stop can take down npm/go and their children together.
-  (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; exec $cmd" >> "$LOGS/$1.log" 2>&1 &)
+  if [ "$1" = ai ]; then
+    # The AI service loads its shared token at startup; wait for the API to publish the current secret.
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; while [ ! -s \"\$APP_SECRET_FILE\" ]; do sleep 1; done; exec $cmd" >> "$LOGS/$1.log" 2>&1 &)
+  else
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; exec $cmd" >> "$LOGS/$1.log" 2>&1 &)
+  fi
   echo "started $1"
 }
 
@@ -250,6 +289,23 @@ install_node flixer-web
 install_node flixer-docs
 (cd "$ROOT/flixer-indexer" && go mod download)
 (cd "$ROOT/flixer-streamer" && go mod download)
+
+# Python dependencies are isolated from the workspace image and refreshed when the AI manifest changes.
+AI_VENV="$ROOT/flixer-ai/.venv"
+AI_STAMP="$AI_VENV/.requirements-hash"
+AI_HASH="$(sha256sum "$ROOT/flixer-ai/pyproject.toml" "$ROOT/flixer-ai/VERSION" | sha256sum | cut -d' ' -f1)"
+if ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 12))'; then
+  echo "flixer-ai requires Python 3.12 or newer." >&2
+  exit 1
+fi
+if [ ! -x "$AI_VENV/bin/uvicorn" ]; then
+  python3 -m venv "$AI_VENV"
+fi
+if [ ! -f "$AI_STAMP" ] || [ "$(cat "$AI_STAMP")" != "$AI_HASH" ]; then
+  "$AI_VENV/bin/pip" install --upgrade pip
+  "$AI_VENV/bin/pip" install -e "$ROOT/flixer-ai"
+  printf '%s\n' "$AI_HASH" > "$AI_STAMP"
+fi
 
 # Existing workspaces were built before ping was added to the image.
 command -v ping >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends iputils-ping; } || true

@@ -35,6 +35,10 @@ export class UpdatePreferencesRequest {
 	@Nullable(String)
 	language?: string | null;
 
+	@Property()
+	@Nullable(String)
+	audioLanguage?: string | null;
+
 	@Schema(array(DashboardGridItemRequest).nullable())
 	adminDashboardGrid?: DashboardGridItemRequest[] | null;
 

@@ -18,6 +18,7 @@ import {
 	ADMIN_SCHEDULED_TASKS_SETTING,
 	defaultAdminScheduledTaskConfigs,
 	isAdminScheduledTaskId,
+	readAdminScheduledTaskConfigs,
 	type AdminScheduledTaskConfig,
 	type AdminScheduledTaskConfigs,
 	type AdminScheduledTaskId,
@@ -109,11 +110,12 @@ export class JobScheduler {
 					await boss.schedule(
 						task.queue,
 						schedule.cron,
-						{ taskId: task.id },
-						{ tz: "UTC", group: { id: task.id } },
+						{ taskId: task.id, scheduled: true },
+						{ tz: "UTC", missed: "skip", group: { id: task.id } },
 					);
 				} else {
 					await boss.unschedule(task.queue);
+					await this.cancelQueuedAdminTaskJobs(task.id, boss);
 				}
 			}
 		});
@@ -253,9 +255,15 @@ export class JobScheduler {
 		await repository.save(setting);
 		try {
 			if (schedule.enabled) {
-				await this.getBoss().schedule(task.queue, next[id].cron, { taskId: id }, { tz: "UTC", group: { id } });
+				await this.getBoss().schedule(
+					task.queue,
+					next[id].cron,
+					{ taskId: id, scheduled: true },
+					{ tz: "UTC", missed: "skip", group: { id } },
+				);
 			} else {
 				await this.getBoss().unschedule(task.queue);
+				await this.cancelQueuedAdminTaskJobs(id);
 			}
 		} catch (error) {
 			const rollbackErrors: unknown[] = [];
@@ -264,11 +272,12 @@ export class JobScheduler {
 					await this.getBoss().schedule(
 						task.queue,
 						configs[id].cron,
-						{ taskId: id },
-						{ tz: "UTC", group: { id } },
+						{ taskId: id, scheduled: true },
+						{ tz: "UTC", missed: "skip", group: { id } },
 					);
 				} else {
 					await this.getBoss().unschedule(task.queue);
+					await this.cancelQueuedAdminTaskJobs(id);
 				}
 			} catch (rollbackError) {
 				rollbackErrors.push(rollbackError);
@@ -309,7 +318,7 @@ export class JobScheduler {
 		) {
 			throw new BadRequest("This task is already running or queued.");
 		}
-		const jobId = await this.getBoss().send(task.queue, { taskId: id }, { group: { id } });
+		const jobId = await this.getBoss().send(task.queue, { taskId: id, scheduled: false }, { group: { id } });
 		return { id: jobId };
 	}
 
@@ -340,6 +349,24 @@ export class JobScheduler {
 		return this.boss;
 	}
 
+	private async cancelQueuedAdminTaskJobs(id: AdminScheduledTaskId, boss = this.getBoss()): Promise<void> {
+		const task = ADMIN_SCHEDULED_TASKS.find((entry) => entry.id === id);
+		if (!task) throw new BadRequest("Unknown scheduled task.");
+		const jobs = await boss.findJobs<{ taskId?: string; scheduled?: boolean }>(task.queue, {
+			limit: 1000,
+		});
+		const now = Date.now();
+		for (const job of jobs) {
+			if (
+				job.data.taskId === id &&
+				job.data.scheduled !== false &&
+				(job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= now))
+			) {
+				await boss.cancel(task.queue, job.id);
+			}
+		}
+	}
+
 	private getBossForQueue(queueName: string): PgBoss {
 		if (!SUPPORTED_JOB_QUEUES.has(queueName)) {
 			throw new BadRequest(`Unsupported job queue: ${queueName}.`);
@@ -364,25 +391,7 @@ export class JobScheduler {
 			}
 			return defaults;
 		}
-		const stored = setting.value;
-		if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
-			throw new Error("Stored scheduled task configuration is invalid.");
-		}
-		const configs = defaultAdminScheduledTaskConfigs();
-		for (const task of ADMIN_SCHEDULED_TASKS) {
-			const value = (stored as Record<string, unknown>)[task.id];
-			if (value === undefined) continue;
-			if (
-				typeof value !== "object" ||
-				value === null ||
-				typeof (value as Record<string, unknown>).enabled !== "boolean" ||
-				typeof (value as Record<string, unknown>).cron !== "string"
-			) {
-				throw new Error(`Stored schedule for ${task.id} is invalid.`);
-			}
-			configs[task.id] = value as AdminScheduledTaskConfig;
-		}
-		return configs;
+		return readAdminScheduledTaskConfigs(setting.value);
 	}
 
 	private async processAdminTask(id: AdminScheduledTaskId, jobs: Job<{ taskId?: string }>[]): Promise<void> {

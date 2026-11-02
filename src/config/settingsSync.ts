@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DataSource, EntityManager } from "typeorm";
 import { Setting } from "../entities/setting.entity.js";
+import { ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs } from "../jobs/adminScheduledTasks.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -127,6 +128,19 @@ async function synchronizeDefinitions(manager: EntityManager, definitions: Setti
 export async function synchronizeSettings(dataSource: DataSource): Promise<void> {
 
 	const definitions = await readDefinitions();
+	if (definitions.some(({ key }) => key === ADMIN_SCHEDULED_TASKS_SETTING)) {
+		throw new Error(`Setting "${ADMIN_SCHEDULED_TASKS_SETTING}" is defined more than once.`);
+	}
+	// Keep scheduler-owned preferences in the synchronized set so startup cannot discard saved schedules.
+	const scheduledTaskDefaults = defaultAdminScheduledTaskConfigs();
+	if (!isJsonValue(scheduledTaskDefaults)) {
+		throw new Error(`Default value for "${ADMIN_SCHEDULED_TASKS_SETTING}" is not valid JSON.`);
+	}
+	definitions.push({
+		key: ADMIN_SCHEDULED_TASKS_SETTING,
+		defaultValue: scheduledTaskDefaults,
+		isPublic: false,
+	});
 	await dataSource.transaction(async (manager) => {
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:sync-settings"]);
 		await synchronizeDefinitions(manager, definitions);

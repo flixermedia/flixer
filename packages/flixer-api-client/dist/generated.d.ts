@@ -1,4 +1,49 @@
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+export interface RecommendationFiltersRequest {
+    /** @maxItems 7 */
+    types?: string[];
+    /** @maxItems 30 */
+    genres?: string[];
+    /**
+       * @minimum 1800
+       * @maximum 2200
+       */
+    year_from?: number;
+    /**
+       * @minimum 1800
+       * @maximum 2200
+       */
+    year_to?: number;
+}
+export interface RecommendationRequest {
+    /**
+       * @minimum 1
+       * @maximum 100
+       */
+    limit?: number;
+    filters?: RecommendationFiltersRequest;
+}
+/**
+ * @minLength 1
+ */
+export type UpdateAiConfigurationRequestProfile = typeof UpdateAiConfigurationRequestProfile[keyof typeof UpdateAiConfigurationRequestProfile];
+export declare const UpdateAiConfigurationRequestProfile: {
+    readonly auto: 'auto';
+    readonly classic: 'classic';
+    readonly micro: 'micro';
+    readonly mini: 'mini';
+};
+export interface UpdateAiConfigurationRequest {
+    enabled: boolean;
+    /** @minLength 1 */
+    profile: UpdateAiConfigurationRequestProfile;
+    allowDownloads: boolean;
+    /**
+       * @minimum 1
+       * @maximum 1440
+       */
+    cacheRefreshIntervalMinutes: number;
+}
 export interface RegisterRequest {
     /**
        * @minLength 3
@@ -199,6 +244,8 @@ export interface UpdatePreferencesRequest {
     /** @nullable */
     language?: string | null;
     /** @nullable */
+    audioLanguage?: string | null;
+    /** @nullable */
     adminDashboardGrid?: DashboardGridItemRequest[] | null;
     /**
        * @minimum 2
@@ -219,6 +266,66 @@ export type SettingRequestValue = number | string | boolean | unknown[] | {
 export interface SettingRequest {
     /** @nullable */
     value: SettingRequestValue;
+}
+/**
+ * @minLength 1
+ */
+export type CreateGuideSourceRequestKind = typeof CreateGuideSourceRequestKind[keyof typeof CreateGuideSourceRequestKind];
+export declare const CreateGuideSourceRequestKind: {
+    readonly epg: 'epg';
+    readonly iptv: 'iptv';
+};
+export interface CreateGuideSourceRequest {
+    /** @minLength 1 */
+    kind: CreateGuideSourceRequestKind;
+    /**
+       * @minLength 1
+       * @maxLength 100
+       */
+    name: string;
+    /**
+       * @minLength 1
+       * @maxLength 2048
+       */
+    url: string;
+}
+export interface UpdateGuideSourceRequest {
+    /**
+       * @minLength 1
+       * @maxLength 100
+       */
+    name?: string;
+    /** @maxLength 2048 */
+    url?: string;
+    enabled?: boolean;
+    /**
+       * @minimum 0
+       * @maximum 10000
+       */
+    sortOrder?: number;
+}
+export interface GuideChannelChange {
+    /** @minLength 1 */
+    id: string;
+    enabled?: boolean;
+    /**
+       * @minimum 0
+       * @maximum 100000
+       */
+    sortOrder?: number;
+    /** @nullable */
+    iptvChannelId?: string | null;
+}
+export interface UpdateGuideChannelsRequest {
+    /** @maxItems 1000 */
+    channels: GuideChannelChange[];
+}
+export interface UpdateGuideSettingsRequest {
+    /**
+       * @minimum 1
+       * @maximum 100
+       */
+    regionalMergeThresholdPercent: number;
 }
 export type EnqueueJobRequestData = {
     [key: string]: unknown;
@@ -555,6 +662,14 @@ export interface WatchProgressRequest {
 export interface WatchedRequest {
     watched: boolean;
 }
+export interface MediaSearchSettingsRequest {
+    enabled: boolean;
+    /**
+       * @minLength 0
+       * @maxLength 2048
+       */
+    url: string;
+}
 export type CreateNetworkShareRequestProtocol = typeof CreateNetworkShareRequestProtocol[keyof typeof CreateNetworkShareRequestProtocol];
 export declare const CreateNetworkShareRequestProtocol: {
     readonly smb: 'smb';
@@ -853,6 +968,43 @@ export interface BootstrapInternalConfigIndexerRuntimeConfig {
     version: number;
     redis: null | ConfigStoreRedisConfigRedisConnection;
 }
+export interface ApiAiAiAdminServiceAiAdminConfiguration {
+    enabled: boolean;
+    profile: 'auto' | 'classic' | 'micro' | 'mini';
+    allowDownloads: boolean;
+    cacheRefreshIntervalMinutes: number;
+}
+export type ApiAiAiRecommendationCacheServiceCachedRecommendationResponseItemsItem = {
+    id: string;
+    score: number;
+    reason?: null | string;
+};
+export interface ApiAiAiRecommendationCacheServiceCachedRecommendationResponse {
+    items: ApiAiAiRecommendationCacheServiceCachedRecommendationResponseItemsItem[];
+}
+export type ApiAiAiRecommendationCacheServiceRecommendationCacheStateEntries = {
+    [key: string]: ApiAiAiRecommendationCacheServiceCachedRecommendationResponse;
+};
+export type ApiAiAiRecommendationCacheServiceRecommendationCacheStateEntryScopes = {
+    [key: string]: 'movies' | 'music' | 'general';
+};
+export type ApiAiAiRecommendationCacheServiceRecommendationCacheStateRefreshTimes = {
+    [key: string]: string;
+};
+export interface ApiAiAiRecommendationCacheServiceRecommendationCacheState {
+    entries: ApiAiAiRecommendationCacheServiceRecommendationCacheStateEntries;
+    lastRefreshAt: null | string;
+    entryScopes: ApiAiAiRecommendationCacheServiceRecommendationCacheStateEntryScopes;
+    refreshTimes: ApiAiAiRecommendationCacheServiceRecommendationCacheStateRefreshTimes;
+}
+export interface ApiAiAiRecommendationsServiceScoredRecommendation {
+    id: string;
+    score: number;
+    reason?: null | string;
+}
+export interface ApiAiAiRecommendationsServiceRecommendationResponse {
+    items: ApiAiAiRecommendationsServiceScoredRecommendation[];
+}
 export type ApiAuthAuthServiceAuthResultSession = {
     id: string;
     expiresAt: string;
@@ -915,6 +1067,7 @@ export interface ApiPreferencesPreferencesServiceDashboardGridItem {
 }
 export interface ApiPreferencesPreferencesServicePreferences {
     language?: string;
+    audioLanguage?: string;
     adminDashboardGrid?: ApiPreferencesPreferencesServiceDashboardGridItem[];
     browseColumns?: number;
     autoSkipIntroCredits: boolean;
@@ -960,6 +1113,39 @@ export interface ApiMediaSegmentLogicResolvedSegment {
 export interface ApiMediaMediaSegmentsServiceItemSegments {
     chapters: ApiMediaSegmentLogicChapter[];
     segments: ApiMediaSegmentLogicResolvedSegment[];
+}
+export interface ApiGuideGuideServiceGuideChannelView {
+    id: string;
+    name: string;
+    icon: null | string;
+    alternateNames: string[];
+    variantCount: number;
+    iptvChannelId: null | string;
+    watchable: boolean;
+    sortOrder: number;
+}
+export interface ApiGuideGuideServiceGuideProgrammeView {
+    channelId: string;
+    channelExternalId: string;
+    start: number;
+    stop: number;
+    title: string;
+    subtitle: null | string;
+    description: null | string;
+    category: null | string;
+}
+export interface ApiGuideGuideServicePublicGuideSource {
+    id: string;
+    kind: 'epg' | 'iptv';
+    name: string;
+    url: string;
+    enabled: boolean;
+    isDefault: boolean;
+    sortOrder: number;
+    channelCount: number;
+    programmeCount: number;
+    lastRefreshedAt: null | string;
+    lastError: null | string;
 }
 export interface JobsJobSchedulerAdminTaskRunStatus {
     id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
@@ -1061,7 +1247,7 @@ export interface ApiMediaLibrariesMediaLibrariesServicePublicMediaLibraryFolder 
 export interface ApiMediaLibrariesMediaLibrariesServicePublicMediaLibrary {
     id: string;
     name: string;
-    type: 'movies' | 'tvshows' | 'music' | 'homevideos' | 'mixed';
+    type: 'movies' | 'music' | 'tvshows' | 'homevideos' | 'mixed';
     imageStorage: 'cache' | 'alongside';
     folders: ApiMediaLibrariesMediaLibrariesServicePublicMediaLibraryFolder[];
     createdAt: string;
@@ -1128,7 +1314,7 @@ export interface ApiIndexerAdminIndexerServiceIndexerScan {
     error?: string;
 }
 export interface ApiIndexerAdminIndexerServiceIndexerQueueStats {
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes';
     pending: number;
     active: number;
     scheduled: number;
@@ -1153,7 +1339,7 @@ export interface ApiIndexerAdminIndexerServiceIndexerStatus {
 }
 export interface ApiIndexerAdminIndexerServiceIndexerTask {
     id: string;
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
     type: string;
     state: 'completed' | 'retry' | 'active' | 'pending' | 'scheduled' | 'archived';
     retried: number;
@@ -1166,7 +1352,7 @@ export interface ApiIndexerAdminIndexerServiceIndexerTask {
     path?: string;
 }
 export interface ApiIndexerAdminIndexerServiceIndexerTaskPage {
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
     state: 'completed' | 'retry' | 'active' | 'pending' | 'scheduled' | 'archived';
     page: number;
     tasks: ApiIndexerAdminIndexerServiceIndexerTask[];
@@ -1177,7 +1363,7 @@ export interface ApiIndexerAdminIndexerServiceIndexerTaskLogEntry {
     message: string;
 }
 export interface ApiIndexerAdminIndexerServiceIndexerTaskLogs {
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
     id: string;
     state: '' | 'completed' | 'retry' | 'active' | 'pending' | 'scheduled' | 'archived';
     total: number;
@@ -1544,7 +1730,7 @@ export interface ApiMediaMediaHomeServiceHomeLibrary {
 }
 export interface ApiMediaMediaHomeServiceContinueCard {
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     subtitle: null | string;
     imageItemId: string;
@@ -1556,18 +1742,20 @@ export interface ApiMediaMediaHomeServiceContinueCard {
 }
 export interface ApiMediaMediaHomeServiceCard {
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
+    searchContext?: null | string;
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
 }
 export interface ApiMediaMediaHomeServiceHomeCard {
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
+    searchContext?: null | string;
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
@@ -1577,6 +1765,57 @@ export interface ApiMediaMediaHomeServicePersonProfileView {
     biography: null | string;
     source: null | string;
     sourceUrl: null | string;
+}
+export type ApiMediaMediaSearchServiceMeilisearchTaskSummaryError = {
+    message?: string;
+} | null;
+export interface ApiMediaMediaSearchServiceMeilisearchTaskSummary {
+    uid: number;
+    indexUid: null | string;
+    status: string;
+    type: string;
+    enqueuedAt: string;
+    startedAt: null | string;
+    finishedAt: null | string;
+    duration: null | string;
+    error: ApiMediaMediaSearchServiceMeilisearchTaskSummaryError;
+}
+export interface ApiMediaMediaSearchServiceMediaSearchAdminStatus {
+    enabled: boolean;
+    url: string;
+    customUrl: string;
+    urlSource: 'default' | 'database' | 'environment';
+    apiKeyConfigured: boolean;
+    connected: null | false | true;
+    indexExists: null | false | true;
+    documentCount: null | number;
+    outboxPending: number;
+    outboxFailed: number;
+    lastOutboxError: null | string;
+    tasks: ApiMediaMediaSearchServiceMeilisearchTaskSummary[];
+    tasksError: null | string;
+    error: null | string;
+}
+export type ApiMediaMediaSearchServiceMediaSearchTaskDetailsDetails = null | {
+    [key: string]: unknown;
+};
+export type ApiMediaMediaSearchServiceMediaSearchTaskDetailsError = {
+    message?: string;
+    code?: string;
+    type?: string;
+    link?: string;
+} | null;
+export interface ApiMediaMediaSearchServiceMediaSearchTaskDetails {
+    details: ApiMediaMediaSearchServiceMediaSearchTaskDetailsDetails;
+    error: ApiMediaMediaSearchServiceMediaSearchTaskDetailsError;
+    uid: number;
+    indexUid: null | string;
+    status: string;
+    type: string;
+    enqueuedAt: string;
+    startedAt: null | string;
+    finishedAt: null | string;
+    duration: null | string;
 }
 export interface ApiNetworkSharesNetworkSharesServicePublicNetworkShare {
     id: string;
@@ -1610,7 +1849,7 @@ export interface ApiAdminUsersAdminUsersServiceAdminUser {
 }
 export interface ApiSocialSocialItemsSocialItem {
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     subtitle: null | string;
     year: null | number;
@@ -1787,6 +2026,15 @@ export interface ApiBackupsBackupServiceBackupStatus {
     run: null | ApiBackupsBackupServiceBackupRun;
     backups: ApiBackupsBackupServiceBackupEntry[];
 }
+export interface ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus {
+    state: 'completed' | 'failed' | 'running' | 'idle' | 'interrupted';
+    phase: string;
+    message: string;
+    sourceLocked: boolean;
+    startedAt: null | string;
+    finishedAt: null | string;
+    currentDatabaseUrl: null | string;
+}
 export interface SentrySentryServiceSentryAppConfig {
     enabled: boolean;
     dsn: null | string;
@@ -1826,6 +2074,157 @@ export type SetupControllerResetBody = {
 };
 export type SetupControllerReset200 = {
     [key: string]: unknown;
+};
+export type AiControllerLibraryContext200CandidatesItem = {
+    parent_genres?: string[];
+    parent_title?: string;
+    id: string;
+    type: string;
+    title: string;
+    year: null | number;
+    overview: null | string;
+    tagline: null | string;
+    genres: string[];
+    studios: string[];
+    cast: unknown[];
+    crew: unknown[];
+    artist: null | string;
+};
+export type AiControllerLibraryContext200 = {
+    candidates: AiControllerLibraryContext200CandidatesItem[];
+    history: unknown[];
+    favorites: unknown[];
+};
+export type AiControllerRecommendationContext200HistoryItem = {
+    position_seconds: number;
+    duration_seconds: number;
+    completed: boolean;
+    updated_at: string;
+    parent_genres?: string[];
+    parent_title?: string;
+    id: string;
+    type: string;
+    title: string;
+    year: null | number;
+    overview: null | string;
+    tagline: null | string;
+    genres: string[];
+    studios: string[];
+    cast: unknown[];
+    crew: unknown[];
+    artist: null | string;
+};
+export type AiControllerRecommendationContext200FavoritesItem = {
+    created_at: string;
+    parent_genres?: string[];
+    parent_title?: string;
+    id: string;
+    type: string;
+    title: string;
+    year: null | number;
+    overview: null | string;
+    tagline: null | string;
+    genres: string[];
+    studios: string[];
+    cast: unknown[];
+    crew: unknown[];
+    artist: null | string;
+};
+export type AiControllerRecommendationContext200CandidatesItem = {
+    parent_genres?: string[];
+    parent_title?: string;
+    id: string;
+    type: string;
+    title: string;
+    year: null | number;
+    overview: null | string;
+    tagline: null | string;
+    genres: string[];
+    studios: string[];
+    cast: unknown[];
+    crew: unknown[];
+    artist: null | string;
+};
+export type AiControllerRecommendationContext200 = {
+    history: AiControllerRecommendationContext200HistoryItem[];
+    favorites: AiControllerRecommendationContext200FavoritesItem[];
+    candidates: AiControllerRecommendationContext200CandidatesItem[];
+};
+export type AiControllerSaveRecommendationCacheBody = {
+    [key: string]: unknown;
+};
+export type AiControllerSaveRecommendationCache200 = {
+    saved: boolean;
+};
+export type AiControllerClearRecommendationCache200 = {
+    cleared: boolean;
+};
+export type RecommendationsControllerHomeRecommendations200ItemsItem = {
+    score: number;
+    id: string;
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    title: string;
+    year: null | number;
+    searchContext?: null | string;
+    poster: null | number;
+    backdrop: null | number;
+    updatedAt: string;
+};
+export type RecommendationsControllerHomeRecommendations200 = {
+    enabled: boolean;
+    items: RecommendationsControllerHomeRecommendations200ItemsItem[];
+};
+export type RecommendationsControllerMusicRecommendations200ItemsItem = {
+    score: number;
+    id: string;
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    title: string;
+    year: null | number;
+    searchContext?: null | string;
+    poster: null | number;
+    backdrop: null | number;
+    updatedAt: string;
+};
+export type RecommendationsControllerMusicRecommendations200 = {
+    enabled: boolean;
+    items: RecommendationsControllerMusicRecommendations200ItemsItem[];
+};
+export type AiAdminControllerStatus200 = {
+    [key: string]: unknown;
+};
+export type AiAdminControllerUpdateConfiguration200 = {
+    applied: boolean;
+    configuration: ApiAiAiAdminServiceAiAdminConfiguration;
+};
+export type AiAdminControllerRetry200 = {
+    accepted: boolean;
+};
+export type AiAdminControllerRecommendations200ItemEntriesItemItemsItem = {
+    title: string;
+    type: null | 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    id: string;
+    score: number;
+    reason?: null | string;
+};
+export type AiAdminControllerRecommendations200ItemEntriesItem = {
+    key: string;
+    scope: 'movies' | 'music' | 'general';
+    items: AiAdminControllerRecommendations200ItemEntriesItemItemsItem[];
+};
+export type AiAdminControllerRecommendations200Item = {
+    userId: string;
+    username: string;
+    displayName: string;
+    lastRefreshAt: null | string;
+    entries: AiAdminControllerRecommendations200ItemEntriesItem[];
+};
+export type AiAdminControllerRefreshUserRecommendations200ItemsItem = {
+    id: string;
+    score: number;
+    reason?: null | string;
+};
+export type AiAdminControllerRefreshUserRecommendations200 = {
+    items: AiAdminControllerRefreshUserRecommendations200ItemsItem[];
 };
 export type AuthControllerChangePassword200 = {
     changed: true;
@@ -1879,19 +2278,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -1901,19 +2300,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -1927,19 +2326,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -1949,19 +2348,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2006,19 +2405,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2028,19 +2427,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2054,19 +2453,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialFirst =
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2076,19 +2475,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialSecond 
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2129,19 +2528,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2151,19 +2550,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2177,19 +2576,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2199,19 +2598,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2256,19 +2655,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2278,19 +2677,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2304,19 +2703,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2326,19 +2725,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@612': 'ArrayBuffer';
+    '__@toStringTag@391': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@612': 'ArrayBuffer';
+        '__@toStringTag@391': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@612': 'SharedArrayBuffer';
+        '__@toStringTag@391': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2393,6 +2792,65 @@ export type PlaybackControllerItemPlaybackInfo200 = ApiPlaybackPlaybackServicePl
     title: string;
     nextEpisode: null | ApiPlaybackNextEpisodeNextEpisode;
 });
+export type GuideControllerGetParams = {
+    from?: string;
+    to?: string;
+    channelOffset?: number;
+    channelLimit?: number;
+};
+export type GuideControllerGet200SourcesItem = {
+    id: string;
+    kind: 'epg' | 'iptv';
+    name: string;
+    lastRefreshedAt: null | string;
+    lastError: null | string;
+};
+export type GuideControllerGet200 = {
+    channels: ApiGuideGuideServiceGuideChannelView[];
+    programmes: ApiGuideGuideServiceGuideProgrammeView[];
+    totalChannels: number;
+    channelOffset: number;
+    from: string;
+    to: string;
+    regionalMergeThresholdPercent: number;
+    sources: GuideControllerGet200SourcesItem[];
+};
+export type AdminGuideControllerOverview200Settings = {
+    regionalMergeThresholdPercent: number;
+};
+export type AdminGuideControllerOverview200ChannelsItem = {
+    id: string;
+    sourceId: string;
+    sourceName: string;
+    name: string;
+    icon: null | string;
+    enabled: boolean;
+    sortOrder: number;
+    iptvChannelId: null | string;
+    automaticIptvChannelId: null | string;
+};
+export type AdminGuideControllerOverview200IptvChannelsItem = {
+    id: string;
+    sourceId: string;
+    sourceName: string;
+    name: string;
+    icon: null | string;
+    group: null | string;
+    playable: boolean;
+    sortOrder: number;
+};
+export type AdminGuideControllerOverview200 = {
+    sources: ApiGuideGuideServicePublicGuideSource[];
+    settings: AdminGuideControllerOverview200Settings;
+    channels: AdminGuideControllerOverview200ChannelsItem[];
+    iptvChannels: AdminGuideControllerOverview200IptvChannelsItem[];
+};
+export type AdminGuideControllerUpdateChannels200 = {
+    updated: number;
+};
+export type AdminGuideControllerUpdateSettings200 = {
+    regionalMergeThresholdPercent: number;
+};
 export type JobsControllerGetQueues200ItemPolicy = 'standard' | 'short' | 'singleton' | 'stately' | 'exclusive' | 'key_strict_fifo' | (string & {
     [key: string]: unknown;
 });
@@ -2630,7 +3088,7 @@ export type IndexerApiControllerListLibraries200LibrariesItemFoldersItem = {
 export type IndexerApiControllerListLibraries200LibrariesItem = {
     id: string;
     name: string;
-    type: 'movies' | 'tvshows' | 'music' | 'homevideos' | 'mixed';
+    type: 'movies' | 'music' | 'tvshows' | 'homevideos' | 'mixed';
     imageStorage: 'cache' | 'alongside';
     folders: IndexerApiControllerListLibraries200LibrariesItemFoldersItem[];
 };
@@ -2642,6 +3100,12 @@ export type IndexerApiControllerUpsertItemBody = {
 };
 export type IndexerApiControllerUpsertItem200 = {
     id: string;
+};
+export type IndexerApiControllerUpsertItemLyricsBody = {
+    [key: string]: unknown;
+};
+export type IndexerApiControllerUpsertItemLyrics200 = {
+    ok: boolean;
 };
 export type IndexerApiControllerIntroSyncCandidatesParams = {
     type?: string;
@@ -2684,13 +3148,13 @@ export type AdminIndexerControllerTaskLogsParams = {
     offset?: number;
 };
 export type AdminIndexerControllerCancelActive200 = {
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
     cancelled: number;
     pending: number;
     running: number;
 };
 export type AdminIndexerControllerClearFailed200 = {
-    queue: 'trickplay' | 'scan' | 'identify' | 'metadata' | 'images' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
+    queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
     cleared: number;
 };
 export type AdminIndexerControllerSetConcurrencyBody = {
@@ -2854,7 +3318,7 @@ export type AdminMediaControllerList200ItemsItem = {
     id: string;
     libraryId: string;
     parentId: null | string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
     seasonNumber: null | number;
@@ -2876,7 +3340,7 @@ export type AdminMediaControllerList200 = {
 export type AdminMediaControllerGet200Parent = {
     id: string;
     title: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
 } | null;
 export type AdminMediaControllerGet200ProviderIds = {
     [key: string]: string;
@@ -2894,7 +3358,7 @@ export type AdminMediaControllerGet200 = {
     id: string;
     libraryId: string;
     parentId: null | string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     externalKey: string;
     path: string;
     rootId: null | string;
@@ -2921,7 +3385,7 @@ export type AdminMediaControllerGet200 = {
 export type AdminMediaControllerUpdate200Parent = {
     id: string;
     title: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
 } | null;
 export type AdminMediaControllerUpdate200ProviderIds = {
     [key: string]: string;
@@ -2939,7 +3403,7 @@ export type AdminMediaControllerUpdate200 = {
     id: string;
     libraryId: string;
     parentId: null | string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     externalKey: string;
     path: string;
     rootId: null | string;
@@ -2973,7 +3437,7 @@ export type AdminMediaControllerImageParams = {
 export type AdminMediaControllerRemoveImage200Parent = {
     id: string;
     title: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
 } | null;
 export type AdminMediaControllerRemoveImage200ProviderIds = {
     [key: string]: string;
@@ -2991,7 +3455,7 @@ export type AdminMediaControllerRemoveImage200 = {
     id: string;
     libraryId: string;
     parentId: null | string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     externalKey: string;
     path: string;
     rootId: null | string;
@@ -3027,9 +3491,10 @@ export type MediaHomeControllerGetHome200FeaturedItem = {
     rating: null | string;
     runtimeMinutes: null | number;
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
+    searchContext?: null | string;
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
@@ -3107,7 +3572,7 @@ export type MediaHomeControllerItem200Technical = {
 } | null;
 export type MediaHomeControllerItem200Parent = {
     id: string;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
 } | null;
 export type MediaHomeControllerItem200Series = {
@@ -3117,7 +3582,7 @@ export type MediaHomeControllerItem200Series = {
 export type MediaHomeControllerItem200ChildrenItemEpisodesItem = {
     id: string;
     watched: boolean;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
     seasonNumber: null | number;
@@ -3132,7 +3597,7 @@ export type MediaHomeControllerItem200ChildrenItem = {
     episodes: MediaHomeControllerItem200ChildrenItemEpisodesItem[];
     id: string;
     watched: boolean;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
     seasonNumber: null | number;
@@ -3146,7 +3611,7 @@ export type MediaHomeControllerItem200ChildrenItem = {
 export type MediaHomeControllerItem200 = {
     id: string;
     watched: boolean;
-    type: 'movie' | 'episode' | 'series' | 'season' | 'album' | 'track' | 'video';
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
     title: string;
     year: null | number;
     seasonNumber: null | number;
@@ -3175,6 +3640,12 @@ export type MediaHomeControllerItem200 = {
 };
 export type MediaHomeControllerImageParams = {
     w?: number;
+};
+export type AdminMediaSearchControllerRebuild200 = {
+    queued: boolean;
+};
+export type AdminMediaSearchControllerReset200 = {
+    queued: boolean;
 };
 export type NetworkSharesControllerSupport200 = {
     supported: boolean;
@@ -3410,6 +3881,9 @@ export type BackupDownloadControllerDownload200 = {
     closed: boolean;
     errored: BackupDownloadControllerDownload200Errored;
 };
+export type AdminDatabaseTransferControllerStartBody = {
+    [key: string]: unknown;
+};
 export type OverviewControllerGet200Counts = {
     users: number;
     movies: number;
@@ -3421,7 +3895,7 @@ export type OverviewControllerGet200Counts = {
 export type OverviewControllerGet200LibrariesItem = {
     id: string;
     name: string;
-    type: 'movies' | 'tvshows' | 'music' | 'homevideos' | 'mixed';
+    type: 'movies' | 'music' | 'tvshows' | 'homevideos' | 'mixed';
     items: number;
     sizeBytes: number;
 };
@@ -3526,6 +4000,21 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     setupControllerComplete: (options?: AxiosRequestConfig) => Promise<AxiosResponse<SetupControllerComplete200>>;
     setupControllerReset: (setupControllerResetBody?: SetupControllerResetBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<SetupControllerReset200>>;
     internalConfigControllerGet: (service: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<BootstrapInternalConfigIndexerRuntimeConfig>>;
+    aiControllerLibraryContext: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiControllerLibraryContext200>>;
+    aiControllerRecommendationContext: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AiControllerRecommendationContext200>>;
+    aiControllerRuntimeConfiguration: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAiAiAdminServiceAiAdminConfiguration>>;
+    aiControllerRecommendationCacheState: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAiAiRecommendationCacheServiceRecommendationCacheState>>;
+    aiControllerSaveRecommendationCache: (userId: string, aiControllerSaveRecommendationCacheBody?: AiControllerSaveRecommendationCacheBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<AiControllerSaveRecommendationCache200>>;
+    aiControllerClearRecommendationCache: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiControllerClearRecommendationCache200>>;
+    recommendationsControllerHomeRecommendations: (options?: AxiosRequestConfig) => Promise<AxiosResponse<RecommendationsControllerHomeRecommendations200>>;
+    recommendationsControllerMusicRecommendations: (options?: AxiosRequestConfig) => Promise<AxiosResponse<RecommendationsControllerMusicRecommendations200>>;
+    recommendationsControllerRecommend: (recommendationRequest?: RecommendationRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAiAiRecommendationsServiceRecommendationResponse>>;
+    recommendationsControllerSimilar: (itemId: string, recommendationRequest?: RecommendationRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAiAiRecommendationsServiceRecommendationResponse>>;
+    aiAdminControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerStatus200>>;
+    aiAdminControllerUpdateConfiguration: (updateAiConfigurationRequest?: UpdateAiConfigurationRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerUpdateConfiguration200>>;
+    aiAdminControllerRetry: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRetry200>>;
+    aiAdminControllerRecommendations: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRecommendations200Item[]>>;
+    aiAdminControllerRefreshUserRecommendations: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRefreshUserRecommendations200>>;
     authControllerRegister: (registerRequest?: RegisterRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>>;
     authControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicUser>>;
     authControllerUpdateMe: (updateProfileRequest?: UpdateProfileRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicUser>>;
@@ -3564,7 +4053,17 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     settingsControllerUpdate: (key: string, settingRequest?: SettingRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiSettingsSettingsServicePublicSetting>>;
     playbackControllerListSamples: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPlaybackPlaybackServiceSampleVideo[]>>;
     playbackControllerItemPlaybackInfo: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<PlaybackControllerItemPlaybackInfo200>>;
+    playbackControllerChannelPlaybackInfo: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPlaybackPlaybackServicePlaybackInfo>>;
     playbackControllerPlaybackInfo: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPlaybackPlaybackServicePlaybackInfo>>;
+    guideControllerGet: (params?: GuideControllerGetParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<GuideControllerGet200>>;
+    adminGuideControllerOverview: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminGuideControllerOverview200>>;
+    adminGuideControllerSources: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiGuideGuideServicePublicGuideSource[]>>;
+    adminGuideControllerCreateSource: (createGuideSourceRequest?: CreateGuideSourceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiGuideGuideServicePublicGuideSource>>;
+    adminGuideControllerUpdateSource: (id: string, updateGuideSourceRequest?: UpdateGuideSourceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiGuideGuideServicePublicGuideSource>>;
+    adminGuideControllerRemoveSource: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    adminGuideControllerRefreshSource: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiGuideGuideServicePublicGuideSource>>;
+    adminGuideControllerUpdateChannels: (updateGuideChannelsRequest?: UpdateGuideChannelsRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminGuideControllerUpdateChannels200>>;
+    adminGuideControllerUpdateSettings: (updateGuideSettingsRequest?: UpdateGuideSettingsRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminGuideControllerUpdateSettings200>>;
     jobsControllerGetQueues: (options?: AxiosRequestConfig) => Promise<AxiosResponse<JobsControllerGetQueues200Item[]>>;
     jobsControllerFindJobs: (queueName: string, params?: JobsControllerFindJobsParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<JobsControllerFindJobs200Item[]>>;
     jobsControllerEnqueue: (queueName: string, enqueueJobRequest?: EnqueueJobRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<JobsControllerEnqueue200>>;
@@ -3596,6 +4095,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     indexerApiControllerListLibraries: (options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerListLibraries200>>;
     indexerApiControllerGetSettings: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIndexerIndexerSettingsServiceIndexerSettings>>;
     indexerApiControllerUpsertItem: (indexerApiControllerUpsertItemBody?: IndexerApiControllerUpsertItemBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerUpsertItem200>>;
+    indexerApiControllerUpsertItemLyrics: (id: string, indexerApiControllerUpsertItemLyricsBody?: IndexerApiControllerUpsertItemLyricsBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerUpsertItemLyrics200>>;
     indexerApiControllerIntroSyncCandidates: (params?: IndexerApiControllerIntroSyncCandidatesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerIntroSyncCandidates200>>;
     indexerApiControllerExistingIntroSegments: (params?: IndexerApiControllerExistingIntroSegmentsParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerExistingIntroSegments200>>;
     indexerApiControllerUpdateIntroSegments: (indexerApiControllerUpdateIntroSegmentsBody?: IndexerApiControllerUpdateIntroSegmentsBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerUpdateIntroSegments200>>;
@@ -3673,6 +4173,11 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     mediaHomeControllerBrowse: (kind: string, params?: MediaHomeControllerBrowseParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<MediaHomeControllerBrowse200>>;
     mediaHomeControllerItem: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<MediaHomeControllerItem200>>;
     mediaHomeControllerImage: (id: string, index: number, params?: MediaHomeControllerImageParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<Blob>>;
+    adminMediaSearchControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMediaMediaSearchServiceMediaSearchAdminStatus>>;
+    adminMediaSearchControllerTask: (uid: number, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMediaMediaSearchServiceMediaSearchTaskDetails>>;
+    adminMediaSearchControllerSaveSettings: (mediaSearchSettingsRequest?: MediaSearchSettingsRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMediaMediaSearchServiceMediaSearchAdminStatus>>;
+    adminMediaSearchControllerRebuild: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMediaSearchControllerRebuild200>>;
+    adminMediaSearchControllerReset: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMediaSearchControllerReset200>>;
     networkSharesControllerList: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiNetworkSharesNetworkSharesServicePublicNetworkShare[]>>;
     networkSharesControllerCreate: (createNetworkShareRequest?: CreateNetworkShareRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiNetworkSharesNetworkSharesServicePublicNetworkShare>>;
     networkSharesControllerSupport: (options?: AxiosRequestConfig) => Promise<AxiosResponse<NetworkSharesControllerSupport200>>;
@@ -3748,6 +4253,9 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     adminBackupsControllerDownloadLink: (name: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminBackupsControllerDownloadLink200>>;
     adminBackupsControllerRemove: (name: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminBackupsControllerRemove200>>;
     backupDownloadControllerDownload: (name: string, params?: BackupDownloadControllerDownloadParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<BackupDownloadControllerDownload200>>;
+    adminDatabaseTransferControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>>;
+    adminDatabaseTransferControllerStart: (adminDatabaseTransferControllerStartBody?: AdminDatabaseTransferControllerStartBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>>;
+    adminDatabaseTransferControllerRestoreWrites: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>>;
     overviewControllerGet: (options?: AxiosRequestConfig) => Promise<AxiosResponse<OverviewControllerGet200>>;
     overviewControllerActivityList: (params?: OverviewControllerActivityListParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<OverviewControllerActivityList200>>;
     sentryControllerGetConfig: (app: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<SentrySentryServiceSentryAppConfig>>;
@@ -3761,6 +4269,21 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getSetupControllerCompleteUrl: () => string;
     getSetupControllerResetUrl: () => string;
     getInternalConfigControllerGetUrl: (service: string) => string;
+    getAiControllerLibraryContextUrl: () => string;
+    getAiControllerRecommendationContextUrl: (userId: string) => string;
+    getAiControllerRuntimeConfigurationUrl: () => string;
+    getAiControllerRecommendationCacheStateUrl: (userId: string) => string;
+    getAiControllerSaveRecommendationCacheUrl: (userId: string) => string;
+    getAiControllerClearRecommendationCacheUrl: () => string;
+    getRecommendationsControllerHomeRecommendationsUrl: () => string;
+    getRecommendationsControllerMusicRecommendationsUrl: () => string;
+    getRecommendationsControllerRecommendUrl: () => string;
+    getRecommendationsControllerSimilarUrl: (itemId: string) => string;
+    getAiAdminControllerStatusUrl: () => string;
+    getAiAdminControllerUpdateConfigurationUrl: () => string;
+    getAiAdminControllerRetryUrl: () => string;
+    getAiAdminControllerRecommendationsUrl: () => string;
+    getAiAdminControllerRefreshUserRecommendationsUrl: (userId: string) => string;
     getAuthControllerRegisterUrl: () => string;
     getAuthControllerMeUrl: () => string;
     getAuthControllerUpdateMeUrl: () => string;
@@ -3799,7 +4322,17 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getSettingsControllerUpdateUrl: (key: string) => string;
     getPlaybackControllerListSamplesUrl: () => string;
     getPlaybackControllerItemPlaybackInfoUrl: (id: string) => string;
+    getPlaybackControllerChannelPlaybackInfoUrl: (id: string) => string;
     getPlaybackControllerPlaybackInfoUrl: (id: string) => string;
+    getGuideControllerGetUrl: (params?: GuideControllerGetParams) => string;
+    getAdminGuideControllerOverviewUrl: () => string;
+    getAdminGuideControllerSourcesUrl: () => string;
+    getAdminGuideControllerCreateSourceUrl: () => string;
+    getAdminGuideControllerUpdateSourceUrl: (id: string) => string;
+    getAdminGuideControllerRemoveSourceUrl: (id: string) => string;
+    getAdminGuideControllerRefreshSourceUrl: (id: string) => string;
+    getAdminGuideControllerUpdateChannelsUrl: () => string;
+    getAdminGuideControllerUpdateSettingsUrl: () => string;
     getJobsControllerGetQueuesUrl: () => string;
     getJobsControllerFindJobsUrl: (queueName: string, params?: JobsControllerFindJobsParams) => string;
     getJobsControllerEnqueueUrl: (queueName: string) => string;
@@ -3831,6 +4364,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getIndexerApiControllerListLibrariesUrl: () => string;
     getIndexerApiControllerGetSettingsUrl: () => string;
     getIndexerApiControllerUpsertItemUrl: () => string;
+    getIndexerApiControllerUpsertItemLyricsUrl: (id: string) => string;
     getIndexerApiControllerIntroSyncCandidatesUrl: (params?: IndexerApiControllerIntroSyncCandidatesParams) => string;
     getIndexerApiControllerExistingIntroSegmentsUrl: (params?: IndexerApiControllerExistingIntroSegmentsParams) => string;
     getIndexerApiControllerUpdateIntroSegmentsUrl: () => string;
@@ -3908,6 +4442,11 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getMediaHomeControllerBrowseUrl: (kind: string, params?: MediaHomeControllerBrowseParams) => string;
     getMediaHomeControllerItemUrl: (id: string) => string;
     getMediaHomeControllerImageUrl: (id: string, index: number, params?: MediaHomeControllerImageParams) => string;
+    getAdminMediaSearchControllerStatusUrl: () => string;
+    getAdminMediaSearchControllerTaskUrl: (uid: number) => string;
+    getAdminMediaSearchControllerSaveSettingsUrl: () => string;
+    getAdminMediaSearchControllerRebuildUrl: () => string;
+    getAdminMediaSearchControllerResetUrl: () => string;
     getNetworkSharesControllerListUrl: () => string;
     getNetworkSharesControllerCreateUrl: () => string;
     getNetworkSharesControllerSupportUrl: () => string;
@@ -3983,6 +4522,9 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getAdminBackupsControllerDownloadLinkUrl: (name: string) => string;
     getAdminBackupsControllerRemoveUrl: (name: string) => string;
     getBackupDownloadControllerDownloadUrl: (name: string, params?: BackupDownloadControllerDownloadParams) => string;
+    getAdminDatabaseTransferControllerStatusUrl: () => string;
+    getAdminDatabaseTransferControllerStartUrl: () => string;
+    getAdminDatabaseTransferControllerRestoreWritesUrl: () => string;
     getOverviewControllerGetUrl: () => string;
     getOverviewControllerActivityListUrl: (params?: OverviewControllerActivityListParams) => string;
     getSentryControllerGetConfigUrl: (app: string) => string;
@@ -3997,6 +4539,21 @@ export type SetupControllerApplyStepResult = AxiosResponse<SetupControllerApplyS
 export type SetupControllerCompleteResult = AxiosResponse<SetupControllerComplete200>;
 export type SetupControllerResetResult = AxiosResponse<SetupControllerReset200>;
 export type InternalConfigControllerGetResult = AxiosResponse<BootstrapInternalConfigIndexerRuntimeConfig>;
+export type AiControllerLibraryContextResult = AxiosResponse<AiControllerLibraryContext200>;
+export type AiControllerRecommendationContextResult = AxiosResponse<AiControllerRecommendationContext200>;
+export type AiControllerRuntimeConfigurationResult = AxiosResponse<ApiAiAiAdminServiceAiAdminConfiguration>;
+export type AiControllerRecommendationCacheStateResult = AxiosResponse<ApiAiAiRecommendationCacheServiceRecommendationCacheState>;
+export type AiControllerSaveRecommendationCacheResult = AxiosResponse<AiControllerSaveRecommendationCache200>;
+export type AiControllerClearRecommendationCacheResult = AxiosResponse<AiControllerClearRecommendationCache200>;
+export type RecommendationsControllerHomeRecommendationsResult = AxiosResponse<RecommendationsControllerHomeRecommendations200>;
+export type RecommendationsControllerMusicRecommendationsResult = AxiosResponse<RecommendationsControllerMusicRecommendations200>;
+export type RecommendationsControllerRecommendResult = AxiosResponse<ApiAiAiRecommendationsServiceRecommendationResponse>;
+export type RecommendationsControllerSimilarResult = AxiosResponse<ApiAiAiRecommendationsServiceRecommendationResponse>;
+export type AiAdminControllerStatusResult = AxiosResponse<AiAdminControllerStatus200>;
+export type AiAdminControllerUpdateConfigurationResult = AxiosResponse<AiAdminControllerUpdateConfiguration200>;
+export type AiAdminControllerRetryResult = AxiosResponse<AiAdminControllerRetry200>;
+export type AiAdminControllerRecommendationsResult = AxiosResponse<AiAdminControllerRecommendations200Item[]>;
+export type AiAdminControllerRefreshUserRecommendationsResult = AxiosResponse<AiAdminControllerRefreshUserRecommendations200>;
 export type AuthControllerRegisterResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>;
 export type AuthControllerMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>;
 export type AuthControllerUpdateMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>;
@@ -4035,7 +4592,17 @@ export type SettingsControllerSendTestEmailResult = AxiosResponse<SettingsContro
 export type SettingsControllerUpdateResult = AxiosResponse<ApiSettingsSettingsServicePublicSetting>;
 export type PlaybackControllerListSamplesResult = AxiosResponse<ApiPlaybackPlaybackServiceSampleVideo[]>;
 export type PlaybackControllerItemPlaybackInfoResult = AxiosResponse<PlaybackControllerItemPlaybackInfo200>;
+export type PlaybackControllerChannelPlaybackInfoResult = AxiosResponse<ApiPlaybackPlaybackServicePlaybackInfo>;
 export type PlaybackControllerPlaybackInfoResult = AxiosResponse<ApiPlaybackPlaybackServicePlaybackInfo>;
+export type GuideControllerGetResult = AxiosResponse<GuideControllerGet200>;
+export type AdminGuideControllerOverviewResult = AxiosResponse<AdminGuideControllerOverview200>;
+export type AdminGuideControllerSourcesResult = AxiosResponse<ApiGuideGuideServicePublicGuideSource[]>;
+export type AdminGuideControllerCreateSourceResult = AxiosResponse<ApiGuideGuideServicePublicGuideSource>;
+export type AdminGuideControllerUpdateSourceResult = AxiosResponse<ApiGuideGuideServicePublicGuideSource>;
+export type AdminGuideControllerRemoveSourceResult = AxiosResponse<void>;
+export type AdminGuideControllerRefreshSourceResult = AxiosResponse<ApiGuideGuideServicePublicGuideSource>;
+export type AdminGuideControllerUpdateChannelsResult = AxiosResponse<AdminGuideControllerUpdateChannels200>;
+export type AdminGuideControllerUpdateSettingsResult = AxiosResponse<AdminGuideControllerUpdateSettings200>;
 export type JobsControllerGetQueuesResult = AxiosResponse<JobsControllerGetQueues200Item[]>;
 export type JobsControllerFindJobsResult = AxiosResponse<JobsControllerFindJobs200Item[]>;
 export type JobsControllerEnqueueResult = AxiosResponse<JobsControllerEnqueue200>;
@@ -4067,6 +4634,7 @@ export type StreamerRootsControllerTranscodingResult = AxiosResponse<StreamerRoo
 export type IndexerApiControllerListLibrariesResult = AxiosResponse<IndexerApiControllerListLibraries200>;
 export type IndexerApiControllerGetSettingsResult = AxiosResponse<ApiIndexerIndexerSettingsServiceIndexerSettings>;
 export type IndexerApiControllerUpsertItemResult = AxiosResponse<IndexerApiControllerUpsertItem200>;
+export type IndexerApiControllerUpsertItemLyricsResult = AxiosResponse<IndexerApiControllerUpsertItemLyrics200>;
 export type IndexerApiControllerIntroSyncCandidatesResult = AxiosResponse<IndexerApiControllerIntroSyncCandidates200>;
 export type IndexerApiControllerExistingIntroSegmentsResult = AxiosResponse<IndexerApiControllerExistingIntroSegments200>;
 export type IndexerApiControllerUpdateIntroSegmentsResult = AxiosResponse<IndexerApiControllerUpdateIntroSegments200>;
@@ -4144,6 +4712,11 @@ export type MediaHomeControllerPersonResult = AxiosResponse<MediaHomeControllerP
 export type MediaHomeControllerBrowseResult = AxiosResponse<MediaHomeControllerBrowse200>;
 export type MediaHomeControllerItemResult = AxiosResponse<MediaHomeControllerItem200>;
 export type MediaHomeControllerImageResult = AxiosResponse<Blob>;
+export type AdminMediaSearchControllerStatusResult = AxiosResponse<ApiMediaMediaSearchServiceMediaSearchAdminStatus>;
+export type AdminMediaSearchControllerTaskResult = AxiosResponse<ApiMediaMediaSearchServiceMediaSearchTaskDetails>;
+export type AdminMediaSearchControllerSaveSettingsResult = AxiosResponse<ApiMediaMediaSearchServiceMediaSearchAdminStatus>;
+export type AdminMediaSearchControllerRebuildResult = AxiosResponse<AdminMediaSearchControllerRebuild200>;
+export type AdminMediaSearchControllerResetResult = AxiosResponse<AdminMediaSearchControllerReset200>;
 export type NetworkSharesControllerListResult = AxiosResponse<ApiNetworkSharesNetworkSharesServicePublicNetworkShare[]>;
 export type NetworkSharesControllerCreateResult = AxiosResponse<ApiNetworkSharesNetworkSharesServicePublicNetworkShare>;
 export type NetworkSharesControllerSupportResult = AxiosResponse<NetworkSharesControllerSupport200>;
@@ -4219,6 +4792,9 @@ export type AdminBackupsControllerRestoreResult = AxiosResponse<ApiBackupsBackup
 export type AdminBackupsControllerDownloadLinkResult = AxiosResponse<AdminBackupsControllerDownloadLink200>;
 export type AdminBackupsControllerRemoveResult = AxiosResponse<AdminBackupsControllerRemove200>;
 export type BackupDownloadControllerDownloadResult = AxiosResponse<BackupDownloadControllerDownload200>;
+export type AdminDatabaseTransferControllerStatusResult = AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>;
+export type AdminDatabaseTransferControllerStartResult = AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>;
+export type AdminDatabaseTransferControllerRestoreWritesResult = AxiosResponse<ApiConnectionsDatabaseTransferServiceDatabaseTransferStatus>;
 export type OverviewControllerGetResult = AxiosResponse<OverviewControllerGet200>;
 export type OverviewControllerActivityListResult = AxiosResponse<OverviewControllerActivityList200>;
 export type SentryControllerGetConfigResult = AxiosResponse<SentrySentryServiceSentryAppConfig>;

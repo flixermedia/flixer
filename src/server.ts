@@ -17,6 +17,7 @@ import { LiveLogService } from "./logs/liveLogService.js";
 import { LiveService } from "./live/liveService.js";
 import { PartyGateway } from "./party/partyGateway.js";
 import { ChatGateway } from "./chat/chatGateway.js";
+import { NotificationGateway } from "./api/notifications/notificationGateway.js";
 import "./sentry/sentryErrorFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 import { CORS_METHODS, CORS_ORIGINS } from "./cors.js";
@@ -44,7 +45,16 @@ const fastifyPlugins = [
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LiveService, PartyGateway, ChatGateway],
+	imports: [
+		DefaultDataSource,
+		JobScheduler,
+		SentryService,
+		LiveLogService,
+		LiveService,
+		PartyGateway,
+		ChatGateway,
+		NotificationGateway,
+	],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE

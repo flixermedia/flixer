@@ -1,6 +1,14 @@
 export const routes = [
     {
         "method": "post",
+        "path": "/admin/database-transfer/restore-writes",
+        "operationId": "adminDatabaseTransferControllerRestoreWrites",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/auth/passkeys/native-handoff/exchange",
         "operationId": "passkeyControllerExchangeNativeHandoff",
         "pathParameters": [],
@@ -45,6 +53,22 @@ export const routes = [
         "operationId": "passkeyControllerStartNativeHandoff",
         "pathParameters": [],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/internal/ai/runtime-configuration",
+        "operationId": "aiControllerRuntimeConfiguration",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/internal/ai/recommendation-cache",
+        "operationId": "aiControllerClearRecommendationCache",
+        "pathParameters": [],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -120,6 +144,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/internal/ai/library-context",
+        "operationId": "aiControllerLibraryContext",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/auth/passkeys/login/options",
         "operationId": "passkeyControllerLoginOptions",
@@ -131,6 +163,14 @@ export const routes = [
         "method": "get",
         "path": "/admin/media-libraries/roots",
         "operationId": "mediaLibrariesControllerListRoots",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/recommendations/home/music",
+        "operationId": "recommendationsControllerMusicRecommendations",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -174,6 +214,14 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": true
+    },
+    {
+        "method": "get",
+        "path": "/admin/ai/recommendations",
+        "operationId": "aiAdminControllerRecommendations",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
     },
     {
         "method": "patch",
@@ -241,6 +289,22 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/database-transfer",
+        "operationId": "adminDatabaseTransferControllerStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/database-transfer",
+        "operationId": "adminDatabaseTransferControllerStart",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/admin/overview/activity",
         "operationId": "overviewControllerActivityList",
         "pathParameters": [],
@@ -253,6 +317,14 @@ export const routes = [
         "operationId": "setupControllerRequestRecoveryKey",
         "pathParameters": [],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/ai/configuration",
+        "operationId": "aiAdminControllerUpdateConfiguration",
+        "pathParameters": [],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -312,9 +384,41 @@ export const routes = [
         "hasQuery": true
     },
     {
+        "method": "put",
+        "path": "/admin/search/settings",
+        "operationId": "adminMediaSearchControllerSaveSettings",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/profiles/me/listening",
         "operationId": "profilesControllerListening",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/recommendations/home",
+        "operationId": "recommendationsControllerHomeRecommendations",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/guide/channels",
+        "operationId": "adminGuideControllerUpdateChannels",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/guide/settings",
+        "operationId": "adminGuideControllerUpdateSettings",
         "pathParameters": [],
         "hasBody": true,
         "hasQuery": false
@@ -347,6 +451,14 @@ export const routes = [
         "method": "get",
         "path": "/admin/requests/users",
         "operationId": "adminRequestsControllerListUsers",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/search/rebuild",
+        "operationId": "adminMediaSearchControllerRebuild",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -392,6 +504,22 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/admin/guide/sources",
+        "operationId": "adminGuideControllerSources",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/guide/sources",
+        "operationId": "adminGuideControllerCreateSource",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/indexer/media/items",
         "operationId": "indexerApiControllerUpsertItem",
@@ -416,6 +544,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/admin/search/status",
+        "operationId": "adminMediaSearchControllerStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/admin/notifications",
         "operationId": "adminNotificationsControllerSend",
@@ -427,6 +563,14 @@ export const routes = [
         "method": "post",
         "path": "/admin/updates/apply",
         "operationId": "adminUpdatesControllerApply",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/search/reset",
+        "operationId": "adminMediaSearchControllerReset",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -512,6 +656,22 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/recommendations",
+        "operationId": "recommendationsControllerRecommend",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/ai/status",
+        "operationId": "aiAdminControllerStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/requests/config",
         "operationId": "requestsControllerConfig",
@@ -539,6 +699,14 @@ export const routes = [
         "method": "post",
         "path": "/setup/complete",
         "operationId": "setupControllerComplete",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/ai/retry",
+        "operationId": "aiAdminControllerRetry",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -753,6 +921,14 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/guide",
+        "operationId": "adminGuideControllerOverview",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/jobs/queues",
         "operationId": "jobsControllerGetQueues",
         "pathParameters": [],
@@ -936,6 +1112,64 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/guide",
+        "operationId": "guideControllerGet",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
+    },
+    {
+        "method": "get",
+        "path": "/internal/ai/users/{userId}/recommendation-context",
+        "operationId": "aiControllerRecommendationContext",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/internal/ai/users/{userId}/recommendation-cache",
+        "operationId": "aiControllerRecommendationCacheState",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/internal/ai/users/{userId}/recommendation-cache",
+        "operationId": "aiControllerSaveRecommendationCache",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/ai/users/{userId}/recommendations/refresh",
+        "operationId": "aiAdminControllerRefreshUserRecommendations",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/playback/guide-channels/{id}/playback-info",
+        "operationId": "playbackControllerChannelPlaybackInfo",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/admin/indexer/queues/{queue}/cancel-active",
         "operationId": "adminIndexerControllerCancelActive",
@@ -1067,12 +1301,32 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/recommendations/similar/{itemId}",
+        "operationId": "recommendationsControllerSimilar",
+        "pathParameters": [
+            "itemId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/auth/passkeys/{passkeyId}/delete",
         "operationId": "passkeyControllerRemove",
         "pathParameters": [
             "passkeyId"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/guide/sources/{id}/refresh",
+        "operationId": "adminGuideControllerRefreshSource",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -1123,6 +1377,16 @@ export const routes = [
             "id"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/indexer/media/items/{id}/lyrics",
+        "operationId": "indexerApiControllerUpsertItemLyrics",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -1496,6 +1760,26 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "patch",
+        "path": "/admin/guide/sources/{id}",
+        "operationId": "adminGuideControllerUpdateSource",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/guide/sources/{id}",
+        "operationId": "adminGuideControllerRemoveSource",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "put",
         "path": "/media/items/{id}/watched",
         "operationId": "mediaHomeControllerSetWatched",
@@ -1503,6 +1787,16 @@ export const routes = [
             "id"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/search/tasks/{uid}",
+        "operationId": "adminMediaSearchControllerTask",
+        "pathParameters": [
+            "uid"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {

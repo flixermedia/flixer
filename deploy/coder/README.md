@@ -7,6 +7,7 @@ A [Coder](https://coder.com) template that gives each workspace the whole stack:
 | flixer API (`npm start`) | workspace | 8083 |
 | flixer-streamer (`go run`) | workspace | 8091 |
 | flixer-indexer (`go run`) | workspace | 8092 |
+| flixer-ai (Uvicorn) | workspace | 8094 |
 | flixer-web (Vite dev server, HTTPS) | workspace | 5173 |
 | flixer-docs (Docusaurus dev server, **Flixer Docs** app) | workspace | 3000 |
 | PostgreSQL 16 | sidecar container (`postgres`) | 5432 |
@@ -19,7 +20,7 @@ In the workspace the indexer and streamer run inside it, so `indexer` and `strea
 `/etc/hosts` by the setup script) and default to `localhost`, while Postgres and Redis resolve as `postgres` and `redis`. The setup wizard pre-fills these, and administrators can change all four addresses
 under Admin → Settings → Connections.
 
-The workspace image has Node 26, Go 1.26, ffmpeg and the psql/redis CLIs. Postgres, Redis, and Meilisearch run as
+The workspace image has Node 26, Go 1.26, Python 3.12, ffmpeg, PostgreSQL 17 client tools (`psql`, `pg_dump`, and `pg_restore`), and the Redis CLI. Postgres, Redis, and Meilisearch run as
 sidecars on a per-workspace Docker network. Meilisearch uses the same `APP_SECRET` that Flixer publishes for the
 streamer, and its index is persisted in its own Docker volume. Tailscale joins each workspace to your tailnet, and an
 authenticated SMB share exposes `~/projects` to tailnet devices. Project repositories are stored in the persistent
@@ -35,7 +36,7 @@ cd deploy/coder
 coder templates push flixer-dev --directory .
 ```
 
-Then create a workspace from `flixer-dev`. On every start it clones the five repos into `~/projects`, writes a `.env`
+Then create a workspace from `flixer-dev`. On every start it clones the repos into `~/projects`, writes a `.env`
 in each (random `JWT_SECRET`/`APP_SECRET`, wired to the local Postgres/Redis/Meilisearch), runs `npm ci` / `go mod download`
 when needed and starts the services. Existing `.env` files keep provider keys (`TMDB_API_KEY`, `DISCOGS_TOKEN`, ...);
 the startup script maintains Flixer's managed service URLs.
@@ -54,6 +55,7 @@ Open the **Flixer** app in the workspace page. Manage services from the terminal
 ```sh
 flixer-stack status
 flixer-stack restart indexer
+flixer-stack logs ai
 flixer-stack logs api        # logs are in ~/logs/<service>.log
 docker ps
 ```
@@ -78,6 +80,11 @@ The web app installs its generated API client from the public npm registry; no G
 - **Media folder on the Docker host**: optional read-only mount at `/media`. Create libraries from it in the admin dashboard.
   Otherwise use `~/projects/flixer-data/media`. The API, streamer and indexer use
   `DATA_DIR=~/projects/flixer-data` (services inherit it as `DATA_PATH`), so config, avatars, media cache and backups all stay under that root.
+  Flixer AI runs as a Python process in the workspace, calls the API at `localhost:8083`, and caches models under
+  `~/projects/flixer-data/ai/models`. Its profile and model-download setting are in
+  `~/projects/flixer-ai/.env` (`RECOMMENDER_PROFILE=auto|classic|micro|mini`, `ALLOW_DOWNLOADS=true|false`);
+  restart it with `flixer-stack restart ai` after changing those values. The API's AI service URL is maintained as
+  `FLIXER_AI_URL=http://localhost:8094` in `~/projects/flixer/.env`.
 
 If you previously used the Docker host projects folder, it is no longer mounted and its contents are not migrated.
 They remain on the host; separately copy or back up anything you need before applying this change.

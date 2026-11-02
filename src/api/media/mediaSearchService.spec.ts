@@ -333,6 +333,34 @@ describe("MediaSearchService", () => {
 		await expect(service.searchIds("alien")).resolves.toBeNull();
 	});
 
+	it("sends document IDs as an array when deleting documents from Meilisearch", async () => {
+		const fetch = vi.fn().mockResolvedValue(response({}));
+		vi.stubGlobal("fetch", fetch);
+		const service = new MediaSearchService(emptySettingsDataSource());
+		const worker = service as unknown as {
+			applyDocumentEvents: (
+				events: Array<{
+					event_id: string;
+					item_id: string;
+					operation: "delete";
+					document: null;
+				}>,
+			) => Promise<void>;
+		};
+
+		await worker.applyDocumentEvents([
+			{ event_id: "1", item_id: "media-item-1", operation: "delete", document: null },
+		]);
+
+		expect(fetch).toHaveBeenCalledWith(
+			"http://localhost:7700/indexes/media/documents/delete-batch",
+			expect.objectContaining({
+				method: "POST",
+				body: JSON.stringify(["media-item-1"]),
+			}),
+		);
+	});
+
 	it("queues the initial index rebuild after Meilisearch becomes available", async () => {
 		const query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : []));
 		const manager = { query: vi.fn().mockResolvedValue([]) };
