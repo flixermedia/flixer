@@ -27,6 +27,7 @@ export {
 	RequestImagesController,
 	RequestsController,
 	AdminRequestsController,
+	RequestWebhookController,
 } from "./api/requests/requestsController.js";
 export { PluginSchedulerService } from "./api/plugins/pluginSchedulerService.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
@@ -39,6 +40,7 @@ export { FavoritesController } from "./api/social/favoritesController.js";
 export { PlaylistsController } from "./api/social/playlistsController.js";
 export { PartiesController } from "./api/social/partiesController.js";
 export { ChatController } from "./chat/chatController.js";
+export { IssueReportsController, AdminIssueReportsController } from "./api/issues/issueReportsController.js";
 export { ProfilesController } from "./api/social/profilesController.js";
 export { FriendsController } from "./api/social/friendsController.js";
 export { ThemesController } from "./api/themes/themesController.js";

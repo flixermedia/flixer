@@ -15,6 +15,7 @@ import {
 	TestServiceInput,
 } from "./requestRequests.js";
 import { RequestServicesService } from "./requestServicesService.js";
+import { RequestWebhookService } from "./requestWebhookService.js";
 import { DiscogsImageCache, TmdbImageCache } from "./tmdbImageCache.js";
 
 function requireId(id: string): string {
@@ -183,7 +184,20 @@ export class AdminRequestsController {
 		private readonly authService: AuthService,
 		private readonly services: RequestServicesService,
 		private readonly requests: MediaRequestsService,
+		private readonly webhooks: RequestWebhookService,
 	) {}
+
+	@Get("/webhook")
+	async getWebhookCredentials(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.webhooks.credentials();
+	}
+
+	@Post("/webhook/rotate")
+	async rotateWebhookCredentials(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.webhooks.rotateCredentials();
+	}
 
 	@Get("/services")
 	async listServices(@HeaderParams("authorization") authorization?: string) {
@@ -237,5 +251,23 @@ export class AdminRequestsController {
 	) {
 		await this.authService.requireAdmin(authorization);
 		return this.requests.updateUserLimit(requireId(id), body);
+	}
+}
+
+/** Unauthenticated entry point for authenticated Sonarr, Radarr and Lidarr notifications. */
+@Controller("/requests/webhook")
+export class RequestWebhookController {
+
+	constructor(private readonly webhooks: RequestWebhookService) {}
+
+	@Post("/:kind/:serviceId")
+	@Security("WebhookBasicAuth")
+	receive(
+		@PathParams("kind") kind: string,
+		@PathParams("serviceId") serviceId: string,
+		@BodyParams() body: unknown,
+		@HeaderParams("authorization") authorization: string,
+	) {
+		return this.webhooks.receive(kind, serviceId, authorization, body);
 	}
 }

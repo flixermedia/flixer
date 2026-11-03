@@ -6,17 +6,7 @@ import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
-import {
-	deleteUpload,
-	detectImageType,
-	MANUAL_PROVIDER,
-	MAX_MEDIA_IMAGE_BYTES,
-	mimeForUpload,
-	readUpload,
-	saveUpload,
-	UPLOAD_PREFIX,
-	uploadFilename,
-} from "./mediaImageStorage.js";
+import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
 
 export const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
 const MAX_IMAGES_PER_ITEM = 60;
@@ -83,12 +73,7 @@ function manualPosterIndex(images: unknown[] | null | undefined): number | null 
 function episodeArtworkIndex(images: unknown[] | null | undefined): number | null {
 
 	const list = (images ?? []).map(toImage);
-	return (
-		list.find((image) => image.type === "poster" && image.available && image.manual)?.index ??
-		list.find((image) => image.type === "poster" && image.available)?.index ??
-		list.find((image) => image.type === "thumb" && image.available)?.index ??
-		null
-	);
+	return list.find((image) => image.type === "poster" && image.available && image.manual)?.index ?? list.find((image) => image.type === "poster" && image.available)?.index ?? list.find((image) => image.type === "thumb" && image.available)?.index ?? null;
 
 }
 
@@ -111,23 +96,7 @@ const MEDIA_CATEGORIES = {
 } as const satisfies Record<string, readonly MediaItemType[]>;
 type MediaCategory = keyof typeof MEDIA_CATEGORIES;
 type MediaCategoryCounts = Record<MediaCategory, number>;
-type MediaItemListFields = Pick<
-	MediaItem,
-	| "id"
-	| "libraryId"
-	| "parentId"
-	| "type"
-	| "title"
-	| "year"
-	| "seasonNumber"
-	| "episodeNumber"
-	| "path"
-	| "providerIds"
-	| "sizeBytes"
-	| "editedFields"
-	| "images"
-	| "updatedAt"
->;
+type MediaItemListFields = Pick<MediaItem, "id" | "libraryId" | "parentId" | "type" | "title" | "year" | "seasonNumber" | "episodeNumber" | "path" | "providerIds" | "sizeBytes" | "editedFields" | "images" | "updatedAt">;
 /** Which request field maps to which item field, for tracking admin edits. */
 const EDITABLE = ["title", "sortTitle", "year", "seasonNumber", "episodeNumber", "episodeEndNumber"] as const;
 
@@ -148,12 +117,7 @@ export class AdminMediaService {
 			return this.popularOverview();
 		}
 
-		const builder = this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.leftJoin("media_items", "parent", "parent.id = item.parent_id")
-			.addSelect("parent.title", "parentTitle")
-			.where("item.is_placeholder = false");
+		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").leftJoin("media_items", "parent", "parent.id = item.parent_id").addSelect("parent.title", "parentTitle").where("item.is_placeholder = false");
 
 		if (query.libraryId) {
 			builder.andWhere("item.library_id = :libraryId", { libraryId: query.libraryId });
@@ -192,16 +156,12 @@ export class AdminMediaService {
 			...this.toListItem(item),
 			parentTitle: (raw[index]?.parentTitle as string | null) ?? null,
 		}));
-		const categoryCounts = search
-			? await this.searchCategoryCounts(query, search)
-			: await this.globalCategoryCounts();
+		const categoryCounts = search ? await this.searchCategoryCounts(query, search) : await this.globalCategoryCounts();
 		return { items, total, page, size, categoryCounts };
 	}
 
 	private async globalCategoryCounts(): Promise<MediaCategoryCounts> {
-		const counts = Object.fromEntries(
-			Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0]),
-		) as MediaCategoryCounts;
+		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
 		const rows = await this.dataSource.query<Array<{ category: MediaCategory; count: string | number }>>(`
 			SELECT CASE
 				WHEN type IN ('movie', 'video') THEN 'movies'
@@ -218,15 +178,7 @@ export class AdminMediaService {
 	}
 
 	private async searchCategoryCounts(query: MediaItemQuery, search: string): Promise<MediaCategoryCounts> {
-		const builder = this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.select(
-				"CASE WHEN item.type IN ('movie', 'video') THEN 'movies' WHEN item.type IN ('series', 'season', 'episode') THEN 'tvShows' ELSE 'music' END",
-				"category",
-			)
-			.addSelect("COUNT(*)", "count")
-			.where("item.is_placeholder = false");
+		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("CASE WHEN item.type IN ('movie', 'video') THEN 'movies' WHEN item.type IN ('series', 'season', 'episode') THEN 'tvShows' ELSE 'music' END", "category").addSelect("COUNT(*)", "count").where("item.is_placeholder = false");
 		if (query.libraryId) builder.andWhere("item.library_id = :libraryId", { libraryId: query.libraryId });
 		if (query.type) {
 			if (Object.hasOwn(MEDIA_CATEGORIES, query.type)) {
@@ -239,9 +191,7 @@ export class AdminMediaService {
 		const escaped = search.replace(/[\\%_]/g, "\\$&");
 		builder.andWhere("(item.title ILIKE :search OR item.path ILIKE :search)", { search: `%${escaped}%` });
 
-		const counts = Object.fromEntries(
-			Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0]),
-		) as MediaCategoryCounts;
+		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
 		const rows = await builder.groupBy("category").getRawMany<{ category: MediaCategory; count: string }>();
 		for (const row of rows) counts[row.category] = Number(row.count);
 		return counts;
@@ -350,9 +300,7 @@ export class AdminMediaService {
 
 	async get(id: string) {
 		const item = await this.find(id);
-		const parent = item.parentId
-			? await this.dataSource.getRepository(MediaItem).findOneBy({ id: item.parentId })
-			: null;
+		const parent = item.parentId ? await this.dataSource.getRepository(MediaItem).findOneBy({ id: item.parentId }) : null;
 		const childCount = await this.dataSource.getRepository(MediaItem).countBy({ parentId: item.id });
 		const { images, ...rest } = item;
 		return {
@@ -411,10 +359,7 @@ export class AdminMediaService {
 			throw new BadRequest("This item has no stable library path for image storage.");
 		}
 		const filename = await saveUpload(item.rootId, item.relativePath, item.id, buffer, detected);
-		item.images = [
-			...(item.images ?? []),
-			{ type, path: `${UPLOAD_PREFIX}${filename}`, provider: MANUAL_PROVIDER },
-		];
+		item.images = [...(item.images ?? []), { type, path: `${UPLOAD_PREFIX}${filename}`, provider: MANUAL_PROVIDER }];
 		await repository.save(item);
 		return this.get(id);
 	}
@@ -448,25 +393,44 @@ export class AdminMediaService {
 		for (const field of EDITABLE) {
 			const value = request[field];
 			if (value !== undefined) {
-				(item as unknown as Record<string, unknown>)[field] =
-					typeof value === "string" && field === "sortTitle" && value.trim() === "" ? null : value;
+				(item as unknown as Record<string, unknown>)[field] = typeof value === "string" && field === "sortTitle" && value.trim() === "" ? null : value;
 				edited.add(field);
 			}
 		}
 		if (request.overview !== undefined) {
 			const { overview: _previous, ...rest } = item.metadata ?? {};
-			item.metadata =
-				request.overview === null || request.overview.trim() === ""
-					? rest
-					: { ...rest, overview: request.overview };
+			item.metadata = request.overview === null || request.overview.trim() === "" ? rest : { ...rest, overview: request.overview };
 			edited.add("overview");
 		}
+		if (request.chapters !== undefined) {
+			const durationMs = Number(item.technical?.duration) * 1000;
+			const chapters = request.chapters
+				.map((chapter) => ({
+					title: chapter.title.trim(),
+					startMs: chapter.startMs,
+					endMs: chapter.endMs,
+				}))
+				.sort((left, right) => left.startMs - right.startMs);
+			if (chapters.some((chapter) => !chapter.title || chapter.startMs < 0 || chapter.endMs <= chapter.startMs || (Number.isFinite(durationMs) && durationMs > 0 && chapter.endMs > durationMs))) {
+				throw new BadRequest("Each chapter needs a title and a valid range within the media duration.");
+			}
+			for (let index = 1; index < chapters.length; index++) {
+				if (chapters[index]!.startMs < chapters[index - 1]!.endMs) {
+					throw new BadRequest("Chapter ranges cannot overlap.");
+				}
+			}
+			item.metadata = {
+				...(item.metadata ?? {}),
+				adminChapters: chapters.map((chapter) => ({
+					title: chapter.title,
+					start: chapter.startMs / 1000,
+					end: chapter.endMs / 1000,
+				})),
+			};
+			edited.add("chapters");
+		}
 		if (request.providerIds !== undefined) {
-			if (
-				typeof request.providerIds !== "object" ||
-				request.providerIds === null ||
-				Array.isArray(request.providerIds)
-			) {
+			if (typeof request.providerIds !== "object" || request.providerIds === null || Array.isArray(request.providerIds)) {
 				throw new BadRequest("providerIds must be an object of provider names and text IDs.");
 			}
 			item.providerIds = { ...(item.providerIds ?? {}) };
@@ -476,9 +440,7 @@ export class AdminMediaService {
 					throw new BadRequest(`"${rawProvider}" is not a valid provider name.`);
 				}
 				if (rawValue !== null && (typeof rawValue !== "string" || rawValue.length > MAX_PROVIDER_ID_LENGTH)) {
-					throw new BadRequest(
-						`The "${provider}" ID must be text up to ${MAX_PROVIDER_ID_LENGTH} characters, or null.`,
-					);
+					throw new BadRequest(`The "${provider}" ID must be text up to ${MAX_PROVIDER_ID_LENGTH} characters, or null.`);
 				}
 				const value = typeof rawValue === "string" ? rawValue.trim() : "";
 				if (value) {
@@ -562,12 +524,7 @@ export class AdminMediaService {
 			providerIds: item.providerIds,
 			sizeBytes: item.sizeBytes,
 			edited: (item.editedFields ?? []).length > 0,
-			poster:
-				item.type === "track"
-					? manualPosterIndex(item.images)
-					: item.type === "episode"
-						? episodeArtworkIndex(item.images)
-						: posterIndex(item.images),
+			poster: item.type === "track" ? manualPosterIndex(item.images) : item.type === "episode" ? episodeArtworkIndex(item.images) : posterIndex(item.images),
 			updatedAt: item.updatedAt,
 		};
 	}

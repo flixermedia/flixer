@@ -10,6 +10,10 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "WebhookBasicAuth": {
+        "type": "http",
+        "scheme": "basic"
       }
     },
     "schemas": {
@@ -1216,8 +1220,40 @@
               ],
               "maxLength": 256
             }
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpdateMediaChapterRequest"
+            },
+            "maxItems": 1000
           }
         }
+      },
+      "UpdateMediaChapterRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "startMs": {
+            "type": "integer",
+            "minimum": 0,
+            "multipleOf": 1
+          },
+          "endMs": {
+            "type": "integer",
+            "minimum": 1,
+            "multipleOf": 1
+          }
+        },
+        "required": [
+          "title",
+          "startMs",
+          "endMs"
+        ]
       },
       "RefreshMediaItemRequest": {
         "type": "object",
@@ -1619,6 +1655,69 @@
           "itemId"
         ]
       },
+      "RegisterChatMlsDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "deviceId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          },
+          "keyPackage": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          },
+          "pairingPublicKey": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "deviceId",
+          "keyPackage",
+          "pairingPublicKey"
+        ]
+      },
+      "ApproveChatMlsDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "approverDeviceId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "approverDeviceId",
+          "signature"
+        ]
+      },
+      "AddChatMlsKeyPackageRequest": {
+        "type": "object",
+        "properties": {
+          "keyPackage": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "keyPackage"
+        ]
+      },
       "StartChatRequest": {
         "type": "object",
         "properties": {
@@ -1652,17 +1751,119 @@
           "name"
         ]
       },
+      "StoreChatMlsWelcomeRequest": {
+        "type": "object",
+        "properties": {
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMlsWelcomeRecipientRequest"
+            },
+            "maxItems": 200
+          },
+          "welcome": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          },
+          "ratchetTree": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          },
+          "messageId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "recipients",
+          "welcome",
+          "ratchetTree",
+          "messageId"
+        ]
+      },
+      "ChatMlsWelcomeRecipientRequest": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          },
+          "keyPackageId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "deviceId",
+          "keyPackageId"
+        ]
+      },
+      "AcknowledgeChatMlsWelcomeRequest": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "deviceId"
+        ]
+      },
       "SendMessageRequest": {
         "type": "object",
         "properties": {
           "body": {
             "type": "string",
-            "maxLength": 2000,
+            "maxLength": 32768,
             "minLength": 1
+          },
+          "encrypted": {
+            "type": "boolean"
+          },
+          "mlsDeviceId": {
+            "type": "string",
+            "maxLength": 36
+          },
+          "mlsWelcome": {
+            "$ref": "#/components/schemas/ChatMlsWelcomeDeliveryRequest"
           }
         },
         "required": [
           "body"
+        ]
+      },
+      "ChatMlsWelcomeDeliveryRequest": {
+        "type": "object",
+        "properties": {
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMlsWelcomeRecipientRequest"
+            },
+            "maxItems": 200
+          },
+          "welcome": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          },
+          "ratchetTree": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "recipients",
+          "welcome",
+          "ratchetTree"
         ]
       },
       "AddMembersRequest": {
@@ -1678,6 +1879,75 @@
         },
         "required": [
           "usernames"
+        ]
+      },
+      "CreateIssueReportRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1
+          },
+          "mediaItemId": {
+            "type": "string",
+            "maxLength": 36
+          }
+        },
+        "required": [
+          "title",
+          "category",
+          "description"
+        ]
+      },
+      "UpdateIssueReportStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AddIssueReportUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          "isInternal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "SetIssueReportChatRequest": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "open"
         ]
       },
       "UpdateProfileVisibilityRequest": {
@@ -5567,6 +5837,21 @@
           "updatedAt"
         ]
       },
+      "api_requests_requestWebhookService_RequestWebhookCredentials": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
       "api_requests_requestServicesService_RequestServiceView": {
         "type": "object",
         "properties": {
@@ -7261,6 +7546,9 @@
           "id": {
             "type": "string"
           },
+          "sequence": {
+            "type": "string"
+          },
           "conversationId": {
             "type": "string"
           },
@@ -7295,6 +7583,7 @@
         },
         "required": [
           "id",
+          "sequence",
           "conversationId",
           "kind",
           "body",
@@ -7330,6 +7619,21 @@
               }
             ]
           },
+          "supportChatOpen": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "boolean",
+                "const": false
+              },
+              {
+                "type": "boolean",
+                "const": true
+              }
+            ]
+          },
           "members": {
             "type": "array",
             "items": {
@@ -7357,10 +7661,237 @@
           "id",
           "kind",
           "name",
+          "supportChatOpen",
           "members",
           "lastMessage",
           "unread",
           "updatedAt"
+        ]
+      },
+      "chat_chatService_ChatMlsDeviceSummary": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "active"
+              },
+              {
+                "type": "string",
+                "const": "pending"
+              },
+              {
+                "type": "string",
+                "const": "revoked"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "approvedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "approvalChallenge": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "deviceId",
+          "name",
+          "status",
+          "createdAt",
+          "approvedAt",
+          "approvalChallenge"
+        ]
+      },
+      "api_issues_issueReportsService_IssueReportUpdate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "isInternal": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "displayName"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "isInternal",
+          "createdAt",
+          "author"
+        ]
+      },
+      "api_issues_issueReportsService_IssueReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "in_progress"
+              },
+              {
+                "type": "string",
+                "const": "open"
+              },
+              {
+                "type": "string",
+                "const": "resolved"
+              },
+              {
+                "type": "string",
+                "const": "closed"
+              }
+            ]
+          },
+          "mediaItemId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "mediaTitle": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "chatOpen": {
+            "type": "boolean"
+          },
+          "chatConversationId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "requester": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username",
+              "displayName"
+            ]
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReportUpdate"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "description",
+          "status",
+          "mediaItemId",
+          "mediaTitle",
+          "chatOpen",
+          "chatConversationId",
+          "createdAt",
+          "updatedAt",
+          "resolvedAt",
+          "requester"
         ]
       },
       "api_social_profilesService_NowPlaying": {
@@ -17599,6 +18130,70 @@
         "operationId": "indexerApiControllerPruneLibrary"
       }
     },
+    "/api/indexer/libraries/{id}/remove-paths": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "removed"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-indexer-timestamp",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-indexer-signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "tags": [
+          "IndexerApiController"
+        ],
+        "operationId": "indexerApiControllerRemoveItemsAtPaths"
+      }
+    },
     "/api/admin/indexer/status": {
       "get": {
         "responses": {
@@ -20066,6 +20661,76 @@
         "operationId": "requestsControllerRemove"
       }
     },
+    "/api/admin/requests/webhook": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_requests_requestWebhookService_RequestWebhookCredentials"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminRequestsController"
+        ],
+        "operationId": "adminRequestsControllerGetWebhookCredentials"
+      }
+    },
+    "/api/admin/requests/webhook/rotate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_requests_requestWebhookService_RequestWebhookCredentials"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminRequestsController"
+        ],
+        "operationId": "adminRequestsControllerRotateWebhookCredentials"
+      }
+    },
     "/api/admin/requests/services": {
       "get": {
         "responses": {
@@ -20368,6 +21033,87 @@
           "AdminRequestsController"
         ],
         "operationId": "adminRequestsControllerUpdateUser"
+      }
+    },
+    "/api/requests/webhook/{kind}/{serviceId}": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "ignored": {
+                      "type": "boolean"
+                    },
+                    "queued": {
+                      "type": "number"
+                    },
+                    "alreadyQueued": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "ignored",
+                    "queued",
+                    "alreadyQueued"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "WebhookBasicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "serviceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "tags": [
+          "RequestWebhookController"
+        ],
+        "operationId": "requestWebhookControllerReceive"
       }
     },
     "/api/admin/media/items/{id}/subtitles": {
@@ -26095,6 +26841,385 @@
         "operationId": "chatControllerUnread"
       }
     },
+    "/api/chat/encryption/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "enabled"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerEncryptionStatus"
+      }
+    },
+    "/api/chat/devices": {
+      "post": {
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deviceId": {
+                      "type": "string"
+                    },
+                    "keyPackageId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "active"
+                        },
+                        {
+                          "type": "string",
+                          "const": "pending"
+                        }
+                      ]
+                    },
+                    "approvalChallenge": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "deviceId",
+                    "keyPackageId",
+                    "status",
+                    "approvalChallenge"
+                  ]
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterChatMlsDeviceRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerRegisterMlsDevice"
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/chat_chatService_ChatMlsDeviceSummary"
+                      }
+                    }
+                  },
+                  "required": [
+                    "devices"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerMlsDevices"
+      }
+    },
+    "/api/chat/devices/{deviceId}/approve": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveChatMlsDeviceRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerApproveMlsDevice"
+      }
+    },
+    "/api/chat/devices/{deviceId}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerRevokeMlsDevice"
+      }
+    },
+    "/api/chat/devices/{deviceId}/key-packages": {
+      "post": {
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keyPackageId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "keyPackageId"
+                  ]
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddChatMlsKeyPackageRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerAddMlsKeyPackage"
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keyPackages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "keyPackageId": {
+                            "type": "string"
+                          },
+                          "keyPackage": {
+                            "type": "string"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "keyPackageId",
+                          "keyPackage",
+                          "available"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "keyPackages"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerDeviceMlsKeyPackages"
+      }
+    },
     "/api/chat/conversations/{id}": {
       "get": {
         "responses": {
@@ -26283,6 +27408,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "beforeSequence",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterSequence",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -26346,6 +27487,363 @@
           "ChatController"
         ],
         "operationId": "chatControllerSend"
+      }
+    },
+    "/api/chat/conversations/{id}/mls/key-packages": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keyPackages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "deviceId": {
+                            "type": "string"
+                          },
+                          "keyPackageId": {
+                            "type": "string"
+                          },
+                          "keyPackage": {
+                            "type": "string"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "deviceId",
+                          "keyPackageId",
+                          "keyPackage",
+                          "available"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "keyPackages"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerMlsKeyPackages"
+      }
+    },
+    "/api/chat/conversations/{id}/mls/key-packages/{keyPackageId}/claim": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "deviceId": {
+                      "type": "string"
+                    },
+                    "keyPackageId": {
+                      "type": "string"
+                    },
+                    "keyPackage": {
+                      "type": "string"
+                    },
+                    "available": {
+                      "type": "boolean",
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "deviceId",
+                    "keyPackageId",
+                    "keyPackage",
+                    "available"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "keyPackageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerClaimMlsKeyPackage"
+      }
+    },
+    "/api/chat/conversations/{id}/mls/welcomes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "welcomes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "messageId": {
+                            "type": "string"
+                          },
+                          "keyPackageId": {
+                            "type": "string"
+                          },
+                          "welcome": {
+                            "type": "string"
+                          },
+                          "ratchetTree": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "messageId",
+                          "keyPackageId",
+                          "welcome",
+                          "ratchetTree",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "welcomes"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deviceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerMlsWelcomes"
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stored": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "stored"
+                  ]
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreChatMlsWelcomeRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerStoreMlsWelcome"
+      }
+    },
+    "/api/chat/conversations/{id}/mls/welcomes/{welcomeId}/ack": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "welcomeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeChatMlsWelcomeRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ChatController"
+        ],
+        "operationId": "chatControllerAcknowledgeMlsWelcome"
       }
     },
     "/api/chat/conversations/{id}/read": {
@@ -26479,6 +27977,465 @@
           "ChatController"
         ],
         "operationId": "chatControllerRemoveMember"
+      }
+    },
+    "/api/issues/config": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "chatEnabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "categories",
+                    "chatEnabled"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "tags": [
+          "IssueReportsController"
+        ],
+        "operationId": "issueReportsControllerConfiguration"
+      }
+    },
+    "/api/issues": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reports": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                      }
+                    }
+                  },
+                  "required": [
+                    "reports"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "IssueReportsController"
+        ],
+        "operationId": "issueReportsControllerList"
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueReportRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "IssueReportsController"
+        ],
+        "operationId": "issueReportsControllerCreate"
+      }
+    },
+    "/api/issues/{id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "IssueReportsController"
+        ],
+        "operationId": "issueReportsControllerGet"
+      }
+    },
+    "/api/admin/issues": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reports": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                      }
+                    }
+                  },
+                  "required": [
+                    "reports"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerList"
+      }
+    },
+    "/api/admin/issues/{id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerGet"
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerDelete"
+      }
+    },
+    "/api/admin/issues/{id}/status": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueReportStatusRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerUpdateStatus"
+      }
+    },
+    "/api/admin/issues/{id}/updates": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddIssueReportUpdateRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerAddUpdate"
+      }
+    },
+    "/api/admin/issues/{id}/chat": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api_issues_issueReportsService_IssueReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetIssueReportChatRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "AdminIssueReportsController"
+        ],
+        "operationId": "adminIssueReportsControllerSetChat"
       }
     },
     "/api/profiles": {
@@ -28991,6 +30948,9 @@
       "name": "AdminRequestsController"
     },
     {
+      "name": "RequestWebhookController"
+    },
+    {
       "name": "AdminMediaController"
     },
     {
@@ -29022,6 +30982,12 @@
     },
     {
       "name": "ChatController"
+    },
+    {
+      "name": "IssueReportsController"
+    },
+    {
+      "name": "AdminIssueReportsController"
     },
     {
       "name": "ProfilesController"

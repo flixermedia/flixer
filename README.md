@@ -76,6 +76,15 @@ docker compose down
 
 Be careful with `docker compose down -v` because named volumes are deleted. Back up persistent data before major changes.
 
+To add HLS image playlists to existing trickplay cache entries, preview the conversion and then write the playlists:
+
+```bash
+node scripts/convert-trickplay-cache.mjs
+node scripts/convert-trickplay-cache.mjs --write
+```
+
+The script uses `DATA_DIR` from the environment or `.env` by default, preserves existing indexes and JPEG sheets, and skips existing playlists unless `--force` is supplied. Use `--data-dir /path/to/data` to select another data directory.
+
 ## 🧩 Flixer ecosystem
 
 | Repository | Purpose |

@@ -1443,6 +1443,18 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const indexerApiControllerRemoveItemsAtPaths = (id, indexerApiControllerRemoveItemsAtPathsBody, options) => {
+        return axiosInstance.post(`/indexer/libraries/${id}/remove-paths`, indexerApiControllerRemoveItemsAtPathsBody, options);
+    };
+    const getIndexerApiControllerRemoveItemsAtPathsUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/indexer/libraries/${id}/remove-paths`,
+            baseURL: '',
+        });
+    };
     const adminIndexerControllerStatus = (options) => {
         return axiosInstance.get(`/admin/indexer/status`, options);
     };
@@ -1975,6 +1987,30 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const adminRequestsControllerGetWebhookCredentials = (options) => {
+        return axiosInstance.get(`/admin/requests/webhook`, options);
+    };
+    const getAdminRequestsControllerGetWebhookCredentialsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/requests/webhook`,
+            baseURL: '',
+        });
+    };
+    const adminRequestsControllerRotateWebhookCredentials = (options) => {
+        return axiosInstance.post(`/admin/requests/webhook/rotate`, undefined, options);
+    };
+    const getAdminRequestsControllerRotateWebhookCredentialsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/requests/webhook/rotate`,
+            baseURL: '',
+        });
+    };
     const adminRequestsControllerListServices = (options) => {
         return axiosInstance.get(`/admin/requests/services`, options);
     };
@@ -2056,6 +2092,18 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             params: null,
         }).getUri({
             url: `/admin/requests/users/${id}`,
+            baseURL: '',
+        });
+    };
+    const requestWebhookControllerReceive = (kind, serviceId, requestWebhookControllerReceiveBody, options) => {
+        return axiosInstance.post(`/requests/webhook/${kind}/${serviceId}`, requestWebhookControllerReceiveBody, options);
+    };
+    const getRequestWebhookControllerReceiveUrl = (kind, serviceId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/requests/webhook/${kind}/${serviceId}`,
             baseURL: '',
         });
     };
@@ -2970,6 +3018,90 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const chatControllerEncryptionStatus = (options) => {
+        return axiosInstance.get(`/chat/encryption/status`, options);
+    };
+    const getChatControllerEncryptionStatusUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/encryption/status`,
+            baseURL: '',
+        });
+    };
+    const chatControllerRegisterMlsDevice = (registerChatMlsDeviceRequest, options) => {
+        return axiosInstance.post(`/chat/devices`, registerChatMlsDeviceRequest, options);
+    };
+    const getChatControllerRegisterMlsDeviceUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices`,
+            baseURL: '',
+        });
+    };
+    const chatControllerMlsDevices = (options) => {
+        return axiosInstance.get(`/chat/devices`, options);
+    };
+    const getChatControllerMlsDevicesUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices`,
+            baseURL: '',
+        });
+    };
+    const chatControllerApproveMlsDevice = (deviceId, approveChatMlsDeviceRequest, options) => {
+        return axiosInstance.post(`/chat/devices/${deviceId}/approve`, approveChatMlsDeviceRequest, options);
+    };
+    const getChatControllerApproveMlsDeviceUrl = (deviceId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices/${deviceId}/approve`,
+            baseURL: '',
+        });
+    };
+    const chatControllerRevokeMlsDevice = (deviceId, options) => {
+        return axiosInstance.delete(`/chat/devices/${deviceId}`, options);
+    };
+    const getChatControllerRevokeMlsDeviceUrl = (deviceId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices/${deviceId}`,
+            baseURL: '',
+        });
+    };
+    const chatControllerAddMlsKeyPackage = (deviceId, addChatMlsKeyPackageRequest, options) => {
+        return axiosInstance.post(`/chat/devices/${deviceId}/key-packages`, addChatMlsKeyPackageRequest, options);
+    };
+    const getChatControllerAddMlsKeyPackageUrl = (deviceId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices/${deviceId}/key-packages`,
+            baseURL: '',
+        });
+    };
+    const chatControllerDeviceMlsKeyPackages = (deviceId, options) => {
+        return axiosInstance.get(`/chat/devices/${deviceId}/key-packages`, options);
+    };
+    const getChatControllerDeviceMlsKeyPackagesUrl = (deviceId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/devices/${deviceId}/key-packages`,
+            baseURL: '',
+        });
+    };
     const chatControllerGet = (id, options) => {
         return axiosInstance.get(`/chat/conversations/${id}`, options);
     };
@@ -3034,6 +3166,70 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const chatControllerMlsKeyPackages = (id, options) => {
+        return axiosInstance.get(`/chat/conversations/${id}/mls/key-packages`, options);
+    };
+    const getChatControllerMlsKeyPackagesUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/mls/key-packages`,
+            baseURL: '',
+        });
+    };
+    const chatControllerClaimMlsKeyPackage = (id, keyPackageId, options) => {
+        return axiosInstance.post(`/chat/conversations/${id}/mls/key-packages/${keyPackageId}/claim`, undefined, options);
+    };
+    const getChatControllerClaimMlsKeyPackageUrl = (id, keyPackageId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/mls/key-packages/${keyPackageId}/claim`,
+            baseURL: '',
+        });
+    };
+    const chatControllerMlsWelcomes = (id, params, options) => {
+        return axiosInstance.get(`/chat/conversations/${id}/mls/welcomes`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getChatControllerMlsWelcomesUrl = (id, params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/mls/welcomes`,
+            baseURL: '',
+            params,
+        });
+    };
+    const chatControllerStoreMlsWelcome = (id, storeChatMlsWelcomeRequest, options) => {
+        return axiosInstance.post(`/chat/conversations/${id}/mls/welcomes`, storeChatMlsWelcomeRequest, options);
+    };
+    const getChatControllerStoreMlsWelcomeUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/mls/welcomes`,
+            baseURL: '',
+        });
+    };
+    const chatControllerAcknowledgeMlsWelcome = (id, welcomeId, acknowledgeChatMlsWelcomeRequest, options) => {
+        return axiosInstance.post(`/chat/conversations/${id}/mls/welcomes/${welcomeId}/ack`, acknowledgeChatMlsWelcomeRequest, options);
+    };
+    const getChatControllerAcknowledgeMlsWelcomeUrl = (id, welcomeId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/mls/welcomes/${welcomeId}/ack`,
+            baseURL: '',
+        });
+    };
     const chatControllerRead = (id, options) => {
         return axiosInstance.post(`/chat/conversations/${id}/read`, undefined, options);
     };
@@ -3067,6 +3263,126 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             params: null,
         }).getUri({
             url: `/chat/conversations/${id}/members/${username}`,
+            baseURL: '',
+        });
+    };
+    const issueReportsControllerConfiguration = (options) => {
+        return axiosInstance.get(`/issues/config`, options);
+    };
+    const getIssueReportsControllerConfigurationUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/issues/config`,
+            baseURL: '',
+        });
+    };
+    const issueReportsControllerList = (options) => {
+        return axiosInstance.get(`/issues`, options);
+    };
+    const getIssueReportsControllerListUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/issues`,
+            baseURL: '',
+        });
+    };
+    const issueReportsControllerCreate = (createIssueReportRequest, options) => {
+        return axiosInstance.post(`/issues`, createIssueReportRequest, options);
+    };
+    const getIssueReportsControllerCreateUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/issues`,
+            baseURL: '',
+        });
+    };
+    const issueReportsControllerGet = (id, options) => {
+        return axiosInstance.get(`/issues/${id}`, options);
+    };
+    const getIssueReportsControllerGetUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/issues/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerList = (options) => {
+        return axiosInstance.get(`/admin/issues`, options);
+    };
+    const getAdminIssueReportsControllerListUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerGet = (id, options) => {
+        return axiosInstance.get(`/admin/issues/${id}`, options);
+    };
+    const getAdminIssueReportsControllerGetUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerDelete = (id, options) => {
+        return axiosInstance.delete(`/admin/issues/${id}`, options);
+    };
+    const getAdminIssueReportsControllerDeleteUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerUpdateStatus = (id, updateIssueReportStatusRequest, options) => {
+        return axiosInstance.patch(`/admin/issues/${id}/status`, updateIssueReportStatusRequest, options);
+    };
+    const getAdminIssueReportsControllerUpdateStatusUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues/${id}/status`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerAddUpdate = (id, addIssueReportUpdateRequest, options) => {
+        return axiosInstance.post(`/admin/issues/${id}/updates`, addIssueReportUpdateRequest, options);
+    };
+    const getAdminIssueReportsControllerAddUpdateUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues/${id}/updates`,
+            baseURL: '',
+        });
+    };
+    const adminIssueReportsControllerSetChat = (id, setIssueReportChatRequest, options) => {
+        return axiosInstance.patch(`/admin/issues/${id}/chat`, setIssueReportChatRequest, options);
+    };
+    const getAdminIssueReportsControllerSetChatUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/issues/${id}/chat`,
             baseURL: '',
         });
     };
@@ -3465,5 +3781,5 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
-    return { versionControllerGet, setupControllerStatus, setupControllerRequestRecoveryKey, setupControllerProgress, setupControllerFlow, setupControllerTestStep, setupControllerApplyStep, setupControllerComplete, setupControllerReset, internalConfigControllerGet, aiControllerLibraryContext, aiControllerRecommendationContext, aiControllerRuntimeConfiguration, aiControllerRecommendationCacheState, aiControllerSaveRecommendationCache, aiControllerClearRecommendationCache, recommendationsControllerHomeRecommendations, recommendationsControllerMusicRecommendations, recommendationsControllerRecommend, recommendationsControllerSimilar, aiAdminControllerStatus, aiAdminControllerUpdateConfiguration, aiAdminControllerRetry, aiAdminControllerRecommendations, aiAdminControllerRefreshUserRecommendations, authControllerRegister, authControllerMe, authControllerUpdateMe, authControllerSetPasskeyRequired, authControllerChangePassword, authControllerDeleteMe, authControllerVerifyEmail, authControllerResendVerification, authControllerLogin, authControllerListSessions, authControllerRevokeSession, authControllerLogout, avatarControllerUpload, avatarControllerRemove, avatarControllerAvatar, passkeyControllerList, passkeyControllerRegistrationOptions, passkeyControllerRegistrationVerify, passkeyControllerLoginOptions, passkeyControllerLoginVerify, passkeyControllerSecondFactorOptions, passkeyControllerSecondFactorVerify, passkeyControllerStartNativeHandoff, passkeyControllerNativeHandoffOptions, passkeyControllerVerifyNativeHandoff, passkeyControllerExchangeNativeHandoff, passkeyControllerRemove, userControllerListUsers, userControllerGetUser, userControllerDeleteUser, preferencesControllerGet, preferencesControllerUpdate, settingsControllerList, settingsControllerRegistrationStatus, settingsControllerSendTestEmail, settingsControllerUpdate, playbackControllerListSamples, playbackControllerItemPlaybackInfo, playbackControllerChannelPlaybackInfo, playbackControllerPlaybackInfo, guideControllerGet, adminGuideControllerOverview, adminGuideControllerSources, adminGuideControllerCreateSource, adminGuideControllerUpdateSource, adminGuideControllerRemoveSource, adminGuideControllerRefreshSource, adminGuideControllerUpdateChannels, adminGuideControllerUpdateSettings, jobsControllerGetQueues, jobsControllerFindJobs, jobsControllerEnqueue, jobsControllerGetJob, jobsControllerCancelJob, jobsControllerRetryJob, jobsControllerGetSchedules, jobsControllerSchedule, jobsControllerUnschedule, adminScheduledTasksControllerList, adminScheduledTasksControllerSaveSchedule, adminScheduledTasksControllerRun, adminScheduledTasksControllerStop, streamsControllerListSessions, streamsControllerCancelSession, devicesControllerList, devicesControllerSignOut, apiKeysControllerList, apiKeysControllerCreate, apiKeysControllerRevoke, mediaLibrariesControllerList, mediaLibrariesControllerCreate, mediaLibrariesControllerListRoots, mediaLibrariesControllerBrowse, mediaLibrariesControllerUpdate, mediaLibrariesControllerRemove, streamerRootsControllerList, streamerRootsControllerTranscoding, indexerApiControllerListLibraries, indexerApiControllerGetSettings, indexerApiControllerUpsertItem, indexerApiControllerUpsertItemLyrics, indexerApiControllerIntroSyncCandidates, indexerApiControllerExistingIntroSegments, indexerApiControllerUpdateIntroSegments, indexerApiControllerPruneLibrary, adminIndexerControllerStatus, adminIndexerControllerScan, adminIndexerControllerQueueSegments, adminIndexerControllerRefresh, adminIndexerControllerTasks, adminIndexerControllerTaskLogs, adminIndexerControllerCancelTask, adminIndexerControllerRetryTask, adminIndexerControllerCancelActive, adminIndexerControllerClearFailed, adminIndexerControllerPause, adminIndexerControllerResume, adminIndexerControllerSetConcurrency, pluginsControllerInstalled, pluginsControllerRepositories, pluginsControllerAddRepository, pluginsControllerCatalog, pluginsControllerPluginSettingsView, pluginsControllerUpdatePluginSettings, pluginsControllerPluginUpdateHistory, pluginsControllerInstall, pluginsControllerEnable, pluginsControllerDisable, pluginsControllerUninstall, pluginsControllerRefreshRepository, pluginsControllerRemoveRepository, pluginRuntimeControllerListPages, pluginRuntimeControllerSearchSections, pluginRuntimeControllerInvoke, requestImagesControllerTmdb, requestImagesControllerDiscogs, requestsControllerConfig, requestsControllerSearch, requestsControllerDiscover, requestsControllerDetails, requestsControllerList, requestsControllerCreate, requestsControllerApprove, requestsControllerDecline, requestsControllerRetry, requestsControllerRemove, adminRequestsControllerListServices, adminRequestsControllerCreateService, adminRequestsControllerTestService, adminRequestsControllerUpdateService, adminRequestsControllerRemoveService, adminRequestsControllerListUsers, adminRequestsControllerUpdateUser, adminMediaControllerListSubtitles, adminMediaControllerRemoveSubtitle, adminMediaControllerSearchSubtitles, adminMediaControllerDownloadSubtitle, adminMediaControllerSetSegment, adminMediaControllerClearSegment, adminMediaControllerList, adminMediaControllerGet, adminMediaControllerUpdate, adminMediaControllerRemove, adminMediaControllerRefresh, adminMediaControllerImage, adminMediaControllerRemoveImage, adminMediaControllerAddImage, mediaHomeControllerGetHome, mediaHomeControllerGetProgress, mediaHomeControllerSaveProgress, mediaHomeControllerSetWatched, mediaHomeControllerGenres, mediaHomeControllerSearch, mediaHomeControllerPersonImage, mediaHomeControllerPerson, mediaHomeControllerBrowse, mediaHomeControllerItem, mediaHomeControllerImage, adminMediaSearchControllerStatus, adminMediaSearchControllerTask, adminMediaSearchControllerSaveSettings, adminMediaSearchControllerRebuild, adminMediaSearchControllerReset, networkSharesControllerList, networkSharesControllerCreate, networkSharesControllerSupport, networkSharesControllerUpdate, networkSharesControllerRemove, networkSharesControllerReconnect, adminUsersControllerList, adminUsersControllerCreate, adminUsersControllerUpdate, adminUsersControllerRemove, adminUsersControllerSetAvatar, adminUsersControllerRemoveAvatar, adminUsersControllerSetPassword, adminUsersControllerRevokeSessions, notificationsControllerList, notificationsControllerMarkRead, notificationsControllerRemove, notificationsControllerConfig, notificationsControllerPushKey, notificationsControllerPushStatus, notificationsControllerSubscribe, notificationsControllerUnsubscribe, adminNotificationsControllerSend, favoritesControllerList, favoritesControllerIds, favoritesControllerAdd, favoritesControllerRemove, playlistsControllerList, playlistsControllerCreate, playlistsControllerContaining, playlistsControllerGet, playlistsControllerUpdate, playlistsControllerRemove, playlistsControllerAddItem, playlistsControllerRemoveTrack, playlistsControllerReorder, partiesControllerCreate, partiesControllerGet, partiesControllerEnd, chatControllerList, chatControllerStart, chatControllerUnread, chatControllerGet, chatControllerRename, chatControllerDeleteConversation, chatControllerMessages, chatControllerSend, chatControllerRead, chatControllerAddMembers, chatControllerRemoveMember, profilesControllerDirectory, profilesControllerMe, profilesControllerSetVisibility, profilesControllerListening, profilesControllerGet, friendsControllerList, friendsControllerCreateInvite, friendsControllerGetInvite, friendsControllerAcceptInvite, friendsControllerRequest, friendsControllerRemove, friendsControllerAccept, themesControllerAudio, themesControllerSync, adminUpdatesControllerStatus, adminUpdatesControllerApply, adminBackupsControllerStatus, adminBackupsControllerCreate, adminBackupsControllerUpload, adminBackupsControllerSetPassphrase, adminBackupsControllerClearPassphrase, adminBackupsControllerRestore, adminBackupsControllerDownloadLink, adminBackupsControllerRemove, backupDownloadControllerDownload, adminDatabaseTransferControllerStatus, adminDatabaseTransferControllerStart, adminDatabaseTransferControllerRestoreWrites, overviewControllerGet, overviewControllerActivityList, sentryControllerGetConfig, getVersionControllerGetUrl, getSetupControllerStatusUrl, getSetupControllerRequestRecoveryKeyUrl, getSetupControllerProgressUrl, getSetupControllerFlowUrl, getSetupControllerTestStepUrl, getSetupControllerApplyStepUrl, getSetupControllerCompleteUrl, getSetupControllerResetUrl, getInternalConfigControllerGetUrl, getAiControllerLibraryContextUrl, getAiControllerRecommendationContextUrl, getAiControllerRuntimeConfigurationUrl, getAiControllerRecommendationCacheStateUrl, getAiControllerSaveRecommendationCacheUrl, getAiControllerClearRecommendationCacheUrl, getRecommendationsControllerHomeRecommendationsUrl, getRecommendationsControllerMusicRecommendationsUrl, getRecommendationsControllerRecommendUrl, getRecommendationsControllerSimilarUrl, getAiAdminControllerStatusUrl, getAiAdminControllerUpdateConfigurationUrl, getAiAdminControllerRetryUrl, getAiAdminControllerRecommendationsUrl, getAiAdminControllerRefreshUserRecommendationsUrl, getAuthControllerRegisterUrl, getAuthControllerMeUrl, getAuthControllerUpdateMeUrl, getAuthControllerSetPasskeyRequiredUrl, getAuthControllerChangePasswordUrl, getAuthControllerDeleteMeUrl, getAuthControllerVerifyEmailUrl, getAuthControllerResendVerificationUrl, getAuthControllerLoginUrl, getAuthControllerListSessionsUrl, getAuthControllerRevokeSessionUrl, getAuthControllerLogoutUrl, getAvatarControllerUploadUrl, getAvatarControllerRemoveUrl, getAvatarControllerAvatarUrl, getPasskeyControllerListUrl, getPasskeyControllerRegistrationOptionsUrl, getPasskeyControllerRegistrationVerifyUrl, getPasskeyControllerLoginOptionsUrl, getPasskeyControllerLoginVerifyUrl, getPasskeyControllerSecondFactorOptionsUrl, getPasskeyControllerSecondFactorVerifyUrl, getPasskeyControllerStartNativeHandoffUrl, getPasskeyControllerNativeHandoffOptionsUrl, getPasskeyControllerVerifyNativeHandoffUrl, getPasskeyControllerExchangeNativeHandoffUrl, getPasskeyControllerRemoveUrl, getUserControllerListUsersUrl, getUserControllerGetUserUrl, getUserControllerDeleteUserUrl, getPreferencesControllerGetUrl, getPreferencesControllerUpdateUrl, getSettingsControllerListUrl, getSettingsControllerRegistrationStatusUrl, getSettingsControllerSendTestEmailUrl, getSettingsControllerUpdateUrl, getPlaybackControllerListSamplesUrl, getPlaybackControllerItemPlaybackInfoUrl, getPlaybackControllerChannelPlaybackInfoUrl, getPlaybackControllerPlaybackInfoUrl, getGuideControllerGetUrl, getAdminGuideControllerOverviewUrl, getAdminGuideControllerSourcesUrl, getAdminGuideControllerCreateSourceUrl, getAdminGuideControllerUpdateSourceUrl, getAdminGuideControllerRemoveSourceUrl, getAdminGuideControllerRefreshSourceUrl, getAdminGuideControllerUpdateChannelsUrl, getAdminGuideControllerUpdateSettingsUrl, getJobsControllerGetQueuesUrl, getJobsControllerFindJobsUrl, getJobsControllerEnqueueUrl, getJobsControllerGetJobUrl, getJobsControllerCancelJobUrl, getJobsControllerRetryJobUrl, getJobsControllerGetSchedulesUrl, getJobsControllerScheduleUrl, getJobsControllerUnscheduleUrl, getAdminScheduledTasksControllerListUrl, getAdminScheduledTasksControllerSaveScheduleUrl, getAdminScheduledTasksControllerRunUrl, getAdminScheduledTasksControllerStopUrl, getStreamsControllerListSessionsUrl, getStreamsControllerCancelSessionUrl, getDevicesControllerListUrl, getDevicesControllerSignOutUrl, getApiKeysControllerListUrl, getApiKeysControllerCreateUrl, getApiKeysControllerRevokeUrl, getMediaLibrariesControllerListUrl, getMediaLibrariesControllerCreateUrl, getMediaLibrariesControllerListRootsUrl, getMediaLibrariesControllerBrowseUrl, getMediaLibrariesControllerUpdateUrl, getMediaLibrariesControllerRemoveUrl, getStreamerRootsControllerListUrl, getStreamerRootsControllerTranscodingUrl, getIndexerApiControllerListLibrariesUrl, getIndexerApiControllerGetSettingsUrl, getIndexerApiControllerUpsertItemUrl, getIndexerApiControllerUpsertItemLyricsUrl, getIndexerApiControllerIntroSyncCandidatesUrl, getIndexerApiControllerExistingIntroSegmentsUrl, getIndexerApiControllerUpdateIntroSegmentsUrl, getIndexerApiControllerPruneLibraryUrl, getAdminIndexerControllerStatusUrl, getAdminIndexerControllerScanUrl, getAdminIndexerControllerQueueSegmentsUrl, getAdminIndexerControllerRefreshUrl, getAdminIndexerControllerTasksUrl, getAdminIndexerControllerTaskLogsUrl, getAdminIndexerControllerCancelTaskUrl, getAdminIndexerControllerRetryTaskUrl, getAdminIndexerControllerCancelActiveUrl, getAdminIndexerControllerClearFailedUrl, getAdminIndexerControllerPauseUrl, getAdminIndexerControllerResumeUrl, getAdminIndexerControllerSetConcurrencyUrl, getPluginsControllerInstalledUrl, getPluginsControllerRepositoriesUrl, getPluginsControllerAddRepositoryUrl, getPluginsControllerCatalogUrl, getPluginsControllerPluginSettingsViewUrl, getPluginsControllerUpdatePluginSettingsUrl, getPluginsControllerPluginUpdateHistoryUrl, getPluginsControllerInstallUrl, getPluginsControllerEnableUrl, getPluginsControllerDisableUrl, getPluginsControllerUninstallUrl, getPluginsControllerRefreshRepositoryUrl, getPluginsControllerRemoveRepositoryUrl, getPluginRuntimeControllerListPagesUrl, getPluginRuntimeControllerSearchSectionsUrl, getPluginRuntimeControllerInvokeUrl, getRequestImagesControllerTmdbUrl, getRequestImagesControllerDiscogsUrl, getRequestsControllerConfigUrl, getRequestsControllerSearchUrl, getRequestsControllerDiscoverUrl, getRequestsControllerDetailsUrl, getRequestsControllerListUrl, getRequestsControllerCreateUrl, getRequestsControllerApproveUrl, getRequestsControllerDeclineUrl, getRequestsControllerRetryUrl, getRequestsControllerRemoveUrl, getAdminRequestsControllerListServicesUrl, getAdminRequestsControllerCreateServiceUrl, getAdminRequestsControllerTestServiceUrl, getAdminRequestsControllerUpdateServiceUrl, getAdminRequestsControllerRemoveServiceUrl, getAdminRequestsControllerListUsersUrl, getAdminRequestsControllerUpdateUserUrl, getAdminMediaControllerListSubtitlesUrl, getAdminMediaControllerRemoveSubtitleUrl, getAdminMediaControllerSearchSubtitlesUrl, getAdminMediaControllerDownloadSubtitleUrl, getAdminMediaControllerSetSegmentUrl, getAdminMediaControllerClearSegmentUrl, getAdminMediaControllerListUrl, getAdminMediaControllerGetUrl, getAdminMediaControllerUpdateUrl, getAdminMediaControllerRemoveUrl, getAdminMediaControllerRefreshUrl, getAdminMediaControllerImageUrl, getAdminMediaControllerRemoveImageUrl, getAdminMediaControllerAddImageUrl, getMediaHomeControllerGetHomeUrl, getMediaHomeControllerGetProgressUrl, getMediaHomeControllerSaveProgressUrl, getMediaHomeControllerSetWatchedUrl, getMediaHomeControllerGenresUrl, getMediaHomeControllerSearchUrl, getMediaHomeControllerPersonImageUrl, getMediaHomeControllerPersonUrl, getMediaHomeControllerBrowseUrl, getMediaHomeControllerItemUrl, getMediaHomeControllerImageUrl, getAdminMediaSearchControllerStatusUrl, getAdminMediaSearchControllerTaskUrl, getAdminMediaSearchControllerSaveSettingsUrl, getAdminMediaSearchControllerRebuildUrl, getAdminMediaSearchControllerResetUrl, getNetworkSharesControllerListUrl, getNetworkSharesControllerCreateUrl, getNetworkSharesControllerSupportUrl, getNetworkSharesControllerUpdateUrl, getNetworkSharesControllerRemoveUrl, getNetworkSharesControllerReconnectUrl, getAdminUsersControllerListUrl, getAdminUsersControllerCreateUrl, getAdminUsersControllerUpdateUrl, getAdminUsersControllerRemoveUrl, getAdminUsersControllerSetAvatarUrl, getAdminUsersControllerRemoveAvatarUrl, getAdminUsersControllerSetPasswordUrl, getAdminUsersControllerRevokeSessionsUrl, getNotificationsControllerListUrl, getNotificationsControllerMarkReadUrl, getNotificationsControllerRemoveUrl, getNotificationsControllerConfigUrl, getNotificationsControllerPushKeyUrl, getNotificationsControllerPushStatusUrl, getNotificationsControllerSubscribeUrl, getNotificationsControllerUnsubscribeUrl, getAdminNotificationsControllerSendUrl, getFavoritesControllerListUrl, getFavoritesControllerIdsUrl, getFavoritesControllerAddUrl, getFavoritesControllerRemoveUrl, getPlaylistsControllerListUrl, getPlaylistsControllerCreateUrl, getPlaylistsControllerContainingUrl, getPlaylistsControllerGetUrl, getPlaylistsControllerUpdateUrl, getPlaylistsControllerRemoveUrl, getPlaylistsControllerAddItemUrl, getPlaylistsControllerRemoveTrackUrl, getPlaylistsControllerReorderUrl, getPartiesControllerCreateUrl, getPartiesControllerGetUrl, getPartiesControllerEndUrl, getChatControllerListUrl, getChatControllerStartUrl, getChatControllerUnreadUrl, getChatControllerGetUrl, getChatControllerRenameUrl, getChatControllerDeleteConversationUrl, getChatControllerMessagesUrl, getChatControllerSendUrl, getChatControllerReadUrl, getChatControllerAddMembersUrl, getChatControllerRemoveMemberUrl, getProfilesControllerDirectoryUrl, getProfilesControllerMeUrl, getProfilesControllerSetVisibilityUrl, getProfilesControllerListeningUrl, getProfilesControllerGetUrl, getFriendsControllerListUrl, getFriendsControllerCreateInviteUrl, getFriendsControllerGetInviteUrl, getFriendsControllerAcceptInviteUrl, getFriendsControllerRequestUrl, getFriendsControllerRemoveUrl, getFriendsControllerAcceptUrl, getThemesControllerAudioUrl, getThemesControllerSyncUrl, getAdminUpdatesControllerStatusUrl, getAdminUpdatesControllerApplyUrl, getAdminBackupsControllerStatusUrl, getAdminBackupsControllerCreateUrl, getAdminBackupsControllerUploadUrl, getAdminBackupsControllerSetPassphraseUrl, getAdminBackupsControllerClearPassphraseUrl, getAdminBackupsControllerRestoreUrl, getAdminBackupsControllerDownloadLinkUrl, getAdminBackupsControllerRemoveUrl, getBackupDownloadControllerDownloadUrl, getAdminDatabaseTransferControllerStatusUrl, getAdminDatabaseTransferControllerStartUrl, getAdminDatabaseTransferControllerRestoreWritesUrl, getOverviewControllerGetUrl, getOverviewControllerActivityListUrl, getSentryControllerGetConfigUrl };
+    return { versionControllerGet, setupControllerStatus, setupControllerRequestRecoveryKey, setupControllerProgress, setupControllerFlow, setupControllerTestStep, setupControllerApplyStep, setupControllerComplete, setupControllerReset, internalConfigControllerGet, aiControllerLibraryContext, aiControllerRecommendationContext, aiControllerRuntimeConfiguration, aiControllerRecommendationCacheState, aiControllerSaveRecommendationCache, aiControllerClearRecommendationCache, recommendationsControllerHomeRecommendations, recommendationsControllerMusicRecommendations, recommendationsControllerRecommend, recommendationsControllerSimilar, aiAdminControllerStatus, aiAdminControllerUpdateConfiguration, aiAdminControllerRetry, aiAdminControllerRecommendations, aiAdminControllerRefreshUserRecommendations, authControllerRegister, authControllerMe, authControllerUpdateMe, authControllerSetPasskeyRequired, authControllerChangePassword, authControllerDeleteMe, authControllerVerifyEmail, authControllerResendVerification, authControllerLogin, authControllerListSessions, authControllerRevokeSession, authControllerLogout, avatarControllerUpload, avatarControllerRemove, avatarControllerAvatar, passkeyControllerList, passkeyControllerRegistrationOptions, passkeyControllerRegistrationVerify, passkeyControllerLoginOptions, passkeyControllerLoginVerify, passkeyControllerSecondFactorOptions, passkeyControllerSecondFactorVerify, passkeyControllerStartNativeHandoff, passkeyControllerNativeHandoffOptions, passkeyControllerVerifyNativeHandoff, passkeyControllerExchangeNativeHandoff, passkeyControllerRemove, userControllerListUsers, userControllerGetUser, userControllerDeleteUser, preferencesControllerGet, preferencesControllerUpdate, settingsControllerList, settingsControllerRegistrationStatus, settingsControllerSendTestEmail, settingsControllerUpdate, playbackControllerListSamples, playbackControllerItemPlaybackInfo, playbackControllerChannelPlaybackInfo, playbackControllerPlaybackInfo, guideControllerGet, adminGuideControllerOverview, adminGuideControllerSources, adminGuideControllerCreateSource, adminGuideControllerUpdateSource, adminGuideControllerRemoveSource, adminGuideControllerRefreshSource, adminGuideControllerUpdateChannels, adminGuideControllerUpdateSettings, jobsControllerGetQueues, jobsControllerFindJobs, jobsControllerEnqueue, jobsControllerGetJob, jobsControllerCancelJob, jobsControllerRetryJob, jobsControllerGetSchedules, jobsControllerSchedule, jobsControllerUnschedule, adminScheduledTasksControllerList, adminScheduledTasksControllerSaveSchedule, adminScheduledTasksControllerRun, adminScheduledTasksControllerStop, streamsControllerListSessions, streamsControllerCancelSession, devicesControllerList, devicesControllerSignOut, apiKeysControllerList, apiKeysControllerCreate, apiKeysControllerRevoke, mediaLibrariesControllerList, mediaLibrariesControllerCreate, mediaLibrariesControllerListRoots, mediaLibrariesControllerBrowse, mediaLibrariesControllerUpdate, mediaLibrariesControllerRemove, streamerRootsControllerList, streamerRootsControllerTranscoding, indexerApiControllerListLibraries, indexerApiControllerGetSettings, indexerApiControllerUpsertItem, indexerApiControllerUpsertItemLyrics, indexerApiControllerIntroSyncCandidates, indexerApiControllerExistingIntroSegments, indexerApiControllerUpdateIntroSegments, indexerApiControllerPruneLibrary, indexerApiControllerRemoveItemsAtPaths, adminIndexerControllerStatus, adminIndexerControllerScan, adminIndexerControllerQueueSegments, adminIndexerControllerRefresh, adminIndexerControllerTasks, adminIndexerControllerTaskLogs, adminIndexerControllerCancelTask, adminIndexerControllerRetryTask, adminIndexerControllerCancelActive, adminIndexerControllerClearFailed, adminIndexerControllerPause, adminIndexerControllerResume, adminIndexerControllerSetConcurrency, pluginsControllerInstalled, pluginsControllerRepositories, pluginsControllerAddRepository, pluginsControllerCatalog, pluginsControllerPluginSettingsView, pluginsControllerUpdatePluginSettings, pluginsControllerPluginUpdateHistory, pluginsControllerInstall, pluginsControllerEnable, pluginsControllerDisable, pluginsControllerUninstall, pluginsControllerRefreshRepository, pluginsControllerRemoveRepository, pluginRuntimeControllerListPages, pluginRuntimeControllerSearchSections, pluginRuntimeControllerInvoke, requestImagesControllerTmdb, requestImagesControllerDiscogs, requestsControllerConfig, requestsControllerSearch, requestsControllerDiscover, requestsControllerDetails, requestsControllerList, requestsControllerCreate, requestsControllerApprove, requestsControllerDecline, requestsControllerRetry, requestsControllerRemove, adminRequestsControllerGetWebhookCredentials, adminRequestsControllerRotateWebhookCredentials, adminRequestsControllerListServices, adminRequestsControllerCreateService, adminRequestsControllerTestService, adminRequestsControllerUpdateService, adminRequestsControllerRemoveService, adminRequestsControllerListUsers, adminRequestsControllerUpdateUser, requestWebhookControllerReceive, adminMediaControllerListSubtitles, adminMediaControllerRemoveSubtitle, adminMediaControllerSearchSubtitles, adminMediaControllerDownloadSubtitle, adminMediaControllerSetSegment, adminMediaControllerClearSegment, adminMediaControllerList, adminMediaControllerGet, adminMediaControllerUpdate, adminMediaControllerRemove, adminMediaControllerRefresh, adminMediaControllerImage, adminMediaControllerRemoveImage, adminMediaControllerAddImage, mediaHomeControllerGetHome, mediaHomeControllerGetProgress, mediaHomeControllerSaveProgress, mediaHomeControllerSetWatched, mediaHomeControllerGenres, mediaHomeControllerSearch, mediaHomeControllerPersonImage, mediaHomeControllerPerson, mediaHomeControllerBrowse, mediaHomeControllerItem, mediaHomeControllerImage, adminMediaSearchControllerStatus, adminMediaSearchControllerTask, adminMediaSearchControllerSaveSettings, adminMediaSearchControllerRebuild, adminMediaSearchControllerReset, networkSharesControllerList, networkSharesControllerCreate, networkSharesControllerSupport, networkSharesControllerUpdate, networkSharesControllerRemove, networkSharesControllerReconnect, adminUsersControllerList, adminUsersControllerCreate, adminUsersControllerUpdate, adminUsersControllerRemove, adminUsersControllerSetAvatar, adminUsersControllerRemoveAvatar, adminUsersControllerSetPassword, adminUsersControllerRevokeSessions, notificationsControllerList, notificationsControllerMarkRead, notificationsControllerRemove, notificationsControllerConfig, notificationsControllerPushKey, notificationsControllerPushStatus, notificationsControllerSubscribe, notificationsControllerUnsubscribe, adminNotificationsControllerSend, favoritesControllerList, favoritesControllerIds, favoritesControllerAdd, favoritesControllerRemove, playlistsControllerList, playlistsControllerCreate, playlistsControllerContaining, playlistsControllerGet, playlistsControllerUpdate, playlistsControllerRemove, playlistsControllerAddItem, playlistsControllerRemoveTrack, playlistsControllerReorder, partiesControllerCreate, partiesControllerGet, partiesControllerEnd, chatControllerList, chatControllerStart, chatControllerUnread, chatControllerEncryptionStatus, chatControllerRegisterMlsDevice, chatControllerMlsDevices, chatControllerApproveMlsDevice, chatControllerRevokeMlsDevice, chatControllerAddMlsKeyPackage, chatControllerDeviceMlsKeyPackages, chatControllerGet, chatControllerRename, chatControllerDeleteConversation, chatControllerMessages, chatControllerSend, chatControllerMlsKeyPackages, chatControllerClaimMlsKeyPackage, chatControllerMlsWelcomes, chatControllerStoreMlsWelcome, chatControllerAcknowledgeMlsWelcome, chatControllerRead, chatControllerAddMembers, chatControllerRemoveMember, issueReportsControllerConfiguration, issueReportsControllerList, issueReportsControllerCreate, issueReportsControllerGet, adminIssueReportsControllerList, adminIssueReportsControllerGet, adminIssueReportsControllerDelete, adminIssueReportsControllerUpdateStatus, adminIssueReportsControllerAddUpdate, adminIssueReportsControllerSetChat, profilesControllerDirectory, profilesControllerMe, profilesControllerSetVisibility, profilesControllerListening, profilesControllerGet, friendsControllerList, friendsControllerCreateInvite, friendsControllerGetInvite, friendsControllerAcceptInvite, friendsControllerRequest, friendsControllerRemove, friendsControllerAccept, themesControllerAudio, themesControllerSync, adminUpdatesControllerStatus, adminUpdatesControllerApply, adminBackupsControllerStatus, adminBackupsControllerCreate, adminBackupsControllerUpload, adminBackupsControllerSetPassphrase, adminBackupsControllerClearPassphrase, adminBackupsControllerRestore, adminBackupsControllerDownloadLink, adminBackupsControllerRemove, backupDownloadControllerDownload, adminDatabaseTransferControllerStatus, adminDatabaseTransferControllerStart, adminDatabaseTransferControllerRestoreWrites, overviewControllerGet, overviewControllerActivityList, sentryControllerGetConfig, getVersionControllerGetUrl, getSetupControllerStatusUrl, getSetupControllerRequestRecoveryKeyUrl, getSetupControllerProgressUrl, getSetupControllerFlowUrl, getSetupControllerTestStepUrl, getSetupControllerApplyStepUrl, getSetupControllerCompleteUrl, getSetupControllerResetUrl, getInternalConfigControllerGetUrl, getAiControllerLibraryContextUrl, getAiControllerRecommendationContextUrl, getAiControllerRuntimeConfigurationUrl, getAiControllerRecommendationCacheStateUrl, getAiControllerSaveRecommendationCacheUrl, getAiControllerClearRecommendationCacheUrl, getRecommendationsControllerHomeRecommendationsUrl, getRecommendationsControllerMusicRecommendationsUrl, getRecommendationsControllerRecommendUrl, getRecommendationsControllerSimilarUrl, getAiAdminControllerStatusUrl, getAiAdminControllerUpdateConfigurationUrl, getAiAdminControllerRetryUrl, getAiAdminControllerRecommendationsUrl, getAiAdminControllerRefreshUserRecommendationsUrl, getAuthControllerRegisterUrl, getAuthControllerMeUrl, getAuthControllerUpdateMeUrl, getAuthControllerSetPasskeyRequiredUrl, getAuthControllerChangePasswordUrl, getAuthControllerDeleteMeUrl, getAuthControllerVerifyEmailUrl, getAuthControllerResendVerificationUrl, getAuthControllerLoginUrl, getAuthControllerListSessionsUrl, getAuthControllerRevokeSessionUrl, getAuthControllerLogoutUrl, getAvatarControllerUploadUrl, getAvatarControllerRemoveUrl, getAvatarControllerAvatarUrl, getPasskeyControllerListUrl, getPasskeyControllerRegistrationOptionsUrl, getPasskeyControllerRegistrationVerifyUrl, getPasskeyControllerLoginOptionsUrl, getPasskeyControllerLoginVerifyUrl, getPasskeyControllerSecondFactorOptionsUrl, getPasskeyControllerSecondFactorVerifyUrl, getPasskeyControllerStartNativeHandoffUrl, getPasskeyControllerNativeHandoffOptionsUrl, getPasskeyControllerVerifyNativeHandoffUrl, getPasskeyControllerExchangeNativeHandoffUrl, getPasskeyControllerRemoveUrl, getUserControllerListUsersUrl, getUserControllerGetUserUrl, getUserControllerDeleteUserUrl, getPreferencesControllerGetUrl, getPreferencesControllerUpdateUrl, getSettingsControllerListUrl, getSettingsControllerRegistrationStatusUrl, getSettingsControllerSendTestEmailUrl, getSettingsControllerUpdateUrl, getPlaybackControllerListSamplesUrl, getPlaybackControllerItemPlaybackInfoUrl, getPlaybackControllerChannelPlaybackInfoUrl, getPlaybackControllerPlaybackInfoUrl, getGuideControllerGetUrl, getAdminGuideControllerOverviewUrl, getAdminGuideControllerSourcesUrl, getAdminGuideControllerCreateSourceUrl, getAdminGuideControllerUpdateSourceUrl, getAdminGuideControllerRemoveSourceUrl, getAdminGuideControllerRefreshSourceUrl, getAdminGuideControllerUpdateChannelsUrl, getAdminGuideControllerUpdateSettingsUrl, getJobsControllerGetQueuesUrl, getJobsControllerFindJobsUrl, getJobsControllerEnqueueUrl, getJobsControllerGetJobUrl, getJobsControllerCancelJobUrl, getJobsControllerRetryJobUrl, getJobsControllerGetSchedulesUrl, getJobsControllerScheduleUrl, getJobsControllerUnscheduleUrl, getAdminScheduledTasksControllerListUrl, getAdminScheduledTasksControllerSaveScheduleUrl, getAdminScheduledTasksControllerRunUrl, getAdminScheduledTasksControllerStopUrl, getStreamsControllerListSessionsUrl, getStreamsControllerCancelSessionUrl, getDevicesControllerListUrl, getDevicesControllerSignOutUrl, getApiKeysControllerListUrl, getApiKeysControllerCreateUrl, getApiKeysControllerRevokeUrl, getMediaLibrariesControllerListUrl, getMediaLibrariesControllerCreateUrl, getMediaLibrariesControllerListRootsUrl, getMediaLibrariesControllerBrowseUrl, getMediaLibrariesControllerUpdateUrl, getMediaLibrariesControllerRemoveUrl, getStreamerRootsControllerListUrl, getStreamerRootsControllerTranscodingUrl, getIndexerApiControllerListLibrariesUrl, getIndexerApiControllerGetSettingsUrl, getIndexerApiControllerUpsertItemUrl, getIndexerApiControllerUpsertItemLyricsUrl, getIndexerApiControllerIntroSyncCandidatesUrl, getIndexerApiControllerExistingIntroSegmentsUrl, getIndexerApiControllerUpdateIntroSegmentsUrl, getIndexerApiControllerPruneLibraryUrl, getIndexerApiControllerRemoveItemsAtPathsUrl, getAdminIndexerControllerStatusUrl, getAdminIndexerControllerScanUrl, getAdminIndexerControllerQueueSegmentsUrl, getAdminIndexerControllerRefreshUrl, getAdminIndexerControllerTasksUrl, getAdminIndexerControllerTaskLogsUrl, getAdminIndexerControllerCancelTaskUrl, getAdminIndexerControllerRetryTaskUrl, getAdminIndexerControllerCancelActiveUrl, getAdminIndexerControllerClearFailedUrl, getAdminIndexerControllerPauseUrl, getAdminIndexerControllerResumeUrl, getAdminIndexerControllerSetConcurrencyUrl, getPluginsControllerInstalledUrl, getPluginsControllerRepositoriesUrl, getPluginsControllerAddRepositoryUrl, getPluginsControllerCatalogUrl, getPluginsControllerPluginSettingsViewUrl, getPluginsControllerUpdatePluginSettingsUrl, getPluginsControllerPluginUpdateHistoryUrl, getPluginsControllerInstallUrl, getPluginsControllerEnableUrl, getPluginsControllerDisableUrl, getPluginsControllerUninstallUrl, getPluginsControllerRefreshRepositoryUrl, getPluginsControllerRemoveRepositoryUrl, getPluginRuntimeControllerListPagesUrl, getPluginRuntimeControllerSearchSectionsUrl, getPluginRuntimeControllerInvokeUrl, getRequestImagesControllerTmdbUrl, getRequestImagesControllerDiscogsUrl, getRequestsControllerConfigUrl, getRequestsControllerSearchUrl, getRequestsControllerDiscoverUrl, getRequestsControllerDetailsUrl, getRequestsControllerListUrl, getRequestsControllerCreateUrl, getRequestsControllerApproveUrl, getRequestsControllerDeclineUrl, getRequestsControllerRetryUrl, getRequestsControllerRemoveUrl, getAdminRequestsControllerGetWebhookCredentialsUrl, getAdminRequestsControllerRotateWebhookCredentialsUrl, getAdminRequestsControllerListServicesUrl, getAdminRequestsControllerCreateServiceUrl, getAdminRequestsControllerTestServiceUrl, getAdminRequestsControllerUpdateServiceUrl, getAdminRequestsControllerRemoveServiceUrl, getAdminRequestsControllerListUsersUrl, getAdminRequestsControllerUpdateUserUrl, getRequestWebhookControllerReceiveUrl, getAdminMediaControllerListSubtitlesUrl, getAdminMediaControllerRemoveSubtitleUrl, getAdminMediaControllerSearchSubtitlesUrl, getAdminMediaControllerDownloadSubtitleUrl, getAdminMediaControllerSetSegmentUrl, getAdminMediaControllerClearSegmentUrl, getAdminMediaControllerListUrl, getAdminMediaControllerGetUrl, getAdminMediaControllerUpdateUrl, getAdminMediaControllerRemoveUrl, getAdminMediaControllerRefreshUrl, getAdminMediaControllerImageUrl, getAdminMediaControllerRemoveImageUrl, getAdminMediaControllerAddImageUrl, getMediaHomeControllerGetHomeUrl, getMediaHomeControllerGetProgressUrl, getMediaHomeControllerSaveProgressUrl, getMediaHomeControllerSetWatchedUrl, getMediaHomeControllerGenresUrl, getMediaHomeControllerSearchUrl, getMediaHomeControllerPersonImageUrl, getMediaHomeControllerPersonUrl, getMediaHomeControllerBrowseUrl, getMediaHomeControllerItemUrl, getMediaHomeControllerImageUrl, getAdminMediaSearchControllerStatusUrl, getAdminMediaSearchControllerTaskUrl, getAdminMediaSearchControllerSaveSettingsUrl, getAdminMediaSearchControllerRebuildUrl, getAdminMediaSearchControllerResetUrl, getNetworkSharesControllerListUrl, getNetworkSharesControllerCreateUrl, getNetworkSharesControllerSupportUrl, getNetworkSharesControllerUpdateUrl, getNetworkSharesControllerRemoveUrl, getNetworkSharesControllerReconnectUrl, getAdminUsersControllerListUrl, getAdminUsersControllerCreateUrl, getAdminUsersControllerUpdateUrl, getAdminUsersControllerRemoveUrl, getAdminUsersControllerSetAvatarUrl, getAdminUsersControllerRemoveAvatarUrl, getAdminUsersControllerSetPasswordUrl, getAdminUsersControllerRevokeSessionsUrl, getNotificationsControllerListUrl, getNotificationsControllerMarkReadUrl, getNotificationsControllerRemoveUrl, getNotificationsControllerConfigUrl, getNotificationsControllerPushKeyUrl, getNotificationsControllerPushStatusUrl, getNotificationsControllerSubscribeUrl, getNotificationsControllerUnsubscribeUrl, getAdminNotificationsControllerSendUrl, getFavoritesControllerListUrl, getFavoritesControllerIdsUrl, getFavoritesControllerAddUrl, getFavoritesControllerRemoveUrl, getPlaylistsControllerListUrl, getPlaylistsControllerCreateUrl, getPlaylistsControllerContainingUrl, getPlaylistsControllerGetUrl, getPlaylistsControllerUpdateUrl, getPlaylistsControllerRemoveUrl, getPlaylistsControllerAddItemUrl, getPlaylistsControllerRemoveTrackUrl, getPlaylistsControllerReorderUrl, getPartiesControllerCreateUrl, getPartiesControllerGetUrl, getPartiesControllerEndUrl, getChatControllerListUrl, getChatControllerStartUrl, getChatControllerUnreadUrl, getChatControllerEncryptionStatusUrl, getChatControllerRegisterMlsDeviceUrl, getChatControllerMlsDevicesUrl, getChatControllerApproveMlsDeviceUrl, getChatControllerRevokeMlsDeviceUrl, getChatControllerAddMlsKeyPackageUrl, getChatControllerDeviceMlsKeyPackagesUrl, getChatControllerGetUrl, getChatControllerRenameUrl, getChatControllerDeleteConversationUrl, getChatControllerMessagesUrl, getChatControllerSendUrl, getChatControllerMlsKeyPackagesUrl, getChatControllerClaimMlsKeyPackageUrl, getChatControllerMlsWelcomesUrl, getChatControllerStoreMlsWelcomeUrl, getChatControllerAcknowledgeMlsWelcomeUrl, getChatControllerReadUrl, getChatControllerAddMembersUrl, getChatControllerRemoveMemberUrl, getIssueReportsControllerConfigurationUrl, getIssueReportsControllerListUrl, getIssueReportsControllerCreateUrl, getIssueReportsControllerGetUrl, getAdminIssueReportsControllerListUrl, getAdminIssueReportsControllerGetUrl, getAdminIssueReportsControllerDeleteUrl, getAdminIssueReportsControllerUpdateStatusUrl, getAdminIssueReportsControllerAddUpdateUrl, getAdminIssueReportsControllerSetChatUrl, getProfilesControllerDirectoryUrl, getProfilesControllerMeUrl, getProfilesControllerSetVisibilityUrl, getProfilesControllerListeningUrl, getProfilesControllerGetUrl, getFriendsControllerListUrl, getFriendsControllerCreateInviteUrl, getFriendsControllerGetInviteUrl, getFriendsControllerAcceptInviteUrl, getFriendsControllerRequestUrl, getFriendsControllerRemoveUrl, getFriendsControllerAcceptUrl, getThemesControllerAudioUrl, getThemesControllerSyncUrl, getAdminUpdatesControllerStatusUrl, getAdminUpdatesControllerApplyUrl, getAdminBackupsControllerStatusUrl, getAdminBackupsControllerCreateUrl, getAdminBackupsControllerUploadUrl, getAdminBackupsControllerSetPassphraseUrl, getAdminBackupsControllerClearPassphraseUrl, getAdminBackupsControllerRestoreUrl, getAdminBackupsControllerDownloadLinkUrl, getAdminBackupsControllerRemoveUrl, getBackupDownloadControllerDownloadUrl, getAdminDatabaseTransferControllerStatusUrl, getAdminDatabaseTransferControllerStartUrl, getAdminDatabaseTransferControllerRestoreWritesUrl, getOverviewControllerGetUrl, getOverviewControllerActivityListUrl, getSentryControllerGetConfigUrl };
 };

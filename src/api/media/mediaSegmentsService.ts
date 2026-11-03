@@ -5,13 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaSegment, SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.js";
 import { PluginSegmentProvider } from "../plugins/pluginSegmentProvider.js";
-import {
-	type Chapter,
-	type ResolvedSegment,
-	chapterSegments,
-	mergeSegments,
-	parseChapters,
-} from "./segmentLogic.js";
+import { type Chapter, type ResolvedSegment, chapterSegments, mergeSegments, parseMediaChapters } from "./segmentLogic.js";
 
 const PLUGIN_TYPES: SegmentType[] = ["intro", "recap", "credits", "preview", "commercial"];
 
@@ -23,6 +17,7 @@ export interface ItemSegments {
 /** Combines indexed provider data, optional plugin data, chapters and admin overrides into skippable segments. */
 @Injectable()
 export class MediaSegmentsService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly provider: PluginSegmentProvider,
@@ -30,11 +25,8 @@ export class MediaSegmentsService {
 
 	async forItem(item: MediaItem): Promise<ItemSegments> {
 		const stored = await this.dataSource.getRepository(MediaSegment).findBy({ itemId: item.id });
-		const chapters = parseChapters(item.technical);
-		const candidates: ResolvedSegment[] = [
-			...chapterSegments(chapters),
-			...stored.filter((row) => row.source !== "plugin").map((row) => ({ type: row.type, startMs: row.startMs, endMs: row.endMs, source: row.source })),
-		];
+		const chapters = parseMediaChapters(item.technical, item.metadata);
+		const candidates: ResolvedSegment[] = [...chapterSegments(chapters), ...stored.filter((row) => row.source !== "plugin").map((row) => ({ type: row.type, startMs: row.startMs, endMs: row.endMs, source: row.source }))];
 		if (stored.length === 0) {
 			await this.syncFromPlugin(item);
 		}
@@ -50,15 +42,11 @@ export class MediaSegmentsService {
 		if (!Number.isInteger(startMs) || !Number.isInteger(endMs) || startMs < 0 || endMs <= startMs) {
 			throw new BadRequest("startMs and endMs must be whole milliseconds with endMs after startMs.");
 		}
-		await this.dataSource
-			.getRepository(MediaSegment)
-			.save({ itemId, type: type as SegmentType, source: "manual", startMs, endMs, submissions: 0 });
+		await this.dataSource.getRepository(MediaSegment).save({ itemId, type: type as SegmentType, source: "manual", startMs, endMs, submissions: 0 });
 	}
 
 	async clearManual(itemId: string, type: string): Promise<void> {
-		await this.dataSource
-			.getRepository(MediaSegment)
-			.delete({ itemId, type: type as SegmentType, source: "manual" });
+		await this.dataSource.getRepository(MediaSegment).delete({ itemId, type: type as SegmentType, source: "manual" });
 	}
 
 	private async syncFromPlugin(item: MediaItem): Promise<void> {

@@ -27,6 +27,7 @@ const SOURCE_PRIORITY: Record<ResolvedSegment["source"], number> = { manual: 0, 
 
 /** Reads the chapter list ffprobe stored with an item, dropping malformed entries. */
 export function parseChapters(technical: Record<string, unknown> | null | undefined): Chapter[] {
+
 	const raw = technical?.chapters;
 	if (!Array.isArray(raw)) {
 		return [];
@@ -41,10 +42,22 @@ export function parseChapters(technical: Record<string, unknown> | null | undefi
 		chapters.push({ title: typeof entry.title === "string" ? entry.title : "", startMs: Math.round(start * 1000), endMs: Math.round(end * 1000) });
 	}
 	return chapters.sort((a, b) => a.startMs - b.startMs);
+
+}
+
+/** Admin chapter edits override indexed chapters and survive media rescans. */
+export function parseMediaChapters(technical: Record<string, unknown> | null | undefined, metadata: Record<string, unknown> | null | undefined): Chapter[] {
+
+	if (Array.isArray(metadata?.adminChapters)) {
+		return parseChapters({ chapters: metadata.adminChapters });
+	}
+	return parseChapters(technical);
+
 }
 
 /** Turns chapters whose titles look like an intro, recap, credits, … into segments. */
 export function chapterSegments(chapters: Chapter[]): ResolvedSegment[] {
+
 	const segments: ResolvedSegment[] = [];
 	for (const chapter of chapters) {
 		const match = CHAPTER_PATTERNS.find(([, pattern]) => pattern.test(chapter.title.trim()));
@@ -53,10 +66,12 @@ export function chapterSegments(chapters: Chapter[]): ResolvedSegment[] {
 		}
 	}
 	return segments;
+
 }
 
 /** Keeps one segment per type, preferring manual edits over crowd-sourced data over chapters. */
 export function mergeSegments(candidates: ResolvedSegment[]): ResolvedSegment[] {
+
 	const best = new Map<SegmentType, ResolvedSegment>();
 	for (const candidate of candidates) {
 		const current = best.get(candidate.type);
@@ -65,4 +80,5 @@ export function mergeSegments(candidates: ResolvedSegment[]): ResolvedSegment[] 
 		}
 	}
 	return [...best.values()].sort((a, b) => a.startMs - b.startMs);
+
 }

@@ -35,7 +35,13 @@ export interface IndexerItemPayload {
 	localImagesUsed: boolean;
 }
 
+export interface IndexerPathRemoval {
+	path: string;
+	recursive: boolean;
+}
+
 function parseUpdateFields(value: unknown): IndexerUpdateField[] | undefined {
+
 	if (value === undefined) return undefined;
 	if (!Array.isArray(value) || value.length === 0) {
 		throw new BadRequest("updateFields must contain unique supported fields.");
@@ -51,6 +57,7 @@ function parseUpdateFields(value: unknown): IndexerUpdateField[] | undefined {
 		throw new BadRequest("updateFields must contain unique supported fields.");
 	}
 	return fields;
+
 }
 
 function isIndexerUpdateField(value: unknown): value is IndexerUpdateField {
@@ -76,6 +83,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function optionalText(value: unknown, field: string, maxLength = 4096): string | undefined {
+
 	if (value === undefined || value === null || value === "") {
 		return undefined;
 	}
@@ -83,9 +91,11 @@ function optionalText(value: unknown, field: string, maxLength = 4096): string |
 		throw new BadRequest(`${field} must be text.`);
 	}
 	return value;
+
 }
 
 function optionalInt(value: unknown, field: string): number | undefined {
+
 	if (value === undefined || value === null) {
 		return undefined;
 	}
@@ -93,9 +103,11 @@ function optionalInt(value: unknown, field: string): number | undefined {
 		throw new BadRequest(`${field} must be a whole number.`);
 	}
 	return value;
+
 }
 
 function stringMap(value: unknown, field: string): Record<string, string> {
+
 	if (value === undefined || value === null) {
 		return {};
 	}
@@ -103,13 +115,11 @@ function stringMap(value: unknown, field: string): Record<string, string> {
 		throw new BadRequest(`${field} must be an object of text values.`);
 	}
 	return value as Record<string, string>;
+
 }
 
-export function mergeIndexerProviderIds(
-	incoming: Record<string, string>,
-	current: Record<string, string>,
-	editedFields: readonly string[],
-): Record<string, string> {
+export function mergeIndexerProviderIds(incoming: Record<string, string>, current: Record<string, string>, editedFields: readonly string[]): Record<string, string> {
+
 	const result = { ...incoming };
 	for (const field of editedFields) {
 		if (!field.startsWith("providerId:")) continue;
@@ -117,10 +127,12 @@ export function mergeIndexerProviderIds(
 		if (Object.hasOwn(current, provider)) result[provider] = current[provider];
 	}
 	return result;
+
 }
 
 /** Validates the indexer's JSON body. */
 export function parseItemPayload(body: unknown): IndexerItemPayload {
+
 	if (!isRecord(body)) {
 		throw new BadRequest("The request body must be a JSON object.");
 	}
@@ -176,6 +188,7 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 		nfoPresent: body.nfoPresent === true,
 		localImagesUsed: body.localImagesUsed === true,
 	};
+
 }
 
 function lastSegment(path: string): string {
@@ -185,6 +198,7 @@ function lastSegment(path: string): string {
 /** Stores what flixer-indexer finds and keeps the series → season → episode (and album → track) tree linked. */
 @Injectable()
 export class MediaItemsService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
@@ -237,9 +251,9 @@ export class MediaItemsService {
 				episodeNumber: payload.episodeNumber ?? null,
 				episodeEndNumber: payload.episodeEndNumber ?? null,
 			};
-			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) =>
-				edited.has(field) ? current : incoming[field];
+			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) => (edited.has(field) ? current : incoming[field]);
 			const keptOverview = edited.has("overview") ? item.metadata?.overview : undefined;
+			const keptAdminChapters = edited.has("chapters") ? item.metadata?.adminChapters : undefined;
 
 			item.type = payload.type;
 			item.externalKey = payload.externalKey;
@@ -254,11 +268,13 @@ export class MediaItemsService {
 			item.episodeNumber = keep("episodeNumber", item.episodeNumber);
 			item.episodeEndNumber = keep("episodeEndNumber", item.episodeEndNumber);
 			item.providerIds = mergeIndexerProviderIds(payload.providerIds, item.providerIds ?? {}, [...edited]);
-			item.metadata = edited.has("overview") ? { ...metadata, overview: keptOverview } : metadata;
+			item.metadata = {
+				...metadata,
+				...(edited.has("overview") ? { overview: keptOverview } : {}),
+				...(edited.has("chapters") ? { adminChapters: keptAdminChapters } : {}),
+			};
 			// Images an admin added are not the indexer's to replace.
-			const manual = (item.images ?? []).filter(
-				(image) => (image as { provider?: unknown }).provider === "manual",
-			);
+			const manual = (item.images ?? []).filter((image) => (image as { provider?: unknown }).provider === "manual");
 			item.images = [...payload.images, ...manual];
 			item.technical = payload.technical ?? null;
 			item.sizeBytes = payload.sizeBytes ?? null;
@@ -281,30 +297,16 @@ export class MediaItemsService {
 		return result;
 	}
 
-	private async updateSelectedFields(
-		manager: EntityManager,
-		item: MediaItem,
-		payload: IndexerItemPayload,
-	): Promise<void> {
+	private async updateSelectedFields(manager: EntityManager, item: MediaItem, payload: IndexerItemPayload): Promise<void> {
 		const fields = new Set(payload.updateFields);
 		item.lastSeenAt = new Date();
 		if (fields.has("images")) {
 			if (payload.images.length > 0) {
-				const incomingTypes = new Set(
-					payload.images
-						.map((image) => (image as { type?: unknown } | null)?.type)
-						.filter((type): type is string => typeof type === "string"),
-				);
-				const manual = (item.images ?? []).filter(
-					(image) => (image as { provider?: unknown }).provider === "manual",
-				);
+				const incomingTypes = new Set(payload.images.map((image) => (image as { type?: unknown } | null)?.type).filter((type): type is string => typeof type === "string"));
+				const manual = (item.images ?? []).filter((image) => (image as { provider?: unknown }).provider === "manual");
 				const unchangedTypes = (item.images ?? []).filter((image) => {
 					const current = image as { type?: unknown; provider?: unknown };
-					return (
-						current.provider !== "manual" &&
-						typeof current.type === "string" &&
-						!incomingTypes.has(current.type)
-					);
+					return current.provider !== "manual" && typeof current.type === "string" && !incomingTypes.has(current.type);
 				});
 				item.images = [...payload.images, ...unchangedTypes, ...manual];
 				item.localImagesUsed = payload.localImagesUsed;
@@ -318,8 +320,7 @@ export class MediaItemsService {
 				sortTitle: typeof metadata.sortTitle === "string" && metadata.sortTitle ? metadata.sortTitle : null,
 				year: typeof metadata.year === "number" && metadata.year > 0 ? metadata.year : null,
 			};
-			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) =>
-				edited.has(field) ? current : incoming[field];
+			const keep = <K extends keyof typeof incoming>(field: K, current: (typeof incoming)[K]) => (edited.has(field) ? current : incoming[field]);
 			const keptOverview = edited.has("overview") ? item.metadata?.overview : undefined;
 			item.title = keep("title", item.title);
 			item.sortTitle = keep("sortTitle", item.sortTitle);
@@ -327,12 +328,7 @@ export class MediaItemsService {
 			item.providerIds = mergeIndexerProviderIds(payload.providerIds, item.providerIds ?? {}, [...edited]);
 			const mergedMetadata = { ...item.metadata };
 			for (const [key, value] of Object.entries(metadata)) {
-				if (
-					value === null ||
-					value === undefined ||
-					value === "" ||
-					(Array.isArray(value) && value.length === 0)
-				) {
+				if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) {
 					continue;
 				}
 				mergedMetadata[key] = value;
@@ -386,10 +382,7 @@ export class MediaItemsService {
 			}
 			value.forEach((entry, index) => {
 				const person = entry as { name?: unknown; type?: unknown; role?: unknown; image?: unknown } | null;
-				const type =
-					typeof person?.type === "string" && person.type.trim()
-						? person.type.trim().toLowerCase()
-						: fallbackRole;
+				const type = typeof person?.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : fallbackRole;
 				add(person?.name, type, person?.role, index + 1, person?.image);
 			});
 		};
@@ -413,12 +406,7 @@ export class MediaItemsService {
 	 * folder holding the same content, the old row is the one whose stored path ends with that relative path.
 	 * Only an unambiguous match is used.
 	 */
-	private async findByRelativeKey(
-		manager: EntityManager,
-		libraryId: string,
-		type: MediaItemType,
-		key: string,
-	): Promise<MediaItem | null> {
+	private async findByRelativeKey(manager: EntityManager, libraryId: string, type: MediaItemType, key: string): Promise<MediaItem | null> {
 		if (!key.startsWith(PATH_KEY_PREFIX)) {
 			return null;
 		}
@@ -447,19 +435,28 @@ export class MediaItemsService {
 			if (!(await manager.existsBy(MediaLibrary, { id: libraryId }))) {
 				throw new NotFound("Media library not found.");
 			}
-			const stale = await manager
-				.createQueryBuilder()
-				.delete()
-				.from(MediaItem)
-				.where("library_id = :libraryId AND is_placeholder = false", { libraryId })
-				.andWhere("(last_seen_at IS NULL OR last_seen_at < :cutoff)", { cutoff })
-				.execute();
-			const orphans = await manager.query(
-				`DELETE FROM media_items p WHERE p.library_id = $1 AND p.is_placeholder = true AND NOT EXISTS (SELECT 1 FROM media_items c WHERE c.parent_id = p.id)`,
-				[libraryId],
-			);
+			const stale = await manager.createQueryBuilder().delete().from(MediaItem).where("library_id = :libraryId AND is_placeholder = false", { libraryId }).andWhere("(last_seen_at IS NULL OR last_seen_at < :cutoff)", { cutoff }).execute();
+			const orphans = await manager.query(`DELETE FROM media_items p WHERE p.library_id = $1 AND p.is_placeholder = true AND NOT EXISTS (SELECT 1 FROM media_items c WHERE c.parent_id = p.id)`, [libraryId]);
 			const orphanCount = Array.isArray(orphans) ? Number(orphans[1] ?? 0) : 0;
 			return { removed: (stale.affected ?? 0) + orphanCount };
+		});
+	}
+
+	/** Removes indexed items at changed filesystem paths without scanning or pruning the rest of the library. */
+	async removePaths(libraryId: string, targets: IndexerPathRemoval[]): Promise<{ removed: number }> {
+		return this.dataSource.transaction(async (manager) => {
+			if (!(await manager.existsBy(MediaLibrary, { id: libraryId }))) {
+				throw new NotFound("Media library not found.");
+			}
+			const params: unknown[] = [libraryId];
+			const predicates = targets.map((target, index) => {
+				const pathParam = `$${index * 2 + 2}`;
+				const recursiveParam = `$${index * 2 + 3}`;
+				params.push(target.path, target.recursive);
+				return `(path = ${pathParam} OR (${recursiveParam}::boolean AND (left(path, length(${pathParam}) + 1) = ${pathParam} || '/' OR left(path, length(${pathParam}) + 1) = ${pathParam} || chr(92))))`;
+			});
+			const removed = await manager.query(`DELETE FROM media_items WHERE library_id = $1 AND (${predicates.join(" OR ")}) RETURNING id`, params);
+			return { removed: Array.isArray(removed) ? removed.length : 0 };
 		});
 	}
 
@@ -518,11 +515,7 @@ export class MediaItemsService {
 		return (await manager.save(placeholder)).id;
 	}
 
-	private async findParentByProviderIds(
-		manager: EntityManager,
-		payload: IndexerItemPayload,
-		parentType: MediaItemType,
-	): Promise<string | null> {
+	private async findParentByProviderIds(manager: EntityManager, payload: IndexerItemPayload, parentType: MediaItemType): Promise<string | null> {
 		const ids = Object.entries(payload.parentProviderIds).filter(([, id]) => id);
 		if (ids.length === 0 || (parentType !== "series" && parentType !== "season")) {
 			return null;
@@ -532,8 +525,7 @@ export class MediaItemsService {
 			params[`provider${index}`] = provider;
 			params[`id${index}`] = id;
 		});
-		const matches = (alias: string) =>
-			ids.map((_, index) => `${alias}.providerIds ->> :provider${index} = :id${index}`).join(" OR ");
+		const matches = (alias: string) => ids.map((_, index) => `${alias}.providerIds ->> :provider${index} = :id${index}`).join(" OR ");
 
 		if (parentType === "series") {
 			const series = await manager

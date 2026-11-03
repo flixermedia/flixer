@@ -214,5 +214,10 @@
 	{ "key": "ai_enabled", "defaultValue": false, "isPublic": false },
 	{ "key": "ai_profile", "defaultValue": "auto", "isPublic": false },
 	{ "key": "ai_allow_downloads", "defaultValue": true, "isPublic": false },
-	{ "key": "ai_cache_refresh_interval_minutes", "defaultValue": 10, "isPublic": false }
+	{ "key": "ai_cache_refresh_interval_minutes", "defaultValue": 10, "isPublic": false },
+	{ "key": "issue_reports_enabled", "defaultValue": true, "isPublic": true },
+	{ "key": "issue_reports_categories", "defaultValue": ["Playback", "Audio or subtitles", "Metadata", "Missing content", "App issue", "Other"], "isPublic": true },
+	{ "key": "issue_reports_chat_enabled", "defaultValue": true, "isPublic": true },
+	{ "key": "chat_e2ee_enabled", "defaultValue": false, "isPublic": false },
+	{ "key": "chat_user_downgrade_enabled", "defaultValue": false, "isPublic": false }
 ]

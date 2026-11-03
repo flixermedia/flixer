@@ -104,6 +104,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/admin/requests/webhook/rotate",
+        "operationId": "adminRequestsControllerRotateWebhookCredentials",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/admin/media-libraries/browse",
         "operationId": "mediaLibrariesControllerBrowse",
@@ -329,8 +337,24 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/requests/webhook",
+        "operationId": "adminRequestsControllerGetWebhookCredentials",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/notifications/push/key",
         "operationId": "notificationsControllerPushKey",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/chat/encryption/status",
+        "operationId": "chatControllerEncryptionStatus",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -849,6 +873,14 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/issues/config",
+        "operationId": "issueReportsControllerConfiguration",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/admin/updates",
         "operationId": "adminUpdatesControllerStatus",
         "pathParameters": [],
@@ -886,6 +918,30 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": true
+    },
+    {
+        "method": "post",
+        "path": "/chat/devices",
+        "operationId": "chatControllerRegisterMlsDevice",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/chat/devices",
+        "operationId": "chatControllerMlsDevices",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/issues",
+        "operationId": "adminIssueReportsControllerList",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
     },
     {
         "method": "post",
@@ -1105,6 +1161,22 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/issues",
+        "operationId": "issueReportsControllerList",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/issues",
+        "operationId": "issueReportsControllerCreate",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/users",
         "operationId": "userControllerListUsers",
         "pathParameters": [],
@@ -1200,6 +1272,16 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/chat/conversations/{id}/mls/key-packages",
+        "operationId": "chatControllerMlsKeyPackages",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/admin/plugins/repositories/{id}/refresh",
         "operationId": "pluginsControllerRefreshRepository",
@@ -1231,12 +1313,62 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/chat/devices/{deviceId}/key-packages",
+        "operationId": "chatControllerAddMlsKeyPackage",
+        "pathParameters": [
+            "deviceId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/chat/devices/{deviceId}/key-packages",
+        "operationId": "chatControllerDeviceMlsKeyPackages",
+        "pathParameters": [
+            "deviceId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/chat/conversations/{id}/mls/welcomes",
+        "operationId": "chatControllerMlsWelcomes",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": true
+    },
+    {
+        "method": "post",
+        "path": "/chat/conversations/{id}/mls/welcomes",
+        "operationId": "chatControllerStoreMlsWelcome",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/playback/samples/{id}/playback-info",
         "operationId": "playbackControllerPlaybackInfo",
         "pathParameters": [
             "id"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/indexer/libraries/{id}/remove-paths",
+        "operationId": "indexerApiControllerRemoveItemsAtPaths",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -1397,6 +1529,16 @@ export const routes = [
             "id"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/chat/devices/{deviceId}/approve",
+        "operationId": "chatControllerApproveMlsDevice",
+        "pathParameters": [
+            "deviceId"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -1751,6 +1893,16 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/admin/issues/{id}/updates",
+        "operationId": "adminIssueReportsControllerAddUpdate",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/friends/{username}/accept",
         "operationId": "friendsControllerAccept",
         "pathParameters": [
@@ -1800,6 +1952,16 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "patch",
+        "path": "/admin/issues/{id}/status",
+        "operationId": "adminIssueReportsControllerUpdateStatus",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/setup/steps/{step}/test",
         "operationId": "setupControllerTestStep",
@@ -1845,6 +2007,16 @@ export const routes = [
         "operationId": "adminUsersControllerRemoveAvatar",
         "pathParameters": [
             "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/chat/devices/{deviceId}",
+        "operationId": "chatControllerRevokeMlsDevice",
+        "pathParameters": [
+            "deviceId"
         ],
         "hasBody": false,
         "hasQuery": false
@@ -1927,6 +2099,16 @@ export const routes = [
             "id"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "patch",
+        "path": "/admin/issues/{id}/chat",
+        "operationId": "adminIssueReportsControllerSetChat",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -2121,6 +2303,26 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/issues/{id}",
+        "operationId": "adminIssueReportsControllerGet",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/issues/{id}",
+        "operationId": "adminIssueReportsControllerDelete",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/themes/items/{id}",
         "operationId": "themesControllerAudio",
         "pathParameters": [
@@ -2231,6 +2433,16 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/issues/{id}",
+        "operationId": "issueReportsControllerGet",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/users/{id}",
         "operationId": "userControllerGetUser",
         "pathParameters": [
@@ -2245,6 +2457,28 @@ export const routes = [
         "operationId": "userControllerDeleteUser",
         "pathParameters": [
             "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/chat/conversations/{id}/mls/key-packages/{keyPackageId}/claim",
+        "operationId": "chatControllerClaimMlsKeyPackage",
+        "pathParameters": [
+            "id",
+            "keyPackageId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/chat/conversations/{id}/mls/welcomes/{welcomeId}/ack",
+        "operationId": "chatControllerAcknowledgeMlsWelcome",
+        "pathParameters": [
+            "id",
+            "welcomeId"
         ],
         "hasBody": true,
         "hasQuery": false
@@ -2368,6 +2602,17 @@ export const routes = [
             "jobId"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/requests/webhook/{kind}/{serviceId}",
+        "operationId": "requestWebhookControllerReceive",
+        "pathParameters": [
+            "kind",
+            "serviceId"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {

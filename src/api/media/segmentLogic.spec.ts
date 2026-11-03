@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { chapterSegments, mergeSegments, parseChapters } from "./segmentLogic.js";
+import { chapterSegments, mergeSegments, parseChapters, parseMediaChapters } from "./segmentLogic.js";
 
 describe("segmentLogic", () => {
 	it("reads stored chapters in seconds and skips malformed ones", () => {
 		const chapters = parseChapters({
-			chapters: [
-				{ title: "Credits", start: 1300, end: 1400 },
-				{ title: "Intro", start: 0, end: 90.5 },
-				{ title: "Bad", start: 10, end: 5 },
-				"nope",
-			],
+			chapters: [{ title: "Credits", start: 1300, end: 1400 }, { title: "Intro", start: 0, end: 90.5 }, { title: "Bad", start: 10, end: 5 }, "nope"],
 		});
 		expect(chapters).toEqual([
 			{ title: "Intro", startMs: 0, endMs: 90500 },
 			{ title: "Credits", startMs: 1300000, endMs: 1400000 },
 		]);
 		expect(parseChapters(null)).toEqual([]);
+	});
+
+	it("prefers admin chapter edits over indexed chapters, including an empty override", () => {
+		const technical = { chapters: [{ title: "Indexed", start: 0, end: 10 }] };
+		expect(parseMediaChapters(technical, { adminChapters: [{ title: "Manual", start: 2, end: 5 }] })).toEqual([{ title: "Manual", startMs: 2000, endMs: 5000 }]);
+		expect(parseMediaChapters(technical, { adminChapters: [] })).toEqual([]);
+		expect(parseMediaChapters(technical, {})).toEqual([{ title: "Indexed", startMs: 0, endMs: 10000 }]);
 	});
 
 	it("maps chapter titles onto segment types without matching inside other words", () => {

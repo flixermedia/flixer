@@ -58,6 +58,9 @@ const fastifyPlugins = [
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
+	fastify: {
+		bodyLimit: 32 * 1024 * 1024,
+	},
 	mount: {
 		"/api": Object.values(api),
 	},
@@ -78,6 +81,10 @@ const fastifyPlugins = [
 							type: "http",
 							scheme: "bearer",
 							bearerFormat: "JWT",
+						},
+						WebhookBasicAuth: {
+							type: "http",
+							scheme: "basic",
 						},
 					},
 				},

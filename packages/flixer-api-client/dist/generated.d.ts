@@ -615,6 +615,17 @@ export interface SetSegmentRequest {
 export type UpdateMediaItemRequestProviderIds = {
     [key: string]: string | null;
 };
+export interface UpdateMediaChapterRequest {
+    /**
+       * @minLength 1
+       * @maxLength 256
+       */
+    title: string;
+    /** @minimum 0 */
+    startMs: number;
+    /** @minimum 1 */
+    endMs: number;
+}
 export interface UpdateMediaItemRequest {
     /** @maxLength 1000 */
     title?: string;
@@ -649,6 +660,8 @@ export interface UpdateMediaItemRequest {
        */
     overview?: string | null;
     providerIds?: UpdateMediaItemRequestProviderIds;
+    /** @maxItems 1000 */
+    chapters?: UpdateMediaChapterRequest[];
 }
 export interface RefreshMediaItemRequest {
     priority?: boolean;
@@ -876,6 +889,47 @@ export interface CreatePartyRequest {
     itemId: string;
     visibility?: CreatePartyRequestVisibility;
 }
+export interface RegisterChatMlsDeviceRequest {
+    /**
+       * @minLength 1
+       * @maxLength 80
+       */
+    name: string;
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    deviceId: string;
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    keyPackage: string;
+    /**
+       * @minLength 1
+       * @maxLength 512
+       */
+    pairingPublicKey: string;
+}
+export interface ApproveChatMlsDeviceRequest {
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    approverDeviceId: string;
+    /**
+       * @minLength 1
+       * @maxLength 128
+       */
+    signature: string;
+}
+export interface AddChatMlsKeyPackageRequest {
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    keyPackage: string;
+}
 export interface StartChatRequest {
     /** @maxLength 64 */
     username?: string;
@@ -891,16 +945,109 @@ export interface RenameChatRequest {
        */
     name: string;
 }
+export interface ChatMlsWelcomeRecipientRequest {
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    deviceId: string;
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    keyPackageId: string;
+}
+export interface StoreChatMlsWelcomeRequest {
+    /** @maxItems 200 */
+    recipients: ChatMlsWelcomeRecipientRequest[];
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    welcome: string;
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    ratchetTree: string;
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    messageId: string;
+}
+export interface AcknowledgeChatMlsWelcomeRequest {
+    /**
+       * @minLength 1
+       * @maxLength 36
+       */
+    deviceId: string;
+}
+export interface ChatMlsWelcomeDeliveryRequest {
+    /** @maxItems 200 */
+    recipients: ChatMlsWelcomeRecipientRequest[];
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    welcome: string;
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    ratchetTree: string;
+}
 export interface SendMessageRequest {
+    /**
+       * @minLength 1
+       * @maxLength 32768
+       */
+    body: string;
+    encrypted?: boolean;
+    /** @maxLength 36 */
+    mlsDeviceId?: string;
+    mlsWelcome?: ChatMlsWelcomeDeliveryRequest;
+}
+export interface AddMembersRequest {
+    /** @maxItems 50 */
+    usernames: string[];
+}
+export interface CreateIssueReportRequest {
+    /**
+       * @minLength 1
+       * @maxLength 200
+       */
+    title: string;
+    /**
+       * @minLength 1
+       * @maxLength 60
+       */
+    category: string;
+    /**
+       * @minLength 1
+       * @maxLength 5000
+       */
+    description: string;
+    /** @maxLength 36 */
+    mediaItemId?: string;
+}
+export interface UpdateIssueReportStatusRequest {
+    /**
+       * @minLength 1
+       * @maxLength 16
+       */
+    status: string;
+}
+export interface AddIssueReportUpdateRequest {
     /**
        * @minLength 1
        * @maxLength 2000
        */
     body: string;
+    isInternal?: boolean;
 }
-export interface AddMembersRequest {
-    /** @maxItems 50 */
-    usernames: string[];
+export interface SetIssueReportChatRequest {
+    open: boolean;
 }
 /**
  * @minLength 1
@@ -1641,6 +1788,10 @@ export interface ApiRequestsMediaRequestsServiceMediaRequestView {
     createdAt: string;
     updatedAt: string;
 }
+export interface ApiRequestsRequestWebhookServiceRequestWebhookCredentials {
+    username: string;
+    password: string;
+}
 export interface ApiRequestsRequestServicesServiceRequestServiceView {
     id: string;
     kind: 'sonarr' | 'radarr' | 'lidarr';
@@ -1912,6 +2063,7 @@ export interface ChatChatServiceChatPerson {
 }
 export interface ChatChatServiceChatMessage {
     id: string;
+    sequence: string;
     conversationId: string;
     kind: 'text' | 'system';
     body: string;
@@ -1922,10 +2074,50 @@ export interface ChatChatServiceChatConversation {
     id: string;
     kind: 'direct' | 'group';
     name: null | string;
+    supportChatOpen: null | false | true;
     members: ChatChatServiceChatMember[];
     lastMessage: null | ChatChatServiceChatMessage;
     unread: number;
     updatedAt: string;
+}
+export interface ChatChatServiceChatMlsDeviceSummary {
+    deviceId: string;
+    name: string;
+    status: 'active' | 'pending' | 'revoked';
+    createdAt: string;
+    approvedAt: null | string;
+    approvalChallenge: null | string;
+}
+export type ApiIssuesIssueReportsServiceIssueReportUpdateAuthor = {
+    username: string;
+    displayName: string;
+} | null;
+export interface ApiIssuesIssueReportsServiceIssueReportUpdate {
+    id: string;
+    body: string;
+    isInternal: boolean;
+    createdAt: string;
+    author: ApiIssuesIssueReportsServiceIssueReportUpdateAuthor;
+}
+export type ApiIssuesIssueReportsServiceIssueReportRequester = {
+    username: string;
+    displayName: string;
+};
+export interface ApiIssuesIssueReportsServiceIssueReport {
+    id: string;
+    title: string;
+    category: string;
+    description: string;
+    status: 'in_progress' | 'open' | 'resolved' | 'closed';
+    mediaItemId: null | string;
+    mediaTitle: null | string;
+    chatOpen: boolean;
+    chatConversationId: null | string;
+    createdAt: string;
+    updatedAt: string;
+    resolvedAt: null | string;
+    requester: ApiIssuesIssueReportsServiceIssueReportRequester;
+    updates?: ApiIssuesIssueReportsServiceIssueReportUpdate[];
 }
 export interface ApiSocialProfilesServiceNowPlaying {
     kind: 'watching' | 'listening';
@@ -3138,6 +3330,12 @@ export type IndexerApiControllerPruneLibraryBody = {
 export type IndexerApiControllerPruneLibrary200 = {
     removed: number;
 };
+export type IndexerApiControllerRemoveItemsAtPathsBody = {
+    [key: string]: unknown;
+};
+export type IndexerApiControllerRemoveItemsAtPaths200 = {
+    removed: number;
+};
 export type AdminIndexerControllerTasksParams = {
     queue?: string;
     state?: string;
@@ -3288,6 +3486,15 @@ export type RequestsControllerList200 = {
     total: number;
     counts: RequestsControllerList200Counts;
     items: ApiRequestsMediaRequestsServiceMediaRequestView[];
+};
+export type RequestWebhookControllerReceiveBody = {
+    [key: string]: unknown;
+};
+export type RequestWebhookControllerReceive200 = {
+    ok: boolean;
+    ignored: boolean;
+    queued: number;
+    alreadyQueued: number;
 };
 export type AdminMediaControllerListSubtitles200 = {
     tracks: ApiMediaSubtitleServiceSubtitleTrack[];
@@ -3738,13 +3945,83 @@ export type ChatControllerList200 = {
 export type ChatControllerUnread200 = {
     count: number;
 };
+export type ChatControllerEncryptionStatus200 = {
+    enabled: boolean;
+};
+export type ChatControllerRegisterMlsDevice201 = {
+    deviceId: string;
+    keyPackageId: string;
+    status: 'active' | 'pending';
+    approvalChallenge: null | string;
+};
+export type ChatControllerMlsDevices200 = {
+    devices: ChatChatServiceChatMlsDeviceSummary[];
+};
+export type ChatControllerAddMlsKeyPackage201 = {
+    keyPackageId: string;
+};
+export type ChatControllerDeviceMlsKeyPackages200KeyPackagesItem = {
+    keyPackageId: string;
+    keyPackage: string;
+    available: boolean;
+};
+export type ChatControllerDeviceMlsKeyPackages200 = {
+    keyPackages: ChatControllerDeviceMlsKeyPackages200KeyPackagesItem[];
+};
 export type ChatControllerMessagesParams = {
     before?: string;
     after?: string;
+    beforeSequence?: string;
+    afterSequence?: string;
 };
 export type ChatControllerMessages200 = {
     messages: ChatChatServiceChatMessage[];
     hasMore: boolean;
+};
+export type ChatControllerMlsKeyPackages200KeyPackagesItem = {
+    userId: string;
+    deviceId: string;
+    keyPackageId: string;
+    keyPackage: string;
+    available: boolean;
+};
+export type ChatControllerMlsKeyPackages200 = {
+    keyPackages: ChatControllerMlsKeyPackages200KeyPackagesItem[];
+};
+export type ChatControllerClaimMlsKeyPackage200 = {
+    userId: string;
+    deviceId: string;
+    keyPackageId: string;
+    keyPackage: string;
+    available: false;
+};
+export type ChatControllerMlsWelcomesParams = {
+    deviceId?: string;
+};
+export type ChatControllerMlsWelcomes200WelcomesItem = {
+    id: string;
+    messageId: string;
+    keyPackageId: string;
+    welcome: string;
+    ratchetTree: string;
+    createdAt: string;
+};
+export type ChatControllerMlsWelcomes200 = {
+    welcomes: ChatControllerMlsWelcomes200WelcomesItem[];
+};
+export type ChatControllerStoreMlsWelcome201 = {
+    stored: boolean;
+};
+export type IssueReportsControllerConfiguration200 = {
+    enabled: boolean;
+    categories: string[];
+    chatEnabled: boolean;
+};
+export type IssueReportsControllerList200 = {
+    reports: ApiIssuesIssueReportsServiceIssueReport[];
+};
+export type AdminIssueReportsControllerList200 = {
+    reports: ApiIssuesIssueReportsServiceIssueReport[];
 };
 export type ProfilesControllerDirectoryParams = {
     q?: string;
@@ -4100,6 +4377,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     indexerApiControllerExistingIntroSegments: (params?: IndexerApiControllerExistingIntroSegmentsParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerExistingIntroSegments200>>;
     indexerApiControllerUpdateIntroSegments: (indexerApiControllerUpdateIntroSegmentsBody?: IndexerApiControllerUpdateIntroSegmentsBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerUpdateIntroSegments200>>;
     indexerApiControllerPruneLibrary: (id: string, indexerApiControllerPruneLibraryBody?: IndexerApiControllerPruneLibraryBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerPruneLibrary200>>;
+    indexerApiControllerRemoveItemsAtPaths: (id: string, indexerApiControllerRemoveItemsAtPathsBody?: IndexerApiControllerRemoveItemsAtPathsBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<IndexerApiControllerRemoveItemsAtPaths200>>;
     adminIndexerControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIndexerAdminIndexerServiceIndexerStatus>>;
     adminIndexerControllerScan: (id: string, scanLibraryRequest?: ScanLibraryRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
     adminIndexerControllerQueueSegments: (id: string, librarySegmentScanRequest?: LibrarySegmentScanRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
@@ -4141,6 +4419,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     requestsControllerDecline: (id: string, declineRequestBody?: DeclineRequestBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsMediaRequestsServiceMediaRequestView>>;
     requestsControllerRetry: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsMediaRequestsServiceMediaRequestView>>;
     requestsControllerRemove: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    adminRequestsControllerGetWebhookCredentials: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsRequestWebhookServiceRequestWebhookCredentials>>;
+    adminRequestsControllerRotateWebhookCredentials: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsRequestWebhookServiceRequestWebhookCredentials>>;
     adminRequestsControllerListServices: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsRequestServicesServiceRequestServiceView[]>>;
     adminRequestsControllerCreateService: (requestServiceInput?: RequestServiceInput, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsRequestServicesServiceRequestServiceView>>;
     adminRequestsControllerTestService: (testServiceInput?: TestServiceInput, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsArrClientArrTestResult>>;
@@ -4148,6 +4428,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     adminRequestsControllerRemoveService: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     adminRequestsControllerListUsers: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsMediaRequestsServiceRequestUserLimitView[]>>;
     adminRequestsControllerUpdateUser: (id: string, requestUserLimitInput?: RequestUserLimitInput, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiRequestsMediaRequestsServiceRequestUserLimitView>>;
+    requestWebhookControllerReceive: (kind: string, serviceId: string, requestWebhookControllerReceiveBody?: RequestWebhookControllerReceiveBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<RequestWebhookControllerReceive200>>;
     adminMediaControllerListSubtitles: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMediaControllerListSubtitles200>>;
     adminMediaControllerRemoveSubtitle: (id: string, params?: AdminMediaControllerRemoveSubtitleParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     adminMediaControllerSearchSubtitles: (id: string, subtitleSearchRequest?: SubtitleSearchRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMediaControllerSearchSubtitles200>>;
@@ -4220,14 +4501,36 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     chatControllerList: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerList200>>;
     chatControllerStart: (startChatRequest?: StartChatRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerUnread: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerUnread200>>;
+    chatControllerEncryptionStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerEncryptionStatus200>>;
+    chatControllerRegisterMlsDevice: (registerChatMlsDeviceRequest?: RegisterChatMlsDeviceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerRegisterMlsDevice201>>;
+    chatControllerMlsDevices: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMlsDevices200>>;
+    chatControllerApproveMlsDevice: (deviceId: string, approveChatMlsDeviceRequest?: ApproveChatMlsDeviceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    chatControllerRevokeMlsDevice: (deviceId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    chatControllerAddMlsKeyPackage: (deviceId: string, addChatMlsKeyPackageRequest?: AddChatMlsKeyPackageRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerAddMlsKeyPackage201>>;
+    chatControllerDeviceMlsKeyPackages: (deviceId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerDeviceMlsKeyPackages200>>;
     chatControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerRename: (id: string, renameChatRequest?: RenameChatRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerDeleteConversation: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     chatControllerMessages: (id: string, params?: ChatControllerMessagesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMessages200>>;
     chatControllerSend: (id: string, sendMessageRequest?: SendMessageRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatMessage>>;
+    chatControllerMlsKeyPackages: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMlsKeyPackages200>>;
+    chatControllerClaimMlsKeyPackage: (id: string, keyPackageId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerClaimMlsKeyPackage200>>;
+    chatControllerMlsWelcomes: (id: string, params?: ChatControllerMlsWelcomesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMlsWelcomes200>>;
+    chatControllerStoreMlsWelcome: (id: string, storeChatMlsWelcomeRequest?: StoreChatMlsWelcomeRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerStoreMlsWelcome201>>;
+    chatControllerAcknowledgeMlsWelcome: (id: string, welcomeId: string, acknowledgeChatMlsWelcomeRequest?: AcknowledgeChatMlsWelcomeRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     chatControllerRead: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     chatControllerAddMembers: (id: string, addMembersRequest?: AddMembersRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerRemoveMember: (id: string, username: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    issueReportsControllerConfiguration: (options?: AxiosRequestConfig) => Promise<AxiosResponse<IssueReportsControllerConfiguration200>>;
+    issueReportsControllerList: (options?: AxiosRequestConfig) => Promise<AxiosResponse<IssueReportsControllerList200>>;
+    issueReportsControllerCreate: (createIssueReportRequest?: CreateIssueReportRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
+    issueReportsControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
+    adminIssueReportsControllerList: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminIssueReportsControllerList200>>;
+    adminIssueReportsControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
+    adminIssueReportsControllerDelete: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    adminIssueReportsControllerUpdateStatus: (id: string, updateIssueReportStatusRequest?: UpdateIssueReportStatusRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
+    adminIssueReportsControllerAddUpdate: (id: string, addIssueReportUpdateRequest?: AddIssueReportUpdateRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
+    adminIssueReportsControllerSetChat: (id: string, setIssueReportChatRequest?: SetIssueReportChatRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>>;
     profilesControllerDirectory: (params?: ProfilesControllerDirectoryParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ProfilesControllerDirectory200>>;
     profilesControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ProfilesControllerMe200>>;
     profilesControllerSetVisibility: (updateProfileVisibilityRequest?: UpdateProfileVisibilityRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ProfilesControllerSetVisibility200>>;
@@ -4369,6 +4672,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getIndexerApiControllerExistingIntroSegmentsUrl: (params?: IndexerApiControllerExistingIntroSegmentsParams) => string;
     getIndexerApiControllerUpdateIntroSegmentsUrl: () => string;
     getIndexerApiControllerPruneLibraryUrl: (id: string) => string;
+    getIndexerApiControllerRemoveItemsAtPathsUrl: (id: string) => string;
     getAdminIndexerControllerStatusUrl: () => string;
     getAdminIndexerControllerScanUrl: (id: string) => string;
     getAdminIndexerControllerQueueSegmentsUrl: (id: string) => string;
@@ -4410,6 +4714,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getRequestsControllerDeclineUrl: (id: string) => string;
     getRequestsControllerRetryUrl: (id: string) => string;
     getRequestsControllerRemoveUrl: (id: string) => string;
+    getAdminRequestsControllerGetWebhookCredentialsUrl: () => string;
+    getAdminRequestsControllerRotateWebhookCredentialsUrl: () => string;
     getAdminRequestsControllerListServicesUrl: () => string;
     getAdminRequestsControllerCreateServiceUrl: () => string;
     getAdminRequestsControllerTestServiceUrl: () => string;
@@ -4417,6 +4723,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getAdminRequestsControllerRemoveServiceUrl: (id: string) => string;
     getAdminRequestsControllerListUsersUrl: () => string;
     getAdminRequestsControllerUpdateUserUrl: (id: string) => string;
+    getRequestWebhookControllerReceiveUrl: (kind: string, serviceId: string) => string;
     getAdminMediaControllerListSubtitlesUrl: (id: string) => string;
     getAdminMediaControllerRemoveSubtitleUrl: (id: string, params?: AdminMediaControllerRemoveSubtitleParams) => string;
     getAdminMediaControllerSearchSubtitlesUrl: (id: string) => string;
@@ -4489,14 +4796,36 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getChatControllerListUrl: () => string;
     getChatControllerStartUrl: () => string;
     getChatControllerUnreadUrl: () => string;
+    getChatControllerEncryptionStatusUrl: () => string;
+    getChatControllerRegisterMlsDeviceUrl: () => string;
+    getChatControllerMlsDevicesUrl: () => string;
+    getChatControllerApproveMlsDeviceUrl: (deviceId: string) => string;
+    getChatControllerRevokeMlsDeviceUrl: (deviceId: string) => string;
+    getChatControllerAddMlsKeyPackageUrl: (deviceId: string) => string;
+    getChatControllerDeviceMlsKeyPackagesUrl: (deviceId: string) => string;
     getChatControllerGetUrl: (id: string) => string;
     getChatControllerRenameUrl: (id: string) => string;
     getChatControllerDeleteConversationUrl: (id: string) => string;
     getChatControllerMessagesUrl: (id: string, params?: ChatControllerMessagesParams) => string;
     getChatControllerSendUrl: (id: string) => string;
+    getChatControllerMlsKeyPackagesUrl: (id: string) => string;
+    getChatControllerClaimMlsKeyPackageUrl: (id: string, keyPackageId: string) => string;
+    getChatControllerMlsWelcomesUrl: (id: string, params?: ChatControllerMlsWelcomesParams) => string;
+    getChatControllerStoreMlsWelcomeUrl: (id: string) => string;
+    getChatControllerAcknowledgeMlsWelcomeUrl: (id: string, welcomeId: string) => string;
     getChatControllerReadUrl: (id: string) => string;
     getChatControllerAddMembersUrl: (id: string) => string;
     getChatControllerRemoveMemberUrl: (id: string, username: string) => string;
+    getIssueReportsControllerConfigurationUrl: () => string;
+    getIssueReportsControllerListUrl: () => string;
+    getIssueReportsControllerCreateUrl: () => string;
+    getIssueReportsControllerGetUrl: (id: string) => string;
+    getAdminIssueReportsControllerListUrl: () => string;
+    getAdminIssueReportsControllerGetUrl: (id: string) => string;
+    getAdminIssueReportsControllerDeleteUrl: (id: string) => string;
+    getAdminIssueReportsControllerUpdateStatusUrl: (id: string) => string;
+    getAdminIssueReportsControllerAddUpdateUrl: (id: string) => string;
+    getAdminIssueReportsControllerSetChatUrl: (id: string) => string;
     getProfilesControllerDirectoryUrl: (params?: ProfilesControllerDirectoryParams) => string;
     getProfilesControllerMeUrl: () => string;
     getProfilesControllerSetVisibilityUrl: () => string;
@@ -4639,6 +4968,7 @@ export type IndexerApiControllerIntroSyncCandidatesResult = AxiosResponse<Indexe
 export type IndexerApiControllerExistingIntroSegmentsResult = AxiosResponse<IndexerApiControllerExistingIntroSegments200>;
 export type IndexerApiControllerUpdateIntroSegmentsResult = AxiosResponse<IndexerApiControllerUpdateIntroSegments200>;
 export type IndexerApiControllerPruneLibraryResult = AxiosResponse<IndexerApiControllerPruneLibrary200>;
+export type IndexerApiControllerRemoveItemsAtPathsResult = AxiosResponse<IndexerApiControllerRemoveItemsAtPaths200>;
 export type AdminIndexerControllerStatusResult = AxiosResponse<ApiIndexerAdminIndexerServiceIndexerStatus>;
 export type AdminIndexerControllerScanResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerQueueSegmentsResult = AxiosResponse<unknown>;
@@ -4680,6 +5010,8 @@ export type RequestsControllerApproveResult = AxiosResponse<ApiRequestsMediaRequ
 export type RequestsControllerDeclineResult = AxiosResponse<ApiRequestsMediaRequestsServiceMediaRequestView>;
 export type RequestsControllerRetryResult = AxiosResponse<ApiRequestsMediaRequestsServiceMediaRequestView>;
 export type RequestsControllerRemoveResult = AxiosResponse<void>;
+export type AdminRequestsControllerGetWebhookCredentialsResult = AxiosResponse<ApiRequestsRequestWebhookServiceRequestWebhookCredentials>;
+export type AdminRequestsControllerRotateWebhookCredentialsResult = AxiosResponse<ApiRequestsRequestWebhookServiceRequestWebhookCredentials>;
 export type AdminRequestsControllerListServicesResult = AxiosResponse<ApiRequestsRequestServicesServiceRequestServiceView[]>;
 export type AdminRequestsControllerCreateServiceResult = AxiosResponse<ApiRequestsRequestServicesServiceRequestServiceView>;
 export type AdminRequestsControllerTestServiceResult = AxiosResponse<ApiRequestsArrClientArrTestResult>;
@@ -4687,6 +5019,7 @@ export type AdminRequestsControllerUpdateServiceResult = AxiosResponse<ApiReques
 export type AdminRequestsControllerRemoveServiceResult = AxiosResponse<void>;
 export type AdminRequestsControllerListUsersResult = AxiosResponse<ApiRequestsMediaRequestsServiceRequestUserLimitView[]>;
 export type AdminRequestsControllerUpdateUserResult = AxiosResponse<ApiRequestsMediaRequestsServiceRequestUserLimitView>;
+export type RequestWebhookControllerReceiveResult = AxiosResponse<RequestWebhookControllerReceive200>;
 export type AdminMediaControllerListSubtitlesResult = AxiosResponse<AdminMediaControllerListSubtitles200>;
 export type AdminMediaControllerRemoveSubtitleResult = AxiosResponse<void>;
 export type AdminMediaControllerSearchSubtitlesResult = AxiosResponse<AdminMediaControllerSearchSubtitles200>;
@@ -4759,14 +5092,36 @@ export type PartiesControllerEndResult = AxiosResponse<void>;
 export type ChatControllerListResult = AxiosResponse<ChatControllerList200>;
 export type ChatControllerStartResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerUnreadResult = AxiosResponse<ChatControllerUnread200>;
+export type ChatControllerEncryptionStatusResult = AxiosResponse<ChatControllerEncryptionStatus200>;
+export type ChatControllerRegisterMlsDeviceResult = AxiosResponse<ChatControllerRegisterMlsDevice201>;
+export type ChatControllerMlsDevicesResult = AxiosResponse<ChatControllerMlsDevices200>;
+export type ChatControllerApproveMlsDeviceResult = AxiosResponse<void>;
+export type ChatControllerRevokeMlsDeviceResult = AxiosResponse<void>;
+export type ChatControllerAddMlsKeyPackageResult = AxiosResponse<ChatControllerAddMlsKeyPackage201>;
+export type ChatControllerDeviceMlsKeyPackagesResult = AxiosResponse<ChatControllerDeviceMlsKeyPackages200>;
 export type ChatControllerGetResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerRenameResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerDeleteConversationResult = AxiosResponse<void>;
 export type ChatControllerMessagesResult = AxiosResponse<ChatControllerMessages200>;
 export type ChatControllerSendResult = AxiosResponse<ChatChatServiceChatMessage>;
+export type ChatControllerMlsKeyPackagesResult = AxiosResponse<ChatControllerMlsKeyPackages200>;
+export type ChatControllerClaimMlsKeyPackageResult = AxiosResponse<ChatControllerClaimMlsKeyPackage200>;
+export type ChatControllerMlsWelcomesResult = AxiosResponse<ChatControllerMlsWelcomes200>;
+export type ChatControllerStoreMlsWelcomeResult = AxiosResponse<ChatControllerStoreMlsWelcome201>;
+export type ChatControllerAcknowledgeMlsWelcomeResult = AxiosResponse<void>;
 export type ChatControllerReadResult = AxiosResponse<void>;
 export type ChatControllerAddMembersResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerRemoveMemberResult = AxiosResponse<void>;
+export type IssueReportsControllerConfigurationResult = AxiosResponse<IssueReportsControllerConfiguration200>;
+export type IssueReportsControllerListResult = AxiosResponse<IssueReportsControllerList200>;
+export type IssueReportsControllerCreateResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
+export type IssueReportsControllerGetResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
+export type AdminIssueReportsControllerListResult = AxiosResponse<AdminIssueReportsControllerList200>;
+export type AdminIssueReportsControllerGetResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
+export type AdminIssueReportsControllerDeleteResult = AxiosResponse<void>;
+export type AdminIssueReportsControllerUpdateStatusResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
+export type AdminIssueReportsControllerAddUpdateResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
+export type AdminIssueReportsControllerSetChatResult = AxiosResponse<ApiIssuesIssueReportsServiceIssueReport>;
 export type ProfilesControllerDirectoryResult = AxiosResponse<ProfilesControllerDirectory200>;
 export type ProfilesControllerMeResult = AxiosResponse<ProfilesControllerMe200>;
 export type ProfilesControllerSetVisibilityResult = AxiosResponse<ProfilesControllerSetVisibility200>;

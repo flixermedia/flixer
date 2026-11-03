@@ -84,6 +84,18 @@ import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
 import { AiRecommendationCache } from "../entities/aiRecommendationCache.entity.js";
 import { CreateAiRecommendationCaches1796600000000 } from "../migrations/createAiRecommendationCaches1796600000000.js";
 import { AddAiRecommendationCacheScopes1796700000000 } from "../migrations/addAiRecommendationCacheScopes1796700000000.js";
+import { AddRequestWebhookToken1796800000000 } from "../migrations/addRequestWebhookToken1796800000000.js";
+import { CreateIssueReports1796900000000 } from "../migrations/createIssueReports1796900000000.js";
+import { AddChatMls1797000000000 } from "../migrations/addChatMls1797000000000.js";
+import { EnsureChatMessageSequence1797100000000 } from "../migrations/ensureChatMessageSequence1797100000000.js";
+import { RepairChatMlsDevicePairingKey1797200000000 } from "../migrations/repairChatMlsDevicePairingKey1797200000000.js";
+import { RepairChatMlsDeviceApproval1797300000000 } from "../migrations/repairChatMlsDeviceApproval1797300000000.js";
+import { RepairChatMlsWelcomeMessage1797400000000 } from "../migrations/repairChatMlsWelcomeMessage1797400000000.js";
+import { RepairChatMlsWelcomeColumns1797500000000 } from "../migrations/repairChatMlsWelcomeColumns1797500000000.js";
+import { RepairChatMlsWelcomeSchema1797600000000 } from "../migrations/repairChatMlsWelcomeSchema1797600000000.js";
+import { CreateChatMlsHistoryBackups1797700000000 } from "../migrations/createChatMlsHistoryBackups1797700000000.js";
+import { AddChatMessageEncryption1797800000000 } from "../migrations/addChatMessageEncryption1797800000000.js";
+import { AddChatConversationEncryption1797900000000 } from "../migrations/addChatConversationEncryption1797900000000.js";
 
 export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 	.type("typeorm:datasource")
@@ -183,6 +195,18 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateGuideProgrammes1796500000000,
 				CreateAiRecommendationCaches1796600000000,
 				AddAiRecommendationCacheScopes1796700000000,
+				AddRequestWebhookToken1796800000000,
+				CreateIssueReports1796900000000,
+				AddChatMls1797000000000,
+				EnsureChatMessageSequence1797100000000,
+				RepairChatMlsDevicePairingKey1797200000000,
+				RepairChatMlsDeviceApproval1797300000000,
+				RepairChatMlsWelcomeMessage1797400000000,
+				RepairChatMlsWelcomeColumns1797500000000,
+				RepairChatMlsWelcomeSchema1797600000000,
+				CreateChatMlsHistoryBackups1797700000000,
+				AddChatMessageEncryption1797800000000,
+				AddChatConversationEncryption1797900000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

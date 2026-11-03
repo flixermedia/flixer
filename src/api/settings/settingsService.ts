@@ -96,6 +96,14 @@ export class SettingsService {
 		if (!SETTING_KEY_PATTERN.test(key)) {
 			throw new BadRequest("Setting key has an invalid format.");
 		}
+		if (key === "chat_e2ee_enabled") {
+			if (typeof request.value !== "boolean") {
+				throw new BadRequest("The chat_e2ee_enabled setting must be a boolean.");
+			}
+		}
+		if (key === "chat_user_downgrade_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The chat_user_downgrade_enabled setting must be a boolean.");
+		}
 		if (
 			(key === "registration_enabled" || key === "email_verification_required") &&
 			typeof request.value !== "boolean"
@@ -140,6 +148,20 @@ export class SettingsService {
 
 		if (key === "themes_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The themes_enabled setting must be a boolean.");
+		}
+		if (["issue_reports_enabled", "issue_reports_chat_enabled"].includes(key) && typeof request.value !== "boolean") {
+			throw new BadRequest(`The ${key} setting must be a boolean.`);
+		}
+		if (key === "issue_reports_categories") {
+			if (
+				!Array.isArray(request.value) ||
+				request.value.length < 1 ||
+				request.value.length > 20 ||
+				request.value.some((category) => typeof category !== "string" || category.trim().length === 0 || category.trim().length > 60)
+			) {
+				throw new BadRequest("Issue report categories must contain 1 to 20 names of up to 60 characters.");
+			}
+			request.value = [...new Set(request.value.map((category) => (category as string).trim()))];
 		}
 
 		if (key === "updates_state") {
@@ -245,7 +267,7 @@ export class SettingsService {
 	}
 
 	private toPublicSetting(setting: Setting): PublicSetting {
-		const isSecret = setting.key === "smtp_password";
+		const isSecret = setting.key === "smtp_password" || setting.key === "requests_webhook_token";
 		return {
 			key: setting.key,
 			value: isSecret

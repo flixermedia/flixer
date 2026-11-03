@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 import type { DataSource, EntityManager } from "typeorm";
 import { Setting } from "../entities/setting.entity.js";
 import { ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs } from "../jobs/adminScheduledTasks.js";
@@ -14,6 +15,7 @@ interface SettingDefinition {
 
 const SETTINGS_FILE = join(process.cwd(), "src", "config", "settings.json");
 const SETTING_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_.-]{0,127}$/;
+const REQUEST_WEBHOOK_TOKEN_SETTING = "requests_webhook_token";
 
 function isJsonValue(value: unknown): value is JsonValue {
 
@@ -109,9 +111,14 @@ async function synchronizeDefinitions(manager: EntityManager, definitions: Setti
 			continue;
 		}
 
+		if (definition.key === REQUEST_WEBHOOK_TOKEN_SETTING && (typeof existing.value !== "string" || existing.value.length < 32)) {
+			existing.value = definition.defaultValue;
+			settingsToSave.push(existing);
+		}
+
 		if (existing.isPublic !== definition.isPublic) {
 			existing.isPublic = definition.isPublic;
-			settingsToSave.push(existing);
+			if (!settingsToSave.includes(existing)) settingsToSave.push(existing);
 		}
 	}
 
@@ -139,6 +146,11 @@ export async function synchronizeSettings(dataSource: DataSource): Promise<void>
 	definitions.push({
 		key: ADMIN_SCHEDULED_TASKS_SETTING,
 		defaultValue: scheduledTaskDefaults,
+		isPublic: false,
+	});
+	definitions.push({
+		key: REQUEST_WEBHOOK_TOKEN_SETTING,
+		defaultValue: randomBytes(32).toString("hex"),
 		isPublic: false,
 	});
 	await dataSource.transaction(async (manager) => {

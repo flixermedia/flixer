@@ -5,12 +5,7 @@ import { MediaItemsService, mergeIndexerProviderIds, parseItemPayload } from "./
 
 describe("mergeIndexerProviderIds", () => {
 	it("keeps manually edited provider IDs while accepting other IDs from rescans", () => {
-		expect(
-			mergeIndexerProviderIds({ tmdb: "discovered", imdb: "tt123" }, { tmdb: "manual", custom: "custom-id" }, [
-				"providerId:tmdb",
-				"providerId:custom",
-			]),
-		).toEqual({ tmdb: "manual", imdb: "tt123", custom: "custom-id" });
+		expect(mergeIndexerProviderIds({ tmdb: "discovered", imdb: "tt123" }, { tmdb: "manual", custom: "custom-id" }, ["providerId:tmdb", "providerId:custom"])).toEqual({ tmdb: "manual", imdb: "tt123", custom: "custom-id" });
 	});
 
 	describe("parseItemPayload updateFields", () => {
@@ -22,15 +17,12 @@ describe("mergeIndexerProviderIds", () => {
 		};
 
 		it("accepts unique targeted update fields", () => {
-			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData", "lyrics"] }).updateFields).toEqual([
-				"images",
-				"fileData",
-				"lyrics",
-			]);
+			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData", "lyrics"] }).updateFields).toEqual(["images", "fileData", "lyrics"]);
 		});
 
 		describe("MediaItemsService partial updates", () => {
 			function setup(item: Partial<MediaItem>) {
+
 				const current = { ...item, id: "media-id", isPlaceholder: false } as MediaItem;
 				const manager = {
 					existsBy: async () => true,
@@ -44,6 +36,7 @@ describe("mergeIndexerProviderIds", () => {
 					transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never),
 				} as unknown as DataSource;
 				return { service: new MediaItemsService(dataSource, {} as never), current };
+
 			}
 
 			it("updates only images while retaining other image types and existing media data", async () => {
@@ -118,6 +111,79 @@ describe("mergeIndexerProviderIds", () => {
 				});
 				expect(current.images).toEqual([{ type: "poster", path: "/poster.jpg", provider: "tmdb" }]);
 				expect(current.technical).toEqual({ videoCodec: "h264" });
+			});
+
+			it("preserves manually edited chapters when rescanning the media item", async () => {
+				const adminChapters = [{ title: "Manual chapter", start: 2, end: 8 }];
+				const { service, current } = setup({
+					libraryId: "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2",
+					type: "movie",
+					path: "/movies/example.mkv",
+					externalKey: "tmdb:123",
+					title: "Existing title",
+					metadata: { adminChapters },
+					images: [],
+					technical: { chapters: [{ title: "Indexed chapter", start: 0, end: 12 }] },
+					editedFields: ["chapters"],
+				});
+
+				await service.upsert(
+					parseItemPayload({
+						libraryId: current.libraryId,
+						type: current.type,
+						path: current.path,
+						externalKey: current.externalKey,
+						metadata: { title: "New title" },
+						images: [],
+						technical: { chapters: [{ title: "New indexed chapter", start: 0, end: 15 }] },
+					}),
+				);
+
+				expect(current.metadata.adminChapters).toEqual(adminChapters);
+				expect(current.technical).toEqual({ chapters: [{ title: "New indexed chapter", start: 0, end: 15 }] });
+			});
+		});
+
+		describe("MediaItemsService.removePaths", () => {
+			it("deletes only the requested exact paths and recursive subtrees", async () => {
+				const targets = [
+					{ path: "/movies/removed.mkv", recursive: false },
+					{ path: "/movies/removed-show", recursive: true },
+				];
+				let query = "";
+				let params: unknown[] = [];
+				const manager = {
+					existsBy: async () => true,
+					query: async (sql: string, values: unknown[]) => {
+						query = sql;
+						params = values;
+						return [{ id: "removed-1" }, { id: "removed-2" }];
+					},
+				};
+				const dataSource = {
+					transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never),
+				} as unknown as DataSource;
+				const service = new MediaItemsService(dataSource, {} as never);
+
+				await expect(service.removePaths("library-id", targets)).resolves.toEqual({ removed: 2 });
+				expect(query).toContain("DELETE FROM media_items");
+				expect(query).toContain("RETURNING id");
+				expect(params).toEqual(["library-id", "/movies/removed.mkv", false, "/movies/removed-show", true]);
+			});
+
+			it("does not delete paths when the library does not exist", async () => {
+				const manager = {
+					existsBy: async () => false,
+					query: async () => {
+						throw new Error("query should not run");
+					},
+				};
+				const dataSource = {
+					transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never),
+				} as unknown as DataSource;
+				const service = new MediaItemsService(dataSource, {} as never);
+
+				await expect(service.removePaths("missing-library", [{ path: "/movies/a.mkv", recursive: false }])).rejects.toThrow("Media library not found.");
 			});
 		});
 

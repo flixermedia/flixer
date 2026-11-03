@@ -1,4 +1,4 @@
-import { parseChapters } from "./segmentLogic.js";
+import { parseMediaChapters } from "./segmentLogic.js";
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
@@ -26,9 +26,7 @@ export interface PersonProfileView {
 }
 
 function toProfileView(row: PersonProfile): PersonProfileView | null {
-	return row.biography || row.description
-		? { description: row.description, biography: row.biography, source: row.source, sourceUrl: row.sourceUrl }
-		: null;
+	return row.biography || row.description ? { description: row.description, biography: row.biography, source: row.source, sourceUrl: row.sourceUrl } : null;
 }
 
 const ROLE_ORDER = ["artist", "actor", "director", "writer", "producer", "composer"];
@@ -67,16 +65,16 @@ interface StoredImage {
 
 /** Index of the first downloaded image of one of the given types, preferring earlier types in the list. */
 function imageIndex(images: unknown[] | null | undefined, types: string[]): number | null {
+
 	const list = (images ?? []) as StoredImage[];
 	for (const type of types) {
-		const index = list.findIndex(
-			(image) => image?.type === type && typeof image.path === "string" && image.path.length > 0,
-		);
+		const index = list.findIndex((image) => image?.type === type && typeof image.path === "string" && image.path.length > 0);
 		if (index >= 0) {
 			return index;
 		}
 	}
 	return null;
+
 }
 
 function textOf(value: unknown): string | null {
@@ -84,22 +82,23 @@ function textOf(value: unknown): string | null {
 }
 
 function stringsOf(value: unknown): string[] {
-	return Array.isArray(value)
-		? value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
-		: [];
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0) : [];
 }
 
 function runtimeOf(item: MediaItem): number | null {
+
 	const minutes = Number(item.metadata?.runtime);
 	if (Number.isFinite(minutes) && minutes > 0) {
 		return Math.round(minutes);
 	}
 	const seconds = Number(item.technical?.duration);
 	return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds / 60) : null;
+
 }
 
 /** Names, roles and whether a photo is available; the photo URL itself is never exposed. */
 function peopleOf(value: unknown): Array<{ id: string; name: string; role: string | null; hasImage: boolean }> {
+
 	if (!Array.isArray(value)) {
 		return [];
 	}
@@ -113,10 +112,12 @@ function peopleOf(value: unknown): Array<{ id: string; name: string; role: strin
 			role: textOf(person.role),
 			hasImage: allowedPersonImage(person.image) !== null,
 		}));
+
 }
 
 /** Crew with their department (director, writer, ...), one entry per person and department. */
 function crewOf(value: unknown): Array<{ id: string; name: string; role: string; hasImage: boolean }> {
+
 	if (!Array.isArray(value)) {
 		return [];
 	}
@@ -139,6 +140,7 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 		}
 	}
 	return crew.slice(0, 30);
+
 }
 
 export interface HomeCard {
@@ -193,6 +195,7 @@ const CONTINUE_LIMIT = 20;
 /** The content shown on the signed-in home page. */
 @Injectable()
 export class MediaHomeService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		@Inject(IndexerClient) private readonly indexer: IndexerClient,
@@ -218,14 +221,7 @@ export class MediaHomeService {
 	}
 
 	async home(userId: string) {
-		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([
-			this.libraries(),
-			this.latest(["movie"], ROW_SIZE, userId),
-			this.latest(["series"], ROW_SIZE, userId),
-			this.latest(["album"], ROW_SIZE),
-			this.latest(["movie", "series"], FEATURED_CANDIDATES, userId),
-			this.continueWatching(userId),
-		]);
+		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([this.libraries(), this.latest(["movie"], ROW_SIZE, userId), this.latest(["series"], ROW_SIZE, userId), this.latest(["album"], ROW_SIZE), this.latest(["movie", "series"], FEATURED_CANDIDATES, userId), this.continueWatching(userId)]);
 
 		const featured = candidates
 			.filter((item) => item.backdrop !== null)
@@ -249,9 +245,7 @@ export class MediaHomeService {
 
 	/** Records a position; finishing an item marks it completed so it leaves "Continue watching". */
 	async saveProgress(userId: string, itemId: string, positionSeconds: number, durationSeconds: number) {
-		const item = await this.dataSource
-			.getRepository(MediaItem)
-			.findOne({ where: { id: itemId }, select: { id: true, type: true } });
+		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId }, select: { id: true, type: true } });
 		if (!item || !CONTINUE_TYPES.includes(item.type)) {
 			throw new NotFound("Media item not found.");
 		}
@@ -309,36 +303,23 @@ export class MediaHomeService {
 	}
 
 	private async episodeIds(id: string, type: "season" | "series"): Promise<string[]> {
-		const rows: Array<{ id: string }> = await this.dataSource.query(
-			type === "season"
-				? `SELECT id FROM media_items WHERE parent_id = $1 AND type = 'episode' AND is_placeholder = false`
-				: `SELECT e.id FROM media_items e JOIN media_items s ON e.parent_id = s.id WHERE s.parent_id = $1 AND e.type = 'episode' AND e.is_placeholder = false`,
-			[id],
-		);
+		const rows: Array<{ id: string }> = await this.dataSource.query(type === "season" ? `SELECT id FROM media_items WHERE parent_id = $1 AND type = 'episode' AND is_placeholder = false` : `SELECT e.id FROM media_items e JOIN media_items s ON e.parent_id = s.id WHERE s.parent_id = $1 AND e.type = 'episode' AND e.is_placeholder = false`, [id]);
 		return rows.map((row) => row.id);
 	}
 
 	/** Unfinished movies, episodes and videos the user has started, most recent first. */
 	private async continueWatching(userId: string): Promise<ContinueCard[]> {
-		const rows = await this.dataSource
-			.getRepository(WatchProgress)
-			.find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
+		const rows = await this.dataSource.getRepository(WatchProgress).find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
 		if (rows.length === 0) {
 			return [];
 		}
 		const repo = this.dataSource.getRepository(MediaItem);
 		const items = await repo.find({ where: { id: In(rows.map((row) => row.itemId)), isPlaceholder: false } });
 		const byId = new Map(items.map((item) => [item.id, item]));
-		const seasonIds = [
-			...new Set(
-				items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string),
-			),
-		];
+		const seasonIds = [...new Set(items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string))];
 		const seasons = seasonIds.length > 0 ? await repo.findBy({ id: In(seasonIds) }) : [];
 		const seasonById = new Map(seasons.map((season) => [season.id, season]));
-		const seriesIds = [
-			...new Set(seasons.filter((season) => season.parentId).map((season) => season.parentId as string)),
-		];
+		const seriesIds = [...new Set(seasons.filter((season) => season.parentId).map((season) => season.parentId as string))];
 		const seriesList = seriesIds.length > 0 ? await repo.findBy({ id: In(seriesIds) }) : [];
 		const seriesById = new Map(seriesList.map((series) => [series.id, series]));
 
@@ -353,10 +334,7 @@ export class MediaHomeService {
 			let title = item.title;
 			let subtitle: string | null = item.year ? String(item.year) : null;
 			if (item.type === "episode" && series) {
-				const code =
-					season?.seasonNumber != null && item.episodeNumber != null
-						? `S${season.seasonNumber}E${item.episodeNumber}`
-						: null;
+				const code = season?.seasonNumber != null && item.episodeNumber != null ? `S${season.seasonNumber}E${item.episodeNumber}` : null;
 				title = series.title;
 				subtitle = [code, item.title].filter(Boolean).join(" · ");
 			}
@@ -376,8 +354,7 @@ export class MediaHomeService {
 				imageIndex: index,
 				imageUpdatedAt: imageSource.updatedAt,
 				positionSeconds: row.positionSeconds,
-				progress:
-					duration > 0 ? Math.min(99, Math.max(1, Math.round((row.positionSeconds / duration) * 100))) : 0,
+				progress: duration > 0 ? Math.min(99, Math.max(1, Math.round((row.positionSeconds / duration) * 100))) : 0,
 				updatedAt: row.updatedAt,
 			});
 			if (cards.length >= CONTINUE_LIMIT) {
@@ -395,17 +372,9 @@ export class MediaHomeService {
 			throw new NotFound("Media item not found.");
 		}
 		const parent = item.parentId ? await repo.findOneBy({ id: item.parentId }) : null;
-		const series =
-			parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
+		const series = parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
 
-		const children = await repo
-			.createQueryBuilder("child")
-			.where("child.parent_id = :id", { id })
-			.andWhere("child.is_placeholder = false")
-			.orderBy("child.season_number", "ASC", "NULLS LAST")
-			.addOrderBy("child.episode_number", "ASC", "NULLS LAST")
-			.addOrderBy("COALESCE(child.sort_title, child.title)", "ASC")
-			.getMany();
+		const children = await repo.createQueryBuilder("child").where("child.parent_id = :id", { id }).andWhere("child.is_placeholder = false").orderBy("child.season_number", "ASC", "NULLS LAST").addOrderBy("child.episode_number", "ASC", "NULLS LAST").addOrderBy("COALESCE(child.sort_title, child.title)", "ASC").getMany();
 
 		// A show lists its episodes under each season so the page can show everything at once.
 		const grandchildren =
@@ -418,9 +387,7 @@ export class MediaHomeService {
 						.getMany()
 				: [];
 
-		const episodeIds = [...grandchildren, ...children, item]
-			.filter((entry) => entry.type === "episode" || entry.type === "movie" || entry.type === "video")
-			.map((entry) => entry.id);
+		const episodeIds = [...grandchildren, ...children, item].filter((entry) => entry.type === "episode" || entry.type === "movie" || entry.type === "video").map((entry) => entry.id);
 		const watchedIds = new Set(
 			userId && episodeIds.length > 0
 				? (
@@ -464,10 +431,7 @@ export class MediaHomeService {
 			studios: stringsOf(metadata.studios),
 			cast: peopleOf(metadata.cast),
 			crew: crewOf(metadata.crew),
-			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<
-				string,
-				number
-			>,
+			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<string, number>,
 			status: textOf(metadata.status),
 			artist: textOf(metadata.artist ?? metadata.albumArtist),
 			artistId: (() => {
@@ -484,7 +448,7 @@ export class MediaHomeService {
 						hdr: textOf(item.technical.hdr),
 					}
 				: null,
-			chapters: parseChapters(item.technical),
+			chapters: parseMediaChapters(item.technical, item.metadata),
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),
@@ -500,18 +464,12 @@ export class MediaHomeService {
 
 	/** Every genre present in the library, for the search filter. */
 	async genres(): Promise<string[]> {
-		const rows: Array<{ genre: string }> = await this.dataSource.query(
-			`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`,
-		);
+		const rows: Array<{ genre: string }> = await this.dataSource.query(`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`);
 		return rows.map((row) => row.genre).filter(Boolean);
 	}
 
 	/** Searches configured media fields and returns matching nested tracks and episodes with their parent titles. */
-	async search(
-		userId: string,
-		query: string,
-		filters: SearchFilters = {},
-	): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
+	async search(userId: string, query: string, filters: SearchFilters = {}): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
 		const term = query.trim().slice(0, 100);
 		const genre = filters.genre?.trim().slice(0, 60) || undefined;
 		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched);
@@ -520,12 +478,7 @@ export class MediaHomeService {
 		}
 		const includeChildren = filters.includeChildren === true;
 		const searchableTypes = includeChildren ? [...TOP_LEVEL_TYPES, ...NESTED_SEARCH_TYPES] : TOP_LEVEL_TYPES;
-		const types =
-			filters.type && searchableTypes.includes(filters.type as MediaItemType)
-				? includeChildren
-					? (SEARCH_TYPE_FAMILIES[filters.type as MediaItemType] ?? [filters.type as MediaItemType])
-					: [filters.type as MediaItemType]
-				: searchableTypes;
+		const types = filters.type && searchableTypes.includes(filters.type as MediaItemType) ? (includeChildren ? (SEARCH_TYPE_FAMILIES[filters.type as MediaItemType] ?? [filters.type as MediaItemType]) : [filters.type as MediaItemType]) : searchableTypes;
 		const searchIds = await this.mediaSearch.searchIds(term, {
 			type: types,
 			genre,
@@ -534,20 +487,7 @@ export class MediaHomeService {
 			sort: filters.sort,
 		});
 		if (searchIds?.length === 0) return { items: [], engine: "meilisearch" };
-		const query_ = this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.select([
-				"item.id",
-				"item.type",
-				"item.title",
-				"item.year",
-				"item.parentId",
-				"item.images",
-				"item.updatedAt",
-			])
-			.where("item.is_placeholder = false")
-			.andWhere("item.type IN (:...types)", { types });
+		const query_ = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.parentId", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 
 		if (searchIds) {
 			query_.andWhere("item.id IN (:...searchIds)", { searchIds });
@@ -614,10 +554,7 @@ export class MediaHomeService {
 			);
 		}
 		if (genre && !searchIds) {
-			query_.andWhere(
-				"EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))",
-				{ genre },
-			);
+			query_.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre });
 		}
 		if (!searchIds && Number.isInteger(filters.yearFrom)) {
 			query_.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
@@ -626,10 +563,7 @@ export class MediaHomeService {
 			query_.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
 		}
 		if (filters.unwatched) {
-			query_.andWhere(
-				"NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)",
-				{ userId },
-			);
+			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
 		}
 
 		if (!searchIds || (filters.sort && filters.sort !== "relevance")) {
@@ -647,9 +581,7 @@ export class MediaHomeService {
 					query_.orderBy("item.title", "ASC");
 			}
 		}
-		const items = await query_
-			.limit(searchIds ? Math.min(searchIds.length + SEARCH_LIMIT, 1000 + SEARCH_LIMIT) : SEARCH_LIMIT)
-			.getMany();
+		const items = await query_.limit(searchIds ? Math.min(searchIds.length + SEARCH_LIMIT, 1000 + SEARCH_LIMIT) : SEARCH_LIMIT).getMany();
 		let orderedItems = items;
 		if (searchIds) {
 			const searchOrder = new Map(searchIds.map((id, index) => [id, index]));
@@ -658,13 +590,9 @@ export class MediaHomeService {
 			});
 		}
 		const parentIds = [...new Set(items.flatMap((item) => (item.parentId ? [item.parentId] : [])))];
-		const parents =
-			parentIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(parentIds) }) : [];
-		const seriesIds = [
-			...new Set(parents.flatMap((item) => (item.type === "season" && item.parentId ? [item.parentId] : []))),
-		];
-		const series =
-			seriesIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(seriesIds) }) : [];
+		const parents = parentIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(parentIds) }) : [];
+		const seriesIds = [...new Set(parents.flatMap((item) => (item.type === "season" && item.parentId ? [item.parentId] : [])))];
+		const series = seriesIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(seriesIds) }) : [];
 		const contextById = new Map([...parents, ...series].map((item) => [item.id, item]));
 
 		return {
@@ -673,14 +601,7 @@ export class MediaHomeService {
 				type: item.type,
 				title: item.title,
 				year: item.year,
-				searchContext:
-					item.type === "track"
-						? (contextById.get(item.parentId ?? "")?.title ?? null)
-						: item.type === "episode"
-							? contextById.get(item.parentId ?? "")?.type === "series"
-								? (contextById.get(item.parentId ?? "")?.title ?? null)
-								: (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)
-							: null,
+				searchContext: item.type === "track" ? (contextById.get(item.parentId ?? "")?.title ?? null) : item.type === "episode" ? (contextById.get(item.parentId ?? "")?.type === "series" ? (contextById.get(item.parentId ?? "")?.title ?? null) : (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)) : null,
 				poster: imageIndex(item.images, ["poster"]),
 				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
 				updatedAt: item.updatedAt,
@@ -695,12 +616,7 @@ export class MediaHomeService {
 		if (!types) {
 			throw new NotFound("Unknown section.");
 		}
-		const query = this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"])
-			.where("item.is_placeholder = false")
-			.andWhere("item.type IN (:...types)", { types });
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 		if (sort === "title") {
 			query.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
 		} else if (sort === "year") {
@@ -723,19 +639,7 @@ export class MediaHomeService {
 		if (!UUID_PATTERN.test(id)) {
 			throw new NotFound("Person not found.");
 		}
-		const credits = await this.dataSource
-			.getRepository(MediaCredit)
-			.createQueryBuilder("credit")
-			.innerJoinAndMapOne(
-				"credit.item",
-				MediaItem,
-				"item",
-				"item.id = credit.item_id AND item.is_placeholder = false",
-			)
-			.where("credit.person_id = :id", { id: id.toLowerCase() })
-			.orderBy("item.year", "DESC", "NULLS LAST")
-			.addOrderBy("COALESCE(item.sort_title, item.title)", "ASC")
-			.getMany();
+		const credits = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false").where("credit.person_id = :id", { id: id.toLowerCase() }).orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("COALESCE(item.sort_title, item.title)", "ASC").getMany();
 		if (credits.length === 0) {
 			throw new NotFound("Person not found.");
 		}
@@ -756,13 +660,9 @@ export class MediaHomeService {
 		return {
 			id: credits[0].personId,
 			name: credits[0].name,
-			hasImage:
-				credits.some((credit) => allowedPersonImage(credit.image) !== null) ||
-				allowedPersonImage(stored?.image) !== null,
+			hasImage: credits.some((credit) => allowedPersonImage(credit.image) !== null) || allowedPersonImage(stored?.image) !== null,
 			profile: stored ? toProfileView(stored) : null,
-			groups: [...groups.entries()]
-				.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-				.map(([role, cards]) => ({ role, items: [...cards.values()] })),
+			groups: [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([role, cards]) => ({ role, items: [...cards.values()] })),
 		};
 	}
 
@@ -789,8 +689,7 @@ export class MediaHomeService {
 					description: bio?.description || null,
 					biography: bio?.biography || null,
 					source: bio?.source || null,
-					sourceUrl:
-						bio?.url && PROFILE_LINK_PREFIXES.some((prefix) => bio.url.startsWith(prefix)) ? bio.url : null,
+					sourceUrl: bio?.url && PROFILE_LINK_PREFIXES.some((prefix) => bio.url.startsWith(prefix)) ? bio.url : null,
 					image: allowedPersonImage(bio?.imageUrl),
 					fetchedAt: new Date(),
 				});
@@ -808,20 +707,10 @@ export class MediaHomeService {
 		if (!UUID_PATTERN.test(id)) {
 			throw new NotFound("Image not found.");
 		}
-		const credits = await this.dataSource
-			.getRepository(MediaCredit)
-			.createQueryBuilder("credit")
-			.where("credit.person_id = :id AND credit.image IS NOT NULL", { id: id.toLowerCase() })
-			.orderBy("credit.position", "ASC")
-			.limit(10)
-			.getMany();
-		let url = credits
-			.map((credit) => allowedPersonImage(credit.image))
-			.find((value): value is string => value !== null);
+		const credits = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").where("credit.person_id = :id AND credit.image IS NOT NULL", { id: id.toLowerCase() }).orderBy("credit.position", "ASC").limit(10).getMany();
+		let url = credits.map((credit) => allowedPersonImage(credit.image)).find((value): value is string => value !== null);
 		if (!url) {
-			const profile = await this.dataSource
-				.getRepository(PersonProfile)
-				.findOneBy({ personId: id.toLowerCase() });
+			const profile = await this.dataSource.getRepository(PersonProfile).findOneBy({ personId: id.toLowerCase() });
 			url = allowedPersonImage(profile?.image) ?? undefined;
 		}
 		if (!url) {
@@ -860,29 +749,12 @@ export class MediaHomeService {
 			return [];
 		}
 
-		const counts = await this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.select("item.library_id", "libraryId")
-			.addSelect("COUNT(*)", "count")
-			.where("item.is_placeholder = false")
-			.andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES })
-			.groupBy("item.library_id")
-			.getRawMany<{ libraryId: string; count: string }>();
+		const counts = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.library_id", "libraryId").addSelect("COUNT(*)", "count").where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).groupBy("item.library_id").getRawMany<{ libraryId: string; count: string }>();
 		const countByLibrary = new Map(counts.map((row) => [row.libraryId, Number(row.count)]));
 
 		return Promise.all(
 			libraries.map(async (library) => {
-				const recent = await this.dataSource
-					.getRepository(MediaItem)
-					.createQueryBuilder("item")
-					.select(["item.id", "item.images", "item.updatedAt"])
-					.where("item.library_id = :libraryId", { libraryId: library.id })
-					.andWhere("item.is_placeholder = false")
-					.andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES })
-					.orderBy("item.created_at", "DESC")
-					.limit(12)
-					.getMany();
+				const recent = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.images", "item.updatedAt"]).where("item.library_id = :libraryId", { libraryId: library.id }).andWhere("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).orderBy("item.created_at", "DESC").limit(12).getMany();
 
 				let cover: HomeLibrary["cover"] = null;
 				for (const item of recent) {
@@ -919,17 +791,7 @@ export class MediaHomeService {
 				{ userId },
 			);
 		}
-		const { entities, raw } = await query
-			.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"])
-			.addSelect("item.metadata ->> 'tagline'", "tagline")
-			.addSelect("item.metadata ->> 'overview'", "overview")
-			.addSelect("item.metadata ->> 'contentRating'", "rating")
-			.addSelect("item.metadata ->> 'runtime'", "runtime")
-			.andWhere("item.is_placeholder = false")
-			.andWhere("item.type IN (:...types)", { types })
-			.orderBy("item.created_at", "DESC")
-			.limit(limit)
-			.getRawAndEntities();
+		const { entities, raw } = await query.select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).addSelect("item.metadata ->> 'tagline'", "tagline").addSelect("item.metadata ->> 'overview'", "overview").addSelect("item.metadata ->> 'contentRating'", "rating").addSelect("item.metadata ->> 'runtime'", "runtime").andWhere("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types }).orderBy("item.created_at", "DESC").limit(limit).getRawAndEntities();
 
 		return entities.map((item, index) => {
 			const row = raw[index] as {

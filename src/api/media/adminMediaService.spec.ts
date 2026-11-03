@@ -82,6 +82,82 @@ describe("AdminMediaService", () => {
 		expect(item.editedFields).not.toContain("providerId:imdb");
 	});
 
+	it("saves sorted chapter edits as a persistent manual override", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null,
+			type: "movie",
+			title: "Movie",
+			editedFields: [],
+			metadata: { overview: "Keep me" },
+			technical: { duration: 60 },
+			images: [],
+			isPlaceholder: false,
+		} as MediaItem;
+		const repository = {
+			findOneBy: vi.fn().mockResolvedValue(item),
+			countBy: vi.fn().mockResolvedValue(0),
+			save: vi.fn().mockResolvedValue(item),
+		};
+		const dataSource = { getRepository: vi.fn(() => repository) } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, {} as IndexerClient);
+
+		await service.update(item.id, {
+			chapters: [
+				{ title: "Later", startMs: 30000, endMs: 40000 },
+				{ title: "First", startMs: 0, endMs: 20000 },
+			],
+		});
+
+		expect(item.metadata).toEqual({
+			overview: "Keep me",
+			adminChapters: [
+				{ title: "First", start: 0, end: 20 },
+				{ title: "Later", start: 30, end: 40 },
+			],
+		});
+		expect(item.editedFields).toContain("chapters");
+		expect(repository.save).toHaveBeenCalledWith(item);
+	});
+
+	it("rejects overlapping or out-of-duration chapter ranges", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null,
+			type: "movie",
+			title: "Movie",
+			editedFields: [],
+			metadata: {},
+			technical: { duration: 60 },
+			images: [],
+			isPlaceholder: false,
+		} as MediaItem;
+		const repository = {
+			findOneBy: vi.fn().mockResolvedValue(item),
+			countBy: vi.fn().mockResolvedValue(0),
+			save: vi.fn().mockResolvedValue(item),
+		};
+		const dataSource = { getRepository: vi.fn(() => repository) } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, {} as IndexerClient);
+
+		await expect(
+			service.update(item.id, {
+				chapters: [
+					{ title: "First", startMs: 0, endMs: 20000 },
+					{ title: "Overlap", startMs: 10000, endMs: 30000 },
+				],
+			}),
+		).rejects.toThrow("Chapter ranges cannot overlap.");
+		await expect(
+			service.update(item.id, {
+				chapters: [{ title: "Too long", startMs: 50000, endMs: 61000 }],
+			}),
+		).rejects.toThrow("valid range within the media duration");
+		expect(repository.save).not.toHaveBeenCalled();
+	});
+
 	it("queues a priority refresh with the item's saved provider IDs", async () => {
 		const item = {
 			id: "00000000-0000-4000-8000-000000000001",

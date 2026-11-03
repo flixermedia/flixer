@@ -1,4 +1,4 @@
-import { CollectionOf, Integer, MaxLength, Minimum, Nullable, Pattern, Property, Required, Schema } from "@tsed/schema";
+import { CollectionOf, Integer, MaxItems, MaxLength, Minimum, Nullable, Pattern, Property, Required, Schema } from "@tsed/schema";
 
 const LANGUAGE_PATTERN = "^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,4})?$";
 
@@ -55,6 +55,27 @@ export class WatchProgressRequest {
 	durationSeconds!: number;
 }
 
+/** A manually edited chapter range, measured from the start of the media. */
+export class UpdateMediaChapterRequest {
+
+	@Property()
+	@Required()
+	@MaxLength(256)
+	title!: string;
+
+	@Property()
+	@Required()
+	@Integer()
+	@Minimum(0)
+	startMs!: number;
+
+	@Property()
+	@Required()
+	@Integer()
+	@Minimum(1)
+	endMs!: number;
+}
+
 /** Fields an admin can correct on a scanned item. Omitted fields are left alone; null clears an optional one. */
 export class UpdateMediaItemRequest {
 
@@ -93,6 +114,11 @@ export class UpdateMediaItemRequest {
 	@Property()
 	@Schema({ type: "object", additionalProperties: { type: ["string", "null"], maxLength: 256 } } as never)
 	providerIds?: Record<string, string | null>;
+
+	@Property()
+	@CollectionOf(UpdateMediaChapterRequest)
+	@MaxItems(1000)
+	chapters?: UpdateMediaChapterRequest[];
 }
 
 /** Options for queuing an item rescan. */

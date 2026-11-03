@@ -90,6 +90,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/admin/requests/webhook/rotate";
+    readonly operationId: "adminRequestsControllerRotateWebhookCredentials";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/admin/media-libraries/browse";
     readonly operationId: "mediaLibrariesControllerBrowse";
@@ -287,8 +294,22 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/requests/webhook";
+    readonly operationId: "adminRequestsControllerGetWebhookCredentials";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/notifications/push/key";
     readonly operationId: "notificationsControllerPushKey";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/chat/encryption/status";
+    readonly operationId: "chatControllerEncryptionStatus";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -742,6 +763,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/issues/config";
+    readonly operationId: "issueReportsControllerConfiguration";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/admin/updates";
     readonly operationId: "adminUpdatesControllerStatus";
     readonly pathParameters: readonly [];
@@ -775,6 +803,27 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: true;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/devices";
+    readonly operationId: "chatControllerRegisterMlsDevice";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/chat/devices";
+    readonly operationId: "chatControllerMlsDevices";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/issues";
+    readonly operationId: "adminIssueReportsControllerList";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
 }, {
     readonly method: "post";
     readonly path: "/setup/reset";
@@ -966,6 +1015,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/issues";
+    readonly operationId: "issueReportsControllerList";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/issues";
+    readonly operationId: "issueReportsControllerCreate";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/users";
     readonly operationId: "userControllerListUsers";
     readonly pathParameters: readonly [];
@@ -1035,6 +1098,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/chat/conversations/{id}/mls/key-packages";
+    readonly operationId: "chatControllerMlsKeyPackages";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/admin/plugins/repositories/{id}/refresh";
     readonly operationId: "pluginsControllerRefreshRepository";
@@ -1057,10 +1127,45 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/chat/devices/{deviceId}/key-packages";
+    readonly operationId: "chatControllerAddMlsKeyPackage";
+    readonly pathParameters: readonly ["deviceId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/chat/devices/{deviceId}/key-packages";
+    readonly operationId: "chatControllerDeviceMlsKeyPackages";
+    readonly pathParameters: readonly ["deviceId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/chat/conversations/{id}/mls/welcomes";
+    readonly operationId: "chatControllerMlsWelcomes";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: true;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/conversations/{id}/mls/welcomes";
+    readonly operationId: "chatControllerStoreMlsWelcome";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/playback/samples/{id}/playback-info";
     readonly operationId: "playbackControllerPlaybackInfo";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/indexer/libraries/{id}/remove-paths";
+    readonly operationId: "indexerApiControllerRemoveItemsAtPaths";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1173,6 +1278,13 @@ export declare const routes: readonly [{
     readonly operationId: "pluginsControllerRemoveRepository";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/devices/{deviceId}/approve";
+    readonly operationId: "chatControllerApproveMlsDevice";
+    readonly pathParameters: readonly ["deviceId"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1421,6 +1533,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/issues/{id}/updates";
+    readonly operationId: "adminIssueReportsControllerAddUpdate";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/friends/{username}/accept";
     readonly operationId: "friendsControllerAccept";
     readonly pathParameters: readonly ["username"];
@@ -1455,6 +1574,13 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "patch";
+    readonly path: "/admin/issues/{id}/status";
+    readonly operationId: "adminIssueReportsControllerUpdateStatus";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/setup/steps/{step}/test";
     readonly operationId: "setupControllerTestStep";
@@ -1487,6 +1613,13 @@ export declare const routes: readonly [{
     readonly path: "/admin/users/{id}/avatar";
     readonly operationId: "adminUsersControllerRemoveAvatar";
     readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/chat/devices/{deviceId}";
+    readonly operationId: "chatControllerRevokeMlsDevice";
+    readonly pathParameters: readonly ["deviceId"];
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
@@ -1544,6 +1677,13 @@ export declare const routes: readonly [{
     readonly operationId: "adminMediaControllerRemove";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "patch";
+    readonly path: "/admin/issues/{id}/chat";
+    readonly operationId: "adminIssueReportsControllerSetChat";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1680,6 +1820,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/issues/{id}";
+    readonly operationId: "adminIssueReportsControllerGet";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/issues/{id}";
+    readonly operationId: "adminIssueReportsControllerDelete";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/themes/items/{id}";
     readonly operationId: "themesControllerAudio";
     readonly pathParameters: readonly ["id"];
@@ -1757,6 +1911,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/issues/{id}";
+    readonly operationId: "issueReportsControllerGet";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/users/{id}";
     readonly operationId: "userControllerGetUser";
     readonly pathParameters: readonly ["id"];
@@ -1767,6 +1928,20 @@ export declare const routes: readonly [{
     readonly path: "/users/{id}";
     readonly operationId: "userControllerDeleteUser";
     readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/conversations/{id}/mls/key-packages/{keyPackageId}/claim";
+    readonly operationId: "chatControllerClaimMlsKeyPackage";
+    readonly pathParameters: readonly ["id", "keyPackageId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/conversations/{id}/mls/welcomes/{welcomeId}/ack";
+    readonly operationId: "chatControllerAcknowledgeMlsWelcome";
+    readonly pathParameters: readonly ["id", "welcomeId"];
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
@@ -1845,6 +2020,13 @@ export declare const routes: readonly [{
     readonly operationId: "jobsControllerCancelJob";
     readonly pathParameters: readonly ["queueName", "jobId"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/requests/webhook/{kind}/{serviceId}";
+    readonly operationId: "requestWebhookControllerReceive";
+    readonly pathParameters: readonly ["kind", "serviceId"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "get";
