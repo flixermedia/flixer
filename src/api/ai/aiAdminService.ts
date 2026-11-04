@@ -108,7 +108,7 @@ export class AiAdminService {
 	}
 
 	private async callAi<T = void>(path: string, body?: Record<string, unknown>, timeoutMs = 8_000): Promise<T> {
-		const baseUrl = process.env.FLIXER_AI_URL?.trim() || "http://ai:8094";
+		const baseUrl = appConfig().get("aiUrl") || "http://ai:8094";
 		const secret = appConfig().get("appSecret");
 		if (!secret || Buffer.byteLength(secret) < 32) {
 			throw new ServiceUnavailable("AI service authentication is not configured.");

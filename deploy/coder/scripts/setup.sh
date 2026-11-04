@@ -69,7 +69,6 @@ if [ ! -f "$ROOT/flixer/.env" ]; then
 JWT_SECRET=$JWT_SECRET
 APP_SECRET=$APP_SECRET
 PORT=8083
-REDIS_URL=redis://redis:6379
 FLIXER_PUBLIC_URL=$PUBLIC_URL
 APP_URL=$PUBLIC_URL
 PASSKEY_RP_ID=$PUBLIC_HOST
@@ -106,9 +105,6 @@ for env_file in "$ROOT/flixer/.env" "$ROOT/flixer-streamer/.env" "$ROOT/flixer-i
   sed -i -E '/^(DATA_PATH|DATA_DIR|LOG_DIR|CACHE_PATH|TRICKPLAY_DIR|TRANSCODE_DIR|SUBTITLE_DIR)=/d' "$env_file"
   printf 'DATA_DIR=%s\n' "$ROOT/flixer-data" >> "$env_file"
 done
-if ! grep -q '^REDIS_URL=' "$ROOT/flixer/.env"; then
-  printf 'REDIS_URL=redis://redis:6379\n' >> "$ROOT/flixer/.env"
-fi
 if grep -q '^FLIXER_AI_URL=' "$ROOT/flixer/.env"; then
   sed -i 's|^FLIXER_AI_URL=.*|FLIXER_AI_URL=http://localhost:8094|' "$ROOT/flixer/.env"
 else

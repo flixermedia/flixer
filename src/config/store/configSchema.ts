@@ -18,10 +18,10 @@ export interface ConfigKeyDefinition {
 
 /**
  * Sibling services are reachable by name on the Compose network and on localhost everywhere else. In a Coder workspace
- * only the PostgreSQL and Redis sidecars have their own names; the indexer and streamer run inside the workspace itself.
+ * only the PostgreSQL, Redis and Meilisearch sidecars have their own names; the indexer and streamer run inside the workspace itself.
  */
 const serviceHost = (name: string): string => {
-	if (process.env.CODER === "true" && name !== "postgres" && name !== "redis") {
+	if (process.env.CODER === "true" && name !== "postgres" && name !== "redis" && name !== "meilisearch") {
 		return "localhost";
 	}
 	return existsSync("/.dockerenv") ? name : "localhost";
@@ -85,6 +85,8 @@ export const CONFIG_KEYS = {
 	passkeyOrigins: { key: "passkey_origins", env: "PASSKEY_ORIGINS", secret: false },
 	indexerUrl: { key: "indexer_url", env: "INDEXER_URL", envAliases: ["INDEXER_INTERNAL_URL"], secret: false, defaultValue: `http://${serviceHost("indexer")}:8092`, validate: validateHttpUrl },
 	streamerInternalUrl: { key: "streamer_internal_url", env: "STREAMER_INTERNAL_URL", secret: false, defaultValue: `http://${serviceHost("streamer")}:8091`, validate: validateHttpUrl },
+	meilisearchUrl: { key: "meilisearch_url", env: "MEILISEARCH_URL", secret: false, defaultValue: `http://${serviceHost("meilisearch")}:7700`, validate: validateHttpUrl },
+	aiUrl: { key: "ai_url", env: "FLIXER_AI_URL", secret: false, defaultValue: `http://${serviceHost("ai")}:8094`, validate: validateHttpUrl },
 	streamerPublicUrl: { key: "streamer_public_url", env: "STREAMER_PUBLIC_URL", secret: false, defaultValue: "" },
 } as const satisfies Record<string, ConfigKeyDefinition>;
 

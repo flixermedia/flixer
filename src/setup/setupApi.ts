@@ -18,8 +18,13 @@ export interface SetupRequestContext {
 	adminExists(): Promise<boolean>;
 	/** The recovery key the caller sent, if any: it lets whoever can read the server log run setup without signing in. */
 	recoveryCode?: string;
+	/** Whether the caller proved they are the signed-in administrator by sending their own password. */
+	passwordConfirmed?(): Promise<boolean>;
 	probes?: Probes;
 }
+
+/** Steps that change how Flixer is reached; once setup is done they need the administrator's password again. */
+const PASSWORD_PROTECTED_STEPS = new Set(["urls"]);
 
 const FLOWS = new Set(["quick", "advanced"]);
 
@@ -88,13 +93,29 @@ function stepContext(context: SetupRequestContext): StepContext {
 }
 
 /** What the wizard may pre-fill: values for plain settings, and only whether a secret is set, never the secret. */
+/** Connection strings are secrets only because of the password, so the rest is safe to show for editing. */
+function withoutPassword(value: string | undefined): string | undefined {
+	if (!value) {
+		return undefined;
+	}
+	try {
+		const url = new URL(value);
+		url.password = "";
+		return url.toString().replace(/\/$/, "");
+	} catch {
+		return undefined;
+	}
+}
+
+const CONNECTION_STRINGS = new Set<ConfigName>(["databaseUrl", "redisUrl"]);
+
 function describeConfig() {
 	const config = appConfig();
 	return Object.fromEntries(
 		(Object.keys(CONFIG_KEYS) as ConfigName[]).map((name) => {
 			const definition = CONFIG_KEYS[name];
 			const defaultValue = name === "databaseUrl" ? suggestedDatabaseUrl() : name === "redisUrl" ? suggestedRedisUrl() : (definition as { defaultValue?: string }).defaultValue;
-			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: definition.secret ? undefined : config.get(name), default: defaultValue }];
+			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: CONNECTION_STRINGS.has(name) ? withoutPassword(config.get(name)) : definition.secret ? undefined : config.get(name), default: defaultValue }];
 		}),
 	);
 }
@@ -164,7 +185,7 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 			if (store.wizardProgress().flow === "quick") {
 				const config = appConfig();
 				const defaults: Partial<Record<ConfigName, string>> = {};
-				for (const name of ["redisUrl", "indexerUrl", "streamerInternalUrl"] as const) {
+				for (const name of ["redisUrl", "indexerUrl", "streamerInternalUrl", "meilisearchUrl", "aiUrl"] as const) {
 					if (config.source(name) === "unset" || config.source(name) === "default") {
 						const value = name === "redisUrl" ? suggestedRedisUrl() : config.get(name);
 						if (value) {
@@ -208,6 +229,9 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 				throw new SetupError(404, "This step has nothing to test.");
 			}
 			return ok(await step.test(parsed.values, stepEnv));
+		}
+		if (PASSWORD_PROTECTED_STEPS.has(step.id) && store.setupState() === "completed" && !(await context.passwordConfirmed?.())) {
+			throw new SetupError(403, "Enter your administrator password to change these settings.", { password: "Your password is required or incorrect." });
 		}
 		const result = await step.apply(parsed.values, stepEnv);
 		markStarted();

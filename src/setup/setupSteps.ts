@@ -149,17 +149,76 @@ const servicesStep: SetupStep = {
 		const errors: FieldErrors = {};
 		const indexerUrl = requiredUrl(source, "indexerUrl", validateHttpUrl, errors);
 		const streamerInternalUrl = requiredUrl(source, "streamerInternalUrl", validateHttpUrl, errors);
+		const meilisearchUrl = text(source, "meilisearchUrl") || (CONFIG_KEYS.meilisearchUrl.defaultValue as string);
+		const meilisearchProblem = validateHttpUrl(meilisearchUrl);
+		if (meilisearchProblem) {
+			errors.meilisearchUrl = meilisearchProblem;
+		}
+		const aiUrl = text(source, "aiUrl") || (CONFIG_KEYS.aiUrl.defaultValue as string);
+		const aiProblem = validateHttpUrl(aiUrl);
+		if (aiProblem) {
+			errors.aiUrl = aiProblem;
+		}
 		const streamerPublicUrl = text(source, "streamerPublicUrl");
 		const publicProblem = streamerPublicUrl ? validateHttpUrl(streamerPublicUrl) : null;
 		if (publicProblem) {
 			errors.streamerPublicUrl = publicProblem;
 		}
-		return Object.keys(errors).length > 0 ? { errors } : { values: { indexerUrl, streamerInternalUrl, streamerPublicUrl } };
+		return Object.keys(errors).length > 0 ? { errors } : { values: { indexerUrl, streamerInternalUrl, meilisearchUrl, aiUrl, streamerPublicUrl } };
 	},
 	async test(values, { probes }) {
-		const results = await Promise.all([values.indexerUrl, values.streamerInternalUrl].map((url) => probes.http(url as string)));
+		const results = await Promise.all([values.indexerUrl, values.streamerInternalUrl, values.meilisearchUrl, values.aiUrl].map((url) => probes.http(url as string)));
 		const failed = results.find((result) => !result.ok);
 		return failed ? { ok: false, message: failed.message } : { ok: true };
+	},
+	async apply(values, context) {
+		save(values, context);
+		return { ok: true };
+	},
+};
+
+/** A single address that is checked by reaching it over HTTP, for services managed one at a time from the admin dashboard. */
+function addressStep(id: string, title: string, field: ConfigName): SetupStep {
+	return {
+		id,
+		title,
+		parse(input) {
+			const errors: FieldErrors = {};
+			const value = requiredUrl(record(input), field, validateHttpUrl, errors);
+			return Object.keys(errors).length > 0 ? { errors } : { values: { [field]: value } };
+		},
+		async test(values, { probes }) {
+			const result = await probes.http(values[field] as string);
+			return result.ok ? { ok: true } : { ok: false, message: result.message };
+		},
+		async apply(values, context) {
+			save(values, context);
+			return { ok: true };
+		},
+	};
+}
+
+const indexerStep = addressStep("indexer", "Indexer", "indexerUrl");
+const meilisearchStep = addressStep("meilisearch", "Meilisearch", "meilisearchUrl");
+const aiStep = addressStep("ai", "AI", "aiUrl");
+
+const streamerStep: SetupStep = {
+	id: "streamer",
+	title: "Streamer",
+	parse(input) {
+		const source = record(input);
+		const errors: FieldErrors = {};
+		const streamerInternalUrl = requiredUrl(source, "streamerInternalUrl", validateHttpUrl, errors);
+		const streamerPublicUrl = text(source, "streamerPublicUrl");
+		const publicProblem = streamerPublicUrl ? validateHttpUrl(streamerPublicUrl) : null;
+		if (publicProblem) {
+			errors.streamerPublicUrl = publicProblem;
+		}
+		return Object.keys(errors).length > 0 ? { errors } : { values: { streamerInternalUrl, streamerPublicUrl } };
+	},
+	async test(values, { probes }) {
+		const result = await probes.http(values.streamerInternalUrl as string);
+		return result.ok ? { ok: true } : { ok: false, message: result.message };
 	},
 	async apply(values, context) {
 		save(values, context);
@@ -217,7 +276,7 @@ const adminStep: SetupStep = {
 };
 
 /** Every step the server knows. The wizard front end picks which of them each flow shows, and in what order. */
-export const SETUP_STEPS: readonly SetupStep[] = [databaseStep, redisStep, urlsStep, adminStep, servicesStep, secretsStep];
+export const SETUP_STEPS: readonly SetupStep[] = [databaseStep, redisStep, urlsStep, adminStep, servicesStep, indexerStep, streamerStep, meilisearchStep, aiStep, secretsStep];
 
 export function findStep(id: string): SetupStep | undefined {
 	return SETUP_STEPS.find((step) => step.id === id);

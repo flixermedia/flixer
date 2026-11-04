@@ -219,15 +219,63 @@ describe("setup api", () => {
 		expect(store.setupState()).toBe("completed");
 	});
 
-	it("saves bundled Redis, indexer, and streamer defaults when quick setup completes", async () => {
+	it("shows connection strings without their password and never exposes other secrets", async () => {
+		updateRuntime({ mode: "ready", database: "ok" });
+		caller = true;
+		admins = true;
+		store.setMany({ redisUrl: "redis://user:hunter2@redis:6379", jwtSecret: "x".repeat(40) });
+
+		const body = (await call("GET", "/progress"))?.body as { config: Record<string, { value?: string }> };
+		expect(body.config.redisUrl.value).toBe("redis://user@redis:6379");
+		expect(JSON.stringify(body)).not.toContain("hunter2");
+		expect(body.config.jwtSecret.value).toBeUndefined();
+	});
+
+	it("saves the indexer, streamer, Meilisearch, and AI addresses one at a time", async () => {
+		updateRuntime({ mode: "ready", database: "ok" });
+		caller = true;
+		admins = true;
+		store.setSetupState("completed");
+
+		expect((await call("POST", "/steps/indexer", { indexerUrl: "http://idx:8092" }))?.status).toBe(200);
+		expect((await call("POST", "/steps/streamer", { streamerInternalUrl: "http://str:8091", streamerPublicUrl: "" }))?.status).toBe(200);
+		expect((await call("POST", "/steps/meilisearch", { meilisearchUrl: "http://meili:7700" }))?.status).toBe(200);
+		expect((await call("POST", "/steps/ai", { aiUrl: "http://ai:8094" }))?.status).toBe(200);
+		expect(store.get("indexerUrl")).toBe("http://idx:8092");
+		expect(store.get("streamerInternalUrl")).toBe("http://str:8091");
+		expect(store.get("meilisearchUrl")).toBe("http://meili:7700");
+		expect(store.get("aiUrl")).toBe("http://ai:8094");
+		expect((await call("POST", "/steps/meilisearch", { meilisearchUrl: "not a url" }))?.status).toBe(400);
+	});
+
+	it("asks a signed-in administrator for their password before changing addresses after setup", async () => {
+		updateRuntime({ mode: "ready", database: "ok" });
+		caller = true;
+		admins = true;
+		store.setSetupState("completed");
+		const body = { publicUrl: "https://x.example.com/api", appUrl: "https://x.example.com", passkeyRpId: "x.example.com", passkeyOrigins: "https://x.example.com" };
+		const send = (confirmed: boolean) => handleSetupRequest("POST", "/api/setup/steps/urls", body, { ...context(), passwordConfirmed: async () => confirmed });
+
+		expect((await send(false))?.status).toBe(403);
+		expect((await call("POST", "/steps/urls", body))?.status).toBe(403);
+		expect(store.get("publicUrl")).toBeUndefined();
+		expect((await send(true))?.status).toBe(200);
+		expect(store.get("publicUrl")).toBe("https://x.example.com/api");
+	});
+
+	it("saves bundled Redis, Meilisearch, indexer, and streamer defaults when quick setup completes", async () => {
 		updateRuntime({ mode: "ready", database: "ok" });
 		admins = true;
 		caller = true;
 		store.setMany({ databaseUrl: "postgres://db/flixer", publicUrl: "https://x.example.com" });
 		const indexerDefault = appConfig().get("indexerUrl");
 		const streamerDefault = appConfig().get("streamerInternalUrl");
+		const meilisearchDefault = appConfig().get("meilisearchUrl");
+		const aiDefault = appConfig().get("aiUrl");
 
 		expect((await call("POST", "/complete"))?.status).toBe(200);
+		expect(store.get("meilisearchUrl")).toBe(meilisearchDefault);
+		expect(store.get("aiUrl")).toBe(aiDefault);
 		expect(store.get("redisUrl")).toBe(suggestedRedisUrl());
 		expect(store.get("indexerUrl")).toBe(indexerDefault);
 		expect(store.get("streamerInternalUrl")).toBe(streamerDefault);

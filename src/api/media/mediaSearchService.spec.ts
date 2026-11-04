@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MEDIA_SEARCH_ENABLED_SETTING, MEDIA_SEARCH_URL_SETTING, MediaSearchService } from "./mediaSearchService.js";
@@ -17,6 +17,11 @@ function emptySettingsDataSource(
 }
 
 describe("MediaSearchService", () => {
+	// The default address depends on whether the tests run inside Docker, so pin it.
+	beforeEach(() => {
+		vi.stubEnv("MEILISEARCH_URL", "http://localhost:7700");
+	});
+
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.unstubAllEnvs();

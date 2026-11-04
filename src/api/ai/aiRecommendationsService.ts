@@ -62,7 +62,7 @@ export class AiRecommendationsService {
 	}
 
 	private async call(path: string, body: Record<string, unknown>): Promise<RecommendationResponse> {
-		const baseUrl = process.env.FLIXER_AI_URL?.trim() || "http://ai:8094";
+		const baseUrl = appConfig().get("aiUrl") || "http://ai:8094";
 		const token = appConfig().get("appSecret");
 		if (!token || Buffer.byteLength(token) < 32) {
 			throw new ServiceUnavailable("AI recommendations are not configured.");

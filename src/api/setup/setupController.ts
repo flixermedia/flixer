@@ -80,6 +80,15 @@ export class SetupController {
 			},
 			adminExists: async () => (await this.dataSource.getRepository(User).count({ where: { role: "admin" } })) > 0,
 			recoveryCode: ctx.request.get(RECOVERY_CODE_HEADER) || undefined,
+			passwordConfirmed: async () => {
+				try {
+					await this.authService.requireAdminSession(authorization);
+					await this.authService.assertPassword(authorization, ctx.request.get("x-admin-password") || undefined);
+					return true;
+				} catch {
+					return false;
+				}
+			},
 		});
 		ctx.response.status(result?.status ?? 404);
 		return result?.body ?? { error: "Not found." };

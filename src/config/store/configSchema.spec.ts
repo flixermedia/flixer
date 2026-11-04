@@ -6,12 +6,13 @@ describe("service defaults", () => {
 		vi.resetModules();
 	});
 
-	it("points the indexer and streamer at localhost in a Coder workspace but keeps the Postgres and Redis sidecar names", async () => {
+	it("points the indexer and streamer at localhost in a Coder workspace but keeps the Postgres, Redis and Meilisearch sidecar names", async () => {
 		vi.stubEnv("CODER", "true");
 		const { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl } = await import("./configSchema.js");
 		expect(CONFIG_KEYS.indexerUrl.defaultValue).toBe("http://localhost:8092");
 		expect(CONFIG_KEYS.streamerInternalUrl.defaultValue).toBe("http://localhost:8091");
 		expect(suggestedRedisUrl()).toBe("redis://redis:6379");
+		expect(CONFIG_KEYS.meilisearchUrl.defaultValue).toBe("http://meilisearch:7700");
 		expect(suggestedDatabaseUrl()).toContain("@postgres:5432/");
 	});
 });

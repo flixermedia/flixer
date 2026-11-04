@@ -200,9 +200,9 @@ function quoteFilter(value: string): string {
 /** Keeps a rebuildable Meilisearch index current through a PostgreSQL transactional outbox. */
 @Injectable()
 export class MediaSearchService {
-	private baseUrl = (process.env.MEILISEARCH_URL || "http://localhost:7700").replace(/\/+$/, "");
+	private baseUrl = (appConfig().get("meilisearchUrl") || "http://localhost:7700").replace(/\/+$/, "");
 	private customUrl = "";
-	private urlSource: MediaSearchAdminStatus["urlSource"] = process.env.MEILISEARCH_URL ? "environment" : "default";
+	private urlSource: MediaSearchAdminStatus["urlSource"] = appConfig().source("meilisearchUrl") === "env" ? "environment" : "default";
 	private enabled = true;
 	private settingsLoaded = false;
 	private settingsLoadPromise: Promise<void> | undefined;
@@ -464,9 +464,9 @@ export class MediaSearchService {
 		const url = settings.find((setting) => setting.key === MEDIA_SEARCH_URL_SETTING)?.value;
 		this.enabled = typeof enabled === "boolean" ? enabled : true;
 		this.customUrl = typeof url === "string" ? url : "";
-		const environmentUrl = process.env.MEILISEARCH_URL?.trim();
-		this.baseUrl = (this.customUrl || environmentUrl || "http://localhost:7700").replace(/\/+$/, "");
-		this.urlSource = this.customUrl ? "database" : environmentUrl ? "environment" : "default";
+		const configuredUrl = appConfig().get("meilisearchUrl")?.trim();
+		this.baseUrl = (this.customUrl || configuredUrl || "http://localhost:7700").replace(/\/+$/, "");
+		this.urlSource = this.customUrl ? "database" : appConfig().source("meilisearchUrl") === "env" ? "environment" : "default";
 		this.settingsLoaded = true;
 	}
 
