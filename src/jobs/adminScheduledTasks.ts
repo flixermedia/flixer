@@ -24,6 +24,14 @@ export const ADMIN_SCHEDULED_TASKS = [
 		defaultCron: "0 4 * * *",
 	},
 	{
+		id: "refresh-epg",
+		queue: "admin-task-refresh-epg",
+		name: "Refresh EPG data",
+		category: "Guide",
+		description: "Downloads the latest programme guide data from enabled EPG sources.",
+		defaultCron: "0 3 * * *",
+	},
+	{
 		id: "clean-transcode",
 		queue: "admin-task-clean-transcode",
 		name: "Clean transcode directory",

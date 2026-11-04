@@ -1,12 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import nodemailer, { type Transporter } from "nodemailer";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
+import { MailDeliveryService } from "../mail/mailDeliveryService.js";
+import { MailTemplateService, type RenderedMail } from "../mail/mailTemplateService.js";
 
-const TEMPLATE_DIRECTORY = path.resolve(process.cwd(), "resources", "emails");
 const DEFAULT_FROM = "Flixer <no-reply@localhost>";
 const DEFAULT_PORT = 587;
 
@@ -22,10 +21,6 @@ export interface SmtpConfig {
 	from: string;
 }
 
-function escapeHtml(value: string): string {
-	return value.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
-}
-
 function text(value: unknown): string {
 	return typeof value === "string" ? value.trim() : "";
 }
@@ -37,9 +32,20 @@ export class MailService {
 	private transporter?: Transporter;
 	private config?: SmtpConfig;
 
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly templates: MailTemplateService,
+		private readonly delivery: MailDeliveryService,
+	) {
+		this.delivery.setRelay((message) => this.sendViaRelay(message));
+	}
 
+	/** True when either Flixer's built-in mail server or an external SMTP relay can send mail. */
 	async isConfigured(): Promise<boolean> {
+		return (await this.delivery.systemSender()) !== null || (await this.isRelayConfigured());
+	}
+
+	async isRelayConfigured(): Promise<boolean> {
 		return Boolean((await this.getConfig()).host);
 	}
 
@@ -50,12 +56,21 @@ export class MailService {
 		this.transporter = undefined;
 	}
 
-	async renderTemplate(name: string, values: Record<string, string>): Promise<string> {
-		const template = await readFile(path.join(TEMPLATE_DIRECTORY, `${name}.html`), "utf8");
-		return template.replace(/{{(\w+)}}/g, (_match, key: string) => escapeHtml(values[key] ?? ""));
+	/** Renders a template (custom copy in DATA_DIR/emails first, then the built-in default). */
+	renderMessage(name: string, values: Record<string, string>): Promise<RenderedMail> {
+		return this.templates.render(name, values);
 	}
 
-	async send(message: { to: string; subject: string; html: string; text: string }): Promise<void> {
+	async send(message: { to: string; subject: string; html: string; text: string }, options: { wait?: boolean } = {}): Promise<void> {
+		const sender = await this.delivery.systemSender();
+		if (sender) {
+			await this.delivery.enqueue({ from: sender, to: [message.to], subject: message.subject, html: message.html, text: message.text, system: true, wait: options.wait });
+			return;
+		}
+		await this.sendViaRelay(message);
+	}
+
+	private async sendViaRelay(message: { to: string; subject: string; html: string; text: string }): Promise<void> {
 		const { from } = await this.getConfig();
 		await (await this.getTransporter()).sendMail({ from, ...message });
 	}

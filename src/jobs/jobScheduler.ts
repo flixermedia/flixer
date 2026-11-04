@@ -13,6 +13,7 @@ import { appConfig } from "../config/store/appConfig.js";
 import { logDirectory } from "../config/dataPath.js";
 import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
 import { IndexerClient } from "../api/indexer/indexerClient.js";
+import { GuideService } from "../api/guide/guideService.js";
 import {
 	ADMIN_SCHEDULED_TASKS,
 	ADMIN_SCHEDULED_TASKS_SETTING,
@@ -66,6 +67,7 @@ export class JobScheduler {
 		private readonly sentryService: SentryService,
 		private readonly libraries: MediaLibrariesService,
 		private readonly indexer: IndexerClient,
+		private readonly guide: GuideService,
 	) {}
 
 	async $onInit(): Promise<void> {
@@ -412,6 +414,9 @@ export class JobScheduler {
 					break;
 				case "clean-logs":
 					await this.cleanOldLogs(signal);
+					break;
+				case "refresh-epg":
+					await this.guide.refreshEnabledEpgSources();
 					break;
 				case "optimize-database":
 					await this.optimizeDatabase(signal);

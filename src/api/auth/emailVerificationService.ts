@@ -45,18 +45,13 @@ export class EmailVerificationService {
 
 		const displayName = user.displayName ?? user.username;
 		const verifyUrl = `${this.getAppUrl()}/verify-email?token=${encodeURIComponent(this.createToken(user, recipient))}`;
-		const html = await this.mailService.renderTemplate("verify-email", {
+		const { subject, html, text } = await this.mailService.renderMessage("verify-email", {
 			displayName,
 			verifyUrl,
 			expiresIn: "24 hours",
 		});
 
-		await this.mailService.send({
-			to: recipient,
-			subject: "Verify your Flixer email",
-			html,
-			text: `Welcome, ${displayName}.\n\nConfirm your email address to finish setting up your Flixer account (link expires in 24 hours):\n${verifyUrl}\n\nDidn't create a Flixer account? You can safely ignore this email.`,
-		});
+		await this.mailService.send({ to: recipient, subject, html, text });
 	}
 
 	async verify(token: string): Promise<{ verified: true }> {

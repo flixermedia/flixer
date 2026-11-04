@@ -19,18 +19,13 @@ export class AccountEmailService {
 		const deletedAt = new Date().toUTCString();
 
 		try {
-			const html = await this.mailService.renderTemplate("account-deleted", {
+			const { subject, html, text } = await this.mailService.renderMessage("account-deleted", {
 				displayName,
 				username: user.username,
 				deletedAt,
 				appUrl,
 			});
-			await this.mailService.send({
-				to: user.email,
-				subject: "Your Flixer account was deleted",
-				html,
-				text: `Goodbye, ${displayName}.\n\nYour Flixer account "${user.username}" was permanently deleted on ${deletedAt}. Your passkeys and sessions have been removed.\n\nDidn't delete your account? Contact your server administrator right away.`,
-			});
+			await this.mailService.send({ to: user.email, subject, html, text });
 		} catch (error: unknown) {
 			console.error("[mail] failed to send account deleted email", error);
 		}

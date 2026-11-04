@@ -43,7 +43,7 @@ export class SettingsService {
 			throw new BadRequest("Add an email address to your profile to receive the test email.");
 		}
 		if (!(await this.mailService.isConfigured())) {
-			throw new BadRequest("Save an SMTP host before sending a test email.");
+			throw new BadRequest("Set up the built-in mail server or save an SMTP host before sending a test email.");
 		}
 
 		try {
@@ -52,7 +52,7 @@ export class SettingsService {
 				subject: "Flixer test email",
 				html: "<p>This is a test email from your Flixer server. Your SMTP settings work.</p>",
 				text: "This is a test email from your Flixer server. Your SMTP settings work.",
-			});
+			}, { wait: true });
 		} catch (error: unknown) {
 			throw new BadRequest(
 				`Could not send the test email: ${error instanceof Error ? error.message : "unknown error"}`,

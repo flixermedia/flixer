@@ -15,6 +15,8 @@ import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
 import { LiveService } from "./live/liveService.js";
+import { MailDeliveryService } from "./api/mail/mailDeliveryService.js";
+import { MailInboundService } from "./api/mail/mailInboundService.js";
 import { PartyGateway } from "./party/partyGateway.js";
 import { ChatGateway } from "./chat/chatGateway.js";
 import { NotificationGateway } from "./api/notifications/notificationGateway.js";
@@ -51,6 +53,8 @@ const fastifyPlugins = [
 		SentryService,
 		LiveLogService,
 		LiveService,
+		MailDeliveryService,
+		MailInboundService,
 		PartyGateway,
 		ChatGateway,
 		NotificationGateway,

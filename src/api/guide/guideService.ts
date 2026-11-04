@@ -29,7 +29,10 @@ import {
 import { parseM3u, parseXmltv } from "./guideParsers.js";
 import type { CreateGuideSourceRequest, GuideChannelChange, UpdateGuideSourceRequest } from "./guideRequests.js";
 
-const SOURCE_REFRESH_MS = 6 * 60 * 60 * 1000;
+const SOURCE_REFRESH_MS: Record<GuideSourceKind, number> = {
+	epg: 24 * 60 * 60 * 1000,
+	iptv: 6 * 60 * 60 * 1000,
+};
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const MAX_SOURCE_REDIRECTS = 3;
 const SOURCE_TIMEOUT_MS = 30_000;
@@ -387,6 +390,22 @@ export class GuideService {
 		return publicSource(await this.refresh(await this.sourceById(id)));
 	}
 
+	async refreshEnabledEpgSources(): Promise<void> {
+		const sources = (await this.enabledSources()).filter((source) => source.kind === "epg");
+		const results = await Promise.allSettled(
+			sources.map(async (source) => {
+				const refreshed = await this.refresh(source);
+				if (refreshed.lastError) {
+					throw new Error(`EPG source "${refreshed.name}" refresh failed: ${refreshed.lastError}`);
+				}
+			}),
+		);
+		const errors = results.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+		if (errors.length > 0) {
+			throw new AggregateError(errors, `Failed to refresh ${errors.length} enabled EPG source(s).`);
+		}
+	}
+
 	async updateChannelSettings(changes: GuideChannelChange[]): Promise<void> {
 		const sources = await this.enabledAndDisabledSources();
 		const epgSources = sources.filter((source) => source.kind === "epg");
@@ -497,7 +516,7 @@ export class GuideService {
 		const groups = allGroups.filter(({ primary }) => linkedChannelIds.has(primary.id));
 		const channels = allChannels.filter(({ id }) => linkedChannelIds.has(id));
 		this.guideCatalog = {
-			expiresAt: Date.now() + SOURCE_REFRESH_MS,
+			expiresAt: Date.now() + SOURCE_REFRESH_MS.iptv,
 			channels,
 			groups,
 			sources: refreshedSources.map(publicSource),
@@ -545,7 +564,7 @@ export class GuideService {
 		const cache = source.cache;
 		if (
 			source.lastRefreshedAt &&
-			Date.now() - source.lastRefreshedAt.getTime() < SOURCE_REFRESH_MS &&
+			Date.now() - source.lastRefreshedAt.getTime() < SOURCE_REFRESH_MS[source.kind] &&
 			cacheHasData(source.kind, cache)
 		) {
 			return Promise.resolve(source);

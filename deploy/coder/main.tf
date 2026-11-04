@@ -291,6 +291,13 @@ resource "docker_container" "workspace" {
     ip   = "host-gateway"
   }
 
+  # Flixer's built-in mail server (inbound SMTP). The firewall forwards public port 25 to this host port.
+  ports {
+    internal = 2525
+    external = 252525
+    protocol = "tcp"
+  }
+
   networks_advanced {
     name = docker_network.stack.name
   }

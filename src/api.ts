@@ -49,3 +49,4 @@ export { AdminBackupsController, BackupDownloadController } from "./api/backups/
 export { AdminDatabaseTransferController } from "./api/connections/adminDatabaseTransferController.js";
 export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";
+export { AdminMailController, UserMailController } from "./api/mail/mailController.js";
