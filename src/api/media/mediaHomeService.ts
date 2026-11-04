@@ -2,6 +2,7 @@ import { parseMediaChapters } from "./segmentLogic.js";
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
+import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
@@ -153,6 +154,9 @@ export interface HomeCard {
 	poster: number | null;
 	backdrop: number | null;
 	updatedAt: Date;
+	/** Set when the item is restricted for this user and the admin chose to show restricted media locked. */
+	locked?: true;
+	lockReason?: "library" | "rating" | "unrated" | "tags";
 }
 
 export interface HomeFeatured extends HomeCard {
@@ -200,11 +204,12 @@ export class MediaHomeService {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		@Inject(IndexerClient) private readonly indexer: IndexerClient,
 		private readonly mediaSearch: MediaSearchService,
+		private readonly access: MediaAccessService,
 	) {}
 
 	private readonly profileLookups = new Map<string, Promise<PersonProfile | null>>();
 
-	async cardsByIds(ids: string[]): Promise<HomeCard[]> {
+	async cardsByIds(ids: string[], policy?: AccessPolicy): Promise<HomeCard[]> {
 		const orderedIds = [...new Set(ids.filter((id) => UUID_PATTERN.test(id)))];
 		if (orderedIds.length === 0) {
 			return [];
@@ -214,14 +219,15 @@ export class MediaHomeService {
 			isPlaceholder: false,
 		});
 		const cards = new Map(items.map((item) => [item.id, this.toCard(item)]));
-		return orderedIds.flatMap((id) => {
+		const ordered = orderedIds.flatMap((id) => {
 			const card = cards.get(id);
 			return card ? [card] : [];
 		});
+		return policy ? this.access.shape(policy, ordered) : ordered;
 	}
 
-	async home(userId: string) {
-		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([this.libraries(), this.latest(["movie"], ROW_SIZE, userId), this.latest(["series"], ROW_SIZE, userId), this.latest(["album"], ROW_SIZE), this.latest(["movie", "series"], FEATURED_CANDIDATES, userId), this.continueWatching(userId)]);
+	async home(userId: string, policy: AccessPolicy) {
+		const [libraries, movies, shows, albums, candidates, continueWatching] = await Promise.all([this.libraries(policy), this.latest(["movie"], ROW_SIZE, policy, userId), this.latest(["series"], ROW_SIZE, policy, userId), this.latest(["album"], ROW_SIZE, policy), this.latest(["movie", "series"], FEATURED_CANDIDATES, policy, userId), this.continueWatching(userId, policy)]);
 
 		const featured = candidates
 			.filter((item) => item.backdrop !== null)
@@ -308,13 +314,15 @@ export class MediaHomeService {
 	}
 
 	/** Unfinished movies, episodes and videos the user has started, most recent first. */
-	private async continueWatching(userId: string): Promise<ContinueCard[]> {
+	private async continueWatching(userId: string, policy: AccessPolicy): Promise<ContinueCard[]> {
 		const rows = await this.dataSource.getRepository(WatchProgress).find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
 		if (rows.length === 0) {
 			return [];
 		}
 		const repo = this.dataSource.getRepository(MediaItem);
-		const items = await repo.find({ where: { id: In(rows.map((row) => row.itemId)), isPlaceholder: false } });
+		const found = await repo.find({ where: { id: In(rows.map((row) => row.itemId)), isPlaceholder: false } });
+		const allowed = await this.access.visibleIds(policy, found.map((item) => item.id));
+		const items = found.filter((item) => allowed.has(item.id));
 		const byId = new Map(items.map((item) => [item.id, item]));
 		const seasonIds = [...new Set(items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string))];
 		const seasons = seasonIds.length > 0 ? await repo.findBy({ id: In(seasonIds) }) : [];
@@ -365,11 +373,18 @@ export class MediaHomeService {
 	}
 
 	/** One item for the detail page, with its seasons and episodes (or tracks) beneath it. */
-	async detail(id: string, userId?: string) {
+	async detail(id: string, userId: string | undefined, policy: AccessPolicy) {
 		const repo = this.dataSource.getRepository(MediaItem);
 		const item = await repo.findOneBy({ id });
 		if (!item || item.isPlaceholder) {
 			throw new NotFound("Media item not found.");
+		}
+		const blocked = await this.access.blockReason(policy, id);
+		if (blocked && (blocked === "library" || policy.displayMode === "hidden")) {
+			throw new NotFound("Media item not found.");
+		}
+		if (blocked) {
+			return { id: item.id, type: item.type, title: item.title, year: item.year, poster: imageIndex(item.images, ["poster"]), locked: true as const, lockReason: blocked, children: [] };
 		}
 		const parent = item.parentId ? await repo.findOneBy({ id: item.parentId }) : null;
 		const series = parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
@@ -463,13 +478,14 @@ export class MediaHomeService {
 	}
 
 	/** Every genre present in the library, for the search filter. */
-	async genres(): Promise<string[]> {
+	async genres(policy?: AccessPolicy): Promise<string[]> {
 		const rows: Array<{ genre: string }> = await this.dataSource.query(`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`);
-		return rows.map((row) => row.genre).filter(Boolean);
+		const hidden = new Set(policy?.enforced && policy.displayMode === "hidden" ? policy.blockedTags : []);
+		return rows.map((row) => row.genre).filter((genre) => Boolean(genre) && !hidden.has(genre.trim().toLowerCase()));
 	}
 
 	/** Searches configured media fields and returns matching nested tracks and episodes with their parent titles. */
-	async search(userId: string, query: string, filters: SearchFilters = {}): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
+	async search(userId: string, query: string, filters: SearchFilters = {}, policy?: AccessPolicy): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
 		const term = query.trim().slice(0, 100);
 		const genre = filters.genre?.trim().slice(0, 60) || undefined;
 		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched);
@@ -489,6 +505,7 @@ export class MediaHomeService {
 		if (searchIds?.length === 0) return { items: [], engine: "meilisearch" };
 		const query_ = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.parentId", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 
+		if (policy) this.access.restrict(query_, "item", policy);
 		if (searchIds) {
 			query_.andWhere("item.id IN (:...searchIds)", { searchIds });
 		} else if (term) {
@@ -595,8 +612,7 @@ export class MediaHomeService {
 		const series = seriesIds.length > 0 ? await this.dataSource.getRepository(MediaItem).findBy({ id: In(seriesIds) }) : [];
 		const contextById = new Map([...parents, ...series].map((item) => [item.id, item]));
 
-		return {
-			items: orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
+		const cards = orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
 				id: item.id,
 				type: item.type,
 				title: item.title,
@@ -605,18 +621,18 @@ export class MediaHomeService {
 				poster: imageIndex(item.images, ["poster"]),
 				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
 				updatedAt: item.updatedAt,
-			})),
-			engine: searchIds === null ? "postgresql" : "meilisearch",
-		};
+			}));
+		return { items: policy ? await this.access.shape(policy, cards) : cards, engine: searchIds === null ? "postgresql" : "meilisearch" };
 	}
 
 	/** A paged, sorted listing of one section (movies, tv or music). */
-	async browse(kind: string, sort: string, offset: number, limit: number) {
+	async browse(kind: string, sort: string, offset: number, limit: number, policy: AccessPolicy) {
 		const types = BROWSE_KINDS[kind];
 		if (!types) {
 			throw new NotFound("Unknown section.");
 		}
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
+		this.access.restrict(query, "item", policy);
 		if (sort === "title") {
 			query.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
 		} else if (sort === "year") {
@@ -625,11 +641,11 @@ export class MediaHomeService {
 			query.orderBy("item.created_at", "DESC").addOrderBy("item.title", "ASC");
 		}
 		const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
-		return { total, items: items.map((item) => this.toCard(item)) };
+		return { total, items: await this.access.shape(policy, items.map((item) => this.toCard(item))) };
 	}
 
 	/** Everything a person is credited on (albums, movies, shows), grouped by role, matched by name ignoring case. */
-	async person(id: string): Promise<{
+	async person(id: string, policy: AccessPolicy): Promise<{
 		id: string;
 		name: string;
 		hasImage: boolean;
@@ -639,7 +655,9 @@ export class MediaHomeService {
 		if (!UUID_PATTERN.test(id)) {
 			throw new NotFound("Person not found.");
 		}
-		const credits = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false").where("credit.person_id = :id", { id: id.toLowerCase() }).orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("COALESCE(item.sort_title, item.title)", "ASC").getMany();
+		const creditQuery = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false").where("credit.person_id = :id", { id: id.toLowerCase() }).orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("COALESCE(item.sort_title, item.title)", "ASC");
+		this.access.restrict(creditQuery, "item", policy, { content: true });
+		const credits = await creditQuery.getMany();
 		if (credits.length === 0) {
 			throw new NotFound("Person not found.");
 		}
@@ -743,18 +761,21 @@ export class MediaHomeService {
 		};
 	}
 
-	private async libraries(): Promise<HomeLibrary[]> {
-		const libraries = await this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } });
+	private async libraries(policy: AccessPolicy): Promise<HomeLibrary[]> {
+		const all = await this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } });
+		const libraries = policy.enforced && policy.libraryIds ? all.filter((library) => policy.libraryIds?.includes(library.id)) : all;
 		if (libraries.length === 0) {
 			return [];
 		}
 
-		const counts = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.library_id", "libraryId").addSelect("COUNT(*)", "count").where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).groupBy("item.library_id").getRawMany<{ libraryId: string; count: string }>();
+		const countQuery = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.library_id", "libraryId").addSelect("COUNT(*)", "count").where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).groupBy("item.library_id");
+		const counts = await this.access.restrict(countQuery, "item", policy).getRawMany<{ libraryId: string; count: string }>();
 		const countByLibrary = new Map(counts.map((row) => [row.libraryId, Number(row.count)]));
 
 		return Promise.all(
 			libraries.map(async (library) => {
-				const recent = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.images", "item.updatedAt"]).where("item.library_id = :libraryId", { libraryId: library.id }).andWhere("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).orderBy("item.created_at", "DESC").limit(12).getMany();
+				const recentQuery = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.images", "item.updatedAt"]).where("item.library_id = :libraryId", { libraryId: library.id }).andWhere("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types: TOP_LEVEL_TYPES }).orderBy("item.created_at", "DESC").limit(12);
+				const recent = await this.access.restrict(recentQuery, "item", policy, { content: true }).getMany();
 
 				let cover: HomeLibrary["cover"] = null;
 				for (const item of recent) {
@@ -776,8 +797,9 @@ export class MediaHomeService {
 	}
 
 	/** Newest items first; with a user, titles they have marked (or finished) watching are left out. */
-	private async latest(types: MediaItemType[], limit: number, userId?: string) {
+	private async latest(types: MediaItemType[], limit: number, policy: AccessPolicy, userId?: string) {
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item");
+		this.access.restrict(query, "item", policy, { content: true });
 		if (userId) {
 			query.andWhere(
 				`NOT (

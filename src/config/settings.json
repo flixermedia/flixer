@@ -10,6 +10,16 @@
 		"isPublic": false
 	},
 	{
+		"key": "original_quality_access",
+		"defaultValue": "admins",
+		"isPublic": false
+	},
+	{
+		"key": "restricted_media_display",
+		"defaultValue": "hidden",
+		"isPublic": false
+	},
+	{
 		"key": "server_name",
 		"defaultValue": null,
 		"isPublic": true

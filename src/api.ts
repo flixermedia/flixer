@@ -35,6 +35,7 @@ export { MediaHomeController } from "./api/media/mediaHomeController.js";
 export { AdminMediaSearchController } from "./api/media/adminMediaSearchController.js";
 export { NetworkSharesController } from "./api/networkShares/networkSharesController.js";
 export { AdminUsersController } from "./api/adminUsers/adminUsersController.js";
+export { AccessController, AdminAccessController } from "./api/access/accessController.js";
 export { NotificationsController, AdminNotificationsController } from "./api/notifications/notificationsController.js";
 export { FavoritesController } from "./api/social/favoritesController.js";
 export { PlaylistsController } from "./api/social/playlistsController.js";

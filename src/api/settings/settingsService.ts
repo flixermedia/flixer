@@ -146,6 +146,12 @@ export class SettingsService {
 			validateRequestSetting(key, request.value);
 		}
 
+		if (key === "original_quality_access" && !["admins", "everyone", "nobody"].includes(request.value as string)) {
+			throw new BadRequest('The original_quality_access setting must be "admins", "everyone" or "nobody".');
+		}
+		if (key === "restricted_media_display" && !["hidden", "locked"].includes(request.value as string)) {
+			throw new BadRequest('The restricted_media_display setting must be "hidden" or "locked".');
+		}
 		if (key === "themes_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The themes_enabled setting must be a boolean.");
 		}

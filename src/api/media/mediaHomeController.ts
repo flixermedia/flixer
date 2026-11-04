@@ -3,6 +3,7 @@ import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Context, BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Get, Put, Returns, Security } from "@tsed/schema";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
 import { AdminMediaService } from "./adminMediaService.js";
@@ -14,14 +15,15 @@ import { MediaHomeService } from "./mediaHomeService.js";
 export class MediaHomeController {
 	constructor(
 		private readonly authService: AuthService,
+		private readonly access: MediaAccessService,
 		private readonly home: MediaHomeService,
 		private readonly media: AdminMediaService,
 	) {}
 
 	@Get("/home")
 	async getHome(@HeaderParams("authorization") authorization?: string) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.home.home(user.id);
+		const policy = await this.access.resolve(authorization);
+		return this.home.home(policy.userId, policy);
 	}
 
 	@Get("/items/:id/progress")
@@ -30,6 +32,7 @@ export class MediaHomeController {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
 		}
+		await this.requireVisible(authorization, id);
 		return this.home.getProgress(user.id, id.toLowerCase());
 	}
 
@@ -44,6 +47,7 @@ export class MediaHomeController {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
 		}
+		await this.requireVisible(authorization, id);
 		await this.home.saveProgress(user.id, id.toLowerCase(), request.positionSeconds, request.durationSeconds);
 	}
 
@@ -58,13 +62,13 @@ export class MediaHomeController {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
 		}
+		await this.requireVisible(authorization, id);
 		await this.home.setWatched(user.id, id.toLowerCase(), request.watched);
 	}
 
 	@Get("/search/genres")
 	async genres(@HeaderParams("authorization") authorization?: string) {
-		await this.authService.getAuthenticatedUser(authorization);
-		return this.home.genres();
+		return this.home.genres(await this.access.resolve(authorization));
 	}
 
 	@Get("/search")
@@ -80,8 +84,8 @@ export class MediaHomeController {
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
 	) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
-		const result = await this.home.search(user.id, typeof q === "string" ? q : "", {
+		const policy = await this.access.resolve(authorization);
+		const result = await this.home.search(policy.userId, typeof q === "string" ? q : "", {
 			type: typeof type === "string" ? type : undefined,
 			genre: typeof genre === "string" ? genre : undefined,
 			yearFrom: Number.isInteger(yearFrom) ? yearFrom : undefined,
@@ -89,7 +93,7 @@ export class MediaHomeController {
 			sort: typeof sort === "string" ? sort : undefined,
 			unwatched: unwatched === "true",
 			includeChildren: includeChildren === true,
-		});
+		}, policy);
 		ctx.response.setHeader("X-Flixer-Search-Engine", result.engine);
 		return result.items;
 	}
@@ -112,8 +116,7 @@ export class MediaHomeController {
 
 	@Get("/people/:id")
 	async person(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
-		await this.authService.getAuthenticatedUser(authorization);
-		return this.home.person(id);
+		return this.home.person(id, await this.access.resolve(authorization));
 	}
 
 	@Get("/browse/:kind")
@@ -124,19 +127,19 @@ export class MediaHomeController {
 		@QueryParams("limit", Number) limit: number | undefined,
 		@HeaderParams("authorization") authorization?: string,
 	) {
-		await this.authService.getAuthenticatedUser(authorization);
+		const policy = await this.access.resolve(authorization);
 		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? (offset as number) : 0;
 		const safeLimit = Number.isInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, 100) : 48;
-		return this.home.browse(kind, typeof sort === "string" ? sort : "added", safeOffset, safeLimit);
+		return this.home.browse(kind, typeof sort === "string" ? sort : "added", safeOffset, safeLimit, policy);
 	}
 
 	@Get("/items/:id")
 	async item(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
+		const policy = await this.access.resolve(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
 		}
-		return this.home.detail(id.toLowerCase(), user.id);
+		return this.home.detail(id.toLowerCase(), policy.userId, policy);
 	}
 
 	/** An image's bytes. Authenticated, so the web app fetches it with its token rather than using a plain img src. */
@@ -148,8 +151,12 @@ export class MediaHomeController {
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
 	) {
-		await this.authService.getAuthenticatedUser(authorization);
+		const policy = await this.access.resolve(authorization);
 		if (!AuthService.isUuid(id) || !Number.isInteger(index) || index < 0) {
+			throw new NotFound("Image not found.");
+		}
+		const blocked = await this.access.blockReason(policy, id.toLowerCase());
+		if (blocked && (blocked === "library" || policy.displayMode === "hidden")) {
 			throw new NotFound("Image not found.");
 		}
 		const { data, mime } = await this.media.image(id.toLowerCase(), index, width);
@@ -158,5 +165,12 @@ export class MediaHomeController {
 		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
 		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
 		return data;
+	}
+
+	/** Hides blocked items from watch-state routes the same way the item endpoints do. */
+	private async requireVisible(authorization: string | undefined, id: string): Promise<void> {
+		if (!(await this.access.isVisible(await this.access.resolve(authorization), id.toLowerCase()))) {
+			throw new NotFound("Media item not found.");
+		}
 	}
 }

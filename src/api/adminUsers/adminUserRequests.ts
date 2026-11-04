@@ -1,5 +1,5 @@
 import { Enum, Format, MaxLength, MinLength, Pattern, Property, Required } from "@tsed/schema";
-import type { UserRole } from "../../entities/user.entity.js";
+import type { OriginalAccess, UserRole } from "../../entities/user.entity.js";
 
 export class CreateAdminUserRequest {
 
@@ -50,6 +50,10 @@ export class UpdateAdminUserRequest {
 
 	@Property()
 	disabled?: boolean;
+
+	@Property()
+	@Enum("inherit", "allow", "deny")
+	originalAccess?: OriginalAccess;
 }
 
 export class SetUserPasswordRequest {

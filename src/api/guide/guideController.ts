@@ -2,6 +2,7 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import {
 	CreateGuideSourceRequest,
@@ -14,15 +15,21 @@ import { GuideService } from "./guideService.js";
 @Controller("/guide")
 @Security("BearerAuth")
 export class GuideController {
-	constructor(private readonly guide: GuideService) {}
+	constructor(
+		private readonly guide: GuideService,
+		private readonly access: MediaAccessService,
+	) {}
 
 	@Get("/")
-	get(
+	async get(
+		@HeaderParams("authorization") authorization?: string,
 		@QueryParams("from", String) from?: string,
 		@QueryParams("to", String) to?: string,
 		@QueryParams("channelOffset", Number) channelOffset?: number,
 		@QueryParams("channelLimit", Number) channelLimit?: number,
 	) {
+		// Playback of guide channels enforces the allowed-hours schedule; browsing only requires a signed-in user.
+		await this.access.resolve(authorization);
 		return this.guide.getGuide(from, to, channelOffset, channelLimit);
 	}
 }

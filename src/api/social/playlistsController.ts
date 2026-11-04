@@ -2,6 +2,7 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { CreatePlaylistRequest, PlaylistItemRequest, PlaylistOrderRequest, UpdatePlaylistRequest } from "./socialRequests.js";
@@ -21,6 +22,7 @@ export class PlaylistsController {
 	constructor(
 		private readonly authService: AuthService,
 		private readonly playlists: PlaylistsService,
+		private readonly access: MediaAccessService,
 	) {}
 
 	@Get("/")
@@ -43,8 +45,10 @@ export class PlaylistsController {
 
 	@Get("/:id")
 	async get(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.playlists.get(user.id, uuid(id));
+		const policy = await this.access.resolve(authorization);
+		const playlist = await this.playlists.get(policy.userId, uuid(id));
+		const visible = await this.access.visibleIds(policy, playlist.tracks.map((track) => track.id));
+		return { ...playlist, tracks: playlist.tracks.filter((track) => visible.has(track.id)) };
 	}
 
 	@Patch("/:id")

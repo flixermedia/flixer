@@ -2,6 +2,7 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Put, Returns, Security } from "@tsed/schema";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { FavoritesService } from "./favoritesService.js";
 
@@ -20,12 +21,15 @@ export class FavoritesController {
 	constructor(
 		private readonly authService: AuthService,
 		private readonly favorites: FavoritesService,
+		private readonly access: MediaAccessService,
 	) {}
 
 	@Get("/")
 	async list(@HeaderParams("authorization") authorization?: string) {
-		const user = await this.authService.getAuthenticatedUser(authorization);
-		return { items: await this.favorites.list(user.id) };
+		const policy = await this.access.resolve(authorization);
+		const items = await this.favorites.list(policy.userId);
+		const visible = await this.access.visibleIds(policy, items.map((item) => item.id));
+		return { items: items.filter((item) => visible.has(item.id)) };
 	}
 
 	@Get("/ids")

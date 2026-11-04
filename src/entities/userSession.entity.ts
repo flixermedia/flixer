@@ -27,6 +27,10 @@ export class UserSession {
 	@Column({ name: "ip_address", type: "varchar", length: 64, nullable: true })
 	ipAddress!: string | null;
 
+	/** While in the future, this device has entered the access PIN and viewing restrictions are lifted. */
+	@Column({ name: "access_unlocked_until", type: "timestamptz", nullable: true })
+	accessUnlockedUntil!: Date | null;
+
 	@Column({ name: "last_seen_at", type: "timestamptz", default: () => "now()" })
 	lastSeenAt!: Date;
 }

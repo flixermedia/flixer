@@ -5,7 +5,10 @@ import { readdir } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 import { appConfig } from "../../config/store/appConfig.js";
@@ -57,6 +60,7 @@ export class PlaybackService {
 		private readonly segments: MediaSegmentsService,
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly guide: GuideService,
+		private readonly access: MediaAccessService,
 	) {}
 
 	async listSamples(authorization?: string): Promise<SampleVideo[]> {
@@ -70,11 +74,12 @@ export class PlaybackService {
 		if (!sample) {
 			throw new NotFound("Sample video not found.");
 		}
-		return this.issue(user.id, sample);
+		return this.issue(user.id, sample, await this.originalAllowed(user.id));
 	}
 
 	async createGuideChannelPlaybackInfo(channelId: string, authorization?: string): Promise<PlaybackInfo> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
+		this.access.assertSchedule(await this.access.resolve(authorization));
 		const channel = await this.guide.getPlaybackTarget(channelId);
 		return this.issueLive(user.id, channel);
 	}
@@ -84,11 +89,13 @@ export class PlaybackService {
 		itemId: string,
 		authorization?: string,
 	): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null } & ItemSegments> {
-		const user = await this.authService.getAuthenticatedUser(authorization);
+		const policy = await this.access.resolve(authorization);
+		const user = { id: policy.userId };
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
 		if (!item || item.isPlaceholder) {
 			throw new NotFound("Media item not found.");
 		}
+		await this.access.assertPlayable(policy, item.id);
 		if (!PLAYABLE_TYPES.includes(item.type) || !item.rootId || !item.relativePath) {
 			throw new BadRequest("This item has no file to play.");
 		}
@@ -103,13 +110,17 @@ export class PlaybackService {
 			directPlay: extension !== ".mkv",
 			rootId: item.rootId,
 			relativePath: item.relativePath,
-		});
+		}, await this.originalAllowed(user.id));
 		return {
 			...info,
 			title: item.title,
-			nextEpisode: await this.findNextEpisode(item),
+			nextEpisode: await this.visibleNext(policy, await this.findNextEpisode(item)),
 			...(await this.segments.forItem(item)),
 		};
+	}
+
+	private async visibleNext(policy: Parameters<MediaAccessService["isVisible"]>[0], next: NextEpisode | null): Promise<NextEpisode | null> {
+		return next && (await this.access.isVisible(policy, next.id)) ? next : null;
 	}
 
 	/** The episode that follows this one across the whole series, or null for non-episodes and the final episode. */
@@ -145,7 +156,18 @@ export class PlaybackService {
 		);
 	}
 
-	private issue(userId: string, sample: SampleEntry): PlaybackInfo {
+	/** Whether this user may be sent the original file bytes (direct play) rather than a transcode or encrypted HLS. */
+	private async originalAllowed(userId: string): Promise<boolean> {
+		const user = await this.dataSource.getRepository(User).findOneBy({ id: userId });
+		if (user?.originalAccess === "allow") return true;
+		if (user?.originalAccess === "deny") return false;
+		const policy = (await this.dataSource.getRepository(Setting).findOneBy({ key: "original_quality_access" }))?.value;
+		if (policy === "everyone") return true;
+		if (policy === "nobody") return false;
+		return user?.role === "admin";
+	}
+
+	private issue(userId: string, sample: SampleEntry, direct: boolean): PlaybackInfo {
 		const secret = this.getSecret();
 		const now = Math.floor(Date.now() / 1000);
 		const playSessionId = randomUUID();
@@ -158,6 +180,7 @@ export class PlaybackService {
 			mediaSourceId: sample.id,
 			playSessionId,
 			mediaLocator: this.encryptLocator({ rootId: sample.rootId, relativePath: sample.relativePath }, secret),
+			direct,
 			iat: now,
 			exp: now + TOKEN_LIFETIME_SECONDS,
 			jti: randomUUID(),

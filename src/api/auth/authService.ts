@@ -174,6 +174,15 @@ export class AuthService {
 		return this.getAuthenticatedUser(authorization);
 	}
 
+	/** The caller's user and, for login sessions, the session; API keys act as their owner and have no session. */
+	async getSessionContext(authorization?: string): Promise<{ user: User; session: UserSession | null }> {
+		const token = /^Bearer\s+(\S+)$/i.exec(authorization ?? "")?.[1];
+		if (token && this.apiKeys.isApiKey(token)) {
+			return { user: await this.apiKeys.authenticate(token), session: null };
+		}
+		return this.requireAuthenticatedSession(authorization);
+	}
+
 	async getAuthenticatedUser(authorization?: string): Promise<PublicUser> {
 		const { user } = await this.requireAuthenticatedSession(authorization);
 		return this.toPublicUser(user);

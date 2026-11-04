@@ -1,9 +1,10 @@
 import { Controller } from "@tsed/di";
-import { NotFound } from "@tsed/exceptions";
+import { Forbidden, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Returns, Security } from "@tsed/schema";
 import { PartiesService } from "../../party/partiesService.js";
 import { personFrom } from "../../party/partySocketServer.js";
+import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { CreatePartyRequest } from "./socialRequests.js";
 
@@ -21,6 +22,7 @@ export class PartiesController {
 	constructor(
 		private readonly authService: AuthService,
 		private readonly parties: PartiesService,
+		private readonly access: MediaAccessService,
 	) {}
 
 	@Post("/")
@@ -30,13 +32,18 @@ export class PartiesController {
 		if (!AuthService.isUuid(request.itemId)) {
 			throw new NotFound("Media item not found.");
 		}
+		await this.access.assertPlayable(await this.access.resolve(authorization), request.itemId.toLowerCase());
 		return this.parties.create(personFrom(user), request.itemId.toLowerCase(), request.visibility ?? "public");
 	}
 
 	@Get("/:id")
 	async get(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.parties.get(partyId(id), user.id);
+		const party = await this.parties.get(partyId(id), user.id);
+		if (!(await this.access.isVisible(await this.access.resolve(authorization), party.item.id))) {
+			throw new Forbidden("This media is restricted for your account.");
+		}
+		return party;
 	}
 
 	@Delete("/:id")

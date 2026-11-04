@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DataSource, MoreThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
-import { User, type UserRole } from "../../entities/user.entity.js";
+import { User, type OriginalAccess, type UserRole } from "../../entities/user.entity.js";
 import { UserSession } from "../../entities/userSession.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { AvatarService } from "../auth/avatarService.js";
@@ -19,6 +19,7 @@ export interface AdminUser {
 	emailVerified: boolean;
 	role: UserRole;
 	disabled: boolean;
+	originalAccess: OriginalAccess;
 	passkeys: number;
 	activeSessions: number;
 	lastActiveAt: Date | null;
@@ -127,6 +128,10 @@ export class AdminUsersService {
 			}
 		}
 
+		if (request.originalAccess !== undefined) {
+			user.originalAccess = request.originalAccess;
+		}
+
 		let revokeSessions = false;
 		if (request.role !== undefined && request.role !== user.role) {
 			if (isSelf) {
@@ -231,6 +236,7 @@ export class AdminUsersService {
 			emailVerified: user.emailVerifiedAt !== null,
 			role: user.role,
 			disabled: user.disabledAt !== null,
+			originalAccess: user.originalAccess,
 			passkeys: stats.passkeys,
 			activeSessions: stats.activeSessions,
 			lastActiveAt: stats.lastActiveAt,

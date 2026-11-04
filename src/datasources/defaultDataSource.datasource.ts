@@ -4,6 +4,7 @@ import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { Setting } from "../entities/setting.entity.js";
 import { UserPreference } from "../entities/userPreference.entity.js";
+import { UserAccessPolicy } from "../entities/userAccessPolicy.entity.js";
 import { GuideSettings, GuideSource } from "../entities/guideSource.entity.js";
 import { GuideProgramme } from "../entities/guideProgramme.entity.js";
 import { MailServerSettings } from "../entities/mailServerSettings.entity.js";
@@ -11,6 +12,8 @@ import { MailDomain } from "../entities/mailDomain.entity.js";
 import { Mailbox } from "../entities/mailbox.entity.js";
 import { MailMessage } from "../entities/mailMessage.entity.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
+import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
+import { AddUserOriginalAccess1798100000000 } from "../migrations/addUserOriginalAccess1798100000000.js";
 import { ApiKey } from "../entities/apiKey.entity.js";
 import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
 import { MediaItem } from "../entities/mediaItem.entity.js";
@@ -123,6 +126,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				PasskeyChallenge,
 				NativePasskeyHandoff,
 				UserPreference,
+				UserAccessPolicy,
 				ApiKey,
 				MediaLibrary,
 				MediaItem,
@@ -217,6 +221,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddChatMessageEncryption1797800000000,
 				AddChatConversationEncryption1797900000000,
 				CreateMailServer1798000000000,
+				AddUserOriginalAccess1798100000000,
+				CreateUserAccessPolicies1798200000000,
 			],
 			synchronize: false,
 			migrationsRun: false,

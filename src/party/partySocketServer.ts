@@ -1,23 +1,31 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
+import { Forbidden } from "@tsed/exceptions";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
 import { AuthService } from "../api/auth/authService.js";
-import type { PartiesService, PartyPerson } from "./partiesService.js";
+import type { PartiesService, PartyMessage, PartyPerson } from "./partiesService.js";
 
 export const PARTY_PATH = "/api/party";
 
 const AUTH_TIMEOUT_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
+const VIEW_CACHE_MS = 10_000;
 const MAX_CLIENTS = 500;
 const MAX_CLIENT_MESSAGE_BYTES = 1_024;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
 export type PartyAuthenticator = (token: string) => Promise<PartyPerson>;
+/** Resolves whether the signed-in user's viewing limits allow this media item. */
+export type PartyItemGuard = (token: string, itemId: string) => Promise<boolean>;
 
 interface Connection {
 	authenticated: boolean;
 	person?: PartyPerson;
+	token?: string;
+	/** Serialises outgoing party messages so the per-member access check cannot reorder them. */
+	queue?: Promise<void>;
+	viewable?: { itemId: string; ok: boolean; at: number };
 	partyId?: string;
 	leave?: () => Promise<void>;
 	renew?: () => Promise<void>;
@@ -40,6 +48,7 @@ export class PartySocketServer {
 	constructor(
 		private readonly authenticate: PartyAuthenticator,
 		private readonly parties: PartiesService,
+		private readonly canView: PartyItemGuard,
 	) {}
 
 	attach(server: Server): void {
@@ -121,8 +130,14 @@ export class PartySocketServer {
 				const { snapshot, serverTime, leave, renew } = await this.parties.join(
 					message.partyId,
 					person,
-					(outgoing) => this.send(ws, outgoing),
+					(outgoing) => {
+						connection.queue = (connection.queue ?? Promise.resolve()).then(() => this.deliver(ws, connection, outgoing)).catch(() => undefined);
+					},
 				);
+				if (!(await this.canView(connection.token ?? "", snapshot.item.id))) {
+					await leave();
+					throw new Forbidden("This media is restricted for your account.");
+				}
 				connection.leave = leave;
 				connection.renew = renew;
 				connection.partyId = message.partyId;
@@ -138,6 +153,9 @@ export class PartySocketServer {
 			} else if (message.type === "command" && connection.partyId && isPartyAction(message.action)) {
 				const commandId = typeof message.commandId === "string" ? message.commandId : "";
 				const itemId = typeof message.itemId === "string" ? message.itemId : undefined;
+				if (itemId && !(await this.canView(connection.token ?? "", itemId))) {
+					throw new Forbidden("This media is restricted for your account.");
+				}
 				if (message.action === "seek") {
 					if (typeof message.position !== "number" || !Number.isFinite(message.position)) {
 						this.send(ws, {
@@ -183,6 +201,28 @@ export class PartySocketServer {
 		}
 	}
 
+	/** Sends a party message, dropping the member from the party when the item it shows is restricted for them. */
+	private async deliver(ws: WebSocket, connection: Connection, message: PartyMessage): Promise<void> {
+		if (message.type === "state" && !(await this.isViewable(connection, message.party.item.id))) {
+			const leave = connection.leave;
+			connection.leave = undefined;
+			connection.renew = undefined;
+			connection.partyId = undefined;
+			this.send(ws, { type: "error", status: 403, message: "This media is restricted for your account." });
+			await leave?.();
+			return;
+		}
+		this.send(ws, message);
+	}
+
+	private async isViewable(connection: Connection, itemId: string): Promise<boolean> {
+		const cached = connection.viewable;
+		if (cached && cached.itemId === itemId && Date.now() - cached.at < VIEW_CACHE_MS) return cached.ok;
+		const ok = await this.canView(connection.token ?? "", itemId);
+		connection.viewable = { itemId, ok, at: Date.now() };
+		return ok;
+	}
+
 	private async onAuth(ws: WebSocket, connection: Connection, message: ClientMessage): Promise<void> {
 		if (message.type !== "auth" || typeof message.token !== "string" || message.token === "") {
 			ws.close(CLOSE_UNAUTHORIZED, "Expected an auth message");
@@ -192,6 +232,7 @@ export class PartySocketServer {
 		connection.authenticated = true;
 		try {
 			connection.person = await this.authenticate(message.token);
+			connection.token = message.token;
 		} catch {
 			connection.authenticated = false;
 			ws.close(CLOSE_UNAUTHORIZED, "Sign in to join a party");

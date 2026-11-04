@@ -7,6 +7,7 @@ import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaRequest, type RequestMediaType, type RequestStatus } from "../../entities/mediaRequest.entity.js";
 import type { RequestServiceKind } from "../../entities/requestService.entity.js";
 import { RequestUserLimit } from "../../entities/requestUserLimit.entity.js";
+import { UserAccessPolicy } from "../../entities/userAccessPolicy.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
 import type { PublicUser } from "../auth/authService.js";
@@ -122,7 +123,14 @@ export class MediaRequestsService {
 			user.role === "admin"
 				? null
 				: await this.dataSource.getRepository(RequestUserLimit).findOneBy({ userId: user.id });
-		return resolveAccess(user.role === "admin", settings, limit);
+		const access = resolveAccess(user.role === "admin", settings, limit);
+		if (user.role !== "admin" && access.autoApprove) {
+			const policy = await this.dataSource.getRepository(UserAccessPolicy).findOneBy({ userId: user.id });
+			if (policy?.requireRequestApproval) {
+				return { ...access, autoApprove: false };
+			}
+		}
+		return access;
 	}
 
 	private async quotaUsed(userId: string, days: number): Promise<number> {

@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, OneToOne, PrimaryColumn } from "typeo
 import { UserPreference } from "./userPreference.entity.js";
 
 export type UserRole = "admin" | "user";
+export type OriginalAccess = "inherit" | "allow" | "deny";
 
 @Entity("users")
 export class User {
@@ -20,6 +21,10 @@ export class User {
 
 	@Column({ type: "varchar", length: 16, default: "user" })
 	role!: UserRole;
+
+	/** Overrides the server-wide original_quality_access policy for this user. */
+	@Column({ name: "original_access", type: "varchar", length: 8, default: "inherit" })
+	originalAccess!: OriginalAccess;
 
 	@Column({ name: "password_hash", type: "varchar", length: 255 })
 	passwordHash!: string;
