@@ -51,3 +51,4 @@ export { AdminDatabaseTransferController } from "./api/connections/adminDatabase
 export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";
 export { AdminMailController, UserMailController } from "./api/mail/mailController.js";
+export { PaymentsController, AdminPaymentsController } from "./api/payments/paymentsController.js";

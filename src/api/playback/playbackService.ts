@@ -16,6 +16,7 @@ import { MediaSegmentsService, type ItemSegments } from "../media/mediaSegmentsS
 import { pickNextEpisode, type NextEpisode } from "./nextEpisode.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 import { GuideService, type LiveStreamContainer } from "../guide/guideService.js";
+import { EntitlementService } from "../payments/entitlementService.js";
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
 const LOCATOR_AAD = "flixer-streamer:media-locator:v1";
@@ -61,6 +62,7 @@ export class PlaybackService {
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly guide: GuideService,
 		private readonly access: MediaAccessService,
+		private readonly entitlements: EntitlementService,
 	) {}
 
 	async listSamples(authorization?: string): Promise<SampleVideo[]> {
@@ -81,6 +83,7 @@ export class PlaybackService {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		this.access.assertSchedule(await this.access.resolve(authorization));
 		const channel = await this.guide.getPlaybackTarget(channelId);
+		await this.entitlements.assertCanPlay(user, this.entitlements.guideContext(channelId));
 		return this.issueLive(user.id, channel);
 	}
 
@@ -96,6 +99,11 @@ export class PlaybackService {
 			throw new NotFound("Media item not found.");
 		}
 		await this.access.assertPlayable(policy, item.id);
+		const viewer = await this.dataSource.getRepository(User).findOneByOrFail({ id: policy.userId });
+		const context = await this.entitlements.contextFor(item.id);
+		if (context) {
+			await this.entitlements.assertCanPlay(viewer, context);
+		}
 		if (!PLAYABLE_TYPES.includes(item.type) || !item.rootId || !item.relativePath) {
 			throw new BadRequest("This item has no file to play.");
 		}

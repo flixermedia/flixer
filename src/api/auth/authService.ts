@@ -1,4 +1,4 @@
-import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests, Unauthorized } from "@tsed/exceptions";
+import { BadRequest, Conflict, Forbidden, NotFound, PaymentRequired, TooManyRequests, Unauthorized } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { getContext } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
@@ -15,6 +15,7 @@ import { ApiKeyService } from "../apiKeys/apiKeyService.js";
 import { deleteAvatarFile } from "./avatarStorage.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { EmailVerificationService } from "./emailVerificationService.js";
+import { PaymentsService, type SignupAction, type SignupPayment } from "../payments/paymentsService.js";
 
 const PASSWORD_KEY_LENGTH = 64;
 const PASSWORD_SALT_LENGTH = 16;
@@ -66,6 +67,12 @@ export interface AuthResult {
 export interface VerificationPending {
 	verificationRequired: true;
 	email: string;
+}
+
+/** The account exists but has to save a card first. The token lets the holder finish paying without signing in. */
+export interface PaymentPending {
+	paymentRequired: true;
+	token: string;
 }
 
 export interface PasskeyRequired {
@@ -133,6 +140,7 @@ export class AuthService {
 		private readonly emailVerification: EmailVerificationService,
 		private readonly accountEmail: AccountEmailService,
 		private readonly apiKeys: ApiKeyService,
+		private readonly payments: PaymentsService,
 	) {}
 
 	private readonly resendCooldowns = new Map<string, number>();
@@ -269,14 +277,17 @@ export class AuthService {
 			}
 		}
 
+		await this.payments.purgeUser(user.id).catch(() => undefined);
 		await this.dataSource.getRepository(User).delete({ id: user.id });
 		await deleteAvatarFile(user.preferences?.avatarFile);
 		void this.accountEmail.sendAccountDeletedEmail(user);
 		return { deleted: true };
 	}
 
-	async register(username: string, password: string, email: string, displayName: string | undefined, authorization?: string): Promise<AuthResult | VerificationPending> {
+	async register(username: string, password: string, email: string, displayName: string | undefined, authorization?: string): Promise<AuthResult | VerificationPending | PaymentPending> {
 		const tokenSecret = this.getTokenSecret();
+		const cardRequired = await this.payments.cardRequiredForSignup();
+		const createdByAdmin = cardRequired && !!authorization && !(await tryCatch(() => this.requireAdmin(authorization)))[0];
 		const normalizedUsername = this.normalizeUsername(username);
 		const normalizedEmail = this.normalizeEmail(email);
 		const verificationRequired = await this.emailVerification.isRequired();
@@ -320,12 +331,28 @@ export class AuthService {
 			throw saveError;
 		}
 
+		if (cardRequired && !createdByAdmin && user.role !== "admin") {
+			await this.payments.markSignupPending(user.id);
+			return { paymentRequired: true, token: this.payments.issueSignupToken(user.id) };
+		}
+
 		if (await this.emailVerification.isRequired()) {
 			await this.trySendVerification(user);
 			return { verificationRequired: true, email: normalizedEmail };
 		}
 
 		return this.createAuthResult(user, tokenSecret);
+	}
+
+	/** Finishes a registration that is waiting for payment, then signs the account in (or asks for email verification). */
+	async completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<AuthResult | VerificationPending | SignupAction> {
+		const user = await this.payments.completePendingSignup(token, payment, orderId);
+		if ('requiresAction' in user) return user
+		if (await this.emailVerification.isRequired()) {
+			await this.trySendVerification(user);
+			return { verificationRequired: true, email: user.email ?? "" };
+		}
+		return this.createAuthResult(user, this.getTokenSecret());
 	}
 
 	async verifyEmail(token: string): Promise<{ verified: true }> {
@@ -407,6 +434,7 @@ export class AuthService {
 			throw new Unauthorized("Your current password is required to delete your account.");
 		}
 
+		await this.payments.purgeUser(target.id).catch(() => undefined);
 		await repository.remove(target);
 		return { id: target.id, deleted: true };
 	}
@@ -555,7 +583,7 @@ export class AuthService {
 		return this.createAuthResult(user, this.getTokenSecret());
 	}
 
-	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired> {
+	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired | PaymentPending> {
 		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);
 		const user = await this.dataSource.getRepository(User).findOneBy({ username: normalizedUsername });
@@ -566,6 +594,10 @@ export class AuthService {
 
 		if (user.disabledAt) {
 			throw new Forbidden("This account has been disabled. Contact your server administrator.");
+		}
+
+		if (await this.payments.isSignupPending(user.id)) {
+			return { paymentRequired: true, token: this.payments.issueSignupToken(user.id) };
 		}
 
 		if (!user.emailVerifiedAt && (await this.emailVerification.isRequired())) {
@@ -669,6 +701,9 @@ export class AuthService {
 	private async createAuthResult(user: User, secret: string): Promise<AuthResult> {
 		if (user.disabledAt) {
 			throw new Forbidden("This account has been disabled. Contact your server administrator.");
+		}
+		if (await this.payments.isSignupPending(user.id)) {
+			throw new PaymentRequired("Finish payment before signing in.");
 		}
 		const issuedAt = Math.floor(Date.now() / 1000);
 		const expiresAt = new Date((issuedAt + ACCESS_TOKEN_LIFETIME_SECONDS) * 1000);
