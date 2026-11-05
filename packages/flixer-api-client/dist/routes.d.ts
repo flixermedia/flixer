@@ -1,5 +1,12 @@
 export declare const routes: readonly [{
     readonly method: "post";
+    readonly path: "/admin/mail/mailboxes/generate-user-addresses";
+    readonly operationId: "adminMailControllerGenerateUserAddresses";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/admin/database-transfer/restore-writes";
     readonly operationId: "adminDatabaseTransferControllerRestoreWrites";
     readonly pathParameters: readonly [];
@@ -133,6 +140,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/payments/subscriptions";
+    readonly operationId: "adminPaymentsControllerSubscriptions";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
+}, {
+    readonly method: "get";
     readonly path: "/internal/ai/library-context";
     readonly operationId: "aiControllerLibraryContext";
     readonly pathParameters: readonly [];
@@ -152,6 +166,13 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/scope-search";
+    readonly operationId: "adminPaymentsControllerScopeSearch";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
 }, {
     readonly method: "get";
     readonly path: "/recommendations/home/music";
@@ -181,6 +202,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/admin/payments/config/test";
+    readonly operationId: "adminPaymentsControllerTest";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "put";
     readonly path: "/admin/indexer/concurrency";
     readonly operationId: "adminIndexerControllerSetConcurrency";
@@ -191,6 +219,13 @@ export declare const routes: readonly [{
     readonly method: "get";
     readonly path: "/notifications/push/status";
     readonly operationId: "notificationsControllerPushStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/currencies";
+    readonly operationId: "adminPaymentsControllerCurrencies";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: true;
@@ -237,6 +272,13 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/payments/signup/complete";
+    readonly operationId: "paymentsControllerSignupComplete";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/requests/images/discogs";
     readonly operationId: "requestImagesControllerDiscogs";
@@ -279,6 +321,20 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: true;
 }, {
+    readonly method: "get";
+    readonly path: "/admin/payments/products";
+    readonly operationId: "adminPaymentsControllerProducts";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/products";
+    readonly operationId: "adminPaymentsControllerCreateProduct";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/setup/recovery/request";
     readonly operationId: "setupControllerRequestRecoveryKey";
@@ -312,6 +368,34 @@ export declare const routes: readonly [{
     readonly operationId: "chatControllerEncryptionStatus";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/mail/diagnostics";
+    readonly operationId: "adminMailControllerDiagnostics";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/methods/setup";
+    readonly operationId: "paymentsControllerBeginMethod";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/coupons";
+    readonly operationId: "adminPaymentsControllerCoupons";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/coupons";
+    readonly operationId: "adminPaymentsControllerCreateCoupon";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "get";
@@ -369,6 +453,34 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: true;
     readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/signup/setup";
+    readonly operationId: "paymentsControllerSignupSetup";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/config";
+    readonly operationId: "adminPaymentsControllerGetConfig";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/payments/config";
+    readonly operationId: "adminPaymentsControllerPutConfig";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/orders";
+    readonly operationId: "adminPaymentsControllerOrders";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
 }, {
     readonly method: "get";
     readonly path: "/recommendations/home";
@@ -441,6 +553,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/admin/access/options";
+    readonly operationId: "adminAccessControllerOptions";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/notifications/config";
     readonly operationId: "notificationsControllerConfig";
     readonly pathParameters: readonly [];
@@ -450,6 +569,48 @@ export declare const routes: readonly [{
     readonly method: "post";
     readonly path: "/admin/backups/upload";
     readonly operationId: "adminBackupsControllerUpload";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/mailboxes";
+    readonly operationId: "adminMailControllerListMailboxes";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/mail/mailboxes";
+    readonly operationId: "adminMailControllerCreateMailbox";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/templates";
+    readonly operationId: "adminMailControllerListTemplates";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/stats";
+    readonly operationId: "adminPaymentsControllerStats";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/plans";
+    readonly operationId: "adminPaymentsControllerPlans";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/plans";
+    readonly operationId: "adminPaymentsControllerCreatePlan";
     readonly pathParameters: readonly [];
     readonly hasBody: true;
     readonly hasQuery: false;
@@ -510,12 +671,47 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/chat/history-backup";
+    readonly operationId: "chatControllerChatHistoryBackup";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/chat/history-backup";
+    readonly operationId: "chatControllerSaveChatHistoryBackup";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/admin/updates/apply";
     readonly operationId: "adminUpdatesControllerApply";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/settings";
+    readonly operationId: "adminMailControllerGetSettings";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/mail/settings";
+    readonly operationId: "adminMailControllerUpdateSettings";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/messages";
+    readonly operationId: "adminMailControllerListMessages";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
 }, {
     readonly method: "post";
     readonly path: "/admin/search/reset";
@@ -541,6 +737,20 @@ export declare const routes: readonly [{
     readonly method: "post";
     readonly path: "/chat/conversations";
     readonly operationId: "chatControllerStart";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/domains";
+    readonly operationId: "adminMailControllerListDomains";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/mail/domains";
+    readonly operationId: "adminMailControllerCreateDomain";
     readonly pathParameters: readonly [];
     readonly hasBody: true;
     readonly hasQuery: false;
@@ -573,6 +783,20 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: true;
 }, {
+    readonly method: "get";
+    readonly path: "/admin/mail/status";
+    readonly operationId: "adminMailControllerStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/checkout";
+    readonly operationId: "paymentsControllerCheckout";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/auth/me/password";
     readonly operationId: "authControllerChangePassword";
@@ -592,6 +816,13 @@ export declare const routes: readonly [{
     readonly operationId: "indexerApiControllerGetSettings";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/methods";
+    readonly operationId: "paymentsControllerAddMethod";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -621,6 +852,27 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: true;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/mail/send";
+    readonly operationId: "adminMailControllerSend";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/payments/status";
+    readonly operationId: "paymentsControllerStatus";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/access";
+    readonly operationId: "paymentsControllerAccess";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
 }, {
     readonly method: "get";
     readonly path: "/setup/progress";
@@ -699,6 +951,20 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/payments/plans";
+    readonly operationId: "paymentsControllerPlans";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/quote";
+    readonly operationId: "paymentsControllerQuote";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/auth/register";
     readonly operationId: "authControllerRegister";
@@ -748,6 +1014,13 @@ export declare const routes: readonly [{
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/access/unlock";
+    readonly operationId: "accessControllerUnlock";
+    readonly pathParameters: readonly [];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/notifications";
     readonly operationId: "notificationsControllerList";
@@ -789,6 +1062,13 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/mail/messages";
+    readonly operationId: "userMailControllerList";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: true;
 }, {
     readonly method: "get";
     readonly path: "/setup/status";
@@ -881,6 +1161,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/access/lock";
+    readonly operationId: "accessControllerLock";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/chat/unread";
     readonly operationId: "chatControllerUnread";
@@ -909,6 +1196,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/payments/me";
+    readonly operationId: "paymentsControllerMe";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/setup/flow";
     readonly operationId: "setupControllerFlow";
@@ -926,6 +1220,13 @@ export declare const routes: readonly [{
     readonly method: "get";
     readonly path: "/media/home";
     readonly operationId: "mediaHomeControllerGetHome";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/access/me";
+    readonly operationId: "accessControllerMe";
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: false;
@@ -1015,6 +1316,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/mail/me";
+    readonly operationId: "userMailControllerMe";
+    readonly pathParameters: readonly [];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/issues";
     readonly operationId: "issueReportsControllerList";
     readonly pathParameters: readonly [];
@@ -1041,6 +1349,13 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly [];
     readonly hasBody: false;
     readonly hasQuery: true;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/subscriptions/{subscriptionId}/cancel";
+    readonly operationId: "adminPaymentsControllerCancelSubscription";
+    readonly pathParameters: readonly ["subscriptionId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
 }, {
     readonly method: "get";
     readonly path: "/internal/ai/users/{userId}/recommendation-context";
@@ -1071,6 +1386,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/payments/subscriptions/{subscriptionId}/cancel";
+    readonly operationId: "paymentsControllerCancel";
+    readonly pathParameters: readonly ["subscriptionId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/subscriptions/{subscriptionId}/resume";
+    readonly operationId: "paymentsControllerResume";
+    readonly pathParameters: readonly ["subscriptionId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/playback/guide-channels/{id}/playback-info";
     readonly operationId: "playbackControllerChannelPlaybackInfo";
     readonly pathParameters: readonly ["id"];
@@ -1081,6 +1410,13 @@ export declare const routes: readonly [{
     readonly path: "/admin/indexer/queues/{queue}/cancel-active";
     readonly operationId: "adminIndexerControllerCancelActive";
     readonly pathParameters: readonly ["queue"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/users/{userId}/waive-signup";
+    readonly operationId: "adminPaymentsControllerWaiveSignup";
+    readonly pathParameters: readonly ["userId"];
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
@@ -1120,6 +1456,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/payments/orders/{orderId}/refund";
+    readonly operationId: "adminPaymentsControllerRefund";
+    readonly pathParameters: readonly ["orderId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "patch";
+    readonly path: "/admin/payments/grants/{grantId}/revoke";
+    readonly operationId: "adminPaymentsControllerRevoke";
+    readonly pathParameters: readonly ["grantId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/admin/indexer/libraries/{id}/segments";
     readonly operationId: "adminIndexerControllerQueueSegments";
     readonly pathParameters: readonly ["id"];
@@ -1154,6 +1504,20 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "get";
+    readonly path: "/admin/payments/users/{userId}/grants";
+    readonly operationId: "adminPaymentsControllerGrants";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/payments/users/{userId}/grants";
+    readonly operationId: "adminPaymentsControllerGrant";
+    readonly pathParameters: readonly ["userId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "post";
     readonly path: "/playback/samples/{id}/playback-info";
     readonly operationId: "playbackControllerPlaybackInfo";
@@ -1183,6 +1547,41 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/mail/domains/{id}/rotate-dkim";
+    readonly operationId: "adminMailControllerRotateDkim";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/admin/mail/templates/{name}/preview";
+    readonly operationId: "adminMailControllerPreviewTemplate";
+    readonly pathParameters: readonly ["name"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/methods/{methodId}/default";
+    readonly operationId: "paymentsControllerMakeDefault";
+    readonly pathParameters: readonly ["methodId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/payments/products/{productId}";
+    readonly operationId: "adminPaymentsControllerUpdateProduct";
+    readonly pathParameters: readonly ["productId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/payments/products/{productId}";
+    readonly operationId: "adminPaymentsControllerDeleteProduct";
+    readonly pathParameters: readonly ["productId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/admin/indexer/queues/{queue}/pause";
     readonly operationId: "adminIndexerControllerPause";
     readonly pathParameters: readonly ["queue"];
@@ -1208,6 +1607,41 @@ export declare const routes: readonly [{
     readonly operationId: "adminIndexerControllerScan";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/conversations/{id}/downgrade";
+    readonly operationId: "chatControllerDowngradeToPlaintext";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/payments/orders/{orderId}/receipt";
+    readonly operationId: "paymentsControllerReceipt";
+    readonly pathParameters: readonly ["orderId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/payments/orders/{orderId}/confirm";
+    readonly operationId: "paymentsControllerConfirm";
+    readonly pathParameters: readonly ["orderId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/payments/coupons/{couponId}";
+    readonly operationId: "adminPaymentsControllerUpdateCoupon";
+    readonly pathParameters: readonly ["couponId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/payments/coupons/{couponId}";
+    readonly operationId: "adminPaymentsControllerDeleteCoupon";
+    readonly pathParameters: readonly ["couponId"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1260,6 +1694,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/mail/templates/{name}/test";
+    readonly operationId: "adminMailControllerTestTemplate";
+    readonly pathParameters: readonly ["name"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/admin/scheduled-tasks/{id}/stop";
     readonly operationId: "adminScheduledTasksControllerStop";
     readonly pathParameters: readonly ["id"];
@@ -1281,10 +1722,24 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/access/users/{id}/preview";
+    readonly operationId: "adminAccessControllerPreview";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/chat/devices/{deviceId}/approve";
     readonly operationId: "chatControllerApproveMlsDevice";
     readonly pathParameters: readonly ["deviceId"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
+    readonly path: "/chat/conversations/{id}/upgrade";
+    readonly operationId: "chatControllerUpgradeToEncrypted";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1316,6 +1771,13 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "post";
+    readonly path: "/admin/mail/domains/{id}/verify";
+    readonly operationId: "adminMailControllerVerifyDomain";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "post";
     readonly path: "/admin/media/items/{id}/images";
     readonly operationId: "adminMediaControllerAddImage";
     readonly pathParameters: readonly ["id"];
@@ -1326,6 +1788,27 @@ export declare const routes: readonly [{
     readonly path: "/playlists/containing/{itemId}";
     readonly operationId: "playlistsControllerContaining";
     readonly pathParameters: readonly ["itemId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/payments/plans/{planId}";
+    readonly operationId: "adminPaymentsControllerUpdatePlan";
+    readonly pathParameters: readonly ["planId"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/payments/plans/{planId}";
+    readonly operationId: "adminPaymentsControllerDeletePlan";
+    readonly pathParameters: readonly ["planId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/payments/users/{userId}";
+    readonly operationId: "adminPaymentsControllerUserOverview";
+    readonly pathParameters: readonly ["userId"];
     readonly hasBody: false;
     readonly hasQuery: false;
 }, {
@@ -1378,6 +1861,13 @@ export declare const routes: readonly [{
     readonly hasBody: true;
     readonly hasQuery: false;
 }, {
+    readonly method: "post";
+    readonly path: "/payments/webhooks/{provider}";
+    readonly operationId: "paymentsControllerWebhook";
+    readonly pathParameters: readonly ["provider"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
     readonly method: "get";
     readonly path: "/admin/plugins/{id}/settings";
     readonly operationId: "pluginsControllerPluginSettingsView";
@@ -1390,6 +1880,34 @@ export declare const routes: readonly [{
     readonly operationId: "pluginsControllerUpdatePluginSettings";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/templates/{name}";
+    readonly operationId: "adminMailControllerGetTemplate";
+    readonly pathParameters: readonly ["name"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/mail/templates/{name}";
+    readonly operationId: "adminMailControllerSaveTemplate";
+    readonly pathParameters: readonly ["name"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/mail/templates/{name}";
+    readonly operationId: "adminMailControllerRemoveTemplate";
+    readonly pathParameters: readonly ["name"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/payments/methods/{methodId}";
+    readonly operationId: "paymentsControllerRemoveMethod";
+    readonly pathParameters: readonly ["methodId"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "put";
@@ -1547,6 +2065,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "patch";
+    readonly path: "/admin/mail/mailboxes/{id}";
+    readonly operationId: "adminMailControllerUpdateMailbox";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/mail/mailboxes/{id}";
+    readonly operationId: "adminMailControllerRemoveMailbox";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "patch";
     readonly path: "/admin/guide/sources/{id}";
     readonly operationId: "adminGuideControllerUpdateSource";
     readonly pathParameters: readonly ["id"];
@@ -1579,6 +2111,27 @@ export declare const routes: readonly [{
     readonly operationId: "adminIssueReportsControllerUpdateStatus";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/messages/{id}";
+    readonly operationId: "adminMailControllerGetMessage";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/mail/messages/{id}";
+    readonly operationId: "adminMailControllerRemoveMessage";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/payments/offers/{itemId}";
+    readonly operationId: "paymentsControllerOffers";
+    readonly pathParameters: readonly ["itemId"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "post";
@@ -1614,6 +2167,20 @@ export declare const routes: readonly [{
     readonly operationId: "adminUsersControllerRemoveAvatar";
     readonly pathParameters: readonly ["id"];
     readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/access/users/{id}";
+    readonly operationId: "adminAccessControllerGet";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "put";
+    readonly path: "/admin/access/users/{id}";
+    readonly operationId: "adminAccessControllerSave";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
     readonly hasQuery: false;
 }, {
     readonly method: "delete";
@@ -1657,6 +2224,20 @@ export declare const routes: readonly [{
     readonly pathParameters: readonly ["name"];
     readonly hasBody: false;
     readonly hasQuery: true;
+}, {
+    readonly method: "patch";
+    readonly path: "/admin/mail/domains/{id}";
+    readonly operationId: "adminMailControllerUpdateDomain";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/mail/domains/{id}";
+    readonly operationId: "adminMailControllerRemoveDomain";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
 }, {
     readonly method: "get";
     readonly path: "/admin/media/items/{id}";
@@ -1813,6 +2394,20 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
+    readonly path: "/mail/messages/{id}";
+    readonly operationId: "userMailControllerGet";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/mail/messages/{id}";
+    readonly operationId: "userMailControllerRemove";
+    readonly pathParameters: readonly ["id"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
     readonly path: "/media/people/{id}";
     readonly operationId: "mediaHomeControllerPerson";
     readonly pathParameters: readonly ["id"];
@@ -1943,6 +2538,27 @@ export declare const routes: readonly [{
     readonly operationId: "chatControllerAcknowledgeMlsWelcome";
     readonly pathParameters: readonly ["id", "welcomeId"];
     readonly hasBody: true;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/admin/mail/messages/{id}/attachments/{attachmentId}";
+    readonly operationId: "adminMailControllerAttachment";
+    readonly pathParameters: readonly ["id", "attachmentId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "delete";
+    readonly path: "/admin/payments/users/{userId}/methods/{methodId}";
+    readonly operationId: "adminPaymentsControllerRemoveUserMethod";
+    readonly pathParameters: readonly ["userId", "methodId"];
+    readonly hasBody: false;
+    readonly hasQuery: false;
+}, {
+    readonly method: "get";
+    readonly path: "/mail/messages/{id}/attachments/{attachmentId}";
+    readonly operationId: "userMailControllerAttachment";
+    readonly pathParameters: readonly ["id", "attachmentId"];
+    readonly hasBody: false;
     readonly hasQuery: false;
 }, {
     readonly method: "post";

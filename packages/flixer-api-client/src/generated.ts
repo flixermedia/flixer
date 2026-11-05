@@ -872,6 +872,15 @@ export const UpdateAdminUserRequestRole = {
   user: 'user',
 } as const;
 
+export type UpdateAdminUserRequestOriginalAccess = typeof UpdateAdminUserRequestOriginalAccess[keyof typeof UpdateAdminUserRequestOriginalAccess];
+
+
+export const UpdateAdminUserRequestOriginalAccess = {
+  inherit: 'inherit',
+  allow: 'allow',
+  deny: 'deny',
+} as const;
+
 export interface UpdateAdminUserRequest {
   /**
      * @minLength 1
@@ -882,6 +891,7 @@ export interface UpdateAdminUserRequest {
   email?: string;
   role?: UpdateAdminUserRequestRole;
   disabled?: boolean;
+  originalAccess?: UpdateAdminUserRequestOriginalAccess;
 }
 
 export interface SetUserPasswordRequest {
@@ -890,6 +900,14 @@ export interface SetUserPasswordRequest {
      * @maxLength 128
      */
   password: string;
+}
+
+export interface UnlockRequest {
+  /**
+     * @minLength 1
+     * @maxLength 8
+     */
+  pin: string;
 }
 
 export interface MarkReadRequest {
@@ -1027,6 +1045,14 @@ export interface RegisterChatMlsDeviceRequest {
      * @maxLength 512
      */
   pairingPublicKey: string;
+}
+
+export interface ChatMlsHistoryBackupRequest {
+  /**
+     * @minLength 1
+     * @maxLength 29000000
+     */
+  backup: string;
 }
 
 export interface ApproveChatMlsDeviceRequest {
@@ -1242,6 +1268,199 @@ export interface CreateFriendInviteRequest {
   expiresInHours?: number;
 }
 
+export type UpdateMailSettingsRequestUserAddressMode = typeof UpdateMailSettingsRequestUserAddressMode[keyof typeof UpdateMailSettingsRequestUserAddressMode];
+
+
+export const UpdateMailSettingsRequestUserAddressMode = {
+  username: 'username',
+  random: 'random',
+} as const;
+
+export interface UpdateMailSettingsRequest {
+  inboundEnabled?: boolean;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     */
+  inboundPort?: number;
+  /**
+     * @maxLength 253
+     * @nullable
+     */
+  hostname?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  maxMessageMb?: number;
+  outboundEnabled?: boolean;
+  relayFallback?: boolean;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  noreplyAddress?: string | null;
+  /** @maxLength 100 */
+  noreplyName?: string;
+  userAddressesEnabled?: boolean;
+  userAddressMode?: UpdateMailSettingsRequestUserAddressMode;
+  /**
+     * @maxLength 253
+     * @nullable
+     */
+  userAddressDomain?: string | null;
+}
+
+export interface CreateMailDomainRequest {
+  /**
+     * @minLength 3
+     * @maxLength 253
+     */
+  domain: string;
+  allowSubdomains?: boolean;
+}
+
+export interface UpdateMailDomainRequest {
+  allowSubdomains?: boolean;
+}
+
+export interface CreateMailboxRequest {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  displayName?: string | null;
+}
+
+export interface UpdateMailboxRequest {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  displayName?: string | null;
+  enabled?: boolean;
+}
+
+export interface SendMailRequest {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  from: string;
+  /** @maxItems 20 */
+  to: string[];
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  text: string;
+  /**
+     * @maxLength 400000
+     * @nullable
+     */
+  html?: string | null;
+  /**
+     * @maxLength 998
+     * @nullable
+     */
+  inReplyTo?: string | null;
+}
+
+export interface SaveMailTemplateRequest {
+  /** @maxLength 100 */
+  label?: string;
+  /** @maxLength 300 */
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 262144
+     */
+  html: string;
+  /**
+     * @minLength 1
+     * @maxLength 65536
+     */
+  text: string;
+}
+
+export type PreviewMailTemplateRequestVariables = { [key: string]: unknown };
+
+export interface PreviewMailTemplateRequest {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 262144
+     */
+  html: string;
+  /**
+     * @minLength 1
+     * @maxLength 65536
+     */
+  text: string;
+  variables?: PreviewMailTemplateRequestVariables;
+}
+
+export interface SendTestMailRequest {
+  /**
+     * @minLength 1
+     * @maxLength 320
+     */
+  to: string;
+}
+
+export interface SignupPaymentTokenRequest {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  token: string;
+}
+
+export interface SignupPaymentRequest {
+  /** @maxLength 2000 */
+  setupToken?: string;
+  /** @maxLength 200 */
+  setupIntentId?: string;
+  /** @maxLength 500 */
+  sourceId?: string;
+  /** @maxLength 500 */
+  verificationToken?: string;
+  /** @maxLength 64 */
+  couponCode?: string;
+  /** @maxLength 3 */
+  currency?: string;
+}
+
+export interface CompleteSignupRequest {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  token: string;
+  payment?: SignupPaymentRequest;
+  /** @maxLength 64 */
+  orderId?: string;
+}
+
 export interface BootstrapSetupStatusSetupStatus {
   state: 'not_started' | 'in_progress' | 'completed' | 'recovery_required';
   mode: 'bootstrap' | 'ready';
@@ -1326,6 +1545,11 @@ export interface ApiAuthAuthServiceAuthResult {
 export interface ApiAuthAuthServiceVerificationPending {
   verificationRequired: true;
   email: string;
+}
+
+export interface ApiAuthAuthServicePaymentPending {
+  paymentRequired: true;
+  token: string;
 }
 
 export interface ApiAuthAuthServicePublicUser {
@@ -1466,7 +1690,7 @@ export interface ApiGuideGuideServicePublicGuideSource {
 }
 
 export interface JobsJobSchedulerAdminTaskRunStatus {
-  id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+  id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
   name: string;
   category: string;
   description: string;
@@ -2124,6 +2348,8 @@ export interface ApiMediaMediaHomeServiceCard {
   poster: null | number;
   backdrop: null | number;
   updatedAt: string;
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 }
 
 export interface ApiMediaMediaHomeServiceHomeCard {
@@ -2135,6 +2361,8 @@ export interface ApiMediaMediaHomeServiceHomeCard {
   poster: null | number;
   backdrop: null | number;
   updatedAt: string;
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 }
 
 export interface ApiMediaMediaHomeServicePersonProfileView {
@@ -2223,12 +2451,36 @@ export interface ApiAdminUsersAdminUsersServiceAdminUser {
   emailVerified: boolean;
   role: 'admin' | 'user';
   disabled: boolean;
+  originalAccess: 'inherit' | 'allow' | 'deny';
   passkeys: number;
   activeSessions: number;
   lastActiveAt: null | string;
   createdAt: string;
   avatarUrl: null | string;
   current: boolean;
+}
+
+export interface EntitiesUserAccessPolicyEntityScheduleWindow {
+  days: number[];
+  from: string;
+  to: string;
+}
+
+export interface EntitiesUserAccessPolicyEntityAccessSchedule {
+  timezone: string;
+  windows: EntitiesUserAccessPolicyEntityScheduleWindow[];
+}
+
+export interface ApiAccessMediaAccessServiceAccessPolicyDto {
+  libraryMode: 'all' | 'selected';
+  libraryIds: string[];
+  maxAge: null | number;
+  blockUnrated: boolean;
+  allowedTags: string[];
+  blockedTags: string[];
+  schedule: null | EntitiesUserAccessPolicyEntityAccessSchedule;
+  requireRequestApproval: boolean;
+  hasPin: boolean;
 }
 
 export interface ApiSocialSocialItemsSocialItem {
@@ -2307,6 +2559,7 @@ export interface ChatChatServiceChatMessage {
   sequence: string;
   conversationId: string;
   kind: 'text' | 'system';
+  encrypted: boolean;
   body: string;
   sender: null | ChatChatServiceChatPerson;
   createdAt: string;
@@ -2315,6 +2568,7 @@ export interface ChatChatServiceChatMessage {
 export interface ChatChatServiceChatConversation {
   id: string;
   kind: 'direct' | 'group';
+  encryptionMode: 'encrypted' | 'plaintext';
   name: null | string;
   supportChatOpen: null | false | true;
   members: ChatChatServiceChatMember[];
@@ -2489,6 +2743,269 @@ export interface SentrySentryServiceSentryAppConfig {
   dsn: null | string;
 }
 
+export interface ApiMailMailSettingsServiceMailServerSettingsView {
+  inboundEnabled: boolean;
+  inboundPort: number;
+  hostname: null | string;
+  maxMessageMb: number;
+  outboundEnabled: boolean;
+  relayFallback: boolean;
+  noreplyAddress: null | string;
+  noreplyName: string;
+  userAddressesEnabled: boolean;
+  userAddressMode: 'username' | 'random';
+  userAddressDomain: null | string;
+}
+
+export interface ApiMailMailDomainServiceDnsRecord {
+  purpose: 'ownership' | 'mx' | 'spf' | 'dkim' | 'dmarc';
+  type: 'TXT' | 'MX';
+  name: string;
+  value: string;
+  priority?: number;
+  required: boolean;
+  note: string;
+}
+
+export interface EntitiesMailboxEntityMailbox {
+  id: string;
+  address: string;
+  kind: 'user' | 'system' | 'inbox';
+  displayName: null | string;
+  userId: null | string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface EntitiesMailMessageEntityMailAttachmentInfo {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+export interface ApiMailMailTemplateServiceMailTemplate {
+  name: string;
+  label: string;
+  description: string;
+  subject: string;
+  html: string;
+  text: string;
+  builtin: boolean;
+  customized: boolean;
+  variables: string[];
+  updatedAt: null | string;
+}
+
+export interface ApiPaymentsPaymentTypesTaxRate {
+  name: string;
+  percent: number;
+}
+
+export interface ApiPaymentsPaymentTypesPrice {
+  currency: string;
+  amountMinor: number;
+}
+
+export interface ApiPaymentsPaymentTypesContentScope {
+  type: 'kind' | 'all' | 'item' | 'artist';
+  ref: null | string;
+  label?: string;
+}
+
+export interface ApiPaymentsPaymentsServiceSignupAction {
+  requiresAction: true;
+  orderId: string;
+  clientSecret: string;
+}
+
+export interface ApiPaymentsEntitlementServiceLockState {
+  locked: boolean;
+  rentalEndsAt?: null | string;
+}
+
+export interface ApiPaymentsPaymentTypesTotals {
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+}
+
+export type ApiPaymentsPaymentsServiceQuoteRecurring = {
+  amountMinor: number;
+  interval: string;
+} | null;
+
+export interface ApiPaymentsPaymentsServiceQuote {
+  kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+  description: string;
+  currency: string;
+  totals: ApiPaymentsPaymentTypesTotals;
+  couponCode: null | string;
+  productId: null | string;
+  planId: null | string;
+  trialDays: number;
+  recurring: ApiPaymentsPaymentsServiceQuoteRecurring;
+}
+
+export interface ApiPaymentsPaymentsServiceCheckoutResult {
+  status: 'failed' | 'requires_action' | 'paid';
+  orderId: string;
+  clientSecret?: string;
+  error?: string;
+}
+
+export interface EntitiesPaymentSubscriptionEntityPaymentSubscription {
+  id: string;
+  userId: string;
+  planId: string;
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+  currency: string;
+  amountMinor: number;
+  periodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  failedAttempts: number;
+  nextAttemptAt: null | string;
+  graceUntil: null | string;
+  canceledAt: null | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiPaymentsCurrenciesCurrencyInfo {
+  code: string;
+  name: string;
+  digits: number;
+  square: boolean;
+}
+
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigStripe = {
+  publishableKey: string;
+} & {
+  secretKey: string;
+  webhookSecret: string;
+};
+
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigSquare = ({
+  environment: 'sandbox' | 'production';
+  applicationId: string;
+  locationId: string;
+  webhookUrl: string;
+}) & {
+  accessToken: string;
+  signatureKey: string;
+};
+
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigRegistration = {
+  enabled: boolean;
+  mode: 'one_time' | 'subscription';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  planId: null | string;
+  unlocks: 'none' | 'all' | 'scopes';
+  scopes: ApiPaymentsPaymentTypesContentScope[];
+};
+
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigTax = {
+  enabled: boolean;
+  inclusive: boolean;
+  rates: ApiPaymentsPaymentTypesTaxRate[];
+};
+
+export interface ApiPaymentsPaymentConfigServiceAdminPaymentConfig {
+  stripe: ApiPaymentsPaymentConfigServiceAdminPaymentConfigStripe;
+  square: ApiPaymentsPaymentConfigServiceAdminPaymentConfigSquare;
+  enabled: boolean;
+  provider: null | 'square' | 'stripe';
+  currency: string;
+  currencies: string[];
+  graceDays: number;
+  enabledAt: null | string;
+  grandfatherExisting: boolean;
+  registration: ApiPaymentsPaymentConfigServiceAdminPaymentConfigRegistration;
+  tax: ApiPaymentsPaymentConfigServiceAdminPaymentConfigTax;
+}
+
+export interface EntitiesPaymentProductEntityPaymentProduct {
+  id: string;
+  name: string;
+  description: null | string;
+  kind: 'buy' | 'rent';
+  scope: ApiPaymentsPaymentTypesContentScope;
+  prices: ApiPaymentsPaymentTypesPrice[];
+  rentalHours: null | number;
+  rentalStart: 'purchase' | 'first_play';
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EntitiesPaymentPlanEntityPaymentPlan {
+  id: string;
+  name: string;
+  description: null | string;
+  interval: 'year' | 'month';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  scopes: ApiPaymentsPaymentTypesContentScope[];
+  trialDays: number;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EntitiesPaymentCouponEntityPaymentCoupon {
+  id: string;
+  code: string;
+  description: null | string;
+  percentOff: null | number;
+  amountOff: null | ApiPaymentsPaymentTypesPrice[];
+  maxRedemptions: null | number;
+  redeemed: number;
+  expiresAt: null | string;
+  productIds: string[];
+  planIds: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+export interface EntitiesPaymentOrderEntityPaymentOrder {
+  id: string;
+  userId: string;
+  kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+  productId: null | string;
+  planId: null | string;
+  subscriptionId: null | string;
+  description: string;
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+  couponCode: null | string;
+  status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+  provider: null | string;
+  providerRef: null | string;
+  refundedMinor: number;
+  failure: null | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EntitiesPaymentEntitlementEntityPaymentEntitlement {
+  id: string;
+  userId: string;
+  source: 'admin' | 'purchase' | 'rental' | 'registration';
+  orderId: null | string;
+  scope: ApiPaymentsPaymentTypesContentScope;
+  expiresAt: null | string;
+  claimUntil: null | string;
+  rentalHours: null | number;
+  activatedAt: null | string;
+  revokedAt: null | string;
+  createdAt: string;
+}
+
 export type VersionControllerGet200 = {
   version: string;
 };
@@ -2616,6 +3133,8 @@ export type RecommendationsControllerHomeRecommendations200ItemsItem = {
   poster: null | number;
   backdrop: null | number;
   updatedAt: string;
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 
 export type RecommendationsControllerHomeRecommendations200 = {
@@ -2633,6 +3152,8 @@ export type RecommendationsControllerMusicRecommendations200ItemsItem = {
   poster: null | number;
   backdrop: null | number;
   updatedAt: string;
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 
 export type RecommendationsControllerMusicRecommendations200 = {
@@ -2747,19 +3268,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalFirst = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2770,19 +3291,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalSecond = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2798,19 +3319,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2821,19 +3342,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2882,19 +3403,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalFirst = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2905,19 +3426,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalSecond = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2933,19 +3454,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialFirst =
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -2956,19 +3477,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialSecond 
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3013,19 +3534,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalFirst = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3036,19 +3557,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalSecond = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3064,19 +3585,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3087,19 +3608,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3149,19 +3670,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalFirst = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3172,19 +3693,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalSecond = {
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3200,19 +3721,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3223,19 +3744,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   buffer: {
   byteLength: number;
   maxByteLength: number;
   resizable: boolean;
   detached: boolean;
-  '__@toStringTag@391': 'ArrayBuffer';
+  '__@toStringTag@392': 'ArrayBuffer';
 } | {
   byteLength: number;
   growable: boolean;
   maxByteLength: number;
-  '__@toStringTag@391': 'SharedArrayBuffer';
+  '__@toStringTag@392': 'SharedArrayBuffer';
 };
   byteLength: number;
   byteOffset: number;
@@ -3567,7 +4088,7 @@ export type AdminScheduledTasksControllerList200 = {
 };
 
 export type AdminScheduledTasksControllerSaveSchedule200 = {
-  id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+  id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
   enabled: boolean;
   cron: string;
 };
@@ -4061,6 +4582,8 @@ export type MediaHomeControllerGetHome200FeaturedItem = {
   poster: null | number;
   backdrop: null | number;
   updatedAt: string;
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 
 export type MediaHomeControllerGetHome200 = {
@@ -4115,79 +4638,48 @@ offset?: number;
 limit?: number;
 };
 
+export type MediaHomeControllerBrowse200ItemsItem = ApiMediaMediaHomeServiceHomeCard & ({
+  locked?: true;
+  lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
+});
+
 export type MediaHomeControllerBrowse200 = {
   total: number;
-  items: ApiMediaMediaHomeServiceHomeCard[];
-};
-
-export type MediaHomeControllerItem200CastItem = {
-  id: string;
-  name: string;
-  role: null | string;
-  hasImage: boolean;
-};
-
-export type MediaHomeControllerItem200CrewItem = {
-  id: string;
-  name: string;
-  role: string;
-  hasImage: boolean;
-};
-
-export type MediaHomeControllerItem200Ratings = {[key: string]: number};
-
-export type MediaHomeControllerItem200Technical = {
-  container: null | string;
-  videoCodec: null | string;
-  audioCodec: null | string;
-  width: null | number;
-  height: null | number;
-  hdr: null | string;
-} | null;
-
-export type MediaHomeControllerItem200Parent = {
-  id: string;
-  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-  title: string;
-} | null;
-
-export type MediaHomeControllerItem200Series = {
-  id: string;
-  title: string;
-} | null;
-
-export type MediaHomeControllerItem200ChildrenItemEpisodesItem = {
-  id: string;
-  watched: boolean;
-  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-  title: string;
-  year: null | number;
-  seasonNumber: null | number;
-  episodeNumber: null | number;
-  overview: null | string;
-  runtimeMinutes: null | number;
-  poster: null | number;
-  thumb: null | number;
-  updatedAt: string;
-};
-
-export type MediaHomeControllerItem200ChildrenItem = {
-  episodes: MediaHomeControllerItem200ChildrenItemEpisodesItem[];
-  id: string;
-  watched: boolean;
-  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-  title: string;
-  year: null | number;
-  seasonNumber: null | number;
-  episodeNumber: null | number;
-  overview: null | string;
-  runtimeMinutes: null | number;
-  poster: null | number;
-  thumb: null | number;
-  updatedAt: string;
+  items: MediaHomeControllerBrowse200ItemsItem[];
 };
 
 export type MediaHomeControllerItem200 = {
+  id: string;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  title: string;
+  year: null | number;
+  poster: null | number;
+  locked: true;
+  lockReason: 'rating' | 'unrated' | 'tags';
+  children: unknown[];
+  watched?: unknown;
+  seasonNumber?: unknown;
+  episodeNumber?: unknown;
+  tagline?: unknown;
+  overview?: unknown;
+  rating?: unknown;
+  runtimeMinutes?: unknown;
+  genres?: unknown;
+  studios?: unknown;
+  cast?: unknown;
+  crew?: unknown;
+  ratings?: unknown;
+  status?: unknown;
+  artist?: unknown;
+  artistId?: unknown;
+  technical?: unknown;
+  chapters?: unknown;
+  backdrop?: unknown;
+  logo?: unknown;
+  updatedAt?: unknown;
+  parent?: unknown;
+  series?: unknown;
+} | {
   id: string;
   watched: boolean;
   type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
@@ -4201,21 +4693,74 @@ export type MediaHomeControllerItem200 = {
   runtimeMinutes: null | number;
   genres: string[];
   studios: string[];
-  cast: MediaHomeControllerItem200CastItem[];
-  crew: MediaHomeControllerItem200CrewItem[];
-  ratings: MediaHomeControllerItem200Ratings;
+  cast: ({
+  id: string;
+  name: string;
+  role: null | string;
+  hasImage: boolean;
+})[];
+  crew: {
+  id: string;
+  name: string;
+  role: string;
+  hasImage: boolean;
+}[];
+  ratings: {[key: string]: number};
   status: null | string;
   artist: null | string;
   artistId: null | string;
-  technical: MediaHomeControllerItem200Technical;
+  technical: {
+  container: null | string;
+  videoCodec: null | string;
+  audioCodec: null | string;
+  width: null | number;
+  height: null | number;
+  hdr: null | string;
+} | null;
   chapters: ApiMediaSegmentLogicChapter[];
   poster: null | number;
   backdrop: null | number;
   logo: null | number;
   updatedAt: string;
-  parent: MediaHomeControllerItem200Parent;
-  series: MediaHomeControllerItem200Series;
-  children: MediaHomeControllerItem200ChildrenItem[];
+  parent: {
+  id: string;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  title: string;
+} | null;
+  series: {
+  id: string;
+  title: string;
+} | null;
+  children: ({
+  episodes: ({
+  id: string;
+  watched: boolean;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  title: string;
+  year: null | number;
+  seasonNumber: null | number;
+  episodeNumber: null | number;
+  overview: null | string;
+  runtimeMinutes: null | number;
+  poster: null | number;
+  thumb: null | number;
+  updatedAt: string;
+})[];
+  id: string;
+  watched: boolean;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  title: string;
+  year: null | number;
+  seasonNumber: null | number;
+  episodeNumber: null | number;
+  overview: null | string;
+  runtimeMinutes: null | number;
+  poster: null | number;
+  thumb: null | number;
+  updatedAt: string;
+})[];
+  locked?: unknown;
+  lockReason?: unknown;
 };
 
 export type MediaHomeControllerImageParams = {
@@ -4242,9 +4787,98 @@ export type AdminUsersControllerRevokeSessions200 = {
   revoked: number;
 };
 
+export type AccessControllerMe200Schedule = {
+  allowed: boolean;
+  nextAllowedAt: null | string;
+};
+
+export type AccessControllerMe200 = {
+  enforced: boolean;
+  hasPin: boolean;
+  unlockedUntil: null | string;
+  displayMode: 'locked' | 'hidden';
+  maxAge: null | number;
+  requireRequestApproval: boolean;
+  schedule: AccessControllerMe200Schedule;
+};
+
+export type AccessControllerUnlock200Schedule = {
+  allowed: boolean;
+  nextAllowedAt: null | string;
+};
+
+export type AccessControllerUnlock200 = {
+  enforced: boolean;
+  hasPin: boolean;
+  unlockedUntil: null | string;
+  displayMode: 'locked' | 'hidden';
+  maxAge: null | number;
+  requireRequestApproval: boolean;
+  schedule: AccessControllerUnlock200Schedule;
+};
+
+export type AccessControllerLock200Schedule = {
+  allowed: boolean;
+  nextAllowedAt: null | string;
+};
+
+export type AccessControllerLock200 = {
+  enforced: boolean;
+  hasPin: boolean;
+  unlockedUntil: null | string;
+  displayMode: 'locked' | 'hidden';
+  maxAge: null | number;
+  requireRequestApproval: boolean;
+  schedule: AccessControllerLock200Schedule;
+};
+
+export type AdminAccessControllerOptions200RatingsItem = {
+  age: number;
+  label: string;
+  examples: string;
+};
+
+export type AdminAccessControllerOptions200 = {
+  ratings: AdminAccessControllerOptions200RatingsItem[];
+  tags: string[];
+};
+
+export type AdminAccessControllerSaveBody = { [key: string]: unknown };
+
+export type AdminAccessControllerPreviewBody = { [key: string]: unknown };
+
+export type AdminAccessControllerPreview200LibrariesItem = {
+  id: string;
+  name: string;
+  type: 'movies' | 'music' | 'tvshows' | 'homevideos' | 'mixed';
+  total: number;
+  visible: number;
+  hidden: boolean;
+};
+
+export type AdminAccessControllerPreview200BlockedItem = {
+  id: string;
+  title: string;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  year: null | number;
+  reason: 'library' | 'rating' | 'unrated' | 'tags';
+};
+
+export type AdminAccessControllerPreview200Schedule = {
+  configured: boolean;
+  allowedNow: boolean;
+  nextAllowedAt: null | string;
+};
+
+export type AdminAccessControllerPreview200 = {
+  libraries: AdminAccessControllerPreview200LibrariesItem[];
+  blocked: AdminAccessControllerPreview200BlockedItem[];
+  schedule: AdminAccessControllerPreview200Schedule;
+};
+
 export type NotificationsControllerList200ItemsItem = {
   id: string;
-  kind: 'admin' | 'new_media' | 'request' | 'message' | 'friend_request';
+  kind: 'admin' | 'new_media' | 'request' | 'message' | 'friend_request' | 'mail';
   title: string;
   body: string;
   url: null | string;
@@ -4316,8 +4950,8 @@ export type PlaylistsControllerGet200Owner = {
 };
 
 export type PlaylistsControllerGet200 = {
-  isOwner: boolean;
   tracks: PlaylistsControllerGet200TracksItem[];
+  isOwner: boolean;
   id: string;
   name: string;
   description: null | string;
@@ -4344,6 +4978,8 @@ export type ChatControllerUnread200 = {
 
 export type ChatControllerEncryptionStatus200 = {
   enabled: boolean;
+  supported: boolean;
+  allowUserDowngrade: boolean;
 };
 
 export type ChatControllerRegisterMlsDevice201 = {
@@ -4355,6 +4991,14 @@ export type ChatControllerRegisterMlsDevice201 = {
 
 export type ChatControllerMlsDevices200 = {
   devices: ChatChatServiceChatMlsDeviceSummary[];
+};
+
+export type ChatControllerChatHistoryBackup200 = {
+  backup: null | string;
+};
+
+export type ChatControllerSaveChatHistoryBackup200 = {
+  saved: boolean;
 };
 
 export type ChatControllerAddMlsKeyPackage201 = {
@@ -4464,7 +5108,7 @@ export type ProfilesControllerMe200 = {
   joinedAt: string;
   isSelf: boolean;
   hidden: boolean;
-  visibility: 'public' | 'friends' | 'hidden';
+  visibility: 'hidden' | 'public' | 'friends';
   friendship: 'none' | 'friends' | 'self' | 'outgoing' | 'incoming';
   isFriend: boolean;
   nowPlaying: null | ApiSocialProfilesServiceNowPlaying;
@@ -4475,24 +5119,24 @@ export type ProfilesControllerMe200 = {
 };
 
 export type ProfilesControllerSetVisibility200 = {
-  visibility: 'public' | 'friends' | 'hidden';
+  visibility: 'hidden' | 'public' | 'friends';
 };
 
 export type ProfilesControllerGet200 = {
   party: null | PartyPartiesServicePartySummary;
+  recentlyWatched: ApiSocialSocialItemsSocialItem[];
+  recentlyListened: ApiSocialSocialItemsSocialItem[];
+  favorites: ApiSocialSocialItemsSocialItem[];
   username: string;
   displayName: string;
   avatarUrl: null | string;
   joinedAt: string;
   isSelf: boolean;
   hidden: boolean;
-  visibility: 'public' | 'friends' | 'hidden';
+  visibility: 'hidden' | 'public' | 'friends';
   friendship: 'none' | 'friends' | 'self' | 'outgoing' | 'incoming';
   isFriend: boolean;
   nowPlaying: null | ApiSocialProfilesServiceNowPlaying;
-  recentlyWatched: ApiSocialSocialItemsSocialItem[];
-  recentlyListened: ApiSocialSocialItemsSocialItem[];
-  favorites: ApiSocialSocialItemsSocialItem[];
   playlists: ApiSocialPlaylistsServicePlaylistSummary[];
 };
 
@@ -4713,6 +5357,722 @@ export type OverviewControllerActivityList200 = {
   total: number;
   summary: OverviewControllerActivityList200Summary;
   users: OverviewControllerActivityList200UsersItem[];
+};
+
+export type AdminMailControllerStatus200Inbound = {
+  listening: boolean;
+  port: null | number;
+  error: null | string;
+};
+
+export type AdminMailControllerStatus200Domains = {
+  total: number;
+  verified: number;
+};
+
+export type AdminMailControllerStatus200 = {
+  inbound: AdminMailControllerStatus200Inbound;
+  outboundReady: boolean;
+  sender: null | string;
+  domains: AdminMailControllerStatus200Domains;
+  userAddressesEnabled: boolean;
+};
+
+export type AdminMailControllerDiagnostics200 = {[key: string]: {
+  ok: boolean;
+  detail: string;
+}};
+
+export type AdminMailControllerListDomains200ItemChecks = { [key: string]: unknown };
+
+export type AdminMailControllerListDomains200Item = {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verified: boolean;
+  verifiedAt: null | string;
+  dkimSelector: string;
+  checks: AdminMailControllerListDomains200ItemChecks;
+  lastCheckedAt: null | string;
+  records: ApiMailMailDomainServiceDnsRecord[];
+  createdAt: string;
+};
+
+export type AdminMailControllerCreateDomain200Checks = { [key: string]: unknown };
+
+export type AdminMailControllerCreateDomain200 = {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verified: boolean;
+  verifiedAt: null | string;
+  dkimSelector: string;
+  checks: AdminMailControllerCreateDomain200Checks;
+  lastCheckedAt: null | string;
+  records: ApiMailMailDomainServiceDnsRecord[];
+  createdAt: string;
+};
+
+export type AdminMailControllerUpdateDomain200Checks = { [key: string]: unknown };
+
+export type AdminMailControllerUpdateDomain200 = {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verified: boolean;
+  verifiedAt: null | string;
+  dkimSelector: string;
+  checks: AdminMailControllerUpdateDomain200Checks;
+  lastCheckedAt: null | string;
+  records: ApiMailMailDomainServiceDnsRecord[];
+  createdAt: string;
+};
+
+export type AdminMailControllerRemoveDomain200 = {
+  deleted: boolean;
+};
+
+export type AdminMailControllerVerifyDomain200Checks = { [key: string]: unknown };
+
+export type AdminMailControllerVerifyDomain200 = {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verified: boolean;
+  verifiedAt: null | string;
+  dkimSelector: string;
+  checks: AdminMailControllerVerifyDomain200Checks;
+  lastCheckedAt: null | string;
+  records: ApiMailMailDomainServiceDnsRecord[];
+  createdAt: string;
+};
+
+export type AdminMailControllerRotateDkim200Checks = { [key: string]: unknown };
+
+export type AdminMailControllerRotateDkim200 = {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verified: boolean;
+  verifiedAt: null | string;
+  dkimSelector: string;
+  checks: AdminMailControllerRotateDkim200Checks;
+  lastCheckedAt: null | string;
+  records: ApiMailMailDomainServiceDnsRecord[];
+  createdAt: string;
+};
+
+export type AdminMailControllerListMailboxes200Item = {
+  received: number;
+  sent: number;
+  unread: number;
+};
+
+export type AdminMailControllerGenerateUserAddresses200 = {
+  created: number;
+};
+
+export type AdminMailControllerRemoveMailbox200 = {
+  deleted: boolean;
+};
+
+export type AdminMailControllerListMessagesParams = {
+mailboxId?: string;
+direction?: string;
+search?: string;
+unread?: boolean;
+page?: number;
+limit?: number;
+};
+
+export type AdminMailControllerListMessages200ItemsItem = {
+  id: string;
+  mailboxId: null | string;
+  direction: 'inbound' | 'outbound';
+  status: 'failed' | 'queued' | 'received' | 'sent';
+  from: string;
+  fromName: null | string;
+  to: string[];
+  subject: string;
+  preview: string;
+  hasAttachments: boolean;
+  read: boolean;
+  createdAt: string;
+};
+
+export type AdminMailControllerListMessages200 = {
+  total: number;
+  page: number;
+  limit: number;
+  items: AdminMailControllerListMessages200ItemsItem[];
+};
+
+export type AdminMailControllerGetMessage200AuthResults = null | {[key: string]: string};
+
+export type AdminMailControllerGetMessage200 = {
+  read: boolean;
+  text: string;
+  html: null | string;
+  messageId: null | string;
+  authResults: AdminMailControllerGetMessage200AuthResults;
+  remoteAddress: null | string;
+  attempts: number;
+  lastError: null | string;
+  sentAt: null | string;
+  attachments: EntitiesMailMessageEntityMailAttachmentInfo[];
+  id: string;
+  mailboxId: null | string;
+  direction: 'inbound' | 'outbound';
+  status: 'failed' | 'queued' | 'received' | 'sent';
+  from: string;
+  fromName: null | string;
+  to: string[];
+  subject: string;
+  preview: string;
+  hasAttachments: boolean;
+  createdAt: string;
+};
+
+export type AdminMailControllerRemoveMessage200 = {
+  deleted: boolean;
+};
+
+export type AdminMailControllerAttachment200Errored = {
+  name: string;
+  message: string;
+  stack?: string;
+  cause?: unknown;
+} | null;
+
+export type AdminMailControllerAttachment200 = {
+  bytesRead: number;
+  path: string | Blob;
+  pending: boolean;
+  readableAborted: boolean;
+  readable: boolean;
+  readableDidRead: boolean;
+  readableEncoding: null | 'ascii' | 'utf8' | 'utf-8' | 'utf16le' | 'utf-16le' | 'ucs2' | 'ucs-2' | 'base64' | 'base64url' | 'latin1' | 'binary' | 'hex';
+  readableEnded: boolean;
+  readableFlowing: null | false | true;
+  readableHighWaterMark: number;
+  readableLength: number;
+  readableObjectMode: boolean;
+  destroyed: boolean;
+  closed: boolean;
+  errored: AdminMailControllerAttachment200Errored;
+};
+
+export type AdminMailControllerSend200 = {
+  queued: number;
+  ids: string[];
+};
+
+export type AdminMailControllerRemoveTemplate200 = {
+  deleted: boolean;
+};
+
+export type AdminMailControllerPreviewTemplate200 = {
+  subject: string;
+  html: string;
+  text: string;
+  variables: string[];
+};
+
+export type AdminMailControllerTestTemplate200 = {
+  sentTo: string;
+};
+
+export type UserMailControllerMe200 = {
+  enabled: boolean;
+  /** @nullable */
+  address: null;
+  unread: number;
+} | {
+  enabled: boolean;
+  address: string;
+  unread: number;
+};
+
+export type UserMailControllerListParams = {
+search?: string;
+unread?: boolean;
+page?: number;
+limit?: number;
+};
+
+export type UserMailControllerList200ItemsItem = {
+  id: string;
+  mailboxId: null | string;
+  direction: 'inbound' | 'outbound';
+  status: 'failed' | 'queued' | 'received' | 'sent';
+  from: string;
+  fromName: null | string;
+  to: string[];
+  subject: string;
+  preview: string;
+  hasAttachments: boolean;
+  read: boolean;
+  createdAt: string;
+};
+
+export type UserMailControllerList200 = {
+  total: number;
+  page: number;
+  limit: number;
+  items: UserMailControllerList200ItemsItem[];
+};
+
+export type UserMailControllerGet200AuthResults = null | {[key: string]: string};
+
+export type UserMailControllerGet200 = {
+  read: boolean;
+  text: string;
+  html: null | string;
+  messageId: null | string;
+  authResults: UserMailControllerGet200AuthResults;
+  remoteAddress: null | string;
+  attempts: number;
+  lastError: null | string;
+  sentAt: null | string;
+  attachments: EntitiesMailMessageEntityMailAttachmentInfo[];
+  id: string;
+  mailboxId: null | string;
+  direction: 'inbound' | 'outbound';
+  status: 'failed' | 'queued' | 'received' | 'sent';
+  from: string;
+  fromName: null | string;
+  to: string[];
+  subject: string;
+  preview: string;
+  hasAttachments: boolean;
+  createdAt: string;
+};
+
+export type UserMailControllerRemove200 = {
+  deleted: boolean;
+};
+
+export type UserMailControllerAttachment200Errored = {
+  name: string;
+  message: string;
+  stack?: string;
+  cause?: unknown;
+} | null;
+
+export type UserMailControllerAttachment200 = {
+  bytesRead: number;
+  path: string | Blob;
+  pending: boolean;
+  readableAborted: boolean;
+  readable: boolean;
+  readableDidRead: boolean;
+  readableEncoding: null | 'ascii' | 'utf8' | 'utf-8' | 'utf16le' | 'utf-16le' | 'ucs2' | 'ucs-2' | 'base64' | 'base64url' | 'latin1' | 'binary' | 'hex';
+  readableEnded: boolean;
+  readableFlowing: null | false | true;
+  readableHighWaterMark: number;
+  readableLength: number;
+  readableObjectMode: boolean;
+  destroyed: boolean;
+  closed: boolean;
+  errored: UserMailControllerAttachment200Errored;
+};
+
+export type PaymentsControllerStatus200 = {
+  enabled: boolean;
+  provider?: unknown;
+  client?: unknown;
+  currency?: unknown;
+  currencies?: unknown;
+  tax?: unknown;
+  registration?: unknown;
+} | {
+  enabled: boolean;
+  provider: null | 'square' | 'stripe';
+  client: null | {[key: string]: unknown};
+  currency: string;
+  currencies: string[];
+  tax: {
+  enabled: boolean;
+  inclusive: boolean;
+  rates: ApiPaymentsPaymentTypesTaxRate[];
+};
+  registration: {
+  cardRequired: boolean;
+  feeEnabled: boolean;
+  mode: 'one_time' | 'subscription';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+  unlocks: 'none' | 'all' | 'scopes';
+  plan: {
+  id: string;
+  name: string;
+  description: null | string;
+  interval: 'year' | 'month';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+  scopes: ApiPaymentsPaymentTypesContentScope[];
+  trialDays: number;
+} | null;
+};
+};
+
+export type PaymentsControllerSignupSetup200Client = null | {[key: string]: unknown};
+
+export type PaymentsControllerSignupSetup200 = {
+  provider: 'square' | 'stripe';
+  setupToken: string;
+  clientSecret: null | string;
+  client: PaymentsControllerSignupSetup200Client;
+};
+
+export type PaymentsControllerWebhookBody = { [key: string]: unknown };
+
+export type PaymentsControllerWebhook200 = {
+  received: boolean;
+};
+
+export type PaymentsControllerMe200MethodsItem = {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+};
+
+export type PaymentsControllerMe200SubscriptionsItem = {
+  id: string;
+  planId: string;
+  planName: string;
+  interval: 'year' | 'month';
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+  currency: string;
+  amountMinor: number;
+  periodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  graceUntil: null | string;
+  active: boolean;
+};
+
+export type PaymentsControllerMe200OrdersItem = {
+  id: string;
+  kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+  description: string;
+  currency: string;
+  totalMinor: number;
+  taxMinor: number;
+  discountMinor: number;
+  refundedMinor: number;
+  status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+  createdAt: string;
+};
+
+export type PaymentsControllerMe200EntitlementsItemScope = {
+  label: null | string;
+  type: 'kind' | 'all' | 'item' | 'artist';
+  ref: null | string;
+};
+
+export type PaymentsControllerMe200EntitlementsItem = {
+  id: string;
+  source: 'admin' | 'purchase' | 'rental' | 'registration';
+  scope: PaymentsControllerMe200EntitlementsItemScope;
+  expiresAt: null | string;
+  rentalNotStarted: boolean;
+  rentalHours: null | number;
+  claimUntil: null | string;
+};
+
+export type PaymentsControllerMe200 = {
+  currency: string;
+  methods: PaymentsControllerMe200MethodsItem[];
+  subscriptions: PaymentsControllerMe200SubscriptionsItem[];
+  orders: PaymentsControllerMe200OrdersItem[];
+  entitlements: PaymentsControllerMe200EntitlementsItem[];
+};
+
+export type PaymentsControllerPlans200Item = {
+  trialDays: number;
+  subscribed: boolean;
+  id: string;
+  name: string;
+  description: null | string;
+  interval: 'year' | 'month';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+  scopes: ApiPaymentsPaymentTypesContentScope[];
+};
+
+export type PaymentsControllerOffers200ProductsItem = {
+  id: string;
+  name: string;
+  description: null | string;
+  kind: 'buy' | 'rent';
+  rentalHours: null | number;
+  rentalStart: 'purchase' | 'first_play';
+  scope: ApiPaymentsPaymentTypesContentScope;
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+};
+
+export type PaymentsControllerOffers200PlansItem = {
+  id: string;
+  name: string;
+  description: null | string;
+  interval: 'year' | 'month';
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+  scopes: ApiPaymentsPaymentTypesContentScope[];
+  trialDays: number;
+};
+
+export type PaymentsControllerOffers200Registration = {
+  prices: ApiPaymentsPaymentTypesPrice[];
+  price: null | ApiPaymentsPaymentTypesPrice;
+} | null;
+
+export type PaymentsControllerOffers200 = {
+  currency: string;
+  products: PaymentsControllerOffers200ProductsItem[];
+  plans: PaymentsControllerOffers200PlansItem[];
+  registration: PaymentsControllerOffers200Registration;
+};
+
+export type PaymentsControllerAccessBody = { [key: string]: unknown };
+
+export type PaymentsControllerAccess200Items = {[key: string]: ApiPaymentsEntitlementServiceLockState};
+
+export type PaymentsControllerAccess200 = {
+  enabled: boolean;
+  items: PaymentsControllerAccess200Items;
+};
+
+export type PaymentsControllerQuoteBody = { [key: string]: unknown };
+
+export type PaymentsControllerCheckoutBody = { [key: string]: unknown };
+
+export type PaymentsControllerReceipt200 = {
+  url: string;
+};
+
+export type PaymentsControllerBeginMethod200Client = null | {[key: string]: unknown};
+
+export type PaymentsControllerBeginMethod200 = {
+  provider: 'square' | 'stripe';
+  clientSecret: null | string;
+  client: PaymentsControllerBeginMethod200Client;
+};
+
+export type PaymentsControllerAddMethodBody = { [key: string]: unknown };
+
+export type PaymentsControllerAddMethod200 = {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+};
+
+export type PaymentsControllerMakeDefault200 = {
+  ok: boolean;
+};
+
+export type PaymentsControllerRemoveMethod200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerCurrenciesParams = {
+provider?: string;
+};
+
+export type AdminPaymentsControllerPutConfigBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerTestBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerTest200 = {
+  ok: boolean;
+  detail: string;
+};
+
+export type AdminPaymentsControllerStats200 = {
+  revenue30d: unknown;
+  subscriptions: unknown;
+  failed30d: unknown;
+};
+
+export type AdminPaymentsControllerScopeSearchParams = {
+q?: string;
+type?: string;
+};
+
+export type AdminPaymentsControllerScopeSearch200ItemsItem = {
+  id: string;
+  title: string;
+  type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+  year: null | number;
+  seasonNumber: null | number;
+  episodeNumber: null | number;
+};
+
+export type AdminPaymentsControllerScopeSearch200 = {
+  items: AdminPaymentsControllerScopeSearch200ItemsItem[];
+  artists: string[];
+};
+
+export type AdminPaymentsControllerCreateProductBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerUpdateProductBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerDeleteProduct200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerCreatePlanBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerUpdatePlanBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerDeletePlan200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerCreateCouponBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerUpdateCouponBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerDeleteCoupon200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerOrdersParams = {
+page?: string;
+status?: string;
+userId?: string;
+};
+
+export type AdminPaymentsControllerOrders200ItemsItemUser = {
+  id: string;
+  username: string;
+  displayName: null | string;
+};
+
+export type AdminPaymentsControllerOrders200ItemsItem = EntitiesPaymentOrderEntityPaymentOrder & {
+  user: AdminPaymentsControllerOrders200ItemsItemUser;
+};
+
+export type AdminPaymentsControllerOrders200 = {
+  total: number;
+  items: AdminPaymentsControllerOrders200ItemsItem[];
+};
+
+export type AdminPaymentsControllerRefundBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerSubscriptionsParams = {
+status?: string;
+};
+
+export type AdminPaymentsControllerSubscriptions200ItemUser = {
+  id: string;
+  username: string;
+  displayName: null | string;
+};
+
+export type AdminPaymentsControllerSubscriptions200Item = {
+  planName: string;
+  id: string;
+  userId: string;
+  planId: string;
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+  currency: string;
+  amountMinor: number;
+  periodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  failedAttempts: number;
+  nextAttemptAt: null | string;
+  graceUntil: null | string;
+  canceledAt: null | string;
+  createdAt: string;
+  updatedAt: string;
+  user: AdminPaymentsControllerSubscriptions200ItemUser;
+};
+
+export type AdminPaymentsControllerCancelSubscriptionBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerUserOverview200MethodsItem = {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+};
+
+export type AdminPaymentsControllerUserOverview200SubscriptionsItem = {
+  id: string;
+  planId: string;
+  planName: string;
+  interval: 'year' | 'month';
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+  currency: string;
+  amountMinor: number;
+  periodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  graceUntil: null | string;
+  active: boolean;
+};
+
+export type AdminPaymentsControllerUserOverview200OrdersItem = {
+  id: string;
+  kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+  description: string;
+  currency: string;
+  totalMinor: number;
+  taxMinor: number;
+  discountMinor: number;
+  refundedMinor: number;
+  status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+  createdAt: string;
+};
+
+export type AdminPaymentsControllerUserOverview200EntitlementsItemScope = {
+  label: null | string;
+  type: 'kind' | 'all' | 'item' | 'artist';
+  ref: null | string;
+};
+
+export type AdminPaymentsControllerUserOverview200EntitlementsItem = {
+  id: string;
+  source: 'admin' | 'purchase' | 'rental' | 'registration';
+  scope: AdminPaymentsControllerUserOverview200EntitlementsItemScope;
+  expiresAt: null | string;
+  rentalNotStarted: boolean;
+  rentalHours: null | number;
+  claimUntil: null | string;
+};
+
+export type AdminPaymentsControllerUserOverview200 = {
+  level: 'admin' | 'none' | 'off' | 'grandfathered' | 'everything' | 'partial';
+  signupPending: boolean;
+  role: 'admin' | 'user';
+  currency: string;
+  methods: AdminPaymentsControllerUserOverview200MethodsItem[];
+  subscriptions: AdminPaymentsControllerUserOverview200SubscriptionsItem[];
+  orders: AdminPaymentsControllerUserOverview200OrdersItem[];
+  entitlements: AdminPaymentsControllerUserOverview200EntitlementsItem[];
+};
+
+export type AdminPaymentsControllerWaiveSignup200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerRemoveUserMethod200 = {
+  ok: boolean;
+};
+
+export type AdminPaymentsControllerGrantBody = { [key: string]: unknown };
+
+export type AdminPaymentsControllerRevoke200 = {
+  ok: boolean;
 };
 
 export const getApiDocumentation = (axiosInstance: AxiosInstance = axios) => {
@@ -5234,7 +6594,7 @@ const getAiAdminControllerRefreshUserRecommendationsUrl = (userId: string,) => {
 
 const authControllerRegister = (
     registerRequest?: RegisterRequest, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>> => {
+ ): Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiAuthAuthServicePaymentPending>> => {
     return axiosInstance.post(
       `/auth/register`,
       registerRequest,options
@@ -5401,7 +6761,7 @@ const getAuthControllerResendVerificationUrl = () => {
 
 const authControllerLogin = (
     loginRequest?: LoginRequest, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePasskeyRequired>> => {
+ ): Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePaymentPending | ApiAuthAuthServicePasskeyRequired>> => {
     return axiosInstance.post(
       `/auth/login`,
       loginRequest,options
@@ -9088,6 +10448,152 @@ const getAdminUsersControllerRevokeSessionsUrl = (id: string,) => {
   });
 }
 
+const accessControllerMe = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AccessControllerMe200>> => {
+    return axiosInstance.get(
+      `/access/me`,options
+    );
+  }
+const getAccessControllerMeUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/access/me`,
+    baseURL: '',
+
+
+  });
+}
+
+const accessControllerUnlock = (
+    unlockRequest?: UnlockRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AccessControllerUnlock200>> => {
+    return axiosInstance.post(
+      `/access/unlock`,
+      unlockRequest,options
+    );
+  }
+const getAccessControllerUnlockUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/access/unlock`,
+    baseURL: '',
+
+
+  });
+}
+
+const accessControllerLock = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AccessControllerLock200>> => {
+    return axiosInstance.post(
+      `/access/lock`,
+      undefined,options
+    );
+  }
+const getAccessControllerLockUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/access/lock`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminAccessControllerOptions = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminAccessControllerOptions200>> => {
+    return axiosInstance.get(
+      `/admin/access/options`,options
+    );
+  }
+const getAdminAccessControllerOptionsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/access/options`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminAccessControllerGet = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>> => {
+    return axiosInstance.get(
+      `/admin/access/users/${id}`,options
+    );
+  }
+const getAdminAccessControllerGetUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/access/users/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminAccessControllerSave = (
+    id: string,
+    adminAccessControllerSaveBody?: AdminAccessControllerSaveBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>> => {
+    return axiosInstance.put(
+      `/admin/access/users/${id}`,
+      adminAccessControllerSaveBody,options
+    );
+  }
+const getAdminAccessControllerSaveUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/access/users/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminAccessControllerPreview = (
+    id: string,
+    adminAccessControllerPreviewBody?: AdminAccessControllerPreviewBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminAccessControllerPreview200>> => {
+    return axiosInstance.post(
+      `/admin/access/users/${id}/preview`,
+      adminAccessControllerPreviewBody,options
+    );
+  }
+const getAdminAccessControllerPreviewUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/access/users/${id}/preview`,
+    baseURL: '',
+
+
+  });
+}
+
 const notificationsControllerList = (
      options?: AxiosRequestConfig
  ): Promise<AxiosResponse<NotificationsControllerList200>> => {
@@ -9727,6 +11233,47 @@ const getChatControllerMlsDevicesUrl = () => {
   });
 }
 
+const chatControllerChatHistoryBackup = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ChatControllerChatHistoryBackup200>> => {
+    return axiosInstance.get(
+      `/chat/history-backup`,options
+    );
+  }
+const getChatControllerChatHistoryBackupUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/chat/history-backup`,
+    baseURL: '',
+
+
+  });
+}
+
+const chatControllerSaveChatHistoryBackup = (
+    chatMlsHistoryBackupRequest?: ChatMlsHistoryBackupRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ChatControllerSaveChatHistoryBackup200>> => {
+    return axiosInstance.put(
+      `/chat/history-backup`,
+      chatMlsHistoryBackupRequest,options
+    );
+  }
+const getChatControllerSaveChatHistoryBackupUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/chat/history-backup`,
+    baseURL: '',
+
+
+  });
+}
+
 const chatControllerApproveMlsDevice = (
     deviceId: string,
     approveChatMlsDeviceRequest?: ApproveChatMlsDeviceRequest, options?: AxiosRequestConfig
@@ -9867,6 +11414,48 @@ const getChatControllerDeleteConversationUrl = (id: string,) => {
     params: null,
   }).getUri({
     url: `/chat/conversations/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const chatControllerDowngradeToPlaintext = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ChatChatServiceChatConversation>> => {
+    return axiosInstance.post(
+      `/chat/conversations/${id}/downgrade`,
+      undefined,options
+    );
+  }
+const getChatControllerDowngradeToPlaintextUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/chat/conversations/${id}/downgrade`,
+    baseURL: '',
+
+
+  });
+}
+
+const chatControllerUpgradeToEncrypted = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ChatChatServiceChatConversation>> => {
+    return axiosInstance.post(
+      `/chat/conversations/${id}/upgrade`,
+      undefined,options
+    );
+  }
+const getChatControllerUpgradeToEncryptedUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/chat/conversations/${id}/upgrade`,
     baseURL: '',
 
 
@@ -10957,7 +12546,1615 @@ const getSentryControllerGetConfigUrl = (app: string,) => {
   });
 }
 
-return {versionControllerGet,setupControllerStatus,setupControllerRequestRecoveryKey,setupControllerProgress,setupControllerFlow,setupControllerTestStep,setupControllerApplyStep,setupControllerComplete,setupControllerReset,internalConfigControllerGet,aiControllerLibraryContext,aiControllerRecommendationContext,aiControllerRuntimeConfiguration,aiControllerRecommendationCacheState,aiControllerSaveRecommendationCache,aiControllerClearRecommendationCache,recommendationsControllerHomeRecommendations,recommendationsControllerMusicRecommendations,recommendationsControllerRecommend,recommendationsControllerSimilar,aiAdminControllerStatus,aiAdminControllerUpdateConfiguration,aiAdminControllerRetry,aiAdminControllerRecommendations,aiAdminControllerRefreshUserRecommendations,authControllerRegister,authControllerMe,authControllerUpdateMe,authControllerSetPasskeyRequired,authControllerChangePassword,authControllerDeleteMe,authControllerVerifyEmail,authControllerResendVerification,authControllerLogin,authControllerListSessions,authControllerRevokeSession,authControllerLogout,avatarControllerUpload,avatarControllerRemove,avatarControllerAvatar,passkeyControllerList,passkeyControllerRegistrationOptions,passkeyControllerRegistrationVerify,passkeyControllerLoginOptions,passkeyControllerLoginVerify,passkeyControllerSecondFactorOptions,passkeyControllerSecondFactorVerify,passkeyControllerStartNativeHandoff,passkeyControllerNativeHandoffOptions,passkeyControllerVerifyNativeHandoff,passkeyControllerExchangeNativeHandoff,passkeyControllerRemove,userControllerListUsers,userControllerGetUser,userControllerDeleteUser,preferencesControllerGet,preferencesControllerUpdate,settingsControllerList,settingsControllerRegistrationStatus,settingsControllerSendTestEmail,settingsControllerUpdate,playbackControllerListSamples,playbackControllerItemPlaybackInfo,playbackControllerChannelPlaybackInfo,playbackControllerPlaybackInfo,guideControllerGet,adminGuideControllerOverview,adminGuideControllerSources,adminGuideControllerCreateSource,adminGuideControllerUpdateSource,adminGuideControllerRemoveSource,adminGuideControllerRefreshSource,adminGuideControllerUpdateChannels,adminGuideControllerUpdateSettings,jobsControllerGetQueues,jobsControllerFindJobs,jobsControllerEnqueue,jobsControllerGetJob,jobsControllerCancelJob,jobsControllerRetryJob,jobsControllerGetSchedules,jobsControllerSchedule,jobsControllerUnschedule,adminScheduledTasksControllerList,adminScheduledTasksControllerSaveSchedule,adminScheduledTasksControllerRun,adminScheduledTasksControllerStop,streamsControllerListSessions,streamsControllerCancelSession,devicesControllerList,devicesControllerSignOut,apiKeysControllerList,apiKeysControllerCreate,apiKeysControllerRevoke,mediaLibrariesControllerList,mediaLibrariesControllerCreate,mediaLibrariesControllerListRoots,mediaLibrariesControllerBrowse,mediaLibrariesControllerUpdate,mediaLibrariesControllerRemove,streamerRootsControllerList,streamerRootsControllerTranscoding,indexerApiControllerListLibraries,indexerApiControllerGetSettings,indexerApiControllerUpsertItem,indexerApiControllerUpsertItemLyrics,indexerApiControllerIntroSyncCandidates,indexerApiControllerExistingIntroSegments,indexerApiControllerUpdateIntroSegments,indexerApiControllerPruneLibrary,indexerApiControllerRemoveItemsAtPaths,adminIndexerControllerStatus,adminIndexerControllerScan,adminIndexerControllerQueueSegments,adminIndexerControllerRefresh,adminIndexerControllerTasks,adminIndexerControllerTaskLogs,adminIndexerControllerCancelTask,adminIndexerControllerRetryTask,adminIndexerControllerCancelActive,adminIndexerControllerClearFailed,adminIndexerControllerPause,adminIndexerControllerResume,adminIndexerControllerSetConcurrency,pluginsControllerInstalled,pluginsControllerRepositories,pluginsControllerAddRepository,pluginsControllerCatalog,pluginsControllerPluginSettingsView,pluginsControllerUpdatePluginSettings,pluginsControllerPluginUpdateHistory,pluginsControllerInstall,pluginsControllerEnable,pluginsControllerDisable,pluginsControllerUninstall,pluginsControllerRefreshRepository,pluginsControllerRemoveRepository,pluginRuntimeControllerListPages,pluginRuntimeControllerSearchSections,pluginRuntimeControllerInvoke,requestImagesControllerTmdb,requestImagesControllerDiscogs,requestsControllerConfig,requestsControllerSearch,requestsControllerDiscover,requestsControllerDetails,requestsControllerList,requestsControllerCreate,requestsControllerApprove,requestsControllerDecline,requestsControllerRetry,requestsControllerRemove,adminRequestsControllerGetWebhookCredentials,adminRequestsControllerRotateWebhookCredentials,adminRequestsControllerListServices,adminRequestsControllerCreateService,adminRequestsControllerTestService,adminRequestsControllerUpdateService,adminRequestsControllerRemoveService,adminRequestsControllerListUsers,adminRequestsControllerUpdateUser,requestWebhookControllerReceive,adminMediaControllerListSubtitles,adminMediaControllerRemoveSubtitle,adminMediaControllerSearchSubtitles,adminMediaControllerDownloadSubtitle,adminMediaControllerSetSegment,adminMediaControllerClearSegment,adminMediaControllerList,adminMediaControllerGet,adminMediaControllerUpdate,adminMediaControllerRemove,adminMediaControllerRefresh,adminMediaControllerImage,adminMediaControllerRemoveImage,adminMediaControllerAddImage,mediaHomeControllerGetHome,mediaHomeControllerGetProgress,mediaHomeControllerSaveProgress,mediaHomeControllerSetWatched,mediaHomeControllerGenres,mediaHomeControllerSearch,mediaHomeControllerPersonImage,mediaHomeControllerPerson,mediaHomeControllerBrowse,mediaHomeControllerItem,mediaHomeControllerImage,adminMediaSearchControllerStatus,adminMediaSearchControllerTask,adminMediaSearchControllerSaveSettings,adminMediaSearchControllerRebuild,adminMediaSearchControllerReset,networkSharesControllerList,networkSharesControllerCreate,networkSharesControllerSupport,networkSharesControllerUpdate,networkSharesControllerRemove,networkSharesControllerReconnect,adminUsersControllerList,adminUsersControllerCreate,adminUsersControllerUpdate,adminUsersControllerRemove,adminUsersControllerSetAvatar,adminUsersControllerRemoveAvatar,adminUsersControllerSetPassword,adminUsersControllerRevokeSessions,notificationsControllerList,notificationsControllerMarkRead,notificationsControllerRemove,notificationsControllerConfig,notificationsControllerPushKey,notificationsControllerPushStatus,notificationsControllerSubscribe,notificationsControllerUnsubscribe,adminNotificationsControllerSend,favoritesControllerList,favoritesControllerIds,favoritesControllerAdd,favoritesControllerRemove,playlistsControllerList,playlistsControllerCreate,playlistsControllerContaining,playlistsControllerGet,playlistsControllerUpdate,playlistsControllerRemove,playlistsControllerAddItem,playlistsControllerRemoveTrack,playlistsControllerReorder,partiesControllerCreate,partiesControllerGet,partiesControllerEnd,chatControllerList,chatControllerStart,chatControllerUnread,chatControllerEncryptionStatus,chatControllerRegisterMlsDevice,chatControllerMlsDevices,chatControllerApproveMlsDevice,chatControllerRevokeMlsDevice,chatControllerAddMlsKeyPackage,chatControllerDeviceMlsKeyPackages,chatControllerGet,chatControllerRename,chatControllerDeleteConversation,chatControllerMessages,chatControllerSend,chatControllerMlsKeyPackages,chatControllerClaimMlsKeyPackage,chatControllerMlsWelcomes,chatControllerStoreMlsWelcome,chatControllerAcknowledgeMlsWelcome,chatControllerRead,chatControllerAddMembers,chatControllerRemoveMember,issueReportsControllerConfiguration,issueReportsControllerList,issueReportsControllerCreate,issueReportsControllerGet,adminIssueReportsControllerList,adminIssueReportsControllerGet,adminIssueReportsControllerDelete,adminIssueReportsControllerUpdateStatus,adminIssueReportsControllerAddUpdate,adminIssueReportsControllerSetChat,profilesControllerDirectory,profilesControllerMe,profilesControllerSetVisibility,profilesControllerListening,profilesControllerGet,friendsControllerList,friendsControllerCreateInvite,friendsControllerGetInvite,friendsControllerAcceptInvite,friendsControllerRequest,friendsControllerRemove,friendsControllerAccept,themesControllerAudio,themesControllerSync,adminUpdatesControllerStatus,adminUpdatesControllerApply,adminBackupsControllerStatus,adminBackupsControllerCreate,adminBackupsControllerUpload,adminBackupsControllerSetPassphrase,adminBackupsControllerClearPassphrase,adminBackupsControllerRestore,adminBackupsControllerDownloadLink,adminBackupsControllerRemove,backupDownloadControllerDownload,adminDatabaseTransferControllerStatus,adminDatabaseTransferControllerStart,adminDatabaseTransferControllerRestoreWrites,overviewControllerGet,overviewControllerActivityList,sentryControllerGetConfig,getVersionControllerGetUrl,getSetupControllerStatusUrl,getSetupControllerRequestRecoveryKeyUrl,getSetupControllerProgressUrl,getSetupControllerFlowUrl,getSetupControllerTestStepUrl,getSetupControllerApplyStepUrl,getSetupControllerCompleteUrl,getSetupControllerResetUrl,getInternalConfigControllerGetUrl,getAiControllerLibraryContextUrl,getAiControllerRecommendationContextUrl,getAiControllerRuntimeConfigurationUrl,getAiControllerRecommendationCacheStateUrl,getAiControllerSaveRecommendationCacheUrl,getAiControllerClearRecommendationCacheUrl,getRecommendationsControllerHomeRecommendationsUrl,getRecommendationsControllerMusicRecommendationsUrl,getRecommendationsControllerRecommendUrl,getRecommendationsControllerSimilarUrl,getAiAdminControllerStatusUrl,getAiAdminControllerUpdateConfigurationUrl,getAiAdminControllerRetryUrl,getAiAdminControllerRecommendationsUrl,getAiAdminControllerRefreshUserRecommendationsUrl,getAuthControllerRegisterUrl,getAuthControllerMeUrl,getAuthControllerUpdateMeUrl,getAuthControllerSetPasskeyRequiredUrl,getAuthControllerChangePasswordUrl,getAuthControllerDeleteMeUrl,getAuthControllerVerifyEmailUrl,getAuthControllerResendVerificationUrl,getAuthControllerLoginUrl,getAuthControllerListSessionsUrl,getAuthControllerRevokeSessionUrl,getAuthControllerLogoutUrl,getAvatarControllerUploadUrl,getAvatarControllerRemoveUrl,getAvatarControllerAvatarUrl,getPasskeyControllerListUrl,getPasskeyControllerRegistrationOptionsUrl,getPasskeyControllerRegistrationVerifyUrl,getPasskeyControllerLoginOptionsUrl,getPasskeyControllerLoginVerifyUrl,getPasskeyControllerSecondFactorOptionsUrl,getPasskeyControllerSecondFactorVerifyUrl,getPasskeyControllerStartNativeHandoffUrl,getPasskeyControllerNativeHandoffOptionsUrl,getPasskeyControllerVerifyNativeHandoffUrl,getPasskeyControllerExchangeNativeHandoffUrl,getPasskeyControllerRemoveUrl,getUserControllerListUsersUrl,getUserControllerGetUserUrl,getUserControllerDeleteUserUrl,getPreferencesControllerGetUrl,getPreferencesControllerUpdateUrl,getSettingsControllerListUrl,getSettingsControllerRegistrationStatusUrl,getSettingsControllerSendTestEmailUrl,getSettingsControllerUpdateUrl,getPlaybackControllerListSamplesUrl,getPlaybackControllerItemPlaybackInfoUrl,getPlaybackControllerChannelPlaybackInfoUrl,getPlaybackControllerPlaybackInfoUrl,getGuideControllerGetUrl,getAdminGuideControllerOverviewUrl,getAdminGuideControllerSourcesUrl,getAdminGuideControllerCreateSourceUrl,getAdminGuideControllerUpdateSourceUrl,getAdminGuideControllerRemoveSourceUrl,getAdminGuideControllerRefreshSourceUrl,getAdminGuideControllerUpdateChannelsUrl,getAdminGuideControllerUpdateSettingsUrl,getJobsControllerGetQueuesUrl,getJobsControllerFindJobsUrl,getJobsControllerEnqueueUrl,getJobsControllerGetJobUrl,getJobsControllerCancelJobUrl,getJobsControllerRetryJobUrl,getJobsControllerGetSchedulesUrl,getJobsControllerScheduleUrl,getJobsControllerUnscheduleUrl,getAdminScheduledTasksControllerListUrl,getAdminScheduledTasksControllerSaveScheduleUrl,getAdminScheduledTasksControllerRunUrl,getAdminScheduledTasksControllerStopUrl,getStreamsControllerListSessionsUrl,getStreamsControllerCancelSessionUrl,getDevicesControllerListUrl,getDevicesControllerSignOutUrl,getApiKeysControllerListUrl,getApiKeysControllerCreateUrl,getApiKeysControllerRevokeUrl,getMediaLibrariesControllerListUrl,getMediaLibrariesControllerCreateUrl,getMediaLibrariesControllerListRootsUrl,getMediaLibrariesControllerBrowseUrl,getMediaLibrariesControllerUpdateUrl,getMediaLibrariesControllerRemoveUrl,getStreamerRootsControllerListUrl,getStreamerRootsControllerTranscodingUrl,getIndexerApiControllerListLibrariesUrl,getIndexerApiControllerGetSettingsUrl,getIndexerApiControllerUpsertItemUrl,getIndexerApiControllerUpsertItemLyricsUrl,getIndexerApiControllerIntroSyncCandidatesUrl,getIndexerApiControllerExistingIntroSegmentsUrl,getIndexerApiControllerUpdateIntroSegmentsUrl,getIndexerApiControllerPruneLibraryUrl,getIndexerApiControllerRemoveItemsAtPathsUrl,getAdminIndexerControllerStatusUrl,getAdminIndexerControllerScanUrl,getAdminIndexerControllerQueueSegmentsUrl,getAdminIndexerControllerRefreshUrl,getAdminIndexerControllerTasksUrl,getAdminIndexerControllerTaskLogsUrl,getAdminIndexerControllerCancelTaskUrl,getAdminIndexerControllerRetryTaskUrl,getAdminIndexerControllerCancelActiveUrl,getAdminIndexerControllerClearFailedUrl,getAdminIndexerControllerPauseUrl,getAdminIndexerControllerResumeUrl,getAdminIndexerControllerSetConcurrencyUrl,getPluginsControllerInstalledUrl,getPluginsControllerRepositoriesUrl,getPluginsControllerAddRepositoryUrl,getPluginsControllerCatalogUrl,getPluginsControllerPluginSettingsViewUrl,getPluginsControllerUpdatePluginSettingsUrl,getPluginsControllerPluginUpdateHistoryUrl,getPluginsControllerInstallUrl,getPluginsControllerEnableUrl,getPluginsControllerDisableUrl,getPluginsControllerUninstallUrl,getPluginsControllerRefreshRepositoryUrl,getPluginsControllerRemoveRepositoryUrl,getPluginRuntimeControllerListPagesUrl,getPluginRuntimeControllerSearchSectionsUrl,getPluginRuntimeControllerInvokeUrl,getRequestImagesControllerTmdbUrl,getRequestImagesControllerDiscogsUrl,getRequestsControllerConfigUrl,getRequestsControllerSearchUrl,getRequestsControllerDiscoverUrl,getRequestsControllerDetailsUrl,getRequestsControllerListUrl,getRequestsControllerCreateUrl,getRequestsControllerApproveUrl,getRequestsControllerDeclineUrl,getRequestsControllerRetryUrl,getRequestsControllerRemoveUrl,getAdminRequestsControllerGetWebhookCredentialsUrl,getAdminRequestsControllerRotateWebhookCredentialsUrl,getAdminRequestsControllerListServicesUrl,getAdminRequestsControllerCreateServiceUrl,getAdminRequestsControllerTestServiceUrl,getAdminRequestsControllerUpdateServiceUrl,getAdminRequestsControllerRemoveServiceUrl,getAdminRequestsControllerListUsersUrl,getAdminRequestsControllerUpdateUserUrl,getRequestWebhookControllerReceiveUrl,getAdminMediaControllerListSubtitlesUrl,getAdminMediaControllerRemoveSubtitleUrl,getAdminMediaControllerSearchSubtitlesUrl,getAdminMediaControllerDownloadSubtitleUrl,getAdminMediaControllerSetSegmentUrl,getAdminMediaControllerClearSegmentUrl,getAdminMediaControllerListUrl,getAdminMediaControllerGetUrl,getAdminMediaControllerUpdateUrl,getAdminMediaControllerRemoveUrl,getAdminMediaControllerRefreshUrl,getAdminMediaControllerImageUrl,getAdminMediaControllerRemoveImageUrl,getAdminMediaControllerAddImageUrl,getMediaHomeControllerGetHomeUrl,getMediaHomeControllerGetProgressUrl,getMediaHomeControllerSaveProgressUrl,getMediaHomeControllerSetWatchedUrl,getMediaHomeControllerGenresUrl,getMediaHomeControllerSearchUrl,getMediaHomeControllerPersonImageUrl,getMediaHomeControllerPersonUrl,getMediaHomeControllerBrowseUrl,getMediaHomeControllerItemUrl,getMediaHomeControllerImageUrl,getAdminMediaSearchControllerStatusUrl,getAdminMediaSearchControllerTaskUrl,getAdminMediaSearchControllerSaveSettingsUrl,getAdminMediaSearchControllerRebuildUrl,getAdminMediaSearchControllerResetUrl,getNetworkSharesControllerListUrl,getNetworkSharesControllerCreateUrl,getNetworkSharesControllerSupportUrl,getNetworkSharesControllerUpdateUrl,getNetworkSharesControllerRemoveUrl,getNetworkSharesControllerReconnectUrl,getAdminUsersControllerListUrl,getAdminUsersControllerCreateUrl,getAdminUsersControllerUpdateUrl,getAdminUsersControllerRemoveUrl,getAdminUsersControllerSetAvatarUrl,getAdminUsersControllerRemoveAvatarUrl,getAdminUsersControllerSetPasswordUrl,getAdminUsersControllerRevokeSessionsUrl,getNotificationsControllerListUrl,getNotificationsControllerMarkReadUrl,getNotificationsControllerRemoveUrl,getNotificationsControllerConfigUrl,getNotificationsControllerPushKeyUrl,getNotificationsControllerPushStatusUrl,getNotificationsControllerSubscribeUrl,getNotificationsControllerUnsubscribeUrl,getAdminNotificationsControllerSendUrl,getFavoritesControllerListUrl,getFavoritesControllerIdsUrl,getFavoritesControllerAddUrl,getFavoritesControllerRemoveUrl,getPlaylistsControllerListUrl,getPlaylistsControllerCreateUrl,getPlaylistsControllerContainingUrl,getPlaylistsControllerGetUrl,getPlaylistsControllerUpdateUrl,getPlaylistsControllerRemoveUrl,getPlaylistsControllerAddItemUrl,getPlaylistsControllerRemoveTrackUrl,getPlaylistsControllerReorderUrl,getPartiesControllerCreateUrl,getPartiesControllerGetUrl,getPartiesControllerEndUrl,getChatControllerListUrl,getChatControllerStartUrl,getChatControllerUnreadUrl,getChatControllerEncryptionStatusUrl,getChatControllerRegisterMlsDeviceUrl,getChatControllerMlsDevicesUrl,getChatControllerApproveMlsDeviceUrl,getChatControllerRevokeMlsDeviceUrl,getChatControllerAddMlsKeyPackageUrl,getChatControllerDeviceMlsKeyPackagesUrl,getChatControllerGetUrl,getChatControllerRenameUrl,getChatControllerDeleteConversationUrl,getChatControllerMessagesUrl,getChatControllerSendUrl,getChatControllerMlsKeyPackagesUrl,getChatControllerClaimMlsKeyPackageUrl,getChatControllerMlsWelcomesUrl,getChatControllerStoreMlsWelcomeUrl,getChatControllerAcknowledgeMlsWelcomeUrl,getChatControllerReadUrl,getChatControllerAddMembersUrl,getChatControllerRemoveMemberUrl,getIssueReportsControllerConfigurationUrl,getIssueReportsControllerListUrl,getIssueReportsControllerCreateUrl,getIssueReportsControllerGetUrl,getAdminIssueReportsControllerListUrl,getAdminIssueReportsControllerGetUrl,getAdminIssueReportsControllerDeleteUrl,getAdminIssueReportsControllerUpdateStatusUrl,getAdminIssueReportsControllerAddUpdateUrl,getAdminIssueReportsControllerSetChatUrl,getProfilesControllerDirectoryUrl,getProfilesControllerMeUrl,getProfilesControllerSetVisibilityUrl,getProfilesControllerListeningUrl,getProfilesControllerGetUrl,getFriendsControllerListUrl,getFriendsControllerCreateInviteUrl,getFriendsControllerGetInviteUrl,getFriendsControllerAcceptInviteUrl,getFriendsControllerRequestUrl,getFriendsControllerRemoveUrl,getFriendsControllerAcceptUrl,getThemesControllerAudioUrl,getThemesControllerSyncUrl,getAdminUpdatesControllerStatusUrl,getAdminUpdatesControllerApplyUrl,getAdminBackupsControllerStatusUrl,getAdminBackupsControllerCreateUrl,getAdminBackupsControllerUploadUrl,getAdminBackupsControllerSetPassphraseUrl,getAdminBackupsControllerClearPassphraseUrl,getAdminBackupsControllerRestoreUrl,getAdminBackupsControllerDownloadLinkUrl,getAdminBackupsControllerRemoveUrl,getBackupDownloadControllerDownloadUrl,getAdminDatabaseTransferControllerStatusUrl,getAdminDatabaseTransferControllerStartUrl,getAdminDatabaseTransferControllerRestoreWritesUrl,getOverviewControllerGetUrl,getOverviewControllerActivityListUrl,getSentryControllerGetConfigUrl}};
+const adminMailControllerStatus = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerStatus200>> => {
+    return axiosInstance.get(
+      `/admin/mail/status`,options
+    );
+  }
+const getAdminMailControllerStatusUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/status`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerGetSettings = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>> => {
+    return axiosInstance.get(
+      `/admin/mail/settings`,options
+    );
+  }
+const getAdminMailControllerGetSettingsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/settings`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerUpdateSettings = (
+    updateMailSettingsRequest?: UpdateMailSettingsRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>> => {
+    return axiosInstance.put(
+      `/admin/mail/settings`,
+      updateMailSettingsRequest,options
+    );
+  }
+const getAdminMailControllerUpdateSettingsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/settings`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerDiagnostics = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerDiagnostics200>> => {
+    return axiosInstance.post(
+      `/admin/mail/diagnostics`,
+      undefined,options
+    );
+  }
+const getAdminMailControllerDiagnosticsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/diagnostics`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerListDomains = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerListDomains200Item[]>> => {
+    return axiosInstance.get(
+      `/admin/mail/domains`,options
+    );
+  }
+const getAdminMailControllerListDomainsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerCreateDomain = (
+    createMailDomainRequest?: CreateMailDomainRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerCreateDomain200>> => {
+    return axiosInstance.post(
+      `/admin/mail/domains`,
+      createMailDomainRequest,options
+    );
+  }
+const getAdminMailControllerCreateDomainUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerUpdateDomain = (
+    id: string,
+    updateMailDomainRequest?: UpdateMailDomainRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerUpdateDomain200>> => {
+    return axiosInstance.patch(
+      `/admin/mail/domains/${id}`,
+      updateMailDomainRequest,options
+    );
+  }
+const getAdminMailControllerUpdateDomainUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerRemoveDomain = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerRemoveDomain200>> => {
+    return axiosInstance.delete(
+      `/admin/mail/domains/${id}`,options
+    );
+  }
+const getAdminMailControllerRemoveDomainUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerVerifyDomain = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerVerifyDomain200>> => {
+    return axiosInstance.post(
+      `/admin/mail/domains/${id}/verify`,
+      undefined,options
+    );
+  }
+const getAdminMailControllerVerifyDomainUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains/${id}/verify`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerRotateDkim = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerRotateDkim200>> => {
+    return axiosInstance.post(
+      `/admin/mail/domains/${id}/rotate-dkim`,
+      undefined,options
+    );
+  }
+const getAdminMailControllerRotateDkimUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/domains/${id}/rotate-dkim`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerListMailboxes = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerListMailboxes200Item[]>> => {
+    return axiosInstance.get(
+      `/admin/mail/mailboxes`,options
+    );
+  }
+const getAdminMailControllerListMailboxesUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/mailboxes`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerCreateMailbox = (
+    createMailboxRequest?: CreateMailboxRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesMailboxEntityMailbox>> => {
+    return axiosInstance.post(
+      `/admin/mail/mailboxes`,
+      createMailboxRequest,options
+    );
+  }
+const getAdminMailControllerCreateMailboxUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/mailboxes`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerGenerateUserAddresses = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerGenerateUserAddresses200>> => {
+    return axiosInstance.post(
+      `/admin/mail/mailboxes/generate-user-addresses`,
+      undefined,options
+    );
+  }
+const getAdminMailControllerGenerateUserAddressesUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/mailboxes/generate-user-addresses`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerUpdateMailbox = (
+    id: string,
+    updateMailboxRequest?: UpdateMailboxRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesMailboxEntityMailbox>> => {
+    return axiosInstance.patch(
+      `/admin/mail/mailboxes/${id}`,
+      updateMailboxRequest,options
+    );
+  }
+const getAdminMailControllerUpdateMailboxUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/mailboxes/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerRemoveMailbox = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerRemoveMailbox200>> => {
+    return axiosInstance.delete(
+      `/admin/mail/mailboxes/${id}`,options
+    );
+  }
+const getAdminMailControllerRemoveMailboxUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/mailboxes/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerListMessages = (
+    params?: AdminMailControllerListMessagesParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerListMessages200>> => {
+    return axiosInstance.get(
+      `/admin/mail/messages`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getAdminMailControllerListMessagesUrl = (params?: AdminMailControllerListMessagesParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/messages`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const adminMailControllerGetMessage = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerGetMessage200>> => {
+    return axiosInstance.get(
+      `/admin/mail/messages/${id}`,options
+    );
+  }
+const getAdminMailControllerGetMessageUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/messages/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerRemoveMessage = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerRemoveMessage200>> => {
+    return axiosInstance.delete(
+      `/admin/mail/messages/${id}`,options
+    );
+  }
+const getAdminMailControllerRemoveMessageUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/messages/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerAttachment = (
+    id: string,
+    attachmentId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerAttachment200>> => {
+    return axiosInstance.get(
+      `/admin/mail/messages/${id}/attachments/${attachmentId}`,options
+    );
+  }
+const getAdminMailControllerAttachmentUrl = (id: string,
+    attachmentId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/messages/${id}/attachments/${attachmentId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerSend = (
+    sendMailRequest?: SendMailRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerSend200>> => {
+    return axiosInstance.post(
+      `/admin/mail/send`,
+      sendMailRequest,options
+    );
+  }
+const getAdminMailControllerSendUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/send`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerListTemplates = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate[]>> => {
+    return axiosInstance.get(
+      `/admin/mail/templates`,options
+    );
+  }
+const getAdminMailControllerListTemplatesUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerGetTemplate = (
+    name: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate>> => {
+    return axiosInstance.get(
+      `/admin/mail/templates/${name}`,options
+    );
+  }
+const getAdminMailControllerGetTemplateUrl = (name: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates/${name}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerSaveTemplate = (
+    name: string,
+    saveMailTemplateRequest?: SaveMailTemplateRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate>> => {
+    return axiosInstance.put(
+      `/admin/mail/templates/${name}`,
+      saveMailTemplateRequest,options
+    );
+  }
+const getAdminMailControllerSaveTemplateUrl = (name: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates/${name}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerRemoveTemplate = (
+    name: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerRemoveTemplate200>> => {
+    return axiosInstance.delete(
+      `/admin/mail/templates/${name}`,options
+    );
+  }
+const getAdminMailControllerRemoveTemplateUrl = (name: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates/${name}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerPreviewTemplate = (
+    name: string,
+    previewMailTemplateRequest?: PreviewMailTemplateRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerPreviewTemplate200>> => {
+    return axiosInstance.post(
+      `/admin/mail/templates/${name}/preview`,
+      previewMailTemplateRequest,options
+    );
+  }
+const getAdminMailControllerPreviewTemplateUrl = (name: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates/${name}/preview`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminMailControllerTestTemplate = (
+    name: string,
+    sendTestMailRequest?: SendTestMailRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminMailControllerTestTemplate200>> => {
+    return axiosInstance.post(
+      `/admin/mail/templates/${name}/test`,
+      sendTestMailRequest,options
+    );
+  }
+const getAdminMailControllerTestTemplateUrl = (name: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/mail/templates/${name}/test`,
+    baseURL: '',
+
+
+  });
+}
+
+const userMailControllerMe = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<UserMailControllerMe200>> => {
+    return axiosInstance.get(
+      `/mail/me`,options
+    );
+  }
+const getUserMailControllerMeUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/mail/me`,
+    baseURL: '',
+
+
+  });
+}
+
+const userMailControllerList = (
+    params?: UserMailControllerListParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<UserMailControllerList200>> => {
+    return axiosInstance.get(
+      `/mail/messages`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getUserMailControllerListUrl = (params?: UserMailControllerListParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/mail/messages`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const userMailControllerGet = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<UserMailControllerGet200>> => {
+    return axiosInstance.get(
+      `/mail/messages/${id}`,options
+    );
+  }
+const getUserMailControllerGetUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/mail/messages/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const userMailControllerRemove = (
+    id: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<UserMailControllerRemove200>> => {
+    return axiosInstance.delete(
+      `/mail/messages/${id}`,options
+    );
+  }
+const getUserMailControllerRemoveUrl = (id: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/mail/messages/${id}`,
+    baseURL: '',
+
+
+  });
+}
+
+const userMailControllerAttachment = (
+    id: string,
+    attachmentId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<UserMailControllerAttachment200>> => {
+    return axiosInstance.get(
+      `/mail/messages/${id}/attachments/${attachmentId}`,options
+    );
+  }
+const getUserMailControllerAttachmentUrl = (id: string,
+    attachmentId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/mail/messages/${id}/attachments/${attachmentId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerStatus = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerStatus200>> => {
+    return axiosInstance.get(
+      `/payments/status`,options
+    );
+  }
+const getPaymentsControllerStatusUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/status`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerSignupSetup = (
+    signupPaymentTokenRequest?: SignupPaymentTokenRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerSignupSetup200>> => {
+    return axiosInstance.post(
+      `/payments/signup/setup`,
+      signupPaymentTokenRequest,options
+    );
+  }
+const getPaymentsControllerSignupSetupUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/signup/setup`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerSignupComplete = (
+    completeSignupRequest?: CompleteSignupRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiPaymentsPaymentsServiceSignupAction>> => {
+    return axiosInstance.post(
+      `/payments/signup/complete`,
+      completeSignupRequest,options
+    );
+  }
+const getPaymentsControllerSignupCompleteUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/signup/complete`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerWebhook = (
+    provider: string,
+    paymentsControllerWebhookBody?: PaymentsControllerWebhookBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerWebhook200>> => {
+    return axiosInstance.post(
+      `/payments/webhooks/${provider}`,
+      paymentsControllerWebhookBody,options
+    );
+  }
+const getPaymentsControllerWebhookUrl = (provider: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/webhooks/${provider}`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerMe = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerMe200>> => {
+    return axiosInstance.get(
+      `/payments/me`,options
+    );
+  }
+const getPaymentsControllerMeUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/me`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerPlans = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerPlans200Item[]>> => {
+    return axiosInstance.get(
+      `/payments/plans`,options
+    );
+  }
+const getPaymentsControllerPlansUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/plans`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerOffers = (
+    itemId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerOffers200>> => {
+    return axiosInstance.get(
+      `/payments/offers/${itemId}`,options
+    );
+  }
+const getPaymentsControllerOffersUrl = (itemId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/offers/${itemId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerAccess = (
+    paymentsControllerAccessBody?: PaymentsControllerAccessBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerAccess200>> => {
+    return axiosInstance.post(
+      `/payments/access`,
+      paymentsControllerAccessBody,options
+    );
+  }
+const getPaymentsControllerAccessUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/access`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerQuote = (
+    paymentsControllerQuoteBody?: PaymentsControllerQuoteBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsPaymentsServiceQuote>> => {
+    return axiosInstance.post(
+      `/payments/quote`,
+      paymentsControllerQuoteBody,options
+    );
+  }
+const getPaymentsControllerQuoteUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/quote`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerCheckout = (
+    paymentsControllerCheckoutBody?: PaymentsControllerCheckoutBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>> => {
+    return axiosInstance.post(
+      `/payments/checkout`,
+      paymentsControllerCheckoutBody,options
+    );
+  }
+const getPaymentsControllerCheckoutUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/checkout`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerReceipt = (
+    orderId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerReceipt200>> => {
+    return axiosInstance.get(
+      `/payments/orders/${orderId}/receipt`,options
+    );
+  }
+const getPaymentsControllerReceiptUrl = (orderId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/orders/${orderId}/receipt`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerConfirm = (
+    orderId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>> => {
+    return axiosInstance.post(
+      `/payments/orders/${orderId}/confirm`,
+      undefined,options
+    );
+  }
+const getPaymentsControllerConfirmUrl = (orderId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/orders/${orderId}/confirm`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerBeginMethod = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerBeginMethod200>> => {
+    return axiosInstance.post(
+      `/payments/methods/setup`,
+      undefined,options
+    );
+  }
+const getPaymentsControllerBeginMethodUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/methods/setup`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerAddMethod = (
+    paymentsControllerAddMethodBody?: PaymentsControllerAddMethodBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerAddMethod200>> => {
+    return axiosInstance.post(
+      `/payments/methods`,
+      paymentsControllerAddMethodBody,options
+    );
+  }
+const getPaymentsControllerAddMethodUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/methods`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerMakeDefault = (
+    methodId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerMakeDefault200>> => {
+    return axiosInstance.post(
+      `/payments/methods/${methodId}/default`,
+      undefined,options
+    );
+  }
+const getPaymentsControllerMakeDefaultUrl = (methodId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/methods/${methodId}/default`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerRemoveMethod = (
+    methodId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<PaymentsControllerRemoveMethod200>> => {
+    return axiosInstance.delete(
+      `/payments/methods/${methodId}`,options
+    );
+  }
+const getPaymentsControllerRemoveMethodUrl = (methodId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/methods/${methodId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerCancel = (
+    subscriptionId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>> => {
+    return axiosInstance.post(
+      `/payments/subscriptions/${subscriptionId}/cancel`,
+      undefined,options
+    );
+  }
+const getPaymentsControllerCancelUrl = (subscriptionId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/subscriptions/${subscriptionId}/cancel`,
+    baseURL: '',
+
+
+  });
+}
+
+const paymentsControllerResume = (
+    subscriptionId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>> => {
+    return axiosInstance.post(
+      `/payments/subscriptions/${subscriptionId}/resume`,
+      undefined,options
+    );
+  }
+const getPaymentsControllerResumeUrl = (subscriptionId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/payments/subscriptions/${subscriptionId}/resume`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerCurrencies = (
+    params?: AdminPaymentsControllerCurrenciesParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsCurrenciesCurrencyInfo[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/currencies`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getAdminPaymentsControllerCurrenciesUrl = (params?: AdminPaymentsControllerCurrenciesParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/currencies`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const adminPaymentsControllerGetConfig = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>> => {
+    return axiosInstance.get(
+      `/admin/payments/config`,options
+    );
+  }
+const getAdminPaymentsControllerGetConfigUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/config`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerPutConfig = (
+    adminPaymentsControllerPutConfigBody?: AdminPaymentsControllerPutConfigBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>> => {
+    return axiosInstance.put(
+      `/admin/payments/config`,
+      adminPaymentsControllerPutConfigBody,options
+    );
+  }
+const getAdminPaymentsControllerPutConfigUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/config`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerTest = (
+    adminPaymentsControllerTestBody?: AdminPaymentsControllerTestBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerTest200>> => {
+    return axiosInstance.post(
+      `/admin/payments/config/test`,
+      adminPaymentsControllerTestBody,options
+    );
+  }
+const getAdminPaymentsControllerTestUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/config/test`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerStats = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerStats200>> => {
+    return axiosInstance.get(
+      `/admin/payments/stats`,options
+    );
+  }
+const getAdminPaymentsControllerStatsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/stats`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerScopeSearch = (
+    params?: AdminPaymentsControllerScopeSearchParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerScopeSearch200>> => {
+    return axiosInstance.get(
+      `/admin/payments/scope-search`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getAdminPaymentsControllerScopeSearchUrl = (params?: AdminPaymentsControllerScopeSearchParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/scope-search`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const adminPaymentsControllerProducts = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/products`,options
+    );
+  }
+const getAdminPaymentsControllerProductsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/products`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerCreateProduct = (
+    adminPaymentsControllerCreateProductBody?: AdminPaymentsControllerCreateProductBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>> => {
+    return axiosInstance.post(
+      `/admin/payments/products`,
+      adminPaymentsControllerCreateProductBody,options
+    );
+  }
+const getAdminPaymentsControllerCreateProductUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/products`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerUpdateProduct = (
+    productId: string,
+    adminPaymentsControllerUpdateProductBody?: AdminPaymentsControllerUpdateProductBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>> => {
+    return axiosInstance.put(
+      `/admin/payments/products/${productId}`,
+      adminPaymentsControllerUpdateProductBody,options
+    );
+  }
+const getAdminPaymentsControllerUpdateProductUrl = (productId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/products/${productId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerDeleteProduct = (
+    productId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerDeleteProduct200>> => {
+    return axiosInstance.delete(
+      `/admin/payments/products/${productId}`,options
+    );
+  }
+const getAdminPaymentsControllerDeleteProductUrl = (productId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/products/${productId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerPlans = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/plans`,options
+    );
+  }
+const getAdminPaymentsControllerPlansUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/plans`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerCreatePlan = (
+    adminPaymentsControllerCreatePlanBody?: AdminPaymentsControllerCreatePlanBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>> => {
+    return axiosInstance.post(
+      `/admin/payments/plans`,
+      adminPaymentsControllerCreatePlanBody,options
+    );
+  }
+const getAdminPaymentsControllerCreatePlanUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/plans`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerUpdatePlan = (
+    planId: string,
+    adminPaymentsControllerUpdatePlanBody?: AdminPaymentsControllerUpdatePlanBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>> => {
+    return axiosInstance.put(
+      `/admin/payments/plans/${planId}`,
+      adminPaymentsControllerUpdatePlanBody,options
+    );
+  }
+const getAdminPaymentsControllerUpdatePlanUrl = (planId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/plans/${planId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerDeletePlan = (
+    planId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerDeletePlan200>> => {
+    return axiosInstance.delete(
+      `/admin/payments/plans/${planId}`,options
+    );
+  }
+const getAdminPaymentsControllerDeletePlanUrl = (planId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/plans/${planId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerCoupons = (
+     options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/coupons`,options
+    );
+  }
+const getAdminPaymentsControllerCouponsUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/coupons`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerCreateCoupon = (
+    adminPaymentsControllerCreateCouponBody?: AdminPaymentsControllerCreateCouponBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>> => {
+    return axiosInstance.post(
+      `/admin/payments/coupons`,
+      adminPaymentsControllerCreateCouponBody,options
+    );
+  }
+const getAdminPaymentsControllerCreateCouponUrl = () => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/coupons`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerUpdateCoupon = (
+    couponId: string,
+    adminPaymentsControllerUpdateCouponBody?: AdminPaymentsControllerUpdateCouponBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>> => {
+    return axiosInstance.put(
+      `/admin/payments/coupons/${couponId}`,
+      adminPaymentsControllerUpdateCouponBody,options
+    );
+  }
+const getAdminPaymentsControllerUpdateCouponUrl = (couponId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/coupons/${couponId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerDeleteCoupon = (
+    couponId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerDeleteCoupon200>> => {
+    return axiosInstance.delete(
+      `/admin/payments/coupons/${couponId}`,options
+    );
+  }
+const getAdminPaymentsControllerDeleteCouponUrl = (couponId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/coupons/${couponId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerOrders = (
+    params?: AdminPaymentsControllerOrdersParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerOrders200>> => {
+    return axiosInstance.get(
+      `/admin/payments/orders`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getAdminPaymentsControllerOrdersUrl = (params?: AdminPaymentsControllerOrdersParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/orders`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const adminPaymentsControllerRefund = (
+    orderId: string,
+    adminPaymentsControllerRefundBody?: AdminPaymentsControllerRefundBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentOrderEntityPaymentOrder>> => {
+    return axiosInstance.post(
+      `/admin/payments/orders/${orderId}/refund`,
+      adminPaymentsControllerRefundBody,options
+    );
+  }
+const getAdminPaymentsControllerRefundUrl = (orderId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/orders/${orderId}/refund`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerSubscriptions = (
+    params?: AdminPaymentsControllerSubscriptionsParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerSubscriptions200Item[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/subscriptions`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+const getAdminPaymentsControllerSubscriptionsUrl = (params?: AdminPaymentsControllerSubscriptionsParams,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/subscriptions`,
+    baseURL: '',
+    params,
+
+  });
+}
+
+const adminPaymentsControllerCancelSubscription = (
+    subscriptionId: string,
+    adminPaymentsControllerCancelSubscriptionBody?: AdminPaymentsControllerCancelSubscriptionBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>> => {
+    return axiosInstance.post(
+      `/admin/payments/subscriptions/${subscriptionId}/cancel`,
+      adminPaymentsControllerCancelSubscriptionBody,options
+    );
+  }
+const getAdminPaymentsControllerCancelSubscriptionUrl = (subscriptionId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/subscriptions/${subscriptionId}/cancel`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerUserOverview = (
+    userId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerUserOverview200>> => {
+    return axiosInstance.get(
+      `/admin/payments/users/${userId}`,options
+    );
+  }
+const getAdminPaymentsControllerUserOverviewUrl = (userId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/users/${userId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerWaiveSignup = (
+    userId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerWaiveSignup200>> => {
+    return axiosInstance.post(
+      `/admin/payments/users/${userId}/waive-signup`,
+      undefined,options
+    );
+  }
+const getAdminPaymentsControllerWaiveSignupUrl = (userId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/users/${userId}/waive-signup`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerRemoveUserMethod = (
+    userId: string,
+    methodId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerRemoveUserMethod200>> => {
+    return axiosInstance.delete(
+      `/admin/payments/users/${userId}/methods/${methodId}`,options
+    );
+  }
+const getAdminPaymentsControllerRemoveUserMethodUrl = (userId: string,
+    methodId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/users/${userId}/methods/${methodId}`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerGrants = (
+    userId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement[]>> => {
+    return axiosInstance.get(
+      `/admin/payments/users/${userId}/grants`,options
+    );
+  }
+const getAdminPaymentsControllerGrantsUrl = (userId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/users/${userId}/grants`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerGrant = (
+    userId: string,
+    adminPaymentsControllerGrantBody?: AdminPaymentsControllerGrantBody, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement>> => {
+    return axiosInstance.post(
+      `/admin/payments/users/${userId}/grants`,
+      adminPaymentsControllerGrantBody,options
+    );
+  }
+const getAdminPaymentsControllerGrantUrl = (userId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/users/${userId}/grants`,
+    baseURL: '',
+
+
+  });
+}
+
+const adminPaymentsControllerRevoke = (
+    grantId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<AdminPaymentsControllerRevoke200>> => {
+    return axiosInstance.patch(
+      `/admin/payments/grants/${grantId}/revoke`,
+      undefined,options
+    );
+  }
+const getAdminPaymentsControllerRevokeUrl = (grantId: string,) => {
+
+  return axiosInstance.create({
+    baseURL: '',
+    params: null,
+  }).getUri({
+    url: `/admin/payments/grants/${grantId}/revoke`,
+    baseURL: '',
+
+
+  });
+}
+
+return {versionControllerGet,setupControllerStatus,setupControllerRequestRecoveryKey,setupControllerProgress,setupControllerFlow,setupControllerTestStep,setupControllerApplyStep,setupControllerComplete,setupControllerReset,internalConfigControllerGet,aiControllerLibraryContext,aiControllerRecommendationContext,aiControllerRuntimeConfiguration,aiControllerRecommendationCacheState,aiControllerSaveRecommendationCache,aiControllerClearRecommendationCache,recommendationsControllerHomeRecommendations,recommendationsControllerMusicRecommendations,recommendationsControllerRecommend,recommendationsControllerSimilar,aiAdminControllerStatus,aiAdminControllerUpdateConfiguration,aiAdminControllerRetry,aiAdminControllerRecommendations,aiAdminControllerRefreshUserRecommendations,authControllerRegister,authControllerMe,authControllerUpdateMe,authControllerSetPasskeyRequired,authControllerChangePassword,authControllerDeleteMe,authControllerVerifyEmail,authControllerResendVerification,authControllerLogin,authControllerListSessions,authControllerRevokeSession,authControllerLogout,avatarControllerUpload,avatarControllerRemove,avatarControllerAvatar,passkeyControllerList,passkeyControllerRegistrationOptions,passkeyControllerRegistrationVerify,passkeyControllerLoginOptions,passkeyControllerLoginVerify,passkeyControllerSecondFactorOptions,passkeyControllerSecondFactorVerify,passkeyControllerStartNativeHandoff,passkeyControllerNativeHandoffOptions,passkeyControllerVerifyNativeHandoff,passkeyControllerExchangeNativeHandoff,passkeyControllerRemove,userControllerListUsers,userControllerGetUser,userControllerDeleteUser,preferencesControllerGet,preferencesControllerUpdate,settingsControllerList,settingsControllerRegistrationStatus,settingsControllerSendTestEmail,settingsControllerUpdate,playbackControllerListSamples,playbackControllerItemPlaybackInfo,playbackControllerChannelPlaybackInfo,playbackControllerPlaybackInfo,guideControllerGet,adminGuideControllerOverview,adminGuideControllerSources,adminGuideControllerCreateSource,adminGuideControllerUpdateSource,adminGuideControllerRemoveSource,adminGuideControllerRefreshSource,adminGuideControllerUpdateChannels,adminGuideControllerUpdateSettings,jobsControllerGetQueues,jobsControllerFindJobs,jobsControllerEnqueue,jobsControllerGetJob,jobsControllerCancelJob,jobsControllerRetryJob,jobsControllerGetSchedules,jobsControllerSchedule,jobsControllerUnschedule,adminScheduledTasksControllerList,adminScheduledTasksControllerSaveSchedule,adminScheduledTasksControllerRun,adminScheduledTasksControllerStop,streamsControllerListSessions,streamsControllerCancelSession,devicesControllerList,devicesControllerSignOut,apiKeysControllerList,apiKeysControllerCreate,apiKeysControllerRevoke,mediaLibrariesControllerList,mediaLibrariesControllerCreate,mediaLibrariesControllerListRoots,mediaLibrariesControllerBrowse,mediaLibrariesControllerUpdate,mediaLibrariesControllerRemove,streamerRootsControllerList,streamerRootsControllerTranscoding,indexerApiControllerListLibraries,indexerApiControllerGetSettings,indexerApiControllerUpsertItem,indexerApiControllerUpsertItemLyrics,indexerApiControllerIntroSyncCandidates,indexerApiControllerExistingIntroSegments,indexerApiControllerUpdateIntroSegments,indexerApiControllerPruneLibrary,indexerApiControllerRemoveItemsAtPaths,adminIndexerControllerStatus,adminIndexerControllerScan,adminIndexerControllerQueueSegments,adminIndexerControllerRefresh,adminIndexerControllerTasks,adminIndexerControllerTaskLogs,adminIndexerControllerCancelTask,adminIndexerControllerRetryTask,adminIndexerControllerCancelActive,adminIndexerControllerClearFailed,adminIndexerControllerPause,adminIndexerControllerResume,adminIndexerControllerSetConcurrency,pluginsControllerInstalled,pluginsControllerRepositories,pluginsControllerAddRepository,pluginsControllerCatalog,pluginsControllerPluginSettingsView,pluginsControllerUpdatePluginSettings,pluginsControllerPluginUpdateHistory,pluginsControllerInstall,pluginsControllerEnable,pluginsControllerDisable,pluginsControllerUninstall,pluginsControllerRefreshRepository,pluginsControllerRemoveRepository,pluginRuntimeControllerListPages,pluginRuntimeControllerSearchSections,pluginRuntimeControllerInvoke,requestImagesControllerTmdb,requestImagesControllerDiscogs,requestsControllerConfig,requestsControllerSearch,requestsControllerDiscover,requestsControllerDetails,requestsControllerList,requestsControllerCreate,requestsControllerApprove,requestsControllerDecline,requestsControllerRetry,requestsControllerRemove,adminRequestsControllerGetWebhookCredentials,adminRequestsControllerRotateWebhookCredentials,adminRequestsControllerListServices,adminRequestsControllerCreateService,adminRequestsControllerTestService,adminRequestsControllerUpdateService,adminRequestsControllerRemoveService,adminRequestsControllerListUsers,adminRequestsControllerUpdateUser,requestWebhookControllerReceive,adminMediaControllerListSubtitles,adminMediaControllerRemoveSubtitle,adminMediaControllerSearchSubtitles,adminMediaControllerDownloadSubtitle,adminMediaControllerSetSegment,adminMediaControllerClearSegment,adminMediaControllerList,adminMediaControllerGet,adminMediaControllerUpdate,adminMediaControllerRemove,adminMediaControllerRefresh,adminMediaControllerImage,adminMediaControllerRemoveImage,adminMediaControllerAddImage,mediaHomeControllerGetHome,mediaHomeControllerGetProgress,mediaHomeControllerSaveProgress,mediaHomeControllerSetWatched,mediaHomeControllerGenres,mediaHomeControllerSearch,mediaHomeControllerPersonImage,mediaHomeControllerPerson,mediaHomeControllerBrowse,mediaHomeControllerItem,mediaHomeControllerImage,adminMediaSearchControllerStatus,adminMediaSearchControllerTask,adminMediaSearchControllerSaveSettings,adminMediaSearchControllerRebuild,adminMediaSearchControllerReset,networkSharesControllerList,networkSharesControllerCreate,networkSharesControllerSupport,networkSharesControllerUpdate,networkSharesControllerRemove,networkSharesControllerReconnect,adminUsersControllerList,adminUsersControllerCreate,adminUsersControllerUpdate,adminUsersControllerRemove,adminUsersControllerSetAvatar,adminUsersControllerRemoveAvatar,adminUsersControllerSetPassword,adminUsersControllerRevokeSessions,accessControllerMe,accessControllerUnlock,accessControllerLock,adminAccessControllerOptions,adminAccessControllerGet,adminAccessControllerSave,adminAccessControllerPreview,notificationsControllerList,notificationsControllerMarkRead,notificationsControllerRemove,notificationsControllerConfig,notificationsControllerPushKey,notificationsControllerPushStatus,notificationsControllerSubscribe,notificationsControllerUnsubscribe,adminNotificationsControllerSend,favoritesControllerList,favoritesControllerIds,favoritesControllerAdd,favoritesControllerRemove,playlistsControllerList,playlistsControllerCreate,playlistsControllerContaining,playlistsControllerGet,playlistsControllerUpdate,playlistsControllerRemove,playlistsControllerAddItem,playlistsControllerRemoveTrack,playlistsControllerReorder,partiesControllerCreate,partiesControllerGet,partiesControllerEnd,chatControllerList,chatControllerStart,chatControllerUnread,chatControllerEncryptionStatus,chatControllerRegisterMlsDevice,chatControllerMlsDevices,chatControllerChatHistoryBackup,chatControllerSaveChatHistoryBackup,chatControllerApproveMlsDevice,chatControllerRevokeMlsDevice,chatControllerAddMlsKeyPackage,chatControllerDeviceMlsKeyPackages,chatControllerGet,chatControllerRename,chatControllerDeleteConversation,chatControllerDowngradeToPlaintext,chatControllerUpgradeToEncrypted,chatControllerMessages,chatControllerSend,chatControllerMlsKeyPackages,chatControllerClaimMlsKeyPackage,chatControllerMlsWelcomes,chatControllerStoreMlsWelcome,chatControllerAcknowledgeMlsWelcome,chatControllerRead,chatControllerAddMembers,chatControllerRemoveMember,issueReportsControllerConfiguration,issueReportsControllerList,issueReportsControllerCreate,issueReportsControllerGet,adminIssueReportsControllerList,adminIssueReportsControllerGet,adminIssueReportsControllerDelete,adminIssueReportsControllerUpdateStatus,adminIssueReportsControllerAddUpdate,adminIssueReportsControllerSetChat,profilesControllerDirectory,profilesControllerMe,profilesControllerSetVisibility,profilesControllerListening,profilesControllerGet,friendsControllerList,friendsControllerCreateInvite,friendsControllerGetInvite,friendsControllerAcceptInvite,friendsControllerRequest,friendsControllerRemove,friendsControllerAccept,themesControllerAudio,themesControllerSync,adminUpdatesControllerStatus,adminUpdatesControllerApply,adminBackupsControllerStatus,adminBackupsControllerCreate,adminBackupsControllerUpload,adminBackupsControllerSetPassphrase,adminBackupsControllerClearPassphrase,adminBackupsControllerRestore,adminBackupsControllerDownloadLink,adminBackupsControllerRemove,backupDownloadControllerDownload,adminDatabaseTransferControllerStatus,adminDatabaseTransferControllerStart,adminDatabaseTransferControllerRestoreWrites,overviewControllerGet,overviewControllerActivityList,sentryControllerGetConfig,adminMailControllerStatus,adminMailControllerGetSettings,adminMailControllerUpdateSettings,adminMailControllerDiagnostics,adminMailControllerListDomains,adminMailControllerCreateDomain,adminMailControllerUpdateDomain,adminMailControllerRemoveDomain,adminMailControllerVerifyDomain,adminMailControllerRotateDkim,adminMailControllerListMailboxes,adminMailControllerCreateMailbox,adminMailControllerGenerateUserAddresses,adminMailControllerUpdateMailbox,adminMailControllerRemoveMailbox,adminMailControllerListMessages,adminMailControllerGetMessage,adminMailControllerRemoveMessage,adminMailControllerAttachment,adminMailControllerSend,adminMailControllerListTemplates,adminMailControllerGetTemplate,adminMailControllerSaveTemplate,adminMailControllerRemoveTemplate,adminMailControllerPreviewTemplate,adminMailControllerTestTemplate,userMailControllerMe,userMailControllerList,userMailControllerGet,userMailControllerRemove,userMailControllerAttachment,paymentsControllerStatus,paymentsControllerSignupSetup,paymentsControllerSignupComplete,paymentsControllerWebhook,paymentsControllerMe,paymentsControllerPlans,paymentsControllerOffers,paymentsControllerAccess,paymentsControllerQuote,paymentsControllerCheckout,paymentsControllerReceipt,paymentsControllerConfirm,paymentsControllerBeginMethod,paymentsControllerAddMethod,paymentsControllerMakeDefault,paymentsControllerRemoveMethod,paymentsControllerCancel,paymentsControllerResume,adminPaymentsControllerCurrencies,adminPaymentsControllerGetConfig,adminPaymentsControllerPutConfig,adminPaymentsControllerTest,adminPaymentsControllerStats,adminPaymentsControllerScopeSearch,adminPaymentsControllerProducts,adminPaymentsControllerCreateProduct,adminPaymentsControllerUpdateProduct,adminPaymentsControllerDeleteProduct,adminPaymentsControllerPlans,adminPaymentsControllerCreatePlan,adminPaymentsControllerUpdatePlan,adminPaymentsControllerDeletePlan,adminPaymentsControllerCoupons,adminPaymentsControllerCreateCoupon,adminPaymentsControllerUpdateCoupon,adminPaymentsControllerDeleteCoupon,adminPaymentsControllerOrders,adminPaymentsControllerRefund,adminPaymentsControllerSubscriptions,adminPaymentsControllerCancelSubscription,adminPaymentsControllerUserOverview,adminPaymentsControllerWaiveSignup,adminPaymentsControllerRemoveUserMethod,adminPaymentsControllerGrants,adminPaymentsControllerGrant,adminPaymentsControllerRevoke,getVersionControllerGetUrl,getSetupControllerStatusUrl,getSetupControllerRequestRecoveryKeyUrl,getSetupControllerProgressUrl,getSetupControllerFlowUrl,getSetupControllerTestStepUrl,getSetupControllerApplyStepUrl,getSetupControllerCompleteUrl,getSetupControllerResetUrl,getInternalConfigControllerGetUrl,getAiControllerLibraryContextUrl,getAiControllerRecommendationContextUrl,getAiControllerRuntimeConfigurationUrl,getAiControllerRecommendationCacheStateUrl,getAiControllerSaveRecommendationCacheUrl,getAiControllerClearRecommendationCacheUrl,getRecommendationsControllerHomeRecommendationsUrl,getRecommendationsControllerMusicRecommendationsUrl,getRecommendationsControllerRecommendUrl,getRecommendationsControllerSimilarUrl,getAiAdminControllerStatusUrl,getAiAdminControllerUpdateConfigurationUrl,getAiAdminControllerRetryUrl,getAiAdminControllerRecommendationsUrl,getAiAdminControllerRefreshUserRecommendationsUrl,getAuthControllerRegisterUrl,getAuthControllerMeUrl,getAuthControllerUpdateMeUrl,getAuthControllerSetPasskeyRequiredUrl,getAuthControllerChangePasswordUrl,getAuthControllerDeleteMeUrl,getAuthControllerVerifyEmailUrl,getAuthControllerResendVerificationUrl,getAuthControllerLoginUrl,getAuthControllerListSessionsUrl,getAuthControllerRevokeSessionUrl,getAuthControllerLogoutUrl,getAvatarControllerUploadUrl,getAvatarControllerRemoveUrl,getAvatarControllerAvatarUrl,getPasskeyControllerListUrl,getPasskeyControllerRegistrationOptionsUrl,getPasskeyControllerRegistrationVerifyUrl,getPasskeyControllerLoginOptionsUrl,getPasskeyControllerLoginVerifyUrl,getPasskeyControllerSecondFactorOptionsUrl,getPasskeyControllerSecondFactorVerifyUrl,getPasskeyControllerStartNativeHandoffUrl,getPasskeyControllerNativeHandoffOptionsUrl,getPasskeyControllerVerifyNativeHandoffUrl,getPasskeyControllerExchangeNativeHandoffUrl,getPasskeyControllerRemoveUrl,getUserControllerListUsersUrl,getUserControllerGetUserUrl,getUserControllerDeleteUserUrl,getPreferencesControllerGetUrl,getPreferencesControllerUpdateUrl,getSettingsControllerListUrl,getSettingsControllerRegistrationStatusUrl,getSettingsControllerSendTestEmailUrl,getSettingsControllerUpdateUrl,getPlaybackControllerListSamplesUrl,getPlaybackControllerItemPlaybackInfoUrl,getPlaybackControllerChannelPlaybackInfoUrl,getPlaybackControllerPlaybackInfoUrl,getGuideControllerGetUrl,getAdminGuideControllerOverviewUrl,getAdminGuideControllerSourcesUrl,getAdminGuideControllerCreateSourceUrl,getAdminGuideControllerUpdateSourceUrl,getAdminGuideControllerRemoveSourceUrl,getAdminGuideControllerRefreshSourceUrl,getAdminGuideControllerUpdateChannelsUrl,getAdminGuideControllerUpdateSettingsUrl,getJobsControllerGetQueuesUrl,getJobsControllerFindJobsUrl,getJobsControllerEnqueueUrl,getJobsControllerGetJobUrl,getJobsControllerCancelJobUrl,getJobsControllerRetryJobUrl,getJobsControllerGetSchedulesUrl,getJobsControllerScheduleUrl,getJobsControllerUnscheduleUrl,getAdminScheduledTasksControllerListUrl,getAdminScheduledTasksControllerSaveScheduleUrl,getAdminScheduledTasksControllerRunUrl,getAdminScheduledTasksControllerStopUrl,getStreamsControllerListSessionsUrl,getStreamsControllerCancelSessionUrl,getDevicesControllerListUrl,getDevicesControllerSignOutUrl,getApiKeysControllerListUrl,getApiKeysControllerCreateUrl,getApiKeysControllerRevokeUrl,getMediaLibrariesControllerListUrl,getMediaLibrariesControllerCreateUrl,getMediaLibrariesControllerListRootsUrl,getMediaLibrariesControllerBrowseUrl,getMediaLibrariesControllerUpdateUrl,getMediaLibrariesControllerRemoveUrl,getStreamerRootsControllerListUrl,getStreamerRootsControllerTranscodingUrl,getIndexerApiControllerListLibrariesUrl,getIndexerApiControllerGetSettingsUrl,getIndexerApiControllerUpsertItemUrl,getIndexerApiControllerUpsertItemLyricsUrl,getIndexerApiControllerIntroSyncCandidatesUrl,getIndexerApiControllerExistingIntroSegmentsUrl,getIndexerApiControllerUpdateIntroSegmentsUrl,getIndexerApiControllerPruneLibraryUrl,getIndexerApiControllerRemoveItemsAtPathsUrl,getAdminIndexerControllerStatusUrl,getAdminIndexerControllerScanUrl,getAdminIndexerControllerQueueSegmentsUrl,getAdminIndexerControllerRefreshUrl,getAdminIndexerControllerTasksUrl,getAdminIndexerControllerTaskLogsUrl,getAdminIndexerControllerCancelTaskUrl,getAdminIndexerControllerRetryTaskUrl,getAdminIndexerControllerCancelActiveUrl,getAdminIndexerControllerClearFailedUrl,getAdminIndexerControllerPauseUrl,getAdminIndexerControllerResumeUrl,getAdminIndexerControllerSetConcurrencyUrl,getPluginsControllerInstalledUrl,getPluginsControllerRepositoriesUrl,getPluginsControllerAddRepositoryUrl,getPluginsControllerCatalogUrl,getPluginsControllerPluginSettingsViewUrl,getPluginsControllerUpdatePluginSettingsUrl,getPluginsControllerPluginUpdateHistoryUrl,getPluginsControllerInstallUrl,getPluginsControllerEnableUrl,getPluginsControllerDisableUrl,getPluginsControllerUninstallUrl,getPluginsControllerRefreshRepositoryUrl,getPluginsControllerRemoveRepositoryUrl,getPluginRuntimeControllerListPagesUrl,getPluginRuntimeControllerSearchSectionsUrl,getPluginRuntimeControllerInvokeUrl,getRequestImagesControllerTmdbUrl,getRequestImagesControllerDiscogsUrl,getRequestsControllerConfigUrl,getRequestsControllerSearchUrl,getRequestsControllerDiscoverUrl,getRequestsControllerDetailsUrl,getRequestsControllerListUrl,getRequestsControllerCreateUrl,getRequestsControllerApproveUrl,getRequestsControllerDeclineUrl,getRequestsControllerRetryUrl,getRequestsControllerRemoveUrl,getAdminRequestsControllerGetWebhookCredentialsUrl,getAdminRequestsControllerRotateWebhookCredentialsUrl,getAdminRequestsControllerListServicesUrl,getAdminRequestsControllerCreateServiceUrl,getAdminRequestsControllerTestServiceUrl,getAdminRequestsControllerUpdateServiceUrl,getAdminRequestsControllerRemoveServiceUrl,getAdminRequestsControllerListUsersUrl,getAdminRequestsControllerUpdateUserUrl,getRequestWebhookControllerReceiveUrl,getAdminMediaControllerListSubtitlesUrl,getAdminMediaControllerRemoveSubtitleUrl,getAdminMediaControllerSearchSubtitlesUrl,getAdminMediaControllerDownloadSubtitleUrl,getAdminMediaControllerSetSegmentUrl,getAdminMediaControllerClearSegmentUrl,getAdminMediaControllerListUrl,getAdminMediaControllerGetUrl,getAdminMediaControllerUpdateUrl,getAdminMediaControllerRemoveUrl,getAdminMediaControllerRefreshUrl,getAdminMediaControllerImageUrl,getAdminMediaControllerRemoveImageUrl,getAdminMediaControllerAddImageUrl,getMediaHomeControllerGetHomeUrl,getMediaHomeControllerGetProgressUrl,getMediaHomeControllerSaveProgressUrl,getMediaHomeControllerSetWatchedUrl,getMediaHomeControllerGenresUrl,getMediaHomeControllerSearchUrl,getMediaHomeControllerPersonImageUrl,getMediaHomeControllerPersonUrl,getMediaHomeControllerBrowseUrl,getMediaHomeControllerItemUrl,getMediaHomeControllerImageUrl,getAdminMediaSearchControllerStatusUrl,getAdminMediaSearchControllerTaskUrl,getAdminMediaSearchControllerSaveSettingsUrl,getAdminMediaSearchControllerRebuildUrl,getAdminMediaSearchControllerResetUrl,getNetworkSharesControllerListUrl,getNetworkSharesControllerCreateUrl,getNetworkSharesControllerSupportUrl,getNetworkSharesControllerUpdateUrl,getNetworkSharesControllerRemoveUrl,getNetworkSharesControllerReconnectUrl,getAdminUsersControllerListUrl,getAdminUsersControllerCreateUrl,getAdminUsersControllerUpdateUrl,getAdminUsersControllerRemoveUrl,getAdminUsersControllerSetAvatarUrl,getAdminUsersControllerRemoveAvatarUrl,getAdminUsersControllerSetPasswordUrl,getAdminUsersControllerRevokeSessionsUrl,getAccessControllerMeUrl,getAccessControllerUnlockUrl,getAccessControllerLockUrl,getAdminAccessControllerOptionsUrl,getAdminAccessControllerGetUrl,getAdminAccessControllerSaveUrl,getAdminAccessControllerPreviewUrl,getNotificationsControllerListUrl,getNotificationsControllerMarkReadUrl,getNotificationsControllerRemoveUrl,getNotificationsControllerConfigUrl,getNotificationsControllerPushKeyUrl,getNotificationsControllerPushStatusUrl,getNotificationsControllerSubscribeUrl,getNotificationsControllerUnsubscribeUrl,getAdminNotificationsControllerSendUrl,getFavoritesControllerListUrl,getFavoritesControllerIdsUrl,getFavoritesControllerAddUrl,getFavoritesControllerRemoveUrl,getPlaylistsControllerListUrl,getPlaylistsControllerCreateUrl,getPlaylistsControllerContainingUrl,getPlaylistsControllerGetUrl,getPlaylistsControllerUpdateUrl,getPlaylistsControllerRemoveUrl,getPlaylistsControllerAddItemUrl,getPlaylistsControllerRemoveTrackUrl,getPlaylistsControllerReorderUrl,getPartiesControllerCreateUrl,getPartiesControllerGetUrl,getPartiesControllerEndUrl,getChatControllerListUrl,getChatControllerStartUrl,getChatControllerUnreadUrl,getChatControllerEncryptionStatusUrl,getChatControllerRegisterMlsDeviceUrl,getChatControllerMlsDevicesUrl,getChatControllerChatHistoryBackupUrl,getChatControllerSaveChatHistoryBackupUrl,getChatControllerApproveMlsDeviceUrl,getChatControllerRevokeMlsDeviceUrl,getChatControllerAddMlsKeyPackageUrl,getChatControllerDeviceMlsKeyPackagesUrl,getChatControllerGetUrl,getChatControllerRenameUrl,getChatControllerDeleteConversationUrl,getChatControllerDowngradeToPlaintextUrl,getChatControllerUpgradeToEncryptedUrl,getChatControllerMessagesUrl,getChatControllerSendUrl,getChatControllerMlsKeyPackagesUrl,getChatControllerClaimMlsKeyPackageUrl,getChatControllerMlsWelcomesUrl,getChatControllerStoreMlsWelcomeUrl,getChatControllerAcknowledgeMlsWelcomeUrl,getChatControllerReadUrl,getChatControllerAddMembersUrl,getChatControllerRemoveMemberUrl,getIssueReportsControllerConfigurationUrl,getIssueReportsControllerListUrl,getIssueReportsControllerCreateUrl,getIssueReportsControllerGetUrl,getAdminIssueReportsControllerListUrl,getAdminIssueReportsControllerGetUrl,getAdminIssueReportsControllerDeleteUrl,getAdminIssueReportsControllerUpdateStatusUrl,getAdminIssueReportsControllerAddUpdateUrl,getAdminIssueReportsControllerSetChatUrl,getProfilesControllerDirectoryUrl,getProfilesControllerMeUrl,getProfilesControllerSetVisibilityUrl,getProfilesControllerListeningUrl,getProfilesControllerGetUrl,getFriendsControllerListUrl,getFriendsControllerCreateInviteUrl,getFriendsControllerGetInviteUrl,getFriendsControllerAcceptInviteUrl,getFriendsControllerRequestUrl,getFriendsControllerRemoveUrl,getFriendsControllerAcceptUrl,getThemesControllerAudioUrl,getThemesControllerSyncUrl,getAdminUpdatesControllerStatusUrl,getAdminUpdatesControllerApplyUrl,getAdminBackupsControllerStatusUrl,getAdminBackupsControllerCreateUrl,getAdminBackupsControllerUploadUrl,getAdminBackupsControllerSetPassphraseUrl,getAdminBackupsControllerClearPassphraseUrl,getAdminBackupsControllerRestoreUrl,getAdminBackupsControllerDownloadLinkUrl,getAdminBackupsControllerRemoveUrl,getBackupDownloadControllerDownloadUrl,getAdminDatabaseTransferControllerStatusUrl,getAdminDatabaseTransferControllerStartUrl,getAdminDatabaseTransferControllerRestoreWritesUrl,getOverviewControllerGetUrl,getOverviewControllerActivityListUrl,getSentryControllerGetConfigUrl,getAdminMailControllerStatusUrl,getAdminMailControllerGetSettingsUrl,getAdminMailControllerUpdateSettingsUrl,getAdminMailControllerDiagnosticsUrl,getAdminMailControllerListDomainsUrl,getAdminMailControllerCreateDomainUrl,getAdminMailControllerUpdateDomainUrl,getAdminMailControllerRemoveDomainUrl,getAdminMailControllerVerifyDomainUrl,getAdminMailControllerRotateDkimUrl,getAdminMailControllerListMailboxesUrl,getAdminMailControllerCreateMailboxUrl,getAdminMailControllerGenerateUserAddressesUrl,getAdminMailControllerUpdateMailboxUrl,getAdminMailControllerRemoveMailboxUrl,getAdminMailControllerListMessagesUrl,getAdminMailControllerGetMessageUrl,getAdminMailControllerRemoveMessageUrl,getAdminMailControllerAttachmentUrl,getAdminMailControllerSendUrl,getAdminMailControllerListTemplatesUrl,getAdminMailControllerGetTemplateUrl,getAdminMailControllerSaveTemplateUrl,getAdminMailControllerRemoveTemplateUrl,getAdminMailControllerPreviewTemplateUrl,getAdminMailControllerTestTemplateUrl,getUserMailControllerMeUrl,getUserMailControllerListUrl,getUserMailControllerGetUrl,getUserMailControllerRemoveUrl,getUserMailControllerAttachmentUrl,getPaymentsControllerStatusUrl,getPaymentsControllerSignupSetupUrl,getPaymentsControllerSignupCompleteUrl,getPaymentsControllerWebhookUrl,getPaymentsControllerMeUrl,getPaymentsControllerPlansUrl,getPaymentsControllerOffersUrl,getPaymentsControllerAccessUrl,getPaymentsControllerQuoteUrl,getPaymentsControllerCheckoutUrl,getPaymentsControllerReceiptUrl,getPaymentsControllerConfirmUrl,getPaymentsControllerBeginMethodUrl,getPaymentsControllerAddMethodUrl,getPaymentsControllerMakeDefaultUrl,getPaymentsControllerRemoveMethodUrl,getPaymentsControllerCancelUrl,getPaymentsControllerResumeUrl,getAdminPaymentsControllerCurrenciesUrl,getAdminPaymentsControllerGetConfigUrl,getAdminPaymentsControllerPutConfigUrl,getAdminPaymentsControllerTestUrl,getAdminPaymentsControllerStatsUrl,getAdminPaymentsControllerScopeSearchUrl,getAdminPaymentsControllerProductsUrl,getAdminPaymentsControllerCreateProductUrl,getAdminPaymentsControllerUpdateProductUrl,getAdminPaymentsControllerDeleteProductUrl,getAdminPaymentsControllerPlansUrl,getAdminPaymentsControllerCreatePlanUrl,getAdminPaymentsControllerUpdatePlanUrl,getAdminPaymentsControllerDeletePlanUrl,getAdminPaymentsControllerCouponsUrl,getAdminPaymentsControllerCreateCouponUrl,getAdminPaymentsControllerUpdateCouponUrl,getAdminPaymentsControllerDeleteCouponUrl,getAdminPaymentsControllerOrdersUrl,getAdminPaymentsControllerRefundUrl,getAdminPaymentsControllerSubscriptionsUrl,getAdminPaymentsControllerCancelSubscriptionUrl,getAdminPaymentsControllerUserOverviewUrl,getAdminPaymentsControllerWaiveSignupUrl,getAdminPaymentsControllerRemoveUserMethodUrl,getAdminPaymentsControllerGrantsUrl,getAdminPaymentsControllerGrantUrl,getAdminPaymentsControllerRevokeUrl}};
 export type VersionControllerGetResult = AxiosResponse<VersionControllerGet200>
 export type SetupControllerStatusResult = AxiosResponse<BootstrapSetupStatusSetupStatus>
 export type SetupControllerRequestRecoveryKeyResult = AxiosResponse<SetupControllerRequestRecoveryKey200>
@@ -10983,7 +14180,7 @@ export type AiAdminControllerUpdateConfigurationResult = AxiosResponse<AiAdminCo
 export type AiAdminControllerRetryResult = AxiosResponse<AiAdminControllerRetry200>
 export type AiAdminControllerRecommendationsResult = AxiosResponse<AiAdminControllerRecommendations200Item[]>
 export type AiAdminControllerRefreshUserRecommendationsResult = AxiosResponse<AiAdminControllerRefreshUserRecommendations200>
-export type AuthControllerRegisterResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>
+export type AuthControllerRegisterResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiAuthAuthServicePaymentPending>
 export type AuthControllerMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>
 export type AuthControllerUpdateMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>
 export type AuthControllerSetPasskeyRequiredResult = AxiosResponse<ApiAuthAuthServicePublicUser>
@@ -10991,7 +14188,7 @@ export type AuthControllerChangePasswordResult = AxiosResponse<AuthControllerCha
 export type AuthControllerDeleteMeResult = AxiosResponse<AuthControllerDeleteMe200>
 export type AuthControllerVerifyEmailResult = AxiosResponse<AuthControllerVerifyEmail200>
 export type AuthControllerResendVerificationResult = AxiosResponse<AuthControllerResendVerification200>
-export type AuthControllerLoginResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePasskeyRequired>
+export type AuthControllerLoginResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePaymentPending | ApiAuthAuthServicePasskeyRequired>
 export type AuthControllerListSessionsResult = AxiosResponse<ApiAuthAuthServicePublicSession[]>
 export type AuthControllerRevokeSessionResult = AxiosResponse<AuthControllerRevokeSession200>
 export type AuthControllerLogoutResult = AxiosResponse<AuthControllerLogout200>
@@ -11164,6 +14361,13 @@ export type AdminUsersControllerSetAvatarResult = AxiosResponse<unknown>
 export type AdminUsersControllerRemoveAvatarResult = AxiosResponse<ApiAdminUsersAdminUsersServiceAdminUser>
 export type AdminUsersControllerSetPasswordResult = AxiosResponse<void>
 export type AdminUsersControllerRevokeSessionsResult = AxiosResponse<AdminUsersControllerRevokeSessions200>
+export type AccessControllerMeResult = AxiosResponse<AccessControllerMe200>
+export type AccessControllerUnlockResult = AxiosResponse<AccessControllerUnlock200>
+export type AccessControllerLockResult = AxiosResponse<AccessControllerLock200>
+export type AdminAccessControllerOptionsResult = AxiosResponse<AdminAccessControllerOptions200>
+export type AdminAccessControllerGetResult = AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>
+export type AdminAccessControllerSaveResult = AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>
+export type AdminAccessControllerPreviewResult = AxiosResponse<AdminAccessControllerPreview200>
 export type NotificationsControllerListResult = AxiosResponse<NotificationsControllerList200>
 export type NotificationsControllerMarkReadResult = AxiosResponse<void>
 export type NotificationsControllerRemoveResult = AxiosResponse<void>
@@ -11195,6 +14399,8 @@ export type ChatControllerUnreadResult = AxiosResponse<ChatControllerUnread200>
 export type ChatControllerEncryptionStatusResult = AxiosResponse<ChatControllerEncryptionStatus200>
 export type ChatControllerRegisterMlsDeviceResult = AxiosResponse<ChatControllerRegisterMlsDevice201>
 export type ChatControllerMlsDevicesResult = AxiosResponse<ChatControllerMlsDevices200>
+export type ChatControllerChatHistoryBackupResult = AxiosResponse<ChatControllerChatHistoryBackup200>
+export type ChatControllerSaveChatHistoryBackupResult = AxiosResponse<ChatControllerSaveChatHistoryBackup200>
 export type ChatControllerApproveMlsDeviceResult = AxiosResponse<void>
 export type ChatControllerRevokeMlsDeviceResult = AxiosResponse<void>
 export type ChatControllerAddMlsKeyPackageResult = AxiosResponse<ChatControllerAddMlsKeyPackage201>
@@ -11202,6 +14408,8 @@ export type ChatControllerDeviceMlsKeyPackagesResult = AxiosResponse<ChatControl
 export type ChatControllerGetResult = AxiosResponse<ChatChatServiceChatConversation>
 export type ChatControllerRenameResult = AxiosResponse<ChatChatServiceChatConversation>
 export type ChatControllerDeleteConversationResult = AxiosResponse<void>
+export type ChatControllerDowngradeToPlaintextResult = AxiosResponse<ChatChatServiceChatConversation>
+export type ChatControllerUpgradeToEncryptedResult = AxiosResponse<ChatChatServiceChatConversation>
 export type ChatControllerMessagesResult = AxiosResponse<ChatControllerMessages200>
 export type ChatControllerSendResult = AxiosResponse<ChatChatServiceChatMessage>
 export type ChatControllerMlsKeyPackagesResult = AxiosResponse<ChatControllerMlsKeyPackages200>
@@ -11253,3 +14461,80 @@ export type AdminDatabaseTransferControllerRestoreWritesResult = AxiosResponse<A
 export type OverviewControllerGetResult = AxiosResponse<OverviewControllerGet200>
 export type OverviewControllerActivityListResult = AxiosResponse<OverviewControllerActivityList200>
 export type SentryControllerGetConfigResult = AxiosResponse<SentrySentryServiceSentryAppConfig>
+export type AdminMailControllerStatusResult = AxiosResponse<AdminMailControllerStatus200>
+export type AdminMailControllerGetSettingsResult = AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>
+export type AdminMailControllerUpdateSettingsResult = AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>
+export type AdminMailControllerDiagnosticsResult = AxiosResponse<AdminMailControllerDiagnostics200>
+export type AdminMailControllerListDomainsResult = AxiosResponse<AdminMailControllerListDomains200Item[]>
+export type AdminMailControllerCreateDomainResult = AxiosResponse<AdminMailControllerCreateDomain200>
+export type AdminMailControllerUpdateDomainResult = AxiosResponse<AdminMailControllerUpdateDomain200>
+export type AdminMailControllerRemoveDomainResult = AxiosResponse<AdminMailControllerRemoveDomain200>
+export type AdminMailControllerVerifyDomainResult = AxiosResponse<AdminMailControllerVerifyDomain200>
+export type AdminMailControllerRotateDkimResult = AxiosResponse<AdminMailControllerRotateDkim200>
+export type AdminMailControllerListMailboxesResult = AxiosResponse<AdminMailControllerListMailboxes200Item[]>
+export type AdminMailControllerCreateMailboxResult = AxiosResponse<EntitiesMailboxEntityMailbox>
+export type AdminMailControllerGenerateUserAddressesResult = AxiosResponse<AdminMailControllerGenerateUserAddresses200>
+export type AdminMailControllerUpdateMailboxResult = AxiosResponse<EntitiesMailboxEntityMailbox>
+export type AdminMailControllerRemoveMailboxResult = AxiosResponse<AdminMailControllerRemoveMailbox200>
+export type AdminMailControllerListMessagesResult = AxiosResponse<AdminMailControllerListMessages200>
+export type AdminMailControllerGetMessageResult = AxiosResponse<AdminMailControllerGetMessage200>
+export type AdminMailControllerRemoveMessageResult = AxiosResponse<AdminMailControllerRemoveMessage200>
+export type AdminMailControllerAttachmentResult = AxiosResponse<AdminMailControllerAttachment200>
+export type AdminMailControllerSendResult = AxiosResponse<AdminMailControllerSend200>
+export type AdminMailControllerListTemplatesResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate[]>
+export type AdminMailControllerGetTemplateResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate>
+export type AdminMailControllerSaveTemplateResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate>
+export type AdminMailControllerRemoveTemplateResult = AxiosResponse<AdminMailControllerRemoveTemplate200>
+export type AdminMailControllerPreviewTemplateResult = AxiosResponse<AdminMailControllerPreviewTemplate200>
+export type AdminMailControllerTestTemplateResult = AxiosResponse<AdminMailControllerTestTemplate200>
+export type UserMailControllerMeResult = AxiosResponse<UserMailControllerMe200>
+export type UserMailControllerListResult = AxiosResponse<UserMailControllerList200>
+export type UserMailControllerGetResult = AxiosResponse<UserMailControllerGet200>
+export type UserMailControllerRemoveResult = AxiosResponse<UserMailControllerRemove200>
+export type UserMailControllerAttachmentResult = AxiosResponse<UserMailControllerAttachment200>
+export type PaymentsControllerStatusResult = AxiosResponse<PaymentsControllerStatus200>
+export type PaymentsControllerSignupSetupResult = AxiosResponse<PaymentsControllerSignupSetup200>
+export type PaymentsControllerSignupCompleteResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiPaymentsPaymentsServiceSignupAction>
+export type PaymentsControllerWebhookResult = AxiosResponse<PaymentsControllerWebhook200>
+export type PaymentsControllerMeResult = AxiosResponse<PaymentsControllerMe200>
+export type PaymentsControllerPlansResult = AxiosResponse<PaymentsControllerPlans200Item[]>
+export type PaymentsControllerOffersResult = AxiosResponse<PaymentsControllerOffers200>
+export type PaymentsControllerAccessResult = AxiosResponse<PaymentsControllerAccess200>
+export type PaymentsControllerQuoteResult = AxiosResponse<ApiPaymentsPaymentsServiceQuote>
+export type PaymentsControllerCheckoutResult = AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>
+export type PaymentsControllerReceiptResult = AxiosResponse<PaymentsControllerReceipt200>
+export type PaymentsControllerConfirmResult = AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>
+export type PaymentsControllerBeginMethodResult = AxiosResponse<PaymentsControllerBeginMethod200>
+export type PaymentsControllerAddMethodResult = AxiosResponse<PaymentsControllerAddMethod200>
+export type PaymentsControllerMakeDefaultResult = AxiosResponse<PaymentsControllerMakeDefault200>
+export type PaymentsControllerRemoveMethodResult = AxiosResponse<PaymentsControllerRemoveMethod200>
+export type PaymentsControllerCancelResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>
+export type PaymentsControllerResumeResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>
+export type AdminPaymentsControllerCurrenciesResult = AxiosResponse<ApiPaymentsCurrenciesCurrencyInfo[]>
+export type AdminPaymentsControllerGetConfigResult = AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>
+export type AdminPaymentsControllerPutConfigResult = AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>
+export type AdminPaymentsControllerTestResult = AxiosResponse<AdminPaymentsControllerTest200>
+export type AdminPaymentsControllerStatsResult = AxiosResponse<AdminPaymentsControllerStats200>
+export type AdminPaymentsControllerScopeSearchResult = AxiosResponse<AdminPaymentsControllerScopeSearch200>
+export type AdminPaymentsControllerProductsResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct[]>
+export type AdminPaymentsControllerCreateProductResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>
+export type AdminPaymentsControllerUpdateProductResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>
+export type AdminPaymentsControllerDeleteProductResult = AxiosResponse<AdminPaymentsControllerDeleteProduct200>
+export type AdminPaymentsControllerPlansResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan[]>
+export type AdminPaymentsControllerCreatePlanResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>
+export type AdminPaymentsControllerUpdatePlanResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>
+export type AdminPaymentsControllerDeletePlanResult = AxiosResponse<AdminPaymentsControllerDeletePlan200>
+export type AdminPaymentsControllerCouponsResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon[]>
+export type AdminPaymentsControllerCreateCouponResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>
+export type AdminPaymentsControllerUpdateCouponResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>
+export type AdminPaymentsControllerDeleteCouponResult = AxiosResponse<AdminPaymentsControllerDeleteCoupon200>
+export type AdminPaymentsControllerOrdersResult = AxiosResponse<AdminPaymentsControllerOrders200>
+export type AdminPaymentsControllerRefundResult = AxiosResponse<EntitiesPaymentOrderEntityPaymentOrder>
+export type AdminPaymentsControllerSubscriptionsResult = AxiosResponse<AdminPaymentsControllerSubscriptions200Item[]>
+export type AdminPaymentsControllerCancelSubscriptionResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>
+export type AdminPaymentsControllerUserOverviewResult = AxiosResponse<AdminPaymentsControllerUserOverview200>
+export type AdminPaymentsControllerWaiveSignupResult = AxiosResponse<AdminPaymentsControllerWaiveSignup200>
+export type AdminPaymentsControllerRemoveUserMethodResult = AxiosResponse<AdminPaymentsControllerRemoveUserMethod200>
+export type AdminPaymentsControllerGrantsResult = AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement[]>
+export type AdminPaymentsControllerGrantResult = AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement>
+export type AdminPaymentsControllerRevokeResult = AxiosResponse<AdminPaymentsControllerRevoke200>

@@ -1,6 +1,14 @@
 export const routes = [
     {
         "method": "post",
+        "path": "/admin/mail/mailboxes/generate-user-addresses",
+        "operationId": "adminMailControllerGenerateUserAddresses",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/admin/database-transfer/restore-writes",
         "operationId": "adminDatabaseTransferControllerRestoreWrites",
         "pathParameters": [],
@@ -153,6 +161,14 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/payments/subscriptions",
+        "operationId": "adminPaymentsControllerSubscriptions",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
+    },
+    {
+        "method": "get",
         "path": "/internal/ai/library-context",
         "operationId": "aiControllerLibraryContext",
         "pathParameters": [],
@@ -174,6 +190,14 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/scope-search",
+        "operationId": "adminPaymentsControllerScopeSearch",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
     },
     {
         "method": "get",
@@ -208,6 +232,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/admin/payments/config/test",
+        "operationId": "adminPaymentsControllerTest",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "put",
         "path": "/admin/indexer/concurrency",
         "operationId": "adminIndexerControllerSetConcurrency",
@@ -219,6 +251,14 @@ export const routes = [
         "method": "get",
         "path": "/notifications/push/status",
         "operationId": "notificationsControllerPushStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/currencies",
+        "operationId": "adminPaymentsControllerCurrencies",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": true
@@ -272,6 +312,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/payments/signup/complete",
+        "operationId": "paymentsControllerSignupComplete",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/requests/images/discogs",
         "operationId": "requestImagesControllerDiscogs",
@@ -320,6 +368,22 @@ export const routes = [
         "hasQuery": true
     },
     {
+        "method": "get",
+        "path": "/admin/payments/products",
+        "operationId": "adminPaymentsControllerProducts",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/products",
+        "operationId": "adminPaymentsControllerCreateProduct",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/setup/recovery/request",
         "operationId": "setupControllerRequestRecoveryKey",
@@ -357,6 +421,38 @@ export const routes = [
         "operationId": "chatControllerEncryptionStatus",
         "pathParameters": [],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/diagnostics",
+        "operationId": "adminMailControllerDiagnostics",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/methods/setup",
+        "operationId": "paymentsControllerBeginMethod",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/coupons",
+        "operationId": "adminPaymentsControllerCoupons",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/coupons",
+        "operationId": "adminPaymentsControllerCreateCoupon",
+        "pathParameters": [],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -422,6 +518,38 @@ export const routes = [
         "pathParameters": [],
         "hasBody": true,
         "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/signup/setup",
+        "operationId": "paymentsControllerSignupSetup",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/config",
+        "operationId": "adminPaymentsControllerGetConfig",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/payments/config",
+        "operationId": "adminPaymentsControllerPutConfig",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/orders",
+        "operationId": "adminPaymentsControllerOrders",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
     },
     {
         "method": "get",
@@ -505,6 +633,14 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/admin/access/options",
+        "operationId": "adminAccessControllerOptions",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/notifications/config",
         "operationId": "notificationsControllerConfig",
         "pathParameters": [],
@@ -515,6 +651,54 @@ export const routes = [
         "method": "post",
         "path": "/admin/backups/upload",
         "operationId": "adminBackupsControllerUpload",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/mailboxes",
+        "operationId": "adminMailControllerListMailboxes",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/mailboxes",
+        "operationId": "adminMailControllerCreateMailbox",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/templates",
+        "operationId": "adminMailControllerListTemplates",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/stats",
+        "operationId": "adminPaymentsControllerStats",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/plans",
+        "operationId": "adminPaymentsControllerPlans",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/plans",
+        "operationId": "adminPaymentsControllerCreatePlan",
         "pathParameters": [],
         "hasBody": true,
         "hasQuery": false
@@ -584,12 +768,52 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/chat/history-backup",
+        "operationId": "chatControllerChatHistoryBackup",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/chat/history-backup",
+        "operationId": "chatControllerSaveChatHistoryBackup",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/admin/updates/apply",
         "operationId": "adminUpdatesControllerApply",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/settings",
+        "operationId": "adminMailControllerGetSettings",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/mail/settings",
+        "operationId": "adminMailControllerUpdateSettings",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/messages",
+        "operationId": "adminMailControllerListMessages",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
     },
     {
         "method": "post",
@@ -619,6 +843,22 @@ export const routes = [
         "method": "post",
         "path": "/chat/conversations",
         "operationId": "chatControllerStart",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/domains",
+        "operationId": "adminMailControllerListDomains",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/domains",
+        "operationId": "adminMailControllerCreateDomain",
         "pathParameters": [],
         "hasBody": true,
         "hasQuery": false
@@ -656,6 +896,22 @@ export const routes = [
         "hasQuery": true
     },
     {
+        "method": "get",
+        "path": "/admin/mail/status",
+        "operationId": "adminMailControllerStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/checkout",
+        "operationId": "paymentsControllerCheckout",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/auth/me/password",
         "operationId": "authControllerChangePassword",
@@ -677,6 +933,14 @@ export const routes = [
         "operationId": "indexerApiControllerGetSettings",
         "pathParameters": [],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/methods",
+        "operationId": "paymentsControllerAddMethod",
+        "pathParameters": [],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -710,6 +974,30 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": true
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/send",
+        "operationId": "adminMailControllerSend",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/payments/status",
+        "operationId": "paymentsControllerStatus",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/access",
+        "operationId": "paymentsControllerAccess",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
     },
     {
         "method": "get",
@@ -800,6 +1088,22 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/payments/plans",
+        "operationId": "paymentsControllerPlans",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/quote",
+        "operationId": "paymentsControllerQuote",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/auth/register",
         "operationId": "authControllerRegister",
@@ -856,6 +1160,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/access/unlock",
+        "operationId": "accessControllerUnlock",
+        "pathParameters": [],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/notifications",
         "operationId": "notificationsControllerList",
@@ -902,6 +1214,14 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/mail/messages",
+        "operationId": "userMailControllerList",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": true
     },
     {
         "method": "get",
@@ -1008,6 +1328,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/access/lock",
+        "operationId": "accessControllerLock",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/chat/unread",
         "operationId": "chatControllerUnread",
@@ -1040,6 +1368,14 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/payments/me",
+        "operationId": "paymentsControllerMe",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/setup/flow",
         "operationId": "setupControllerFlow",
@@ -1059,6 +1395,14 @@ export const routes = [
         "method": "get",
         "path": "/media/home",
         "operationId": "mediaHomeControllerGetHome",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/access/me",
+        "operationId": "accessControllerMe",
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": false
@@ -1161,6 +1505,14 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/mail/me",
+        "operationId": "userMailControllerMe",
+        "pathParameters": [],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/issues",
         "operationId": "issueReportsControllerList",
         "pathParameters": [],
@@ -1190,6 +1542,16 @@ export const routes = [
         "pathParameters": [],
         "hasBody": false,
         "hasQuery": true
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/subscriptions/{subscriptionId}/cancel",
+        "operationId": "adminPaymentsControllerCancelSubscription",
+        "pathParameters": [
+            "subscriptionId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
     },
     {
         "method": "get",
@@ -1233,6 +1595,26 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/payments/subscriptions/{subscriptionId}/cancel",
+        "operationId": "paymentsControllerCancel",
+        "pathParameters": [
+            "subscriptionId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/subscriptions/{subscriptionId}/resume",
+        "operationId": "paymentsControllerResume",
+        "pathParameters": [
+            "subscriptionId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/playback/guide-channels/{id}/playback-info",
         "operationId": "playbackControllerChannelPlaybackInfo",
         "pathParameters": [
@@ -1247,6 +1629,16 @@ export const routes = [
         "operationId": "adminIndexerControllerCancelActive",
         "pathParameters": [
             "queue"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/users/{userId}/waive-signup",
+        "operationId": "adminPaymentsControllerWaiveSignup",
+        "pathParameters": [
+            "userId"
         ],
         "hasBody": false,
         "hasQuery": false
@@ -1303,6 +1695,26 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/admin/payments/orders/{orderId}/refund",
+        "operationId": "adminPaymentsControllerRefund",
+        "pathParameters": [
+            "orderId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "patch",
+        "path": "/admin/payments/grants/{grantId}/revoke",
+        "operationId": "adminPaymentsControllerRevoke",
+        "pathParameters": [
+            "grantId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/admin/indexer/libraries/{id}/segments",
         "operationId": "adminIndexerControllerQueueSegments",
         "pathParameters": [
@@ -1352,6 +1764,26 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "get",
+        "path": "/admin/payments/users/{userId}/grants",
+        "operationId": "adminPaymentsControllerGrants",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/payments/users/{userId}/grants",
+        "operationId": "adminPaymentsControllerGrant",
+        "pathParameters": [
+            "userId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "post",
         "path": "/playback/samples/{id}/playback-info",
         "operationId": "playbackControllerPlaybackInfo",
@@ -1387,6 +1819,56 @@ export const routes = [
         "operationId": "networkSharesControllerReconnect",
         "pathParameters": [
             "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/domains/{id}/rotate-dkim",
+        "operationId": "adminMailControllerRotateDkim",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/admin/mail/templates/{name}/preview",
+        "operationId": "adminMailControllerPreviewTemplate",
+        "pathParameters": [
+            "name"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/methods/{methodId}/default",
+        "operationId": "paymentsControllerMakeDefault",
+        "pathParameters": [
+            "methodId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/payments/products/{productId}",
+        "operationId": "adminPaymentsControllerUpdateProduct",
+        "pathParameters": [
+            "productId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/payments/products/{productId}",
+        "operationId": "adminPaymentsControllerDeleteProduct",
+        "pathParameters": [
+            "productId"
         ],
         "hasBody": false,
         "hasQuery": false
@@ -1429,6 +1911,56 @@ export const routes = [
             "id"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/chat/conversations/{id}/downgrade",
+        "operationId": "chatControllerDowngradeToPlaintext",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/payments/orders/{orderId}/receipt",
+        "operationId": "paymentsControllerReceipt",
+        "pathParameters": [
+            "orderId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/payments/orders/{orderId}/confirm",
+        "operationId": "paymentsControllerConfirm",
+        "pathParameters": [
+            "orderId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/payments/coupons/{couponId}",
+        "operationId": "adminPaymentsControllerUpdateCoupon",
+        "pathParameters": [
+            "couponId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/payments/coupons/{couponId}",
+        "operationId": "adminPaymentsControllerDeleteCoupon",
+        "pathParameters": [
+            "couponId"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -1503,6 +2035,16 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/admin/mail/templates/{name}/test",
+        "operationId": "adminMailControllerTestTemplate",
+        "pathParameters": [
+            "name"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/admin/scheduled-tasks/{id}/stop",
         "operationId": "adminScheduledTasksControllerStop",
         "pathParameters": [
@@ -1533,12 +2075,32 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/admin/access/users/{id}/preview",
+        "operationId": "adminAccessControllerPreview",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/chat/devices/{deviceId}/approve",
         "operationId": "chatControllerApproveMlsDevice",
         "pathParameters": [
             "deviceId"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
+        "path": "/chat/conversations/{id}/upgrade",
+        "operationId": "chatControllerUpgradeToEncrypted",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -1583,6 +2145,16 @@ export const routes = [
     },
     {
         "method": "post",
+        "path": "/admin/mail/domains/{id}/verify",
+        "operationId": "adminMailControllerVerifyDomain",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "post",
         "path": "/admin/media/items/{id}/images",
         "operationId": "adminMediaControllerAddImage",
         "pathParameters": [
@@ -1597,6 +2169,36 @@ export const routes = [
         "operationId": "playlistsControllerContaining",
         "pathParameters": [
             "itemId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/payments/plans/{planId}",
+        "operationId": "adminPaymentsControllerUpdatePlan",
+        "pathParameters": [
+            "planId"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/payments/plans/{planId}",
+        "operationId": "adminPaymentsControllerDeletePlan",
+        "pathParameters": [
+            "planId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/payments/users/{userId}",
+        "operationId": "adminPaymentsControllerUserOverview",
+        "pathParameters": [
+            "userId"
         ],
         "hasBody": false,
         "hasQuery": false
@@ -1672,6 +2274,16 @@ export const routes = [
         "hasQuery": false
     },
     {
+        "method": "post",
+        "path": "/payments/webhooks/{provider}",
+        "operationId": "paymentsControllerWebhook",
+        "pathParameters": [
+            "provider"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
         "method": "get",
         "path": "/admin/plugins/{id}/settings",
         "operationId": "pluginsControllerPluginSettingsView",
@@ -1689,6 +2301,46 @@ export const routes = [
             "id"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/templates/{name}",
+        "operationId": "adminMailControllerGetTemplate",
+        "pathParameters": [
+            "name"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/mail/templates/{name}",
+        "operationId": "adminMailControllerSaveTemplate",
+        "pathParameters": [
+            "name"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/mail/templates/{name}",
+        "operationId": "adminMailControllerRemoveTemplate",
+        "pathParameters": [
+            "name"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/payments/methods/{methodId}",
+        "operationId": "paymentsControllerRemoveMethod",
+        "pathParameters": [
+            "methodId"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -1913,6 +2565,26 @@ export const routes = [
     },
     {
         "method": "patch",
+        "path": "/admin/mail/mailboxes/{id}",
+        "operationId": "adminMailControllerUpdateMailbox",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/mail/mailboxes/{id}",
+        "operationId": "adminMailControllerRemoveMailbox",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "patch",
         "path": "/admin/guide/sources/{id}",
         "operationId": "adminGuideControllerUpdateSource",
         "pathParameters": [
@@ -1959,6 +2631,36 @@ export const routes = [
             "id"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/messages/{id}",
+        "operationId": "adminMailControllerGetMessage",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/mail/messages/{id}",
+        "operationId": "adminMailControllerRemoveMessage",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/payments/offers/{itemId}",
+        "operationId": "paymentsControllerOffers",
+        "pathParameters": [
+            "itemId"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {
@@ -2009,6 +2711,26 @@ export const routes = [
             "id"
         ],
         "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/access/users/{id}",
+        "operationId": "adminAccessControllerGet",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "put",
+        "path": "/admin/access/users/{id}",
+        "operationId": "adminAccessControllerSave",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
         "hasQuery": false
     },
     {
@@ -2070,6 +2792,26 @@ export const routes = [
         ],
         "hasBody": false,
         "hasQuery": true
+    },
+    {
+        "method": "patch",
+        "path": "/admin/mail/domains/{id}",
+        "operationId": "adminMailControllerUpdateDomain",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/mail/domains/{id}",
+        "operationId": "adminMailControllerRemoveDomain",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
     },
     {
         "method": "get",
@@ -2293,6 +3035,26 @@ export const routes = [
     },
     {
         "method": "get",
+        "path": "/mail/messages/{id}",
+        "operationId": "userMailControllerGet",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/mail/messages/{id}",
+        "operationId": "userMailControllerRemove",
+        "pathParameters": [
+            "id"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
         "path": "/media/people/{id}",
         "operationId": "mediaHomeControllerPerson",
         "pathParameters": [
@@ -2481,6 +3243,39 @@ export const routes = [
             "welcomeId"
         ],
         "hasBody": true,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/admin/mail/messages/{id}/attachments/{attachmentId}",
+        "operationId": "adminMailControllerAttachment",
+        "pathParameters": [
+            "id",
+            "attachmentId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "delete",
+        "path": "/admin/payments/users/{userId}/methods/{methodId}",
+        "operationId": "adminPaymentsControllerRemoveUserMethod",
+        "pathParameters": [
+            "userId",
+            "methodId"
+        ],
+        "hasBody": false,
+        "hasQuery": false
+    },
+    {
+        "method": "get",
+        "path": "/mail/messages/{id}/attachments/{attachmentId}",
+        "operationId": "userMailControllerAttachment",
+        "pathParameters": [
+            "id",
+            "attachmentId"
+        ],
+        "hasBody": false,
         "hasQuery": false
     },
     {

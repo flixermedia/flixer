@@ -770,6 +770,12 @@ export declare const UpdateAdminUserRequestRole: {
     readonly admin: 'admin';
     readonly user: 'user';
 };
+export type UpdateAdminUserRequestOriginalAccess = typeof UpdateAdminUserRequestOriginalAccess[keyof typeof UpdateAdminUserRequestOriginalAccess];
+export declare const UpdateAdminUserRequestOriginalAccess: {
+    readonly inherit: 'inherit';
+    readonly allow: 'allow';
+    readonly deny: 'deny';
+};
 export interface UpdateAdminUserRequest {
     /**
        * @minLength 1
@@ -780,6 +786,7 @@ export interface UpdateAdminUserRequest {
     email?: string;
     role?: UpdateAdminUserRequestRole;
     disabled?: boolean;
+    originalAccess?: UpdateAdminUserRequestOriginalAccess;
 }
 export interface SetUserPasswordRequest {
     /**
@@ -787,6 +794,13 @@ export interface SetUserPasswordRequest {
        * @maxLength 128
        */
     password: string;
+}
+export interface UnlockRequest {
+    /**
+       * @minLength 1
+       * @maxLength 8
+       */
+    pin: string;
 }
 export interface MarkReadRequest {
     /** @maxItems 100 */
@@ -910,6 +924,13 @@ export interface RegisterChatMlsDeviceRequest {
        * @maxLength 512
        */
     pairingPublicKey: string;
+}
+export interface ChatMlsHistoryBackupRequest {
+    /**
+       * @minLength 1
+       * @maxLength 29000000
+       */
+    backup: string;
 }
 export interface ApproveChatMlsDeviceRequest {
     /**
@@ -1098,6 +1119,185 @@ export interface CreateFriendInviteRequest {
        */
     expiresInHours?: number;
 }
+export type UpdateMailSettingsRequestUserAddressMode = typeof UpdateMailSettingsRequestUserAddressMode[keyof typeof UpdateMailSettingsRequestUserAddressMode];
+export declare const UpdateMailSettingsRequestUserAddressMode: {
+    readonly username: 'username';
+    readonly random: 'random';
+};
+export interface UpdateMailSettingsRequest {
+    inboundEnabled?: boolean;
+    /**
+       * @minimum 1
+       * @maximum 65535
+       */
+    inboundPort?: number;
+    /**
+       * @maxLength 253
+       * @nullable
+       */
+    hostname?: string | null;
+    /**
+       * @minimum 1
+       * @maximum 50
+       */
+    maxMessageMb?: number;
+    outboundEnabled?: boolean;
+    relayFallback?: boolean;
+    /**
+       * @maxLength 320
+       * @nullable
+       */
+    noreplyAddress?: string | null;
+    /** @maxLength 100 */
+    noreplyName?: string;
+    userAddressesEnabled?: boolean;
+    userAddressMode?: UpdateMailSettingsRequestUserAddressMode;
+    /**
+       * @maxLength 253
+       * @nullable
+       */
+    userAddressDomain?: string | null;
+}
+export interface CreateMailDomainRequest {
+    /**
+       * @minLength 3
+       * @maxLength 253
+       */
+    domain: string;
+    allowSubdomains?: boolean;
+}
+export interface UpdateMailDomainRequest {
+    allowSubdomains?: boolean;
+}
+export interface CreateMailboxRequest {
+    /**
+       * @minLength 3
+       * @maxLength 320
+       */
+    address: string;
+    /**
+       * @maxLength 100
+       * @nullable
+       */
+    displayName?: string | null;
+}
+export interface UpdateMailboxRequest {
+    /**
+       * @maxLength 100
+       * @nullable
+       */
+    displayName?: string | null;
+    enabled?: boolean;
+}
+export interface SendMailRequest {
+    /**
+       * @minLength 3
+       * @maxLength 320
+       */
+    from: string;
+    /** @maxItems 20 */
+    to: string[];
+    /**
+       * @minLength 1
+       * @maxLength 300
+       */
+    subject: string;
+    /**
+       * @minLength 1
+       * @maxLength 100000
+       */
+    text: string;
+    /**
+       * @maxLength 400000
+       * @nullable
+       */
+    html?: string | null;
+    /**
+       * @maxLength 998
+       * @nullable
+       */
+    inReplyTo?: string | null;
+}
+export interface SaveMailTemplateRequest {
+    /** @maxLength 100 */
+    label?: string;
+    /** @maxLength 300 */
+    description?: string;
+    /**
+       * @minLength 1
+       * @maxLength 200
+       */
+    subject: string;
+    /**
+       * @minLength 1
+       * @maxLength 262144
+       */
+    html: string;
+    /**
+       * @minLength 1
+       * @maxLength 65536
+       */
+    text: string;
+}
+export type PreviewMailTemplateRequestVariables = {
+    [key: string]: unknown;
+};
+export interface PreviewMailTemplateRequest {
+    /**
+       * @minLength 1
+       * @maxLength 200
+       */
+    subject: string;
+    /**
+       * @minLength 1
+       * @maxLength 262144
+       */
+    html: string;
+    /**
+       * @minLength 1
+       * @maxLength 65536
+       */
+    text: string;
+    variables?: PreviewMailTemplateRequestVariables;
+}
+export interface SendTestMailRequest {
+    /**
+       * @minLength 1
+       * @maxLength 320
+       */
+    to: string;
+}
+export interface SignupPaymentTokenRequest {
+    /**
+       * @minLength 1
+       * @maxLength 1000
+       */
+    token: string;
+}
+export interface SignupPaymentRequest {
+    /** @maxLength 2000 */
+    setupToken?: string;
+    /** @maxLength 200 */
+    setupIntentId?: string;
+    /** @maxLength 500 */
+    sourceId?: string;
+    /** @maxLength 500 */
+    verificationToken?: string;
+    /** @maxLength 64 */
+    couponCode?: string;
+    /** @maxLength 3 */
+    currency?: string;
+}
+export interface CompleteSignupRequest {
+    /**
+       * @minLength 1
+       * @maxLength 1000
+       */
+    token: string;
+    payment?: SignupPaymentRequest;
+    /** @maxLength 64 */
+    orderId?: string;
+}
 export interface BootstrapSetupStatusSetupStatus {
     state: 'not_started' | 'in_progress' | 'completed' | 'recovery_required';
     mode: 'bootstrap' | 'ready';
@@ -1173,6 +1373,10 @@ export interface ApiAuthAuthServiceAuthResult {
 export interface ApiAuthAuthServiceVerificationPending {
     verificationRequired: true;
     email: string;
+}
+export interface ApiAuthAuthServicePaymentPending {
+    paymentRequired: true;
+    token: string;
 }
 export interface ApiAuthAuthServicePublicUser {
     id: string;
@@ -1295,7 +1499,7 @@ export interface ApiGuideGuideServicePublicGuideSource {
     lastError: null | string;
 }
 export interface JobsJobSchedulerAdminTaskRunStatus {
-    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
     name: string;
     category: string;
     description: string;
@@ -1900,6 +2104,8 @@ export interface ApiMediaMediaHomeServiceCard {
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 }
 export interface ApiMediaMediaHomeServiceHomeCard {
     id: string;
@@ -1910,6 +2116,8 @@ export interface ApiMediaMediaHomeServiceHomeCard {
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 }
 export interface ApiMediaMediaHomeServicePersonProfileView {
     description: null | string;
@@ -1991,12 +2199,33 @@ export interface ApiAdminUsersAdminUsersServiceAdminUser {
     emailVerified: boolean;
     role: 'admin' | 'user';
     disabled: boolean;
+    originalAccess: 'inherit' | 'allow' | 'deny';
     passkeys: number;
     activeSessions: number;
     lastActiveAt: null | string;
     createdAt: string;
     avatarUrl: null | string;
     current: boolean;
+}
+export interface EntitiesUserAccessPolicyEntityScheduleWindow {
+    days: number[];
+    from: string;
+    to: string;
+}
+export interface EntitiesUserAccessPolicyEntityAccessSchedule {
+    timezone: string;
+    windows: EntitiesUserAccessPolicyEntityScheduleWindow[];
+}
+export interface ApiAccessMediaAccessServiceAccessPolicyDto {
+    libraryMode: 'all' | 'selected';
+    libraryIds: string[];
+    maxAge: null | number;
+    blockUnrated: boolean;
+    allowedTags: string[];
+    blockedTags: string[];
+    schedule: null | EntitiesUserAccessPolicyEntityAccessSchedule;
+    requireRequestApproval: boolean;
+    hasPin: boolean;
 }
 export interface ApiSocialSocialItemsSocialItem {
     id: string;
@@ -2066,6 +2295,7 @@ export interface ChatChatServiceChatMessage {
     sequence: string;
     conversationId: string;
     kind: 'text' | 'system';
+    encrypted: boolean;
     body: string;
     sender: null | ChatChatServiceChatPerson;
     createdAt: string;
@@ -2073,6 +2303,7 @@ export interface ChatChatServiceChatMessage {
 export interface ChatChatServiceChatConversation {
     id: string;
     kind: 'direct' | 'group';
+    encryptionMode: 'encrypted' | 'plaintext';
     name: null | string;
     supportChatOpen: null | false | true;
     members: ChatChatServiceChatMember[];
@@ -2231,6 +2462,243 @@ export interface SentrySentryServiceSentryAppConfig {
     enabled: boolean;
     dsn: null | string;
 }
+export interface ApiMailMailSettingsServiceMailServerSettingsView {
+    inboundEnabled: boolean;
+    inboundPort: number;
+    hostname: null | string;
+    maxMessageMb: number;
+    outboundEnabled: boolean;
+    relayFallback: boolean;
+    noreplyAddress: null | string;
+    noreplyName: string;
+    userAddressesEnabled: boolean;
+    userAddressMode: 'username' | 'random';
+    userAddressDomain: null | string;
+}
+export interface ApiMailMailDomainServiceDnsRecord {
+    purpose: 'ownership' | 'mx' | 'spf' | 'dkim' | 'dmarc';
+    type: 'TXT' | 'MX';
+    name: string;
+    value: string;
+    priority?: number;
+    required: boolean;
+    note: string;
+}
+export interface EntitiesMailboxEntityMailbox {
+    id: string;
+    address: string;
+    kind: 'user' | 'system' | 'inbox';
+    displayName: null | string;
+    userId: null | string;
+    enabled: boolean;
+    createdAt: string;
+}
+export interface EntitiesMailMessageEntityMailAttachmentInfo {
+    id: string;
+    filename: string;
+    contentType: string;
+    size: number;
+}
+export interface ApiMailMailTemplateServiceMailTemplate {
+    name: string;
+    label: string;
+    description: string;
+    subject: string;
+    html: string;
+    text: string;
+    builtin: boolean;
+    customized: boolean;
+    variables: string[];
+    updatedAt: null | string;
+}
+export interface ApiPaymentsPaymentTypesTaxRate {
+    name: string;
+    percent: number;
+}
+export interface ApiPaymentsPaymentTypesPrice {
+    currency: string;
+    amountMinor: number;
+}
+export interface ApiPaymentsPaymentTypesContentScope {
+    type: 'kind' | 'all' | 'item' | 'artist';
+    ref: null | string;
+    label?: string;
+}
+export interface ApiPaymentsPaymentsServiceSignupAction {
+    requiresAction: true;
+    orderId: string;
+    clientSecret: string;
+}
+export interface ApiPaymentsEntitlementServiceLockState {
+    locked: boolean;
+    rentalEndsAt?: null | string;
+}
+export interface ApiPaymentsPaymentTypesTotals {
+    subtotalMinor: number;
+    discountMinor: number;
+    taxMinor: number;
+    totalMinor: number;
+}
+export type ApiPaymentsPaymentsServiceQuoteRecurring = {
+    amountMinor: number;
+    interval: string;
+} | null;
+export interface ApiPaymentsPaymentsServiceQuote {
+    kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+    description: string;
+    currency: string;
+    totals: ApiPaymentsPaymentTypesTotals;
+    couponCode: null | string;
+    productId: null | string;
+    planId: null | string;
+    trialDays: number;
+    recurring: ApiPaymentsPaymentsServiceQuoteRecurring;
+}
+export interface ApiPaymentsPaymentsServiceCheckoutResult {
+    status: 'failed' | 'requires_action' | 'paid';
+    orderId: string;
+    clientSecret?: string;
+    error?: string;
+}
+export interface EntitiesPaymentSubscriptionEntityPaymentSubscription {
+    id: string;
+    userId: string;
+    planId: string;
+    status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+    currency: string;
+    amountMinor: number;
+    periodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    failedAttempts: number;
+    nextAttemptAt: null | string;
+    graceUntil: null | string;
+    canceledAt: null | string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface ApiPaymentsCurrenciesCurrencyInfo {
+    code: string;
+    name: string;
+    digits: number;
+    square: boolean;
+}
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigStripe = {
+    publishableKey: string;
+} & {
+    secretKey: string;
+    webhookSecret: string;
+};
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigSquare = ({
+    environment: 'sandbox' | 'production';
+    applicationId: string;
+    locationId: string;
+    webhookUrl: string;
+}) & {
+    accessToken: string;
+    signatureKey: string;
+};
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigRegistration = {
+    enabled: boolean;
+    mode: 'one_time' | 'subscription';
+    prices: ApiPaymentsPaymentTypesPrice[];
+    planId: null | string;
+    unlocks: 'none' | 'all' | 'scopes';
+    scopes: ApiPaymentsPaymentTypesContentScope[];
+};
+export type ApiPaymentsPaymentConfigServiceAdminPaymentConfigTax = {
+    enabled: boolean;
+    inclusive: boolean;
+    rates: ApiPaymentsPaymentTypesTaxRate[];
+};
+export interface ApiPaymentsPaymentConfigServiceAdminPaymentConfig {
+    stripe: ApiPaymentsPaymentConfigServiceAdminPaymentConfigStripe;
+    square: ApiPaymentsPaymentConfigServiceAdminPaymentConfigSquare;
+    enabled: boolean;
+    provider: null | 'square' | 'stripe';
+    currency: string;
+    currencies: string[];
+    graceDays: number;
+    enabledAt: null | string;
+    grandfatherExisting: boolean;
+    registration: ApiPaymentsPaymentConfigServiceAdminPaymentConfigRegistration;
+    tax: ApiPaymentsPaymentConfigServiceAdminPaymentConfigTax;
+}
+export interface EntitiesPaymentProductEntityPaymentProduct {
+    id: string;
+    name: string;
+    description: null | string;
+    kind: 'buy' | 'rent';
+    scope: ApiPaymentsPaymentTypesContentScope;
+    prices: ApiPaymentsPaymentTypesPrice[];
+    rentalHours: null | number;
+    rentalStart: 'purchase' | 'first_play';
+    active: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface EntitiesPaymentPlanEntityPaymentPlan {
+    id: string;
+    name: string;
+    description: null | string;
+    interval: 'year' | 'month';
+    prices: ApiPaymentsPaymentTypesPrice[];
+    scopes: ApiPaymentsPaymentTypesContentScope[];
+    trialDays: number;
+    active: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface EntitiesPaymentCouponEntityPaymentCoupon {
+    id: string;
+    code: string;
+    description: null | string;
+    percentOff: null | number;
+    amountOff: null | ApiPaymentsPaymentTypesPrice[];
+    maxRedemptions: null | number;
+    redeemed: number;
+    expiresAt: null | string;
+    productIds: string[];
+    planIds: string[];
+    active: boolean;
+    createdAt: string;
+}
+export interface EntitiesPaymentOrderEntityPaymentOrder {
+    id: string;
+    userId: string;
+    kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+    productId: null | string;
+    planId: null | string;
+    subscriptionId: null | string;
+    description: string;
+    currency: string;
+    subtotalMinor: number;
+    discountMinor: number;
+    taxMinor: number;
+    totalMinor: number;
+    couponCode: null | string;
+    status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+    provider: null | string;
+    providerRef: null | string;
+    refundedMinor: number;
+    failure: null | string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface EntitiesPaymentEntitlementEntityPaymentEntitlement {
+    id: string;
+    userId: string;
+    source: 'admin' | 'purchase' | 'rental' | 'registration';
+    orderId: null | string;
+    scope: ApiPaymentsPaymentTypesContentScope;
+    expiresAt: null | string;
+    claimUntil: null | string;
+    rentalHours: null | number;
+    activatedAt: null | string;
+    revokedAt: null | string;
+    createdAt: string;
+}
 export type VersionControllerGet200 = {
     version: string;
 };
@@ -2361,6 +2829,8 @@ export type RecommendationsControllerHomeRecommendations200ItemsItem = {
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 export type RecommendationsControllerHomeRecommendations200 = {
     enabled: boolean;
@@ -2376,6 +2846,8 @@ export type RecommendationsControllerMusicRecommendations200ItemsItem = {
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 export type RecommendationsControllerMusicRecommendations200 = {
     enabled: boolean;
@@ -2470,19 +2942,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2492,19 +2964,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2518,19 +2990,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2540,19 +3012,19 @@ export type PasskeyControllerRegistrationOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2597,19 +3069,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2619,19 +3091,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2645,19 +3117,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialFirst =
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2667,19 +3139,19 @@ export type PasskeyControllerLoginOptions200ExtensionsPrfEvalByCredentialSecond 
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2720,19 +3192,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2742,19 +3214,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2768,19 +3240,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2790,19 +3262,19 @@ export type PasskeyControllerSecondFactorOptions200ExtensionsPrfEvalByCredential
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2847,19 +3319,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalFirst = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2869,19 +3341,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalSecond = {
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2895,19 +3367,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -2917,19 +3389,19 @@ export type PasskeyControllerNativeHandoffOptions200ExtensionsPrfEvalByCredentia
     maxByteLength: number;
     resizable: boolean;
     detached: boolean;
-    '__@toStringTag@391': 'ArrayBuffer';
+    '__@toStringTag@392': 'ArrayBuffer';
 } | {
     buffer: {
         byteLength: number;
         maxByteLength: number;
         resizable: boolean;
         detached: boolean;
-        '__@toStringTag@391': 'ArrayBuffer';
+        '__@toStringTag@392': 'ArrayBuffer';
     } | {
         byteLength: number;
         growable: boolean;
         maxByteLength: number;
-        '__@toStringTag@391': 'SharedArrayBuffer';
+        '__@toStringTag@392': 'SharedArrayBuffer';
     };
     byteLength: number;
     byteOffset: number;
@@ -3238,7 +3710,7 @@ export type AdminScheduledTasksControllerList200 = {
     tasks: JobsJobSchedulerAdminTaskRunStatus[];
 };
 export type AdminScheduledTasksControllerSaveSchedule200 = {
-    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
     enabled: boolean;
     cron: string;
 };
@@ -3705,6 +4177,8 @@ export type MediaHomeControllerGetHome200FeaturedItem = {
     poster: null | number;
     backdrop: null | number;
     updatedAt: string;
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
 };
 export type MediaHomeControllerGetHome200 = {
     libraries: ApiMediaMediaHomeServiceHomeLibrary[];
@@ -3750,72 +4224,46 @@ export type MediaHomeControllerBrowseParams = {
     offset?: number;
     limit?: number;
 };
+export type MediaHomeControllerBrowse200ItemsItem = ApiMediaMediaHomeServiceHomeCard & ({
+    locked?: true;
+    lockReason?: 'library' | 'rating' | 'unrated' | 'tags';
+});
 export type MediaHomeControllerBrowse200 = {
     total: number;
-    items: ApiMediaMediaHomeServiceHomeCard[];
-};
-export type MediaHomeControllerItem200CastItem = {
-    id: string;
-    name: string;
-    role: null | string;
-    hasImage: boolean;
-};
-export type MediaHomeControllerItem200CrewItem = {
-    id: string;
-    name: string;
-    role: string;
-    hasImage: boolean;
-};
-export type MediaHomeControllerItem200Ratings = {
-    [key: string]: number;
-};
-export type MediaHomeControllerItem200Technical = {
-    container: null | string;
-    videoCodec: null | string;
-    audioCodec: null | string;
-    width: null | number;
-    height: null | number;
-    hdr: null | string;
-} | null;
-export type MediaHomeControllerItem200Parent = {
-    id: string;
-    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-    title: string;
-} | null;
-export type MediaHomeControllerItem200Series = {
-    id: string;
-    title: string;
-} | null;
-export type MediaHomeControllerItem200ChildrenItemEpisodesItem = {
-    id: string;
-    watched: boolean;
-    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-    title: string;
-    year: null | number;
-    seasonNumber: null | number;
-    episodeNumber: null | number;
-    overview: null | string;
-    runtimeMinutes: null | number;
-    poster: null | number;
-    thumb: null | number;
-    updatedAt: string;
-};
-export type MediaHomeControllerItem200ChildrenItem = {
-    episodes: MediaHomeControllerItem200ChildrenItemEpisodesItem[];
-    id: string;
-    watched: boolean;
-    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
-    title: string;
-    year: null | number;
-    seasonNumber: null | number;
-    episodeNumber: null | number;
-    overview: null | string;
-    runtimeMinutes: null | number;
-    poster: null | number;
-    thumb: null | number;
-    updatedAt: string;
+    items: MediaHomeControllerBrowse200ItemsItem[];
 };
 export type MediaHomeControllerItem200 = {
+    id: string;
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    title: string;
+    year: null | number;
+    poster: null | number;
+    locked: true;
+    lockReason: 'rating' | 'unrated' | 'tags';
+    children: unknown[];
+    watched?: unknown;
+    seasonNumber?: unknown;
+    episodeNumber?: unknown;
+    tagline?: unknown;
+    overview?: unknown;
+    rating?: unknown;
+    runtimeMinutes?: unknown;
+    genres?: unknown;
+    studios?: unknown;
+    cast?: unknown;
+    crew?: unknown;
+    ratings?: unknown;
+    status?: unknown;
+    artist?: unknown;
+    artistId?: unknown;
+    technical?: unknown;
+    chapters?: unknown;
+    backdrop?: unknown;
+    logo?: unknown;
+    updatedAt?: unknown;
+    parent?: unknown;
+    series?: unknown;
+} | {
     id: string;
     watched: boolean;
     type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
@@ -3829,21 +4277,76 @@ export type MediaHomeControllerItem200 = {
     runtimeMinutes: null | number;
     genres: string[];
     studios: string[];
-    cast: MediaHomeControllerItem200CastItem[];
-    crew: MediaHomeControllerItem200CrewItem[];
-    ratings: MediaHomeControllerItem200Ratings;
+    cast: ({
+        id: string;
+        name: string;
+        role: null | string;
+        hasImage: boolean;
+    })[];
+    crew: {
+        id: string;
+        name: string;
+        role: string;
+        hasImage: boolean;
+    }[];
+    ratings: {
+        [key: string]: number;
+    };
     status: null | string;
     artist: null | string;
     artistId: null | string;
-    technical: MediaHomeControllerItem200Technical;
+    technical: {
+        container: null | string;
+        videoCodec: null | string;
+        audioCodec: null | string;
+        width: null | number;
+        height: null | number;
+        hdr: null | string;
+    } | null;
     chapters: ApiMediaSegmentLogicChapter[];
     poster: null | number;
     backdrop: null | number;
     logo: null | number;
     updatedAt: string;
-    parent: MediaHomeControllerItem200Parent;
-    series: MediaHomeControllerItem200Series;
-    children: MediaHomeControllerItem200ChildrenItem[];
+    parent: {
+        id: string;
+        type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+        title: string;
+    } | null;
+    series: {
+        id: string;
+        title: string;
+    } | null;
+    children: ({
+        episodes: ({
+            id: string;
+            watched: boolean;
+            type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+            title: string;
+            year: null | number;
+            seasonNumber: null | number;
+            episodeNumber: null | number;
+            overview: null | string;
+            runtimeMinutes: null | number;
+            poster: null | number;
+            thumb: null | number;
+            updatedAt: string;
+        })[];
+        id: string;
+        watched: boolean;
+        type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+        title: string;
+        year: null | number;
+        seasonNumber: null | number;
+        episodeNumber: null | number;
+        overview: null | string;
+        runtimeMinutes: null | number;
+        poster: null | number;
+        thumb: null | number;
+        updatedAt: string;
+    })[];
+    locked?: unknown;
+    lockReason?: unknown;
 };
 export type MediaHomeControllerImageParams = {
     w?: number;
@@ -3863,9 +4366,88 @@ export type AdminUsersControllerSetAvatarBody = {
 export type AdminUsersControllerRevokeSessions200 = {
     revoked: number;
 };
+export type AccessControllerMe200Schedule = {
+    allowed: boolean;
+    nextAllowedAt: null | string;
+};
+export type AccessControllerMe200 = {
+    enforced: boolean;
+    hasPin: boolean;
+    unlockedUntil: null | string;
+    displayMode: 'locked' | 'hidden';
+    maxAge: null | number;
+    requireRequestApproval: boolean;
+    schedule: AccessControllerMe200Schedule;
+};
+export type AccessControllerUnlock200Schedule = {
+    allowed: boolean;
+    nextAllowedAt: null | string;
+};
+export type AccessControllerUnlock200 = {
+    enforced: boolean;
+    hasPin: boolean;
+    unlockedUntil: null | string;
+    displayMode: 'locked' | 'hidden';
+    maxAge: null | number;
+    requireRequestApproval: boolean;
+    schedule: AccessControllerUnlock200Schedule;
+};
+export type AccessControllerLock200Schedule = {
+    allowed: boolean;
+    nextAllowedAt: null | string;
+};
+export type AccessControllerLock200 = {
+    enforced: boolean;
+    hasPin: boolean;
+    unlockedUntil: null | string;
+    displayMode: 'locked' | 'hidden';
+    maxAge: null | number;
+    requireRequestApproval: boolean;
+    schedule: AccessControllerLock200Schedule;
+};
+export type AdminAccessControllerOptions200RatingsItem = {
+    age: number;
+    label: string;
+    examples: string;
+};
+export type AdminAccessControllerOptions200 = {
+    ratings: AdminAccessControllerOptions200RatingsItem[];
+    tags: string[];
+};
+export type AdminAccessControllerSaveBody = {
+    [key: string]: unknown;
+};
+export type AdminAccessControllerPreviewBody = {
+    [key: string]: unknown;
+};
+export type AdminAccessControllerPreview200LibrariesItem = {
+    id: string;
+    name: string;
+    type: 'movies' | 'music' | 'tvshows' | 'homevideos' | 'mixed';
+    total: number;
+    visible: number;
+    hidden: boolean;
+};
+export type AdminAccessControllerPreview200BlockedItem = {
+    id: string;
+    title: string;
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    year: null | number;
+    reason: 'library' | 'rating' | 'unrated' | 'tags';
+};
+export type AdminAccessControllerPreview200Schedule = {
+    configured: boolean;
+    allowedNow: boolean;
+    nextAllowedAt: null | string;
+};
+export type AdminAccessControllerPreview200 = {
+    libraries: AdminAccessControllerPreview200LibrariesItem[];
+    blocked: AdminAccessControllerPreview200BlockedItem[];
+    schedule: AdminAccessControllerPreview200Schedule;
+};
 export type NotificationsControllerList200ItemsItem = {
     id: string;
-    kind: 'admin' | 'new_media' | 'request' | 'message' | 'friend_request';
+    kind: 'admin' | 'new_media' | 'request' | 'message' | 'friend_request' | 'mail';
     title: string;
     body: string;
     url: null | string;
@@ -3923,8 +4505,8 @@ export type PlaylistsControllerGet200Owner = {
     avatarUrl: null | string;
 };
 export type PlaylistsControllerGet200 = {
-    isOwner: boolean;
     tracks: PlaylistsControllerGet200TracksItem[];
+    isOwner: boolean;
     id: string;
     name: string;
     description: null | string;
@@ -3947,6 +4529,8 @@ export type ChatControllerUnread200 = {
 };
 export type ChatControllerEncryptionStatus200 = {
     enabled: boolean;
+    supported: boolean;
+    allowUserDowngrade: boolean;
 };
 export type ChatControllerRegisterMlsDevice201 = {
     deviceId: string;
@@ -3956,6 +4540,12 @@ export type ChatControllerRegisterMlsDevice201 = {
 };
 export type ChatControllerMlsDevices200 = {
     devices: ChatChatServiceChatMlsDeviceSummary[];
+};
+export type ChatControllerChatHistoryBackup200 = {
+    backup: null | string;
+};
+export type ChatControllerSaveChatHistoryBackup200 = {
+    saved: boolean;
 };
 export type ChatControllerAddMlsKeyPackage201 = {
     keyPackageId: string;
@@ -4046,7 +4636,7 @@ export type ProfilesControllerMe200 = {
     joinedAt: string;
     isSelf: boolean;
     hidden: boolean;
-    visibility: 'public' | 'friends' | 'hidden';
+    visibility: 'hidden' | 'public' | 'friends';
     friendship: 'none' | 'friends' | 'self' | 'outgoing' | 'incoming';
     isFriend: boolean;
     nowPlaying: null | ApiSocialProfilesServiceNowPlaying;
@@ -4056,23 +4646,23 @@ export type ProfilesControllerMe200 = {
     playlists: ApiSocialPlaylistsServicePlaylistSummary[];
 };
 export type ProfilesControllerSetVisibility200 = {
-    visibility: 'public' | 'friends' | 'hidden';
+    visibility: 'hidden' | 'public' | 'friends';
 };
 export type ProfilesControllerGet200 = {
     party: null | PartyPartiesServicePartySummary;
+    recentlyWatched: ApiSocialSocialItemsSocialItem[];
+    recentlyListened: ApiSocialSocialItemsSocialItem[];
+    favorites: ApiSocialSocialItemsSocialItem[];
     username: string;
     displayName: string;
     avatarUrl: null | string;
     joinedAt: string;
     isSelf: boolean;
     hidden: boolean;
-    visibility: 'public' | 'friends' | 'hidden';
+    visibility: 'hidden' | 'public' | 'friends';
     friendship: 'none' | 'friends' | 'self' | 'outgoing' | 'incoming';
     isFriend: boolean;
     nowPlaying: null | ApiSocialProfilesServiceNowPlaying;
-    recentlyWatched: ApiSocialSocialItemsSocialItem[];
-    recentlyListened: ApiSocialSocialItemsSocialItem[];
-    favorites: ApiSocialSocialItemsSocialItem[];
     playlists: ApiSocialPlaylistsServicePlaylistSummary[];
 };
 export type FriendsControllerList200 = {
@@ -4266,6 +4856,675 @@ export type OverviewControllerActivityList200 = {
     summary: OverviewControllerActivityList200Summary;
     users: OverviewControllerActivityList200UsersItem[];
 };
+export type AdminMailControllerStatus200Inbound = {
+    listening: boolean;
+    port: null | number;
+    error: null | string;
+};
+export type AdminMailControllerStatus200Domains = {
+    total: number;
+    verified: number;
+};
+export type AdminMailControllerStatus200 = {
+    inbound: AdminMailControllerStatus200Inbound;
+    outboundReady: boolean;
+    sender: null | string;
+    domains: AdminMailControllerStatus200Domains;
+    userAddressesEnabled: boolean;
+};
+export type AdminMailControllerDiagnostics200 = {
+    [key: string]: {
+        ok: boolean;
+        detail: string;
+    };
+};
+export type AdminMailControllerListDomains200ItemChecks = {
+    [key: string]: unknown;
+};
+export type AdminMailControllerListDomains200Item = {
+    id: string;
+    domain: string;
+    allowSubdomains: boolean;
+    verified: boolean;
+    verifiedAt: null | string;
+    dkimSelector: string;
+    checks: AdminMailControllerListDomains200ItemChecks;
+    lastCheckedAt: null | string;
+    records: ApiMailMailDomainServiceDnsRecord[];
+    createdAt: string;
+};
+export type AdminMailControllerCreateDomain200Checks = {
+    [key: string]: unknown;
+};
+export type AdminMailControllerCreateDomain200 = {
+    id: string;
+    domain: string;
+    allowSubdomains: boolean;
+    verified: boolean;
+    verifiedAt: null | string;
+    dkimSelector: string;
+    checks: AdminMailControllerCreateDomain200Checks;
+    lastCheckedAt: null | string;
+    records: ApiMailMailDomainServiceDnsRecord[];
+    createdAt: string;
+};
+export type AdminMailControllerUpdateDomain200Checks = {
+    [key: string]: unknown;
+};
+export type AdminMailControllerUpdateDomain200 = {
+    id: string;
+    domain: string;
+    allowSubdomains: boolean;
+    verified: boolean;
+    verifiedAt: null | string;
+    dkimSelector: string;
+    checks: AdminMailControllerUpdateDomain200Checks;
+    lastCheckedAt: null | string;
+    records: ApiMailMailDomainServiceDnsRecord[];
+    createdAt: string;
+};
+export type AdminMailControllerRemoveDomain200 = {
+    deleted: boolean;
+};
+export type AdminMailControllerVerifyDomain200Checks = {
+    [key: string]: unknown;
+};
+export type AdminMailControllerVerifyDomain200 = {
+    id: string;
+    domain: string;
+    allowSubdomains: boolean;
+    verified: boolean;
+    verifiedAt: null | string;
+    dkimSelector: string;
+    checks: AdminMailControllerVerifyDomain200Checks;
+    lastCheckedAt: null | string;
+    records: ApiMailMailDomainServiceDnsRecord[];
+    createdAt: string;
+};
+export type AdminMailControllerRotateDkim200Checks = {
+    [key: string]: unknown;
+};
+export type AdminMailControllerRotateDkim200 = {
+    id: string;
+    domain: string;
+    allowSubdomains: boolean;
+    verified: boolean;
+    verifiedAt: null | string;
+    dkimSelector: string;
+    checks: AdminMailControllerRotateDkim200Checks;
+    lastCheckedAt: null | string;
+    records: ApiMailMailDomainServiceDnsRecord[];
+    createdAt: string;
+};
+export type AdminMailControllerListMailboxes200Item = {
+    received: number;
+    sent: number;
+    unread: number;
+};
+export type AdminMailControllerGenerateUserAddresses200 = {
+    created: number;
+};
+export type AdminMailControllerRemoveMailbox200 = {
+    deleted: boolean;
+};
+export type AdminMailControllerListMessagesParams = {
+    mailboxId?: string;
+    direction?: string;
+    search?: string;
+    unread?: boolean;
+    page?: number;
+    limit?: number;
+};
+export type AdminMailControllerListMessages200ItemsItem = {
+    id: string;
+    mailboxId: null | string;
+    direction: 'inbound' | 'outbound';
+    status: 'failed' | 'queued' | 'received' | 'sent';
+    from: string;
+    fromName: null | string;
+    to: string[];
+    subject: string;
+    preview: string;
+    hasAttachments: boolean;
+    read: boolean;
+    createdAt: string;
+};
+export type AdminMailControllerListMessages200 = {
+    total: number;
+    page: number;
+    limit: number;
+    items: AdminMailControllerListMessages200ItemsItem[];
+};
+export type AdminMailControllerGetMessage200AuthResults = null | {
+    [key: string]: string;
+};
+export type AdminMailControllerGetMessage200 = {
+    read: boolean;
+    text: string;
+    html: null | string;
+    messageId: null | string;
+    authResults: AdminMailControllerGetMessage200AuthResults;
+    remoteAddress: null | string;
+    attempts: number;
+    lastError: null | string;
+    sentAt: null | string;
+    attachments: EntitiesMailMessageEntityMailAttachmentInfo[];
+    id: string;
+    mailboxId: null | string;
+    direction: 'inbound' | 'outbound';
+    status: 'failed' | 'queued' | 'received' | 'sent';
+    from: string;
+    fromName: null | string;
+    to: string[];
+    subject: string;
+    preview: string;
+    hasAttachments: boolean;
+    createdAt: string;
+};
+export type AdminMailControllerRemoveMessage200 = {
+    deleted: boolean;
+};
+export type AdminMailControllerAttachment200Errored = {
+    name: string;
+    message: string;
+    stack?: string;
+    cause?: unknown;
+} | null;
+export type AdminMailControllerAttachment200 = {
+    bytesRead: number;
+    path: string | Blob;
+    pending: boolean;
+    readableAborted: boolean;
+    readable: boolean;
+    readableDidRead: boolean;
+    readableEncoding: null | 'ascii' | 'utf8' | 'utf-8' | 'utf16le' | 'utf-16le' | 'ucs2' | 'ucs-2' | 'base64' | 'base64url' | 'latin1' | 'binary' | 'hex';
+    readableEnded: boolean;
+    readableFlowing: null | false | true;
+    readableHighWaterMark: number;
+    readableLength: number;
+    readableObjectMode: boolean;
+    destroyed: boolean;
+    closed: boolean;
+    errored: AdminMailControllerAttachment200Errored;
+};
+export type AdminMailControllerSend200 = {
+    queued: number;
+    ids: string[];
+};
+export type AdminMailControllerRemoveTemplate200 = {
+    deleted: boolean;
+};
+export type AdminMailControllerPreviewTemplate200 = {
+    subject: string;
+    html: string;
+    text: string;
+    variables: string[];
+};
+export type AdminMailControllerTestTemplate200 = {
+    sentTo: string;
+};
+export type UserMailControllerMe200 = {
+    enabled: boolean;
+    /** @nullable */
+    address: null;
+    unread: number;
+} | {
+    enabled: boolean;
+    address: string;
+    unread: number;
+};
+export type UserMailControllerListParams = {
+    search?: string;
+    unread?: boolean;
+    page?: number;
+    limit?: number;
+};
+export type UserMailControllerList200ItemsItem = {
+    id: string;
+    mailboxId: null | string;
+    direction: 'inbound' | 'outbound';
+    status: 'failed' | 'queued' | 'received' | 'sent';
+    from: string;
+    fromName: null | string;
+    to: string[];
+    subject: string;
+    preview: string;
+    hasAttachments: boolean;
+    read: boolean;
+    createdAt: string;
+};
+export type UserMailControllerList200 = {
+    total: number;
+    page: number;
+    limit: number;
+    items: UserMailControllerList200ItemsItem[];
+};
+export type UserMailControllerGet200AuthResults = null | {
+    [key: string]: string;
+};
+export type UserMailControllerGet200 = {
+    read: boolean;
+    text: string;
+    html: null | string;
+    messageId: null | string;
+    authResults: UserMailControllerGet200AuthResults;
+    remoteAddress: null | string;
+    attempts: number;
+    lastError: null | string;
+    sentAt: null | string;
+    attachments: EntitiesMailMessageEntityMailAttachmentInfo[];
+    id: string;
+    mailboxId: null | string;
+    direction: 'inbound' | 'outbound';
+    status: 'failed' | 'queued' | 'received' | 'sent';
+    from: string;
+    fromName: null | string;
+    to: string[];
+    subject: string;
+    preview: string;
+    hasAttachments: boolean;
+    createdAt: string;
+};
+export type UserMailControllerRemove200 = {
+    deleted: boolean;
+};
+export type UserMailControllerAttachment200Errored = {
+    name: string;
+    message: string;
+    stack?: string;
+    cause?: unknown;
+} | null;
+export type UserMailControllerAttachment200 = {
+    bytesRead: number;
+    path: string | Blob;
+    pending: boolean;
+    readableAborted: boolean;
+    readable: boolean;
+    readableDidRead: boolean;
+    readableEncoding: null | 'ascii' | 'utf8' | 'utf-8' | 'utf16le' | 'utf-16le' | 'ucs2' | 'ucs-2' | 'base64' | 'base64url' | 'latin1' | 'binary' | 'hex';
+    readableEnded: boolean;
+    readableFlowing: null | false | true;
+    readableHighWaterMark: number;
+    readableLength: number;
+    readableObjectMode: boolean;
+    destroyed: boolean;
+    closed: boolean;
+    errored: UserMailControllerAttachment200Errored;
+};
+export type PaymentsControllerStatus200 = {
+    enabled: boolean;
+    provider?: unknown;
+    client?: unknown;
+    currency?: unknown;
+    currencies?: unknown;
+    tax?: unknown;
+    registration?: unknown;
+} | {
+    enabled: boolean;
+    provider: null | 'square' | 'stripe';
+    client: null | {
+        [key: string]: unknown;
+    };
+    currency: string;
+    currencies: string[];
+    tax: {
+        enabled: boolean;
+        inclusive: boolean;
+        rates: ApiPaymentsPaymentTypesTaxRate[];
+    };
+    registration: {
+        cardRequired: boolean;
+        feeEnabled: boolean;
+        mode: 'one_time' | 'subscription';
+        prices: ApiPaymentsPaymentTypesPrice[];
+        price: null | ApiPaymentsPaymentTypesPrice;
+        unlocks: 'none' | 'all' | 'scopes';
+        plan: {
+            id: string;
+            name: string;
+            description: null | string;
+            interval: 'year' | 'month';
+            prices: ApiPaymentsPaymentTypesPrice[];
+            price: null | ApiPaymentsPaymentTypesPrice;
+            scopes: ApiPaymentsPaymentTypesContentScope[];
+            trialDays: number;
+        } | null;
+    };
+};
+export type PaymentsControllerSignupSetup200Client = null | {
+    [key: string]: unknown;
+};
+export type PaymentsControllerSignupSetup200 = {
+    provider: 'square' | 'stripe';
+    setupToken: string;
+    clientSecret: null | string;
+    client: PaymentsControllerSignupSetup200Client;
+};
+export type PaymentsControllerWebhookBody = {
+    [key: string]: unknown;
+};
+export type PaymentsControllerWebhook200 = {
+    received: boolean;
+};
+export type PaymentsControllerMe200MethodsItem = {
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+    isDefault: boolean;
+};
+export type PaymentsControllerMe200SubscriptionsItem = {
+    id: string;
+    planId: string;
+    planName: string;
+    interval: 'year' | 'month';
+    status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+    currency: string;
+    amountMinor: number;
+    periodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    graceUntil: null | string;
+    active: boolean;
+};
+export type PaymentsControllerMe200OrdersItem = {
+    id: string;
+    kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+    description: string;
+    currency: string;
+    totalMinor: number;
+    taxMinor: number;
+    discountMinor: number;
+    refundedMinor: number;
+    status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+    createdAt: string;
+};
+export type PaymentsControllerMe200EntitlementsItemScope = {
+    label: null | string;
+    type: 'kind' | 'all' | 'item' | 'artist';
+    ref: null | string;
+};
+export type PaymentsControllerMe200EntitlementsItem = {
+    id: string;
+    source: 'admin' | 'purchase' | 'rental' | 'registration';
+    scope: PaymentsControllerMe200EntitlementsItemScope;
+    expiresAt: null | string;
+    rentalNotStarted: boolean;
+    rentalHours: null | number;
+    claimUntil: null | string;
+};
+export type PaymentsControllerMe200 = {
+    currency: string;
+    methods: PaymentsControllerMe200MethodsItem[];
+    subscriptions: PaymentsControllerMe200SubscriptionsItem[];
+    orders: PaymentsControllerMe200OrdersItem[];
+    entitlements: PaymentsControllerMe200EntitlementsItem[];
+};
+export type PaymentsControllerPlans200Item = {
+    trialDays: number;
+    subscribed: boolean;
+    id: string;
+    name: string;
+    description: null | string;
+    interval: 'year' | 'month';
+    prices: ApiPaymentsPaymentTypesPrice[];
+    price: null | ApiPaymentsPaymentTypesPrice;
+    scopes: ApiPaymentsPaymentTypesContentScope[];
+};
+export type PaymentsControllerOffers200ProductsItem = {
+    id: string;
+    name: string;
+    description: null | string;
+    kind: 'buy' | 'rent';
+    rentalHours: null | number;
+    rentalStart: 'purchase' | 'first_play';
+    scope: ApiPaymentsPaymentTypesContentScope;
+    prices: ApiPaymentsPaymentTypesPrice[];
+    price: null | ApiPaymentsPaymentTypesPrice;
+};
+export type PaymentsControllerOffers200PlansItem = {
+    id: string;
+    name: string;
+    description: null | string;
+    interval: 'year' | 'month';
+    prices: ApiPaymentsPaymentTypesPrice[];
+    price: null | ApiPaymentsPaymentTypesPrice;
+    scopes: ApiPaymentsPaymentTypesContentScope[];
+    trialDays: number;
+};
+export type PaymentsControllerOffers200Registration = {
+    prices: ApiPaymentsPaymentTypesPrice[];
+    price: null | ApiPaymentsPaymentTypesPrice;
+} | null;
+export type PaymentsControllerOffers200 = {
+    currency: string;
+    products: PaymentsControllerOffers200ProductsItem[];
+    plans: PaymentsControllerOffers200PlansItem[];
+    registration: PaymentsControllerOffers200Registration;
+};
+export type PaymentsControllerAccessBody = {
+    [key: string]: unknown;
+};
+export type PaymentsControllerAccess200Items = {
+    [key: string]: ApiPaymentsEntitlementServiceLockState;
+};
+export type PaymentsControllerAccess200 = {
+    enabled: boolean;
+    items: PaymentsControllerAccess200Items;
+};
+export type PaymentsControllerQuoteBody = {
+    [key: string]: unknown;
+};
+export type PaymentsControllerCheckoutBody = {
+    [key: string]: unknown;
+};
+export type PaymentsControllerReceipt200 = {
+    url: string;
+};
+export type PaymentsControllerBeginMethod200Client = null | {
+    [key: string]: unknown;
+};
+export type PaymentsControllerBeginMethod200 = {
+    provider: 'square' | 'stripe';
+    clientSecret: null | string;
+    client: PaymentsControllerBeginMethod200Client;
+};
+export type PaymentsControllerAddMethodBody = {
+    [key: string]: unknown;
+};
+export type PaymentsControllerAddMethod200 = {
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+    isDefault: boolean;
+};
+export type PaymentsControllerMakeDefault200 = {
+    ok: boolean;
+};
+export type PaymentsControllerRemoveMethod200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerCurrenciesParams = {
+    provider?: string;
+};
+export type AdminPaymentsControllerPutConfigBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerTestBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerTest200 = {
+    ok: boolean;
+    detail: string;
+};
+export type AdminPaymentsControllerStats200 = {
+    revenue30d: unknown;
+    subscriptions: unknown;
+    failed30d: unknown;
+};
+export type AdminPaymentsControllerScopeSearchParams = {
+    q?: string;
+    type?: string;
+};
+export type AdminPaymentsControllerScopeSearch200ItemsItem = {
+    id: string;
+    title: string;
+    type: 'movie' | 'series' | 'video' | 'season' | 'episode' | 'album' | 'track';
+    year: null | number;
+    seasonNumber: null | number;
+    episodeNumber: null | number;
+};
+export type AdminPaymentsControllerScopeSearch200 = {
+    items: AdminPaymentsControllerScopeSearch200ItemsItem[];
+    artists: string[];
+};
+export type AdminPaymentsControllerCreateProductBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerUpdateProductBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerDeleteProduct200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerCreatePlanBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerUpdatePlanBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerDeletePlan200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerCreateCouponBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerUpdateCouponBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerDeleteCoupon200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerOrdersParams = {
+    page?: string;
+    status?: string;
+    userId?: string;
+};
+export type AdminPaymentsControllerOrders200ItemsItemUser = {
+    id: string;
+    username: string;
+    displayName: null | string;
+};
+export type AdminPaymentsControllerOrders200ItemsItem = EntitiesPaymentOrderEntityPaymentOrder & {
+    user: AdminPaymentsControllerOrders200ItemsItemUser;
+};
+export type AdminPaymentsControllerOrders200 = {
+    total: number;
+    items: AdminPaymentsControllerOrders200ItemsItem[];
+};
+export type AdminPaymentsControllerRefundBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerSubscriptionsParams = {
+    status?: string;
+};
+export type AdminPaymentsControllerSubscriptions200ItemUser = {
+    id: string;
+    username: string;
+    displayName: null | string;
+};
+export type AdminPaymentsControllerSubscriptions200Item = {
+    planName: string;
+    id: string;
+    userId: string;
+    planId: string;
+    status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+    currency: string;
+    amountMinor: number;
+    periodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    failedAttempts: number;
+    nextAttemptAt: null | string;
+    graceUntil: null | string;
+    canceledAt: null | string;
+    createdAt: string;
+    updatedAt: string;
+    user: AdminPaymentsControllerSubscriptions200ItemUser;
+};
+export type AdminPaymentsControllerCancelSubscriptionBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerUserOverview200MethodsItem = {
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+    isDefault: boolean;
+};
+export type AdminPaymentsControllerUserOverview200SubscriptionsItem = {
+    id: string;
+    planId: string;
+    planName: string;
+    interval: 'year' | 'month';
+    status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
+    currency: string;
+    amountMinor: number;
+    periodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    graceUntil: null | string;
+    active: boolean;
+};
+export type AdminPaymentsControllerUserOverview200OrdersItem = {
+    id: string;
+    kind: 'subscription' | 'purchase' | 'rental' | 'registration';
+    description: string;
+    currency: string;
+    totalMinor: number;
+    taxMinor: number;
+    discountMinor: number;
+    refundedMinor: number;
+    status: 'failed' | 'pending' | 'requires_action' | 'paid' | 'refunded' | 'partially_refunded';
+    createdAt: string;
+};
+export type AdminPaymentsControllerUserOverview200EntitlementsItemScope = {
+    label: null | string;
+    type: 'kind' | 'all' | 'item' | 'artist';
+    ref: null | string;
+};
+export type AdminPaymentsControllerUserOverview200EntitlementsItem = {
+    id: string;
+    source: 'admin' | 'purchase' | 'rental' | 'registration';
+    scope: AdminPaymentsControllerUserOverview200EntitlementsItemScope;
+    expiresAt: null | string;
+    rentalNotStarted: boolean;
+    rentalHours: null | number;
+    claimUntil: null | string;
+};
+export type AdminPaymentsControllerUserOverview200 = {
+    level: 'admin' | 'none' | 'off' | 'grandfathered' | 'everything' | 'partial';
+    signupPending: boolean;
+    role: 'admin' | 'user';
+    currency: string;
+    methods: AdminPaymentsControllerUserOverview200MethodsItem[];
+    subscriptions: AdminPaymentsControllerUserOverview200SubscriptionsItem[];
+    orders: AdminPaymentsControllerUserOverview200OrdersItem[];
+    entitlements: AdminPaymentsControllerUserOverview200EntitlementsItem[];
+};
+export type AdminPaymentsControllerWaiveSignup200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerRemoveUserMethod200 = {
+    ok: boolean;
+};
+export type AdminPaymentsControllerGrantBody = {
+    [key: string]: unknown;
+};
+export type AdminPaymentsControllerRevoke200 = {
+    ok: boolean;
+};
 export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     versionControllerGet: (options?: AxiosRequestConfig) => Promise<AxiosResponse<VersionControllerGet200>>;
     setupControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<BootstrapSetupStatusSetupStatus>>;
@@ -4292,7 +5551,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     aiAdminControllerRetry: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRetry200>>;
     aiAdminControllerRecommendations: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRecommendations200Item[]>>;
     aiAdminControllerRefreshUserRecommendations: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AiAdminControllerRefreshUserRecommendations200>>;
-    authControllerRegister: (registerRequest?: RegisterRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>>;
+    authControllerRegister: (registerRequest?: RegisterRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiAuthAuthServicePaymentPending>>;
     authControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicUser>>;
     authControllerUpdateMe: (updateProfileRequest?: UpdateProfileRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicUser>>;
     authControllerSetPasskeyRequired: (setPasskeyRequiredRequest?: SetPasskeyRequiredRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicUser>>;
@@ -4300,7 +5559,7 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     authControllerDeleteMe: (deleteAccountRequest?: DeleteAccountRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AuthControllerDeleteMe200>>;
     authControllerVerifyEmail: (verifyEmailRequest?: VerifyEmailRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AuthControllerVerifyEmail200>>;
     authControllerResendVerification: (loginRequest?: LoginRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AuthControllerResendVerification200>>;
-    authControllerLogin: (loginRequest?: LoginRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePasskeyRequired>>;
+    authControllerLogin: (loginRequest?: LoginRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePaymentPending | ApiAuthAuthServicePasskeyRequired>>;
     authControllerListSessions: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServicePublicSession[]>>;
     authControllerRevokeSession: (sessionId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AuthControllerRevokeSession200>>;
     authControllerLogout: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AuthControllerLogout200>>;
@@ -4473,6 +5732,13 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     adminUsersControllerRemoveAvatar: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAdminUsersAdminUsersServiceAdminUser>>;
     adminUsersControllerSetPassword: (id: string, setUserPasswordRequest?: SetUserPasswordRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     adminUsersControllerRevokeSessions: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminUsersControllerRevokeSessions200>>;
+    accessControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AccessControllerMe200>>;
+    accessControllerUnlock: (unlockRequest?: UnlockRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AccessControllerUnlock200>>;
+    accessControllerLock: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AccessControllerLock200>>;
+    adminAccessControllerOptions: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminAccessControllerOptions200>>;
+    adminAccessControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>>;
+    adminAccessControllerSave: (id: string, adminAccessControllerSaveBody?: AdminAccessControllerSaveBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>>;
+    adminAccessControllerPreview: (id: string, adminAccessControllerPreviewBody?: AdminAccessControllerPreviewBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminAccessControllerPreview200>>;
     notificationsControllerList: (options?: AxiosRequestConfig) => Promise<AxiosResponse<NotificationsControllerList200>>;
     notificationsControllerMarkRead: (markReadRequest?: MarkReadRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     notificationsControllerRemove: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
@@ -4504,6 +5770,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     chatControllerEncryptionStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerEncryptionStatus200>>;
     chatControllerRegisterMlsDevice: (registerChatMlsDeviceRequest?: RegisterChatMlsDeviceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerRegisterMlsDevice201>>;
     chatControllerMlsDevices: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMlsDevices200>>;
+    chatControllerChatHistoryBackup: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerChatHistoryBackup200>>;
+    chatControllerSaveChatHistoryBackup: (chatMlsHistoryBackupRequest?: ChatMlsHistoryBackupRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerSaveChatHistoryBackup200>>;
     chatControllerApproveMlsDevice: (deviceId: string, approveChatMlsDeviceRequest?: ApproveChatMlsDeviceRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     chatControllerRevokeMlsDevice: (deviceId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
     chatControllerAddMlsKeyPackage: (deviceId: string, addChatMlsKeyPackageRequest?: AddChatMlsKeyPackageRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerAddMlsKeyPackage201>>;
@@ -4511,6 +5779,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     chatControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerRename: (id: string, renameChatRequest?: RenameChatRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerDeleteConversation: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<void>>;
+    chatControllerDowngradeToPlaintext: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
+    chatControllerUpgradeToEncrypted: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatConversation>>;
     chatControllerMessages: (id: string, params?: ChatControllerMessagesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMessages200>>;
     chatControllerSend: (id: string, sendMessageRequest?: SendMessageRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatChatServiceChatMessage>>;
     chatControllerMlsKeyPackages: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ChatControllerMlsKeyPackages200>>;
@@ -4562,6 +5832,83 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     overviewControllerGet: (options?: AxiosRequestConfig) => Promise<AxiosResponse<OverviewControllerGet200>>;
     overviewControllerActivityList: (params?: OverviewControllerActivityListParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<OverviewControllerActivityList200>>;
     sentryControllerGetConfig: (app: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<SentrySentryServiceSentryAppConfig>>;
+    adminMailControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerStatus200>>;
+    adminMailControllerGetSettings: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>>;
+    adminMailControllerUpdateSettings: (updateMailSettingsRequest?: UpdateMailSettingsRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>>;
+    adminMailControllerDiagnostics: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerDiagnostics200>>;
+    adminMailControllerListDomains: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerListDomains200Item[]>>;
+    adminMailControllerCreateDomain: (createMailDomainRequest?: CreateMailDomainRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerCreateDomain200>>;
+    adminMailControllerUpdateDomain: (id: string, updateMailDomainRequest?: UpdateMailDomainRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerUpdateDomain200>>;
+    adminMailControllerRemoveDomain: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerRemoveDomain200>>;
+    adminMailControllerVerifyDomain: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerVerifyDomain200>>;
+    adminMailControllerRotateDkim: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerRotateDkim200>>;
+    adminMailControllerListMailboxes: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerListMailboxes200Item[]>>;
+    adminMailControllerCreateMailbox: (createMailboxRequest?: CreateMailboxRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesMailboxEntityMailbox>>;
+    adminMailControllerGenerateUserAddresses: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerGenerateUserAddresses200>>;
+    adminMailControllerUpdateMailbox: (id: string, updateMailboxRequest?: UpdateMailboxRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesMailboxEntityMailbox>>;
+    adminMailControllerRemoveMailbox: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerRemoveMailbox200>>;
+    adminMailControllerListMessages: (params?: AdminMailControllerListMessagesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerListMessages200>>;
+    adminMailControllerGetMessage: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerGetMessage200>>;
+    adminMailControllerRemoveMessage: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerRemoveMessage200>>;
+    adminMailControllerAttachment: (id: string, attachmentId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerAttachment200>>;
+    adminMailControllerSend: (sendMailRequest?: SendMailRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerSend200>>;
+    adminMailControllerListTemplates: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate[]>>;
+    adminMailControllerGetTemplate: (name: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate>>;
+    adminMailControllerSaveTemplate: (name: string, saveMailTemplateRequest?: SaveMailTemplateRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiMailMailTemplateServiceMailTemplate>>;
+    adminMailControllerRemoveTemplate: (name: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerRemoveTemplate200>>;
+    adminMailControllerPreviewTemplate: (name: string, previewMailTemplateRequest?: PreviewMailTemplateRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerPreviewTemplate200>>;
+    adminMailControllerTestTemplate: (name: string, sendTestMailRequest?: SendTestMailRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminMailControllerTestTemplate200>>;
+    userMailControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<UserMailControllerMe200>>;
+    userMailControllerList: (params?: UserMailControllerListParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<UserMailControllerList200>>;
+    userMailControllerGet: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<UserMailControllerGet200>>;
+    userMailControllerRemove: (id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<UserMailControllerRemove200>>;
+    userMailControllerAttachment: (id: string, attachmentId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<UserMailControllerAttachment200>>;
+    paymentsControllerStatus: (options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerStatus200>>;
+    paymentsControllerSignupSetup: (signupPaymentTokenRequest?: SignupPaymentTokenRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerSignupSetup200>>;
+    paymentsControllerSignupComplete: (completeSignupRequest?: CompleteSignupRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiPaymentsPaymentsServiceSignupAction>>;
+    paymentsControllerWebhook: (provider: string, paymentsControllerWebhookBody?: PaymentsControllerWebhookBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerWebhook200>>;
+    paymentsControllerMe: (options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerMe200>>;
+    paymentsControllerPlans: (options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerPlans200Item[]>>;
+    paymentsControllerOffers: (itemId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerOffers200>>;
+    paymentsControllerAccess: (paymentsControllerAccessBody?: PaymentsControllerAccessBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerAccess200>>;
+    paymentsControllerQuote: (paymentsControllerQuoteBody?: PaymentsControllerQuoteBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsPaymentsServiceQuote>>;
+    paymentsControllerCheckout: (paymentsControllerCheckoutBody?: PaymentsControllerCheckoutBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>>;
+    paymentsControllerReceipt: (orderId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerReceipt200>>;
+    paymentsControllerConfirm: (orderId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>>;
+    paymentsControllerBeginMethod: (options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerBeginMethod200>>;
+    paymentsControllerAddMethod: (paymentsControllerAddMethodBody?: PaymentsControllerAddMethodBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerAddMethod200>>;
+    paymentsControllerMakeDefault: (methodId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerMakeDefault200>>;
+    paymentsControllerRemoveMethod: (methodId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<PaymentsControllerRemoveMethod200>>;
+    paymentsControllerCancel: (subscriptionId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>>;
+    paymentsControllerResume: (subscriptionId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>>;
+    adminPaymentsControllerCurrencies: (params?: AdminPaymentsControllerCurrenciesParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsCurrenciesCurrencyInfo[]>>;
+    adminPaymentsControllerGetConfig: (options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>>;
+    adminPaymentsControllerPutConfig: (adminPaymentsControllerPutConfigBody?: AdminPaymentsControllerPutConfigBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>>;
+    adminPaymentsControllerTest: (adminPaymentsControllerTestBody?: AdminPaymentsControllerTestBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerTest200>>;
+    adminPaymentsControllerStats: (options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerStats200>>;
+    adminPaymentsControllerScopeSearch: (params?: AdminPaymentsControllerScopeSearchParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerScopeSearch200>>;
+    adminPaymentsControllerProducts: (options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct[]>>;
+    adminPaymentsControllerCreateProduct: (adminPaymentsControllerCreateProductBody?: AdminPaymentsControllerCreateProductBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>>;
+    adminPaymentsControllerUpdateProduct: (productId: string, adminPaymentsControllerUpdateProductBody?: AdminPaymentsControllerUpdateProductBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>>;
+    adminPaymentsControllerDeleteProduct: (productId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerDeleteProduct200>>;
+    adminPaymentsControllerPlans: (options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan[]>>;
+    adminPaymentsControllerCreatePlan: (adminPaymentsControllerCreatePlanBody?: AdminPaymentsControllerCreatePlanBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>>;
+    adminPaymentsControllerUpdatePlan: (planId: string, adminPaymentsControllerUpdatePlanBody?: AdminPaymentsControllerUpdatePlanBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>>;
+    adminPaymentsControllerDeletePlan: (planId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerDeletePlan200>>;
+    adminPaymentsControllerCoupons: (options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon[]>>;
+    adminPaymentsControllerCreateCoupon: (adminPaymentsControllerCreateCouponBody?: AdminPaymentsControllerCreateCouponBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>>;
+    adminPaymentsControllerUpdateCoupon: (couponId: string, adminPaymentsControllerUpdateCouponBody?: AdminPaymentsControllerUpdateCouponBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>>;
+    adminPaymentsControllerDeleteCoupon: (couponId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerDeleteCoupon200>>;
+    adminPaymentsControllerOrders: (params?: AdminPaymentsControllerOrdersParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerOrders200>>;
+    adminPaymentsControllerRefund: (orderId: string, adminPaymentsControllerRefundBody?: AdminPaymentsControllerRefundBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentOrderEntityPaymentOrder>>;
+    adminPaymentsControllerSubscriptions: (params?: AdminPaymentsControllerSubscriptionsParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerSubscriptions200Item[]>>;
+    adminPaymentsControllerCancelSubscription: (subscriptionId: string, adminPaymentsControllerCancelSubscriptionBody?: AdminPaymentsControllerCancelSubscriptionBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>>;
+    adminPaymentsControllerUserOverview: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerUserOverview200>>;
+    adminPaymentsControllerWaiveSignup: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerWaiveSignup200>>;
+    adminPaymentsControllerRemoveUserMethod: (userId: string, methodId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerRemoveUserMethod200>>;
+    adminPaymentsControllerGrants: (userId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement[]>>;
+    adminPaymentsControllerGrant: (userId: string, adminPaymentsControllerGrantBody?: AdminPaymentsControllerGrantBody, options?: AxiosRequestConfig) => Promise<AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement>>;
+    adminPaymentsControllerRevoke: (grantId: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminPaymentsControllerRevoke200>>;
     getVersionControllerGetUrl: () => string;
     getSetupControllerStatusUrl: () => string;
     getSetupControllerRequestRecoveryKeyUrl: () => string;
@@ -4768,6 +6115,13 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getAdminUsersControllerRemoveAvatarUrl: (id: string) => string;
     getAdminUsersControllerSetPasswordUrl: (id: string) => string;
     getAdminUsersControllerRevokeSessionsUrl: (id: string) => string;
+    getAccessControllerMeUrl: () => string;
+    getAccessControllerUnlockUrl: () => string;
+    getAccessControllerLockUrl: () => string;
+    getAdminAccessControllerOptionsUrl: () => string;
+    getAdminAccessControllerGetUrl: (id: string) => string;
+    getAdminAccessControllerSaveUrl: (id: string) => string;
+    getAdminAccessControllerPreviewUrl: (id: string) => string;
     getNotificationsControllerListUrl: () => string;
     getNotificationsControllerMarkReadUrl: () => string;
     getNotificationsControllerRemoveUrl: (id: string) => string;
@@ -4799,6 +6153,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getChatControllerEncryptionStatusUrl: () => string;
     getChatControllerRegisterMlsDeviceUrl: () => string;
     getChatControllerMlsDevicesUrl: () => string;
+    getChatControllerChatHistoryBackupUrl: () => string;
+    getChatControllerSaveChatHistoryBackupUrl: () => string;
     getChatControllerApproveMlsDeviceUrl: (deviceId: string) => string;
     getChatControllerRevokeMlsDeviceUrl: (deviceId: string) => string;
     getChatControllerAddMlsKeyPackageUrl: (deviceId: string) => string;
@@ -4806,6 +6162,8 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getChatControllerGetUrl: (id: string) => string;
     getChatControllerRenameUrl: (id: string) => string;
     getChatControllerDeleteConversationUrl: (id: string) => string;
+    getChatControllerDowngradeToPlaintextUrl: (id: string) => string;
+    getChatControllerUpgradeToEncryptedUrl: (id: string) => string;
     getChatControllerMessagesUrl: (id: string, params?: ChatControllerMessagesParams) => string;
     getChatControllerSendUrl: (id: string) => string;
     getChatControllerMlsKeyPackagesUrl: (id: string) => string;
@@ -4857,6 +6215,83 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getOverviewControllerGetUrl: () => string;
     getOverviewControllerActivityListUrl: (params?: OverviewControllerActivityListParams) => string;
     getSentryControllerGetConfigUrl: (app: string) => string;
+    getAdminMailControllerStatusUrl: () => string;
+    getAdminMailControllerGetSettingsUrl: () => string;
+    getAdminMailControllerUpdateSettingsUrl: () => string;
+    getAdminMailControllerDiagnosticsUrl: () => string;
+    getAdminMailControllerListDomainsUrl: () => string;
+    getAdminMailControllerCreateDomainUrl: () => string;
+    getAdminMailControllerUpdateDomainUrl: (id: string) => string;
+    getAdminMailControllerRemoveDomainUrl: (id: string) => string;
+    getAdminMailControllerVerifyDomainUrl: (id: string) => string;
+    getAdminMailControllerRotateDkimUrl: (id: string) => string;
+    getAdminMailControllerListMailboxesUrl: () => string;
+    getAdminMailControllerCreateMailboxUrl: () => string;
+    getAdminMailControllerGenerateUserAddressesUrl: () => string;
+    getAdminMailControllerUpdateMailboxUrl: (id: string) => string;
+    getAdminMailControllerRemoveMailboxUrl: (id: string) => string;
+    getAdminMailControllerListMessagesUrl: (params?: AdminMailControllerListMessagesParams) => string;
+    getAdminMailControllerGetMessageUrl: (id: string) => string;
+    getAdminMailControllerRemoveMessageUrl: (id: string) => string;
+    getAdminMailControllerAttachmentUrl: (id: string, attachmentId: string) => string;
+    getAdminMailControllerSendUrl: () => string;
+    getAdminMailControllerListTemplatesUrl: () => string;
+    getAdminMailControllerGetTemplateUrl: (name: string) => string;
+    getAdminMailControllerSaveTemplateUrl: (name: string) => string;
+    getAdminMailControllerRemoveTemplateUrl: (name: string) => string;
+    getAdminMailControllerPreviewTemplateUrl: (name: string) => string;
+    getAdminMailControllerTestTemplateUrl: (name: string) => string;
+    getUserMailControllerMeUrl: () => string;
+    getUserMailControllerListUrl: (params?: UserMailControllerListParams) => string;
+    getUserMailControllerGetUrl: (id: string) => string;
+    getUserMailControllerRemoveUrl: (id: string) => string;
+    getUserMailControllerAttachmentUrl: (id: string, attachmentId: string) => string;
+    getPaymentsControllerStatusUrl: () => string;
+    getPaymentsControllerSignupSetupUrl: () => string;
+    getPaymentsControllerSignupCompleteUrl: () => string;
+    getPaymentsControllerWebhookUrl: (provider: string) => string;
+    getPaymentsControllerMeUrl: () => string;
+    getPaymentsControllerPlansUrl: () => string;
+    getPaymentsControllerOffersUrl: (itemId: string) => string;
+    getPaymentsControllerAccessUrl: () => string;
+    getPaymentsControllerQuoteUrl: () => string;
+    getPaymentsControllerCheckoutUrl: () => string;
+    getPaymentsControllerReceiptUrl: (orderId: string) => string;
+    getPaymentsControllerConfirmUrl: (orderId: string) => string;
+    getPaymentsControllerBeginMethodUrl: () => string;
+    getPaymentsControllerAddMethodUrl: () => string;
+    getPaymentsControllerMakeDefaultUrl: (methodId: string) => string;
+    getPaymentsControllerRemoveMethodUrl: (methodId: string) => string;
+    getPaymentsControllerCancelUrl: (subscriptionId: string) => string;
+    getPaymentsControllerResumeUrl: (subscriptionId: string) => string;
+    getAdminPaymentsControllerCurrenciesUrl: (params?: AdminPaymentsControllerCurrenciesParams) => string;
+    getAdminPaymentsControllerGetConfigUrl: () => string;
+    getAdminPaymentsControllerPutConfigUrl: () => string;
+    getAdminPaymentsControllerTestUrl: () => string;
+    getAdminPaymentsControllerStatsUrl: () => string;
+    getAdminPaymentsControllerScopeSearchUrl: (params?: AdminPaymentsControllerScopeSearchParams) => string;
+    getAdminPaymentsControllerProductsUrl: () => string;
+    getAdminPaymentsControllerCreateProductUrl: () => string;
+    getAdminPaymentsControllerUpdateProductUrl: (productId: string) => string;
+    getAdminPaymentsControllerDeleteProductUrl: (productId: string) => string;
+    getAdminPaymentsControllerPlansUrl: () => string;
+    getAdminPaymentsControllerCreatePlanUrl: () => string;
+    getAdminPaymentsControllerUpdatePlanUrl: (planId: string) => string;
+    getAdminPaymentsControllerDeletePlanUrl: (planId: string) => string;
+    getAdminPaymentsControllerCouponsUrl: () => string;
+    getAdminPaymentsControllerCreateCouponUrl: () => string;
+    getAdminPaymentsControllerUpdateCouponUrl: (couponId: string) => string;
+    getAdminPaymentsControllerDeleteCouponUrl: (couponId: string) => string;
+    getAdminPaymentsControllerOrdersUrl: (params?: AdminPaymentsControllerOrdersParams) => string;
+    getAdminPaymentsControllerRefundUrl: (orderId: string) => string;
+    getAdminPaymentsControllerSubscriptionsUrl: (params?: AdminPaymentsControllerSubscriptionsParams) => string;
+    getAdminPaymentsControllerCancelSubscriptionUrl: (subscriptionId: string) => string;
+    getAdminPaymentsControllerUserOverviewUrl: (userId: string) => string;
+    getAdminPaymentsControllerWaiveSignupUrl: (userId: string) => string;
+    getAdminPaymentsControllerRemoveUserMethodUrl: (userId: string, methodId: string) => string;
+    getAdminPaymentsControllerGrantsUrl: (userId: string) => string;
+    getAdminPaymentsControllerGrantUrl: (userId: string) => string;
+    getAdminPaymentsControllerRevokeUrl: (grantId: string) => string;
 };
 export type VersionControllerGetResult = AxiosResponse<VersionControllerGet200>;
 export type SetupControllerStatusResult = AxiosResponse<BootstrapSetupStatusSetupStatus>;
@@ -4883,7 +6318,7 @@ export type AiAdminControllerUpdateConfigurationResult = AxiosResponse<AiAdminCo
 export type AiAdminControllerRetryResult = AxiosResponse<AiAdminControllerRetry200>;
 export type AiAdminControllerRecommendationsResult = AxiosResponse<AiAdminControllerRecommendations200Item[]>;
 export type AiAdminControllerRefreshUserRecommendationsResult = AxiosResponse<AiAdminControllerRefreshUserRecommendations200>;
-export type AuthControllerRegisterResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending>;
+export type AuthControllerRegisterResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiAuthAuthServicePaymentPending>;
 export type AuthControllerMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>;
 export type AuthControllerUpdateMeResult = AxiosResponse<ApiAuthAuthServicePublicUser>;
 export type AuthControllerSetPasskeyRequiredResult = AxiosResponse<ApiAuthAuthServicePublicUser>;
@@ -4891,7 +6326,7 @@ export type AuthControllerChangePasswordResult = AxiosResponse<AuthControllerCha
 export type AuthControllerDeleteMeResult = AxiosResponse<AuthControllerDeleteMe200>;
 export type AuthControllerVerifyEmailResult = AxiosResponse<AuthControllerVerifyEmail200>;
 export type AuthControllerResendVerificationResult = AxiosResponse<AuthControllerResendVerification200>;
-export type AuthControllerLoginResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePasskeyRequired>;
+export type AuthControllerLoginResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServicePaymentPending | ApiAuthAuthServicePasskeyRequired>;
 export type AuthControllerListSessionsResult = AxiosResponse<ApiAuthAuthServicePublicSession[]>;
 export type AuthControllerRevokeSessionResult = AxiosResponse<AuthControllerRevokeSession200>;
 export type AuthControllerLogoutResult = AxiosResponse<AuthControllerLogout200>;
@@ -5064,6 +6499,13 @@ export type AdminUsersControllerSetAvatarResult = AxiosResponse<unknown>;
 export type AdminUsersControllerRemoveAvatarResult = AxiosResponse<ApiAdminUsersAdminUsersServiceAdminUser>;
 export type AdminUsersControllerSetPasswordResult = AxiosResponse<void>;
 export type AdminUsersControllerRevokeSessionsResult = AxiosResponse<AdminUsersControllerRevokeSessions200>;
+export type AccessControllerMeResult = AxiosResponse<AccessControllerMe200>;
+export type AccessControllerUnlockResult = AxiosResponse<AccessControllerUnlock200>;
+export type AccessControllerLockResult = AxiosResponse<AccessControllerLock200>;
+export type AdminAccessControllerOptionsResult = AxiosResponse<AdminAccessControllerOptions200>;
+export type AdminAccessControllerGetResult = AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>;
+export type AdminAccessControllerSaveResult = AxiosResponse<ApiAccessMediaAccessServiceAccessPolicyDto>;
+export type AdminAccessControllerPreviewResult = AxiosResponse<AdminAccessControllerPreview200>;
 export type NotificationsControllerListResult = AxiosResponse<NotificationsControllerList200>;
 export type NotificationsControllerMarkReadResult = AxiosResponse<void>;
 export type NotificationsControllerRemoveResult = AxiosResponse<void>;
@@ -5095,6 +6537,8 @@ export type ChatControllerUnreadResult = AxiosResponse<ChatControllerUnread200>;
 export type ChatControllerEncryptionStatusResult = AxiosResponse<ChatControllerEncryptionStatus200>;
 export type ChatControllerRegisterMlsDeviceResult = AxiosResponse<ChatControllerRegisterMlsDevice201>;
 export type ChatControllerMlsDevicesResult = AxiosResponse<ChatControllerMlsDevices200>;
+export type ChatControllerChatHistoryBackupResult = AxiosResponse<ChatControllerChatHistoryBackup200>;
+export type ChatControllerSaveChatHistoryBackupResult = AxiosResponse<ChatControllerSaveChatHistoryBackup200>;
 export type ChatControllerApproveMlsDeviceResult = AxiosResponse<void>;
 export type ChatControllerRevokeMlsDeviceResult = AxiosResponse<void>;
 export type ChatControllerAddMlsKeyPackageResult = AxiosResponse<ChatControllerAddMlsKeyPackage201>;
@@ -5102,6 +6546,8 @@ export type ChatControllerDeviceMlsKeyPackagesResult = AxiosResponse<ChatControl
 export type ChatControllerGetResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerRenameResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerDeleteConversationResult = AxiosResponse<void>;
+export type ChatControllerDowngradeToPlaintextResult = AxiosResponse<ChatChatServiceChatConversation>;
+export type ChatControllerUpgradeToEncryptedResult = AxiosResponse<ChatChatServiceChatConversation>;
 export type ChatControllerMessagesResult = AxiosResponse<ChatControllerMessages200>;
 export type ChatControllerSendResult = AxiosResponse<ChatChatServiceChatMessage>;
 export type ChatControllerMlsKeyPackagesResult = AxiosResponse<ChatControllerMlsKeyPackages200>;
@@ -5153,3 +6599,80 @@ export type AdminDatabaseTransferControllerRestoreWritesResult = AxiosResponse<A
 export type OverviewControllerGetResult = AxiosResponse<OverviewControllerGet200>;
 export type OverviewControllerActivityListResult = AxiosResponse<OverviewControllerActivityList200>;
 export type SentryControllerGetConfigResult = AxiosResponse<SentrySentryServiceSentryAppConfig>;
+export type AdminMailControllerStatusResult = AxiosResponse<AdminMailControllerStatus200>;
+export type AdminMailControllerGetSettingsResult = AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>;
+export type AdminMailControllerUpdateSettingsResult = AxiosResponse<ApiMailMailSettingsServiceMailServerSettingsView>;
+export type AdminMailControllerDiagnosticsResult = AxiosResponse<AdminMailControllerDiagnostics200>;
+export type AdminMailControllerListDomainsResult = AxiosResponse<AdminMailControllerListDomains200Item[]>;
+export type AdminMailControllerCreateDomainResult = AxiosResponse<AdminMailControllerCreateDomain200>;
+export type AdminMailControllerUpdateDomainResult = AxiosResponse<AdminMailControllerUpdateDomain200>;
+export type AdminMailControllerRemoveDomainResult = AxiosResponse<AdminMailControllerRemoveDomain200>;
+export type AdminMailControllerVerifyDomainResult = AxiosResponse<AdminMailControllerVerifyDomain200>;
+export type AdminMailControllerRotateDkimResult = AxiosResponse<AdminMailControllerRotateDkim200>;
+export type AdminMailControllerListMailboxesResult = AxiosResponse<AdminMailControllerListMailboxes200Item[]>;
+export type AdminMailControllerCreateMailboxResult = AxiosResponse<EntitiesMailboxEntityMailbox>;
+export type AdminMailControllerGenerateUserAddressesResult = AxiosResponse<AdminMailControllerGenerateUserAddresses200>;
+export type AdminMailControllerUpdateMailboxResult = AxiosResponse<EntitiesMailboxEntityMailbox>;
+export type AdminMailControllerRemoveMailboxResult = AxiosResponse<AdminMailControllerRemoveMailbox200>;
+export type AdminMailControllerListMessagesResult = AxiosResponse<AdminMailControllerListMessages200>;
+export type AdminMailControllerGetMessageResult = AxiosResponse<AdminMailControllerGetMessage200>;
+export type AdminMailControllerRemoveMessageResult = AxiosResponse<AdminMailControllerRemoveMessage200>;
+export type AdminMailControllerAttachmentResult = AxiosResponse<AdminMailControllerAttachment200>;
+export type AdminMailControllerSendResult = AxiosResponse<AdminMailControllerSend200>;
+export type AdminMailControllerListTemplatesResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate[]>;
+export type AdminMailControllerGetTemplateResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate>;
+export type AdminMailControllerSaveTemplateResult = AxiosResponse<ApiMailMailTemplateServiceMailTemplate>;
+export type AdminMailControllerRemoveTemplateResult = AxiosResponse<AdminMailControllerRemoveTemplate200>;
+export type AdminMailControllerPreviewTemplateResult = AxiosResponse<AdminMailControllerPreviewTemplate200>;
+export type AdminMailControllerTestTemplateResult = AxiosResponse<AdminMailControllerTestTemplate200>;
+export type UserMailControllerMeResult = AxiosResponse<UserMailControllerMe200>;
+export type UserMailControllerListResult = AxiosResponse<UserMailControllerList200>;
+export type UserMailControllerGetResult = AxiosResponse<UserMailControllerGet200>;
+export type UserMailControllerRemoveResult = AxiosResponse<UserMailControllerRemove200>;
+export type UserMailControllerAttachmentResult = AxiosResponse<UserMailControllerAttachment200>;
+export type PaymentsControllerStatusResult = AxiosResponse<PaymentsControllerStatus200>;
+export type PaymentsControllerSignupSetupResult = AxiosResponse<PaymentsControllerSignupSetup200>;
+export type PaymentsControllerSignupCompleteResult = AxiosResponse<ApiAuthAuthServiceAuthResult | ApiAuthAuthServiceVerificationPending | ApiPaymentsPaymentsServiceSignupAction>;
+export type PaymentsControllerWebhookResult = AxiosResponse<PaymentsControllerWebhook200>;
+export type PaymentsControllerMeResult = AxiosResponse<PaymentsControllerMe200>;
+export type PaymentsControllerPlansResult = AxiosResponse<PaymentsControllerPlans200Item[]>;
+export type PaymentsControllerOffersResult = AxiosResponse<PaymentsControllerOffers200>;
+export type PaymentsControllerAccessResult = AxiosResponse<PaymentsControllerAccess200>;
+export type PaymentsControllerQuoteResult = AxiosResponse<ApiPaymentsPaymentsServiceQuote>;
+export type PaymentsControllerCheckoutResult = AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>;
+export type PaymentsControllerReceiptResult = AxiosResponse<PaymentsControllerReceipt200>;
+export type PaymentsControllerConfirmResult = AxiosResponse<ApiPaymentsPaymentsServiceCheckoutResult>;
+export type PaymentsControllerBeginMethodResult = AxiosResponse<PaymentsControllerBeginMethod200>;
+export type PaymentsControllerAddMethodResult = AxiosResponse<PaymentsControllerAddMethod200>;
+export type PaymentsControllerMakeDefaultResult = AxiosResponse<PaymentsControllerMakeDefault200>;
+export type PaymentsControllerRemoveMethodResult = AxiosResponse<PaymentsControllerRemoveMethod200>;
+export type PaymentsControllerCancelResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>;
+export type PaymentsControllerResumeResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>;
+export type AdminPaymentsControllerCurrenciesResult = AxiosResponse<ApiPaymentsCurrenciesCurrencyInfo[]>;
+export type AdminPaymentsControllerGetConfigResult = AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>;
+export type AdminPaymentsControllerPutConfigResult = AxiosResponse<ApiPaymentsPaymentConfigServiceAdminPaymentConfig>;
+export type AdminPaymentsControllerTestResult = AxiosResponse<AdminPaymentsControllerTest200>;
+export type AdminPaymentsControllerStatsResult = AxiosResponse<AdminPaymentsControllerStats200>;
+export type AdminPaymentsControllerScopeSearchResult = AxiosResponse<AdminPaymentsControllerScopeSearch200>;
+export type AdminPaymentsControllerProductsResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct[]>;
+export type AdminPaymentsControllerCreateProductResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>;
+export type AdminPaymentsControllerUpdateProductResult = AxiosResponse<EntitiesPaymentProductEntityPaymentProduct>;
+export type AdminPaymentsControllerDeleteProductResult = AxiosResponse<AdminPaymentsControllerDeleteProduct200>;
+export type AdminPaymentsControllerPlansResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan[]>;
+export type AdminPaymentsControllerCreatePlanResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>;
+export type AdminPaymentsControllerUpdatePlanResult = AxiosResponse<EntitiesPaymentPlanEntityPaymentPlan>;
+export type AdminPaymentsControllerDeletePlanResult = AxiosResponse<AdminPaymentsControllerDeletePlan200>;
+export type AdminPaymentsControllerCouponsResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon[]>;
+export type AdminPaymentsControllerCreateCouponResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>;
+export type AdminPaymentsControllerUpdateCouponResult = AxiosResponse<EntitiesPaymentCouponEntityPaymentCoupon>;
+export type AdminPaymentsControllerDeleteCouponResult = AxiosResponse<AdminPaymentsControllerDeleteCoupon200>;
+export type AdminPaymentsControllerOrdersResult = AxiosResponse<AdminPaymentsControllerOrders200>;
+export type AdminPaymentsControllerRefundResult = AxiosResponse<EntitiesPaymentOrderEntityPaymentOrder>;
+export type AdminPaymentsControllerSubscriptionsResult = AxiosResponse<AdminPaymentsControllerSubscriptions200Item[]>;
+export type AdminPaymentsControllerCancelSubscriptionResult = AxiosResponse<EntitiesPaymentSubscriptionEntityPaymentSubscription>;
+export type AdminPaymentsControllerUserOverviewResult = AxiosResponse<AdminPaymentsControllerUserOverview200>;
+export type AdminPaymentsControllerWaiveSignupResult = AxiosResponse<AdminPaymentsControllerWaiveSignup200>;
+export type AdminPaymentsControllerRemoveUserMethodResult = AxiosResponse<AdminPaymentsControllerRemoveUserMethod200>;
+export type AdminPaymentsControllerGrantsResult = AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement[]>;
+export type AdminPaymentsControllerGrantResult = AxiosResponse<EntitiesPaymentEntitlementEntityPaymentEntitlement>;
+export type AdminPaymentsControllerRevokeResult = AxiosResponse<AdminPaymentsControllerRevoke200>;

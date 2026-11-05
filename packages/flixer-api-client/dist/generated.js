@@ -76,6 +76,11 @@ export const UpdateAdminUserRequestRole = {
     admin: 'admin',
     user: 'user',
 };
+export const UpdateAdminUserRequestOriginalAccess = {
+    inherit: 'inherit',
+    allow: 'allow',
+    deny: 'deny',
+};
 export const CreatePartyRequestVisibility = {
     public: 'public',
     friends: 'friends',
@@ -94,6 +99,10 @@ export const CreateFriendInviteRequestMode = {
     once: 'once',
     unlimited: 'unlimited',
     expires: 'expires',
+};
+export const UpdateMailSettingsRequestUserAddressMode = {
+    username: 'username',
+    random: 'random',
 };
 export const getApiDocumentation = (axiosInstance = axios) => {
     const versionControllerGet = (options) => {
@@ -2678,6 +2687,90 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const accessControllerMe = (options) => {
+        return axiosInstance.get(`/access/me`, options);
+    };
+    const getAccessControllerMeUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/access/me`,
+            baseURL: '',
+        });
+    };
+    const accessControllerUnlock = (unlockRequest, options) => {
+        return axiosInstance.post(`/access/unlock`, unlockRequest, options);
+    };
+    const getAccessControllerUnlockUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/access/unlock`,
+            baseURL: '',
+        });
+    };
+    const accessControllerLock = (options) => {
+        return axiosInstance.post(`/access/lock`, undefined, options);
+    };
+    const getAccessControllerLockUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/access/lock`,
+            baseURL: '',
+        });
+    };
+    const adminAccessControllerOptions = (options) => {
+        return axiosInstance.get(`/admin/access/options`, options);
+    };
+    const getAdminAccessControllerOptionsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/access/options`,
+            baseURL: '',
+        });
+    };
+    const adminAccessControllerGet = (id, options) => {
+        return axiosInstance.get(`/admin/access/users/${id}`, options);
+    };
+    const getAdminAccessControllerGetUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/access/users/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminAccessControllerSave = (id, adminAccessControllerSaveBody, options) => {
+        return axiosInstance.put(`/admin/access/users/${id}`, adminAccessControllerSaveBody, options);
+    };
+    const getAdminAccessControllerSaveUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/access/users/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminAccessControllerPreview = (id, adminAccessControllerPreviewBody, options) => {
+        return axiosInstance.post(`/admin/access/users/${id}/preview`, adminAccessControllerPreviewBody, options);
+    };
+    const getAdminAccessControllerPreviewUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/access/users/${id}/preview`,
+            baseURL: '',
+        });
+    };
     const notificationsControllerList = (options) => {
         return axiosInstance.get(`/notifications`, options);
     };
@@ -3054,6 +3147,30 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
+    const chatControllerChatHistoryBackup = (options) => {
+        return axiosInstance.get(`/chat/history-backup`, options);
+    };
+    const getChatControllerChatHistoryBackupUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/history-backup`,
+            baseURL: '',
+        });
+    };
+    const chatControllerSaveChatHistoryBackup = (chatMlsHistoryBackupRequest, options) => {
+        return axiosInstance.put(`/chat/history-backup`, chatMlsHistoryBackupRequest, options);
+    };
+    const getChatControllerSaveChatHistoryBackupUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/history-backup`,
+            baseURL: '',
+        });
+    };
     const chatControllerApproveMlsDevice = (deviceId, approveChatMlsDeviceRequest, options) => {
         return axiosInstance.post(`/chat/devices/${deviceId}/approve`, approveChatMlsDeviceRequest, options);
     };
@@ -3135,6 +3252,30 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             params: null,
         }).getUri({
             url: `/chat/conversations/${id}`,
+            baseURL: '',
+        });
+    };
+    const chatControllerDowngradeToPlaintext = (id, options) => {
+        return axiosInstance.post(`/chat/conversations/${id}/downgrade`, undefined, options);
+    };
+    const getChatControllerDowngradeToPlaintextUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/downgrade`,
+            baseURL: '',
+        });
+    };
+    const chatControllerUpgradeToEncrypted = (id, options) => {
+        return axiosInstance.post(`/chat/conversations/${id}/upgrade`, undefined, options);
+    };
+    const getChatControllerUpgradeToEncryptedUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/chat/conversations/${id}/upgrade`,
             baseURL: '',
         });
     };
@@ -3781,5 +3922,953 @@ export const getApiDocumentation = (axiosInstance = axios) => {
             baseURL: '',
         });
     };
-    return { versionControllerGet, setupControllerStatus, setupControllerRequestRecoveryKey, setupControllerProgress, setupControllerFlow, setupControllerTestStep, setupControllerApplyStep, setupControllerComplete, setupControllerReset, internalConfigControllerGet, aiControllerLibraryContext, aiControllerRecommendationContext, aiControllerRuntimeConfiguration, aiControllerRecommendationCacheState, aiControllerSaveRecommendationCache, aiControllerClearRecommendationCache, recommendationsControllerHomeRecommendations, recommendationsControllerMusicRecommendations, recommendationsControllerRecommend, recommendationsControllerSimilar, aiAdminControllerStatus, aiAdminControllerUpdateConfiguration, aiAdminControllerRetry, aiAdminControllerRecommendations, aiAdminControllerRefreshUserRecommendations, authControllerRegister, authControllerMe, authControllerUpdateMe, authControllerSetPasskeyRequired, authControllerChangePassword, authControllerDeleteMe, authControllerVerifyEmail, authControllerResendVerification, authControllerLogin, authControllerListSessions, authControllerRevokeSession, authControllerLogout, avatarControllerUpload, avatarControllerRemove, avatarControllerAvatar, passkeyControllerList, passkeyControllerRegistrationOptions, passkeyControllerRegistrationVerify, passkeyControllerLoginOptions, passkeyControllerLoginVerify, passkeyControllerSecondFactorOptions, passkeyControllerSecondFactorVerify, passkeyControllerStartNativeHandoff, passkeyControllerNativeHandoffOptions, passkeyControllerVerifyNativeHandoff, passkeyControllerExchangeNativeHandoff, passkeyControllerRemove, userControllerListUsers, userControllerGetUser, userControllerDeleteUser, preferencesControllerGet, preferencesControllerUpdate, settingsControllerList, settingsControllerRegistrationStatus, settingsControllerSendTestEmail, settingsControllerUpdate, playbackControllerListSamples, playbackControllerItemPlaybackInfo, playbackControllerChannelPlaybackInfo, playbackControllerPlaybackInfo, guideControllerGet, adminGuideControllerOverview, adminGuideControllerSources, adminGuideControllerCreateSource, adminGuideControllerUpdateSource, adminGuideControllerRemoveSource, adminGuideControllerRefreshSource, adminGuideControllerUpdateChannels, adminGuideControllerUpdateSettings, jobsControllerGetQueues, jobsControllerFindJobs, jobsControllerEnqueue, jobsControllerGetJob, jobsControllerCancelJob, jobsControllerRetryJob, jobsControllerGetSchedules, jobsControllerSchedule, jobsControllerUnschedule, adminScheduledTasksControllerList, adminScheduledTasksControllerSaveSchedule, adminScheduledTasksControllerRun, adminScheduledTasksControllerStop, streamsControllerListSessions, streamsControllerCancelSession, devicesControllerList, devicesControllerSignOut, apiKeysControllerList, apiKeysControllerCreate, apiKeysControllerRevoke, mediaLibrariesControllerList, mediaLibrariesControllerCreate, mediaLibrariesControllerListRoots, mediaLibrariesControllerBrowse, mediaLibrariesControllerUpdate, mediaLibrariesControllerRemove, streamerRootsControllerList, streamerRootsControllerTranscoding, indexerApiControllerListLibraries, indexerApiControllerGetSettings, indexerApiControllerUpsertItem, indexerApiControllerUpsertItemLyrics, indexerApiControllerIntroSyncCandidates, indexerApiControllerExistingIntroSegments, indexerApiControllerUpdateIntroSegments, indexerApiControllerPruneLibrary, indexerApiControllerRemoveItemsAtPaths, adminIndexerControllerStatus, adminIndexerControllerScan, adminIndexerControllerQueueSegments, adminIndexerControllerRefresh, adminIndexerControllerTasks, adminIndexerControllerTaskLogs, adminIndexerControllerCancelTask, adminIndexerControllerRetryTask, adminIndexerControllerCancelActive, adminIndexerControllerClearFailed, adminIndexerControllerPause, adminIndexerControllerResume, adminIndexerControllerSetConcurrency, pluginsControllerInstalled, pluginsControllerRepositories, pluginsControllerAddRepository, pluginsControllerCatalog, pluginsControllerPluginSettingsView, pluginsControllerUpdatePluginSettings, pluginsControllerPluginUpdateHistory, pluginsControllerInstall, pluginsControllerEnable, pluginsControllerDisable, pluginsControllerUninstall, pluginsControllerRefreshRepository, pluginsControllerRemoveRepository, pluginRuntimeControllerListPages, pluginRuntimeControllerSearchSections, pluginRuntimeControllerInvoke, requestImagesControllerTmdb, requestImagesControllerDiscogs, requestsControllerConfig, requestsControllerSearch, requestsControllerDiscover, requestsControllerDetails, requestsControllerList, requestsControllerCreate, requestsControllerApprove, requestsControllerDecline, requestsControllerRetry, requestsControllerRemove, adminRequestsControllerGetWebhookCredentials, adminRequestsControllerRotateWebhookCredentials, adminRequestsControllerListServices, adminRequestsControllerCreateService, adminRequestsControllerTestService, adminRequestsControllerUpdateService, adminRequestsControllerRemoveService, adminRequestsControllerListUsers, adminRequestsControllerUpdateUser, requestWebhookControllerReceive, adminMediaControllerListSubtitles, adminMediaControllerRemoveSubtitle, adminMediaControllerSearchSubtitles, adminMediaControllerDownloadSubtitle, adminMediaControllerSetSegment, adminMediaControllerClearSegment, adminMediaControllerList, adminMediaControllerGet, adminMediaControllerUpdate, adminMediaControllerRemove, adminMediaControllerRefresh, adminMediaControllerImage, adminMediaControllerRemoveImage, adminMediaControllerAddImage, mediaHomeControllerGetHome, mediaHomeControllerGetProgress, mediaHomeControllerSaveProgress, mediaHomeControllerSetWatched, mediaHomeControllerGenres, mediaHomeControllerSearch, mediaHomeControllerPersonImage, mediaHomeControllerPerson, mediaHomeControllerBrowse, mediaHomeControllerItem, mediaHomeControllerImage, adminMediaSearchControllerStatus, adminMediaSearchControllerTask, adminMediaSearchControllerSaveSettings, adminMediaSearchControllerRebuild, adminMediaSearchControllerReset, networkSharesControllerList, networkSharesControllerCreate, networkSharesControllerSupport, networkSharesControllerUpdate, networkSharesControllerRemove, networkSharesControllerReconnect, adminUsersControllerList, adminUsersControllerCreate, adminUsersControllerUpdate, adminUsersControllerRemove, adminUsersControllerSetAvatar, adminUsersControllerRemoveAvatar, adminUsersControllerSetPassword, adminUsersControllerRevokeSessions, notificationsControllerList, notificationsControllerMarkRead, notificationsControllerRemove, notificationsControllerConfig, notificationsControllerPushKey, notificationsControllerPushStatus, notificationsControllerSubscribe, notificationsControllerUnsubscribe, adminNotificationsControllerSend, favoritesControllerList, favoritesControllerIds, favoritesControllerAdd, favoritesControllerRemove, playlistsControllerList, playlistsControllerCreate, playlistsControllerContaining, playlistsControllerGet, playlistsControllerUpdate, playlistsControllerRemove, playlistsControllerAddItem, playlistsControllerRemoveTrack, playlistsControllerReorder, partiesControllerCreate, partiesControllerGet, partiesControllerEnd, chatControllerList, chatControllerStart, chatControllerUnread, chatControllerEncryptionStatus, chatControllerRegisterMlsDevice, chatControllerMlsDevices, chatControllerApproveMlsDevice, chatControllerRevokeMlsDevice, chatControllerAddMlsKeyPackage, chatControllerDeviceMlsKeyPackages, chatControllerGet, chatControllerRename, chatControllerDeleteConversation, chatControllerMessages, chatControllerSend, chatControllerMlsKeyPackages, chatControllerClaimMlsKeyPackage, chatControllerMlsWelcomes, chatControllerStoreMlsWelcome, chatControllerAcknowledgeMlsWelcome, chatControllerRead, chatControllerAddMembers, chatControllerRemoveMember, issueReportsControllerConfiguration, issueReportsControllerList, issueReportsControllerCreate, issueReportsControllerGet, adminIssueReportsControllerList, adminIssueReportsControllerGet, adminIssueReportsControllerDelete, adminIssueReportsControllerUpdateStatus, adminIssueReportsControllerAddUpdate, adminIssueReportsControllerSetChat, profilesControllerDirectory, profilesControllerMe, profilesControllerSetVisibility, profilesControllerListening, profilesControllerGet, friendsControllerList, friendsControllerCreateInvite, friendsControllerGetInvite, friendsControllerAcceptInvite, friendsControllerRequest, friendsControllerRemove, friendsControllerAccept, themesControllerAudio, themesControllerSync, adminUpdatesControllerStatus, adminUpdatesControllerApply, adminBackupsControllerStatus, adminBackupsControllerCreate, adminBackupsControllerUpload, adminBackupsControllerSetPassphrase, adminBackupsControllerClearPassphrase, adminBackupsControllerRestore, adminBackupsControllerDownloadLink, adminBackupsControllerRemove, backupDownloadControllerDownload, adminDatabaseTransferControllerStatus, adminDatabaseTransferControllerStart, adminDatabaseTransferControllerRestoreWrites, overviewControllerGet, overviewControllerActivityList, sentryControllerGetConfig, getVersionControllerGetUrl, getSetupControllerStatusUrl, getSetupControllerRequestRecoveryKeyUrl, getSetupControllerProgressUrl, getSetupControllerFlowUrl, getSetupControllerTestStepUrl, getSetupControllerApplyStepUrl, getSetupControllerCompleteUrl, getSetupControllerResetUrl, getInternalConfigControllerGetUrl, getAiControllerLibraryContextUrl, getAiControllerRecommendationContextUrl, getAiControllerRuntimeConfigurationUrl, getAiControllerRecommendationCacheStateUrl, getAiControllerSaveRecommendationCacheUrl, getAiControllerClearRecommendationCacheUrl, getRecommendationsControllerHomeRecommendationsUrl, getRecommendationsControllerMusicRecommendationsUrl, getRecommendationsControllerRecommendUrl, getRecommendationsControllerSimilarUrl, getAiAdminControllerStatusUrl, getAiAdminControllerUpdateConfigurationUrl, getAiAdminControllerRetryUrl, getAiAdminControllerRecommendationsUrl, getAiAdminControllerRefreshUserRecommendationsUrl, getAuthControllerRegisterUrl, getAuthControllerMeUrl, getAuthControllerUpdateMeUrl, getAuthControllerSetPasskeyRequiredUrl, getAuthControllerChangePasswordUrl, getAuthControllerDeleteMeUrl, getAuthControllerVerifyEmailUrl, getAuthControllerResendVerificationUrl, getAuthControllerLoginUrl, getAuthControllerListSessionsUrl, getAuthControllerRevokeSessionUrl, getAuthControllerLogoutUrl, getAvatarControllerUploadUrl, getAvatarControllerRemoveUrl, getAvatarControllerAvatarUrl, getPasskeyControllerListUrl, getPasskeyControllerRegistrationOptionsUrl, getPasskeyControllerRegistrationVerifyUrl, getPasskeyControllerLoginOptionsUrl, getPasskeyControllerLoginVerifyUrl, getPasskeyControllerSecondFactorOptionsUrl, getPasskeyControllerSecondFactorVerifyUrl, getPasskeyControllerStartNativeHandoffUrl, getPasskeyControllerNativeHandoffOptionsUrl, getPasskeyControllerVerifyNativeHandoffUrl, getPasskeyControllerExchangeNativeHandoffUrl, getPasskeyControllerRemoveUrl, getUserControllerListUsersUrl, getUserControllerGetUserUrl, getUserControllerDeleteUserUrl, getPreferencesControllerGetUrl, getPreferencesControllerUpdateUrl, getSettingsControllerListUrl, getSettingsControllerRegistrationStatusUrl, getSettingsControllerSendTestEmailUrl, getSettingsControllerUpdateUrl, getPlaybackControllerListSamplesUrl, getPlaybackControllerItemPlaybackInfoUrl, getPlaybackControllerChannelPlaybackInfoUrl, getPlaybackControllerPlaybackInfoUrl, getGuideControllerGetUrl, getAdminGuideControllerOverviewUrl, getAdminGuideControllerSourcesUrl, getAdminGuideControllerCreateSourceUrl, getAdminGuideControllerUpdateSourceUrl, getAdminGuideControllerRemoveSourceUrl, getAdminGuideControllerRefreshSourceUrl, getAdminGuideControllerUpdateChannelsUrl, getAdminGuideControllerUpdateSettingsUrl, getJobsControllerGetQueuesUrl, getJobsControllerFindJobsUrl, getJobsControllerEnqueueUrl, getJobsControllerGetJobUrl, getJobsControllerCancelJobUrl, getJobsControllerRetryJobUrl, getJobsControllerGetSchedulesUrl, getJobsControllerScheduleUrl, getJobsControllerUnscheduleUrl, getAdminScheduledTasksControllerListUrl, getAdminScheduledTasksControllerSaveScheduleUrl, getAdminScheduledTasksControllerRunUrl, getAdminScheduledTasksControllerStopUrl, getStreamsControllerListSessionsUrl, getStreamsControllerCancelSessionUrl, getDevicesControllerListUrl, getDevicesControllerSignOutUrl, getApiKeysControllerListUrl, getApiKeysControllerCreateUrl, getApiKeysControllerRevokeUrl, getMediaLibrariesControllerListUrl, getMediaLibrariesControllerCreateUrl, getMediaLibrariesControllerListRootsUrl, getMediaLibrariesControllerBrowseUrl, getMediaLibrariesControllerUpdateUrl, getMediaLibrariesControllerRemoveUrl, getStreamerRootsControllerListUrl, getStreamerRootsControllerTranscodingUrl, getIndexerApiControllerListLibrariesUrl, getIndexerApiControllerGetSettingsUrl, getIndexerApiControllerUpsertItemUrl, getIndexerApiControllerUpsertItemLyricsUrl, getIndexerApiControllerIntroSyncCandidatesUrl, getIndexerApiControllerExistingIntroSegmentsUrl, getIndexerApiControllerUpdateIntroSegmentsUrl, getIndexerApiControllerPruneLibraryUrl, getIndexerApiControllerRemoveItemsAtPathsUrl, getAdminIndexerControllerStatusUrl, getAdminIndexerControllerScanUrl, getAdminIndexerControllerQueueSegmentsUrl, getAdminIndexerControllerRefreshUrl, getAdminIndexerControllerTasksUrl, getAdminIndexerControllerTaskLogsUrl, getAdminIndexerControllerCancelTaskUrl, getAdminIndexerControllerRetryTaskUrl, getAdminIndexerControllerCancelActiveUrl, getAdminIndexerControllerClearFailedUrl, getAdminIndexerControllerPauseUrl, getAdminIndexerControllerResumeUrl, getAdminIndexerControllerSetConcurrencyUrl, getPluginsControllerInstalledUrl, getPluginsControllerRepositoriesUrl, getPluginsControllerAddRepositoryUrl, getPluginsControllerCatalogUrl, getPluginsControllerPluginSettingsViewUrl, getPluginsControllerUpdatePluginSettingsUrl, getPluginsControllerPluginUpdateHistoryUrl, getPluginsControllerInstallUrl, getPluginsControllerEnableUrl, getPluginsControllerDisableUrl, getPluginsControllerUninstallUrl, getPluginsControllerRefreshRepositoryUrl, getPluginsControllerRemoveRepositoryUrl, getPluginRuntimeControllerListPagesUrl, getPluginRuntimeControllerSearchSectionsUrl, getPluginRuntimeControllerInvokeUrl, getRequestImagesControllerTmdbUrl, getRequestImagesControllerDiscogsUrl, getRequestsControllerConfigUrl, getRequestsControllerSearchUrl, getRequestsControllerDiscoverUrl, getRequestsControllerDetailsUrl, getRequestsControllerListUrl, getRequestsControllerCreateUrl, getRequestsControllerApproveUrl, getRequestsControllerDeclineUrl, getRequestsControllerRetryUrl, getRequestsControllerRemoveUrl, getAdminRequestsControllerGetWebhookCredentialsUrl, getAdminRequestsControllerRotateWebhookCredentialsUrl, getAdminRequestsControllerListServicesUrl, getAdminRequestsControllerCreateServiceUrl, getAdminRequestsControllerTestServiceUrl, getAdminRequestsControllerUpdateServiceUrl, getAdminRequestsControllerRemoveServiceUrl, getAdminRequestsControllerListUsersUrl, getAdminRequestsControllerUpdateUserUrl, getRequestWebhookControllerReceiveUrl, getAdminMediaControllerListSubtitlesUrl, getAdminMediaControllerRemoveSubtitleUrl, getAdminMediaControllerSearchSubtitlesUrl, getAdminMediaControllerDownloadSubtitleUrl, getAdminMediaControllerSetSegmentUrl, getAdminMediaControllerClearSegmentUrl, getAdminMediaControllerListUrl, getAdminMediaControllerGetUrl, getAdminMediaControllerUpdateUrl, getAdminMediaControllerRemoveUrl, getAdminMediaControllerRefreshUrl, getAdminMediaControllerImageUrl, getAdminMediaControllerRemoveImageUrl, getAdminMediaControllerAddImageUrl, getMediaHomeControllerGetHomeUrl, getMediaHomeControllerGetProgressUrl, getMediaHomeControllerSaveProgressUrl, getMediaHomeControllerSetWatchedUrl, getMediaHomeControllerGenresUrl, getMediaHomeControllerSearchUrl, getMediaHomeControllerPersonImageUrl, getMediaHomeControllerPersonUrl, getMediaHomeControllerBrowseUrl, getMediaHomeControllerItemUrl, getMediaHomeControllerImageUrl, getAdminMediaSearchControllerStatusUrl, getAdminMediaSearchControllerTaskUrl, getAdminMediaSearchControllerSaveSettingsUrl, getAdminMediaSearchControllerRebuildUrl, getAdminMediaSearchControllerResetUrl, getNetworkSharesControllerListUrl, getNetworkSharesControllerCreateUrl, getNetworkSharesControllerSupportUrl, getNetworkSharesControllerUpdateUrl, getNetworkSharesControllerRemoveUrl, getNetworkSharesControllerReconnectUrl, getAdminUsersControllerListUrl, getAdminUsersControllerCreateUrl, getAdminUsersControllerUpdateUrl, getAdminUsersControllerRemoveUrl, getAdminUsersControllerSetAvatarUrl, getAdminUsersControllerRemoveAvatarUrl, getAdminUsersControllerSetPasswordUrl, getAdminUsersControllerRevokeSessionsUrl, getNotificationsControllerListUrl, getNotificationsControllerMarkReadUrl, getNotificationsControllerRemoveUrl, getNotificationsControllerConfigUrl, getNotificationsControllerPushKeyUrl, getNotificationsControllerPushStatusUrl, getNotificationsControllerSubscribeUrl, getNotificationsControllerUnsubscribeUrl, getAdminNotificationsControllerSendUrl, getFavoritesControllerListUrl, getFavoritesControllerIdsUrl, getFavoritesControllerAddUrl, getFavoritesControllerRemoveUrl, getPlaylistsControllerListUrl, getPlaylistsControllerCreateUrl, getPlaylistsControllerContainingUrl, getPlaylistsControllerGetUrl, getPlaylistsControllerUpdateUrl, getPlaylistsControllerRemoveUrl, getPlaylistsControllerAddItemUrl, getPlaylistsControllerRemoveTrackUrl, getPlaylistsControllerReorderUrl, getPartiesControllerCreateUrl, getPartiesControllerGetUrl, getPartiesControllerEndUrl, getChatControllerListUrl, getChatControllerStartUrl, getChatControllerUnreadUrl, getChatControllerEncryptionStatusUrl, getChatControllerRegisterMlsDeviceUrl, getChatControllerMlsDevicesUrl, getChatControllerApproveMlsDeviceUrl, getChatControllerRevokeMlsDeviceUrl, getChatControllerAddMlsKeyPackageUrl, getChatControllerDeviceMlsKeyPackagesUrl, getChatControllerGetUrl, getChatControllerRenameUrl, getChatControllerDeleteConversationUrl, getChatControllerMessagesUrl, getChatControllerSendUrl, getChatControllerMlsKeyPackagesUrl, getChatControllerClaimMlsKeyPackageUrl, getChatControllerMlsWelcomesUrl, getChatControllerStoreMlsWelcomeUrl, getChatControllerAcknowledgeMlsWelcomeUrl, getChatControllerReadUrl, getChatControllerAddMembersUrl, getChatControllerRemoveMemberUrl, getIssueReportsControllerConfigurationUrl, getIssueReportsControllerListUrl, getIssueReportsControllerCreateUrl, getIssueReportsControllerGetUrl, getAdminIssueReportsControllerListUrl, getAdminIssueReportsControllerGetUrl, getAdminIssueReportsControllerDeleteUrl, getAdminIssueReportsControllerUpdateStatusUrl, getAdminIssueReportsControllerAddUpdateUrl, getAdminIssueReportsControllerSetChatUrl, getProfilesControllerDirectoryUrl, getProfilesControllerMeUrl, getProfilesControllerSetVisibilityUrl, getProfilesControllerListeningUrl, getProfilesControllerGetUrl, getFriendsControllerListUrl, getFriendsControllerCreateInviteUrl, getFriendsControllerGetInviteUrl, getFriendsControllerAcceptInviteUrl, getFriendsControllerRequestUrl, getFriendsControllerRemoveUrl, getFriendsControllerAcceptUrl, getThemesControllerAudioUrl, getThemesControllerSyncUrl, getAdminUpdatesControllerStatusUrl, getAdminUpdatesControllerApplyUrl, getAdminBackupsControllerStatusUrl, getAdminBackupsControllerCreateUrl, getAdminBackupsControllerUploadUrl, getAdminBackupsControllerSetPassphraseUrl, getAdminBackupsControllerClearPassphraseUrl, getAdminBackupsControllerRestoreUrl, getAdminBackupsControllerDownloadLinkUrl, getAdminBackupsControllerRemoveUrl, getBackupDownloadControllerDownloadUrl, getAdminDatabaseTransferControllerStatusUrl, getAdminDatabaseTransferControllerStartUrl, getAdminDatabaseTransferControllerRestoreWritesUrl, getOverviewControllerGetUrl, getOverviewControllerActivityListUrl, getSentryControllerGetConfigUrl };
+    const adminMailControllerStatus = (options) => {
+        return axiosInstance.get(`/admin/mail/status`, options);
+    };
+    const getAdminMailControllerStatusUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/status`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerGetSettings = (options) => {
+        return axiosInstance.get(`/admin/mail/settings`, options);
+    };
+    const getAdminMailControllerGetSettingsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/settings`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerUpdateSettings = (updateMailSettingsRequest, options) => {
+        return axiosInstance.put(`/admin/mail/settings`, updateMailSettingsRequest, options);
+    };
+    const getAdminMailControllerUpdateSettingsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/settings`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerDiagnostics = (options) => {
+        return axiosInstance.post(`/admin/mail/diagnostics`, undefined, options);
+    };
+    const getAdminMailControllerDiagnosticsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/diagnostics`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerListDomains = (options) => {
+        return axiosInstance.get(`/admin/mail/domains`, options);
+    };
+    const getAdminMailControllerListDomainsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerCreateDomain = (createMailDomainRequest, options) => {
+        return axiosInstance.post(`/admin/mail/domains`, createMailDomainRequest, options);
+    };
+    const getAdminMailControllerCreateDomainUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerUpdateDomain = (id, updateMailDomainRequest, options) => {
+        return axiosInstance.patch(`/admin/mail/domains/${id}`, updateMailDomainRequest, options);
+    };
+    const getAdminMailControllerUpdateDomainUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerRemoveDomain = (id, options) => {
+        return axiosInstance.delete(`/admin/mail/domains/${id}`, options);
+    };
+    const getAdminMailControllerRemoveDomainUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerVerifyDomain = (id, options) => {
+        return axiosInstance.post(`/admin/mail/domains/${id}/verify`, undefined, options);
+    };
+    const getAdminMailControllerVerifyDomainUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains/${id}/verify`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerRotateDkim = (id, options) => {
+        return axiosInstance.post(`/admin/mail/domains/${id}/rotate-dkim`, undefined, options);
+    };
+    const getAdminMailControllerRotateDkimUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/domains/${id}/rotate-dkim`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerListMailboxes = (options) => {
+        return axiosInstance.get(`/admin/mail/mailboxes`, options);
+    };
+    const getAdminMailControllerListMailboxesUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/mailboxes`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerCreateMailbox = (createMailboxRequest, options) => {
+        return axiosInstance.post(`/admin/mail/mailboxes`, createMailboxRequest, options);
+    };
+    const getAdminMailControllerCreateMailboxUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/mailboxes`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerGenerateUserAddresses = (options) => {
+        return axiosInstance.post(`/admin/mail/mailboxes/generate-user-addresses`, undefined, options);
+    };
+    const getAdminMailControllerGenerateUserAddressesUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/mailboxes/generate-user-addresses`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerUpdateMailbox = (id, updateMailboxRequest, options) => {
+        return axiosInstance.patch(`/admin/mail/mailboxes/${id}`, updateMailboxRequest, options);
+    };
+    const getAdminMailControllerUpdateMailboxUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/mailboxes/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerRemoveMailbox = (id, options) => {
+        return axiosInstance.delete(`/admin/mail/mailboxes/${id}`, options);
+    };
+    const getAdminMailControllerRemoveMailboxUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/mailboxes/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerListMessages = (params, options) => {
+        return axiosInstance.get(`/admin/mail/messages`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getAdminMailControllerListMessagesUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/messages`,
+            baseURL: '',
+            params,
+        });
+    };
+    const adminMailControllerGetMessage = (id, options) => {
+        return axiosInstance.get(`/admin/mail/messages/${id}`, options);
+    };
+    const getAdminMailControllerGetMessageUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/messages/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerRemoveMessage = (id, options) => {
+        return axiosInstance.delete(`/admin/mail/messages/${id}`, options);
+    };
+    const getAdminMailControllerRemoveMessageUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/messages/${id}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerAttachment = (id, attachmentId, options) => {
+        return axiosInstance.get(`/admin/mail/messages/${id}/attachments/${attachmentId}`, options);
+    };
+    const getAdminMailControllerAttachmentUrl = (id, attachmentId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/messages/${id}/attachments/${attachmentId}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerSend = (sendMailRequest, options) => {
+        return axiosInstance.post(`/admin/mail/send`, sendMailRequest, options);
+    };
+    const getAdminMailControllerSendUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/send`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerListTemplates = (options) => {
+        return axiosInstance.get(`/admin/mail/templates`, options);
+    };
+    const getAdminMailControllerListTemplatesUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerGetTemplate = (name, options) => {
+        return axiosInstance.get(`/admin/mail/templates/${name}`, options);
+    };
+    const getAdminMailControllerGetTemplateUrl = (name) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates/${name}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerSaveTemplate = (name, saveMailTemplateRequest, options) => {
+        return axiosInstance.put(`/admin/mail/templates/${name}`, saveMailTemplateRequest, options);
+    };
+    const getAdminMailControllerSaveTemplateUrl = (name) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates/${name}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerRemoveTemplate = (name, options) => {
+        return axiosInstance.delete(`/admin/mail/templates/${name}`, options);
+    };
+    const getAdminMailControllerRemoveTemplateUrl = (name) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates/${name}`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerPreviewTemplate = (name, previewMailTemplateRequest, options) => {
+        return axiosInstance.post(`/admin/mail/templates/${name}/preview`, previewMailTemplateRequest, options);
+    };
+    const getAdminMailControllerPreviewTemplateUrl = (name) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates/${name}/preview`,
+            baseURL: '',
+        });
+    };
+    const adminMailControllerTestTemplate = (name, sendTestMailRequest, options) => {
+        return axiosInstance.post(`/admin/mail/templates/${name}/test`, sendTestMailRequest, options);
+    };
+    const getAdminMailControllerTestTemplateUrl = (name) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/mail/templates/${name}/test`,
+            baseURL: '',
+        });
+    };
+    const userMailControllerMe = (options) => {
+        return axiosInstance.get(`/mail/me`, options);
+    };
+    const getUserMailControllerMeUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/mail/me`,
+            baseURL: '',
+        });
+    };
+    const userMailControllerList = (params, options) => {
+        return axiosInstance.get(`/mail/messages`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getUserMailControllerListUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/mail/messages`,
+            baseURL: '',
+            params,
+        });
+    };
+    const userMailControllerGet = (id, options) => {
+        return axiosInstance.get(`/mail/messages/${id}`, options);
+    };
+    const getUserMailControllerGetUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/mail/messages/${id}`,
+            baseURL: '',
+        });
+    };
+    const userMailControllerRemove = (id, options) => {
+        return axiosInstance.delete(`/mail/messages/${id}`, options);
+    };
+    const getUserMailControllerRemoveUrl = (id) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/mail/messages/${id}`,
+            baseURL: '',
+        });
+    };
+    const userMailControllerAttachment = (id, attachmentId, options) => {
+        return axiosInstance.get(`/mail/messages/${id}/attachments/${attachmentId}`, options);
+    };
+    const getUserMailControllerAttachmentUrl = (id, attachmentId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/mail/messages/${id}/attachments/${attachmentId}`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerStatus = (options) => {
+        return axiosInstance.get(`/payments/status`, options);
+    };
+    const getPaymentsControllerStatusUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/status`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerSignupSetup = (signupPaymentTokenRequest, options) => {
+        return axiosInstance.post(`/payments/signup/setup`, signupPaymentTokenRequest, options);
+    };
+    const getPaymentsControllerSignupSetupUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/signup/setup`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerSignupComplete = (completeSignupRequest, options) => {
+        return axiosInstance.post(`/payments/signup/complete`, completeSignupRequest, options);
+    };
+    const getPaymentsControllerSignupCompleteUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/signup/complete`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerWebhook = (provider, paymentsControllerWebhookBody, options) => {
+        return axiosInstance.post(`/payments/webhooks/${provider}`, paymentsControllerWebhookBody, options);
+    };
+    const getPaymentsControllerWebhookUrl = (provider) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/webhooks/${provider}`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerMe = (options) => {
+        return axiosInstance.get(`/payments/me`, options);
+    };
+    const getPaymentsControllerMeUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/me`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerPlans = (options) => {
+        return axiosInstance.get(`/payments/plans`, options);
+    };
+    const getPaymentsControllerPlansUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/plans`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerOffers = (itemId, options) => {
+        return axiosInstance.get(`/payments/offers/${itemId}`, options);
+    };
+    const getPaymentsControllerOffersUrl = (itemId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/offers/${itemId}`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerAccess = (paymentsControllerAccessBody, options) => {
+        return axiosInstance.post(`/payments/access`, paymentsControllerAccessBody, options);
+    };
+    const getPaymentsControllerAccessUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/access`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerQuote = (paymentsControllerQuoteBody, options) => {
+        return axiosInstance.post(`/payments/quote`, paymentsControllerQuoteBody, options);
+    };
+    const getPaymentsControllerQuoteUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/quote`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerCheckout = (paymentsControllerCheckoutBody, options) => {
+        return axiosInstance.post(`/payments/checkout`, paymentsControllerCheckoutBody, options);
+    };
+    const getPaymentsControllerCheckoutUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/checkout`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerReceipt = (orderId, options) => {
+        return axiosInstance.get(`/payments/orders/${orderId}/receipt`, options);
+    };
+    const getPaymentsControllerReceiptUrl = (orderId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/orders/${orderId}/receipt`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerConfirm = (orderId, options) => {
+        return axiosInstance.post(`/payments/orders/${orderId}/confirm`, undefined, options);
+    };
+    const getPaymentsControllerConfirmUrl = (orderId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/orders/${orderId}/confirm`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerBeginMethod = (options) => {
+        return axiosInstance.post(`/payments/methods/setup`, undefined, options);
+    };
+    const getPaymentsControllerBeginMethodUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/methods/setup`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerAddMethod = (paymentsControllerAddMethodBody, options) => {
+        return axiosInstance.post(`/payments/methods`, paymentsControllerAddMethodBody, options);
+    };
+    const getPaymentsControllerAddMethodUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/methods`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerMakeDefault = (methodId, options) => {
+        return axiosInstance.post(`/payments/methods/${methodId}/default`, undefined, options);
+    };
+    const getPaymentsControllerMakeDefaultUrl = (methodId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/methods/${methodId}/default`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerRemoveMethod = (methodId, options) => {
+        return axiosInstance.delete(`/payments/methods/${methodId}`, options);
+    };
+    const getPaymentsControllerRemoveMethodUrl = (methodId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/methods/${methodId}`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerCancel = (subscriptionId, options) => {
+        return axiosInstance.post(`/payments/subscriptions/${subscriptionId}/cancel`, undefined, options);
+    };
+    const getPaymentsControllerCancelUrl = (subscriptionId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/subscriptions/${subscriptionId}/cancel`,
+            baseURL: '',
+        });
+    };
+    const paymentsControllerResume = (subscriptionId, options) => {
+        return axiosInstance.post(`/payments/subscriptions/${subscriptionId}/resume`, undefined, options);
+    };
+    const getPaymentsControllerResumeUrl = (subscriptionId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/payments/subscriptions/${subscriptionId}/resume`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerCurrencies = (params, options) => {
+        return axiosInstance.get(`/admin/payments/currencies`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getAdminPaymentsControllerCurrenciesUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/currencies`,
+            baseURL: '',
+            params,
+        });
+    };
+    const adminPaymentsControllerGetConfig = (options) => {
+        return axiosInstance.get(`/admin/payments/config`, options);
+    };
+    const getAdminPaymentsControllerGetConfigUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/config`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerPutConfig = (adminPaymentsControllerPutConfigBody, options) => {
+        return axiosInstance.put(`/admin/payments/config`, adminPaymentsControllerPutConfigBody, options);
+    };
+    const getAdminPaymentsControllerPutConfigUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/config`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerTest = (adminPaymentsControllerTestBody, options) => {
+        return axiosInstance.post(`/admin/payments/config/test`, adminPaymentsControllerTestBody, options);
+    };
+    const getAdminPaymentsControllerTestUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/config/test`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerStats = (options) => {
+        return axiosInstance.get(`/admin/payments/stats`, options);
+    };
+    const getAdminPaymentsControllerStatsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/stats`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerScopeSearch = (params, options) => {
+        return axiosInstance.get(`/admin/payments/scope-search`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getAdminPaymentsControllerScopeSearchUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/scope-search`,
+            baseURL: '',
+            params,
+        });
+    };
+    const adminPaymentsControllerProducts = (options) => {
+        return axiosInstance.get(`/admin/payments/products`, options);
+    };
+    const getAdminPaymentsControllerProductsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/products`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerCreateProduct = (adminPaymentsControllerCreateProductBody, options) => {
+        return axiosInstance.post(`/admin/payments/products`, adminPaymentsControllerCreateProductBody, options);
+    };
+    const getAdminPaymentsControllerCreateProductUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/products`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerUpdateProduct = (productId, adminPaymentsControllerUpdateProductBody, options) => {
+        return axiosInstance.put(`/admin/payments/products/${productId}`, adminPaymentsControllerUpdateProductBody, options);
+    };
+    const getAdminPaymentsControllerUpdateProductUrl = (productId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/products/${productId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerDeleteProduct = (productId, options) => {
+        return axiosInstance.delete(`/admin/payments/products/${productId}`, options);
+    };
+    const getAdminPaymentsControllerDeleteProductUrl = (productId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/products/${productId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerPlans = (options) => {
+        return axiosInstance.get(`/admin/payments/plans`, options);
+    };
+    const getAdminPaymentsControllerPlansUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/plans`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerCreatePlan = (adminPaymentsControllerCreatePlanBody, options) => {
+        return axiosInstance.post(`/admin/payments/plans`, adminPaymentsControllerCreatePlanBody, options);
+    };
+    const getAdminPaymentsControllerCreatePlanUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/plans`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerUpdatePlan = (planId, adminPaymentsControllerUpdatePlanBody, options) => {
+        return axiosInstance.put(`/admin/payments/plans/${planId}`, adminPaymentsControllerUpdatePlanBody, options);
+    };
+    const getAdminPaymentsControllerUpdatePlanUrl = (planId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/plans/${planId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerDeletePlan = (planId, options) => {
+        return axiosInstance.delete(`/admin/payments/plans/${planId}`, options);
+    };
+    const getAdminPaymentsControllerDeletePlanUrl = (planId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/plans/${planId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerCoupons = (options) => {
+        return axiosInstance.get(`/admin/payments/coupons`, options);
+    };
+    const getAdminPaymentsControllerCouponsUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/coupons`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerCreateCoupon = (adminPaymentsControllerCreateCouponBody, options) => {
+        return axiosInstance.post(`/admin/payments/coupons`, adminPaymentsControllerCreateCouponBody, options);
+    };
+    const getAdminPaymentsControllerCreateCouponUrl = () => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/coupons`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerUpdateCoupon = (couponId, adminPaymentsControllerUpdateCouponBody, options) => {
+        return axiosInstance.put(`/admin/payments/coupons/${couponId}`, adminPaymentsControllerUpdateCouponBody, options);
+    };
+    const getAdminPaymentsControllerUpdateCouponUrl = (couponId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/coupons/${couponId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerDeleteCoupon = (couponId, options) => {
+        return axiosInstance.delete(`/admin/payments/coupons/${couponId}`, options);
+    };
+    const getAdminPaymentsControllerDeleteCouponUrl = (couponId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/coupons/${couponId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerOrders = (params, options) => {
+        return axiosInstance.get(`/admin/payments/orders`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getAdminPaymentsControllerOrdersUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/orders`,
+            baseURL: '',
+            params,
+        });
+    };
+    const adminPaymentsControllerRefund = (orderId, adminPaymentsControllerRefundBody, options) => {
+        return axiosInstance.post(`/admin/payments/orders/${orderId}/refund`, adminPaymentsControllerRefundBody, options);
+    };
+    const getAdminPaymentsControllerRefundUrl = (orderId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/orders/${orderId}/refund`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerSubscriptions = (params, options) => {
+        return axiosInstance.get(`/admin/payments/subscriptions`, {
+            ...options,
+            params: { ...params, ...options?.params },
+        });
+    };
+    const getAdminPaymentsControllerSubscriptionsUrl = (params) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/subscriptions`,
+            baseURL: '',
+            params,
+        });
+    };
+    const adminPaymentsControllerCancelSubscription = (subscriptionId, adminPaymentsControllerCancelSubscriptionBody, options) => {
+        return axiosInstance.post(`/admin/payments/subscriptions/${subscriptionId}/cancel`, adminPaymentsControllerCancelSubscriptionBody, options);
+    };
+    const getAdminPaymentsControllerCancelSubscriptionUrl = (subscriptionId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/subscriptions/${subscriptionId}/cancel`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerUserOverview = (userId, options) => {
+        return axiosInstance.get(`/admin/payments/users/${userId}`, options);
+    };
+    const getAdminPaymentsControllerUserOverviewUrl = (userId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/users/${userId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerWaiveSignup = (userId, options) => {
+        return axiosInstance.post(`/admin/payments/users/${userId}/waive-signup`, undefined, options);
+    };
+    const getAdminPaymentsControllerWaiveSignupUrl = (userId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/users/${userId}/waive-signup`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerRemoveUserMethod = (userId, methodId, options) => {
+        return axiosInstance.delete(`/admin/payments/users/${userId}/methods/${methodId}`, options);
+    };
+    const getAdminPaymentsControllerRemoveUserMethodUrl = (userId, methodId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/users/${userId}/methods/${methodId}`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerGrants = (userId, options) => {
+        return axiosInstance.get(`/admin/payments/users/${userId}/grants`, options);
+    };
+    const getAdminPaymentsControllerGrantsUrl = (userId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/users/${userId}/grants`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerGrant = (userId, adminPaymentsControllerGrantBody, options) => {
+        return axiosInstance.post(`/admin/payments/users/${userId}/grants`, adminPaymentsControllerGrantBody, options);
+    };
+    const getAdminPaymentsControllerGrantUrl = (userId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/users/${userId}/grants`,
+            baseURL: '',
+        });
+    };
+    const adminPaymentsControllerRevoke = (grantId, options) => {
+        return axiosInstance.patch(`/admin/payments/grants/${grantId}/revoke`, undefined, options);
+    };
+    const getAdminPaymentsControllerRevokeUrl = (grantId) => {
+        return axiosInstance.create({
+            baseURL: '',
+            params: null,
+        }).getUri({
+            url: `/admin/payments/grants/${grantId}/revoke`,
+            baseURL: '',
+        });
+    };
+    return { versionControllerGet, setupControllerStatus, setupControllerRequestRecoveryKey, setupControllerProgress, setupControllerFlow, setupControllerTestStep, setupControllerApplyStep, setupControllerComplete, setupControllerReset, internalConfigControllerGet, aiControllerLibraryContext, aiControllerRecommendationContext, aiControllerRuntimeConfiguration, aiControllerRecommendationCacheState, aiControllerSaveRecommendationCache, aiControllerClearRecommendationCache, recommendationsControllerHomeRecommendations, recommendationsControllerMusicRecommendations, recommendationsControllerRecommend, recommendationsControllerSimilar, aiAdminControllerStatus, aiAdminControllerUpdateConfiguration, aiAdminControllerRetry, aiAdminControllerRecommendations, aiAdminControllerRefreshUserRecommendations, authControllerRegister, authControllerMe, authControllerUpdateMe, authControllerSetPasskeyRequired, authControllerChangePassword, authControllerDeleteMe, authControllerVerifyEmail, authControllerResendVerification, authControllerLogin, authControllerListSessions, authControllerRevokeSession, authControllerLogout, avatarControllerUpload, avatarControllerRemove, avatarControllerAvatar, passkeyControllerList, passkeyControllerRegistrationOptions, passkeyControllerRegistrationVerify, passkeyControllerLoginOptions, passkeyControllerLoginVerify, passkeyControllerSecondFactorOptions, passkeyControllerSecondFactorVerify, passkeyControllerStartNativeHandoff, passkeyControllerNativeHandoffOptions, passkeyControllerVerifyNativeHandoff, passkeyControllerExchangeNativeHandoff, passkeyControllerRemove, userControllerListUsers, userControllerGetUser, userControllerDeleteUser, preferencesControllerGet, preferencesControllerUpdate, settingsControllerList, settingsControllerRegistrationStatus, settingsControllerSendTestEmail, settingsControllerUpdate, playbackControllerListSamples, playbackControllerItemPlaybackInfo, playbackControllerChannelPlaybackInfo, playbackControllerPlaybackInfo, guideControllerGet, adminGuideControllerOverview, adminGuideControllerSources, adminGuideControllerCreateSource, adminGuideControllerUpdateSource, adminGuideControllerRemoveSource, adminGuideControllerRefreshSource, adminGuideControllerUpdateChannels, adminGuideControllerUpdateSettings, jobsControllerGetQueues, jobsControllerFindJobs, jobsControllerEnqueue, jobsControllerGetJob, jobsControllerCancelJob, jobsControllerRetryJob, jobsControllerGetSchedules, jobsControllerSchedule, jobsControllerUnschedule, adminScheduledTasksControllerList, adminScheduledTasksControllerSaveSchedule, adminScheduledTasksControllerRun, adminScheduledTasksControllerStop, streamsControllerListSessions, streamsControllerCancelSession, devicesControllerList, devicesControllerSignOut, apiKeysControllerList, apiKeysControllerCreate, apiKeysControllerRevoke, mediaLibrariesControllerList, mediaLibrariesControllerCreate, mediaLibrariesControllerListRoots, mediaLibrariesControllerBrowse, mediaLibrariesControllerUpdate, mediaLibrariesControllerRemove, streamerRootsControllerList, streamerRootsControllerTranscoding, indexerApiControllerListLibraries, indexerApiControllerGetSettings, indexerApiControllerUpsertItem, indexerApiControllerUpsertItemLyrics, indexerApiControllerIntroSyncCandidates, indexerApiControllerExistingIntroSegments, indexerApiControllerUpdateIntroSegments, indexerApiControllerPruneLibrary, indexerApiControllerRemoveItemsAtPaths, adminIndexerControllerStatus, adminIndexerControllerScan, adminIndexerControllerQueueSegments, adminIndexerControllerRefresh, adminIndexerControllerTasks, adminIndexerControllerTaskLogs, adminIndexerControllerCancelTask, adminIndexerControllerRetryTask, adminIndexerControllerCancelActive, adminIndexerControllerClearFailed, adminIndexerControllerPause, adminIndexerControllerResume, adminIndexerControllerSetConcurrency, pluginsControllerInstalled, pluginsControllerRepositories, pluginsControllerAddRepository, pluginsControllerCatalog, pluginsControllerPluginSettingsView, pluginsControllerUpdatePluginSettings, pluginsControllerPluginUpdateHistory, pluginsControllerInstall, pluginsControllerEnable, pluginsControllerDisable, pluginsControllerUninstall, pluginsControllerRefreshRepository, pluginsControllerRemoveRepository, pluginRuntimeControllerListPages, pluginRuntimeControllerSearchSections, pluginRuntimeControllerInvoke, requestImagesControllerTmdb, requestImagesControllerDiscogs, requestsControllerConfig, requestsControllerSearch, requestsControllerDiscover, requestsControllerDetails, requestsControllerList, requestsControllerCreate, requestsControllerApprove, requestsControllerDecline, requestsControllerRetry, requestsControllerRemove, adminRequestsControllerGetWebhookCredentials, adminRequestsControllerRotateWebhookCredentials, adminRequestsControllerListServices, adminRequestsControllerCreateService, adminRequestsControllerTestService, adminRequestsControllerUpdateService, adminRequestsControllerRemoveService, adminRequestsControllerListUsers, adminRequestsControllerUpdateUser, requestWebhookControllerReceive, adminMediaControllerListSubtitles, adminMediaControllerRemoveSubtitle, adminMediaControllerSearchSubtitles, adminMediaControllerDownloadSubtitle, adminMediaControllerSetSegment, adminMediaControllerClearSegment, adminMediaControllerList, adminMediaControllerGet, adminMediaControllerUpdate, adminMediaControllerRemove, adminMediaControllerRefresh, adminMediaControllerImage, adminMediaControllerRemoveImage, adminMediaControllerAddImage, mediaHomeControllerGetHome, mediaHomeControllerGetProgress, mediaHomeControllerSaveProgress, mediaHomeControllerSetWatched, mediaHomeControllerGenres, mediaHomeControllerSearch, mediaHomeControllerPersonImage, mediaHomeControllerPerson, mediaHomeControllerBrowse, mediaHomeControllerItem, mediaHomeControllerImage, adminMediaSearchControllerStatus, adminMediaSearchControllerTask, adminMediaSearchControllerSaveSettings, adminMediaSearchControllerRebuild, adminMediaSearchControllerReset, networkSharesControllerList, networkSharesControllerCreate, networkSharesControllerSupport, networkSharesControllerUpdate, networkSharesControllerRemove, networkSharesControllerReconnect, adminUsersControllerList, adminUsersControllerCreate, adminUsersControllerUpdate, adminUsersControllerRemove, adminUsersControllerSetAvatar, adminUsersControllerRemoveAvatar, adminUsersControllerSetPassword, adminUsersControllerRevokeSessions, accessControllerMe, accessControllerUnlock, accessControllerLock, adminAccessControllerOptions, adminAccessControllerGet, adminAccessControllerSave, adminAccessControllerPreview, notificationsControllerList, notificationsControllerMarkRead, notificationsControllerRemove, notificationsControllerConfig, notificationsControllerPushKey, notificationsControllerPushStatus, notificationsControllerSubscribe, notificationsControllerUnsubscribe, adminNotificationsControllerSend, favoritesControllerList, favoritesControllerIds, favoritesControllerAdd, favoritesControllerRemove, playlistsControllerList, playlistsControllerCreate, playlistsControllerContaining, playlistsControllerGet, playlistsControllerUpdate, playlistsControllerRemove, playlistsControllerAddItem, playlistsControllerRemoveTrack, playlistsControllerReorder, partiesControllerCreate, partiesControllerGet, partiesControllerEnd, chatControllerList, chatControllerStart, chatControllerUnread, chatControllerEncryptionStatus, chatControllerRegisterMlsDevice, chatControllerMlsDevices, chatControllerChatHistoryBackup, chatControllerSaveChatHistoryBackup, chatControllerApproveMlsDevice, chatControllerRevokeMlsDevice, chatControllerAddMlsKeyPackage, chatControllerDeviceMlsKeyPackages, chatControllerGet, chatControllerRename, chatControllerDeleteConversation, chatControllerDowngradeToPlaintext, chatControllerUpgradeToEncrypted, chatControllerMessages, chatControllerSend, chatControllerMlsKeyPackages, chatControllerClaimMlsKeyPackage, chatControllerMlsWelcomes, chatControllerStoreMlsWelcome, chatControllerAcknowledgeMlsWelcome, chatControllerRead, chatControllerAddMembers, chatControllerRemoveMember, issueReportsControllerConfiguration, issueReportsControllerList, issueReportsControllerCreate, issueReportsControllerGet, adminIssueReportsControllerList, adminIssueReportsControllerGet, adminIssueReportsControllerDelete, adminIssueReportsControllerUpdateStatus, adminIssueReportsControllerAddUpdate, adminIssueReportsControllerSetChat, profilesControllerDirectory, profilesControllerMe, profilesControllerSetVisibility, profilesControllerListening, profilesControllerGet, friendsControllerList, friendsControllerCreateInvite, friendsControllerGetInvite, friendsControllerAcceptInvite, friendsControllerRequest, friendsControllerRemove, friendsControllerAccept, themesControllerAudio, themesControllerSync, adminUpdatesControllerStatus, adminUpdatesControllerApply, adminBackupsControllerStatus, adminBackupsControllerCreate, adminBackupsControllerUpload, adminBackupsControllerSetPassphrase, adminBackupsControllerClearPassphrase, adminBackupsControllerRestore, adminBackupsControllerDownloadLink, adminBackupsControllerRemove, backupDownloadControllerDownload, adminDatabaseTransferControllerStatus, adminDatabaseTransferControllerStart, adminDatabaseTransferControllerRestoreWrites, overviewControllerGet, overviewControllerActivityList, sentryControllerGetConfig, adminMailControllerStatus, adminMailControllerGetSettings, adminMailControllerUpdateSettings, adminMailControllerDiagnostics, adminMailControllerListDomains, adminMailControllerCreateDomain, adminMailControllerUpdateDomain, adminMailControllerRemoveDomain, adminMailControllerVerifyDomain, adminMailControllerRotateDkim, adminMailControllerListMailboxes, adminMailControllerCreateMailbox, adminMailControllerGenerateUserAddresses, adminMailControllerUpdateMailbox, adminMailControllerRemoveMailbox, adminMailControllerListMessages, adminMailControllerGetMessage, adminMailControllerRemoveMessage, adminMailControllerAttachment, adminMailControllerSend, adminMailControllerListTemplates, adminMailControllerGetTemplate, adminMailControllerSaveTemplate, adminMailControllerRemoveTemplate, adminMailControllerPreviewTemplate, adminMailControllerTestTemplate, userMailControllerMe, userMailControllerList, userMailControllerGet, userMailControllerRemove, userMailControllerAttachment, paymentsControllerStatus, paymentsControllerSignupSetup, paymentsControllerSignupComplete, paymentsControllerWebhook, paymentsControllerMe, paymentsControllerPlans, paymentsControllerOffers, paymentsControllerAccess, paymentsControllerQuote, paymentsControllerCheckout, paymentsControllerReceipt, paymentsControllerConfirm, paymentsControllerBeginMethod, paymentsControllerAddMethod, paymentsControllerMakeDefault, paymentsControllerRemoveMethod, paymentsControllerCancel, paymentsControllerResume, adminPaymentsControllerCurrencies, adminPaymentsControllerGetConfig, adminPaymentsControllerPutConfig, adminPaymentsControllerTest, adminPaymentsControllerStats, adminPaymentsControllerScopeSearch, adminPaymentsControllerProducts, adminPaymentsControllerCreateProduct, adminPaymentsControllerUpdateProduct, adminPaymentsControllerDeleteProduct, adminPaymentsControllerPlans, adminPaymentsControllerCreatePlan, adminPaymentsControllerUpdatePlan, adminPaymentsControllerDeletePlan, adminPaymentsControllerCoupons, adminPaymentsControllerCreateCoupon, adminPaymentsControllerUpdateCoupon, adminPaymentsControllerDeleteCoupon, adminPaymentsControllerOrders, adminPaymentsControllerRefund, adminPaymentsControllerSubscriptions, adminPaymentsControllerCancelSubscription, adminPaymentsControllerUserOverview, adminPaymentsControllerWaiveSignup, adminPaymentsControllerRemoveUserMethod, adminPaymentsControllerGrants, adminPaymentsControllerGrant, adminPaymentsControllerRevoke, getVersionControllerGetUrl, getSetupControllerStatusUrl, getSetupControllerRequestRecoveryKeyUrl, getSetupControllerProgressUrl, getSetupControllerFlowUrl, getSetupControllerTestStepUrl, getSetupControllerApplyStepUrl, getSetupControllerCompleteUrl, getSetupControllerResetUrl, getInternalConfigControllerGetUrl, getAiControllerLibraryContextUrl, getAiControllerRecommendationContextUrl, getAiControllerRuntimeConfigurationUrl, getAiControllerRecommendationCacheStateUrl, getAiControllerSaveRecommendationCacheUrl, getAiControllerClearRecommendationCacheUrl, getRecommendationsControllerHomeRecommendationsUrl, getRecommendationsControllerMusicRecommendationsUrl, getRecommendationsControllerRecommendUrl, getRecommendationsControllerSimilarUrl, getAiAdminControllerStatusUrl, getAiAdminControllerUpdateConfigurationUrl, getAiAdminControllerRetryUrl, getAiAdminControllerRecommendationsUrl, getAiAdminControllerRefreshUserRecommendationsUrl, getAuthControllerRegisterUrl, getAuthControllerMeUrl, getAuthControllerUpdateMeUrl, getAuthControllerSetPasskeyRequiredUrl, getAuthControllerChangePasswordUrl, getAuthControllerDeleteMeUrl, getAuthControllerVerifyEmailUrl, getAuthControllerResendVerificationUrl, getAuthControllerLoginUrl, getAuthControllerListSessionsUrl, getAuthControllerRevokeSessionUrl, getAuthControllerLogoutUrl, getAvatarControllerUploadUrl, getAvatarControllerRemoveUrl, getAvatarControllerAvatarUrl, getPasskeyControllerListUrl, getPasskeyControllerRegistrationOptionsUrl, getPasskeyControllerRegistrationVerifyUrl, getPasskeyControllerLoginOptionsUrl, getPasskeyControllerLoginVerifyUrl, getPasskeyControllerSecondFactorOptionsUrl, getPasskeyControllerSecondFactorVerifyUrl, getPasskeyControllerStartNativeHandoffUrl, getPasskeyControllerNativeHandoffOptionsUrl, getPasskeyControllerVerifyNativeHandoffUrl, getPasskeyControllerExchangeNativeHandoffUrl, getPasskeyControllerRemoveUrl, getUserControllerListUsersUrl, getUserControllerGetUserUrl, getUserControllerDeleteUserUrl, getPreferencesControllerGetUrl, getPreferencesControllerUpdateUrl, getSettingsControllerListUrl, getSettingsControllerRegistrationStatusUrl, getSettingsControllerSendTestEmailUrl, getSettingsControllerUpdateUrl, getPlaybackControllerListSamplesUrl, getPlaybackControllerItemPlaybackInfoUrl, getPlaybackControllerChannelPlaybackInfoUrl, getPlaybackControllerPlaybackInfoUrl, getGuideControllerGetUrl, getAdminGuideControllerOverviewUrl, getAdminGuideControllerSourcesUrl, getAdminGuideControllerCreateSourceUrl, getAdminGuideControllerUpdateSourceUrl, getAdminGuideControllerRemoveSourceUrl, getAdminGuideControllerRefreshSourceUrl, getAdminGuideControllerUpdateChannelsUrl, getAdminGuideControllerUpdateSettingsUrl, getJobsControllerGetQueuesUrl, getJobsControllerFindJobsUrl, getJobsControllerEnqueueUrl, getJobsControllerGetJobUrl, getJobsControllerCancelJobUrl, getJobsControllerRetryJobUrl, getJobsControllerGetSchedulesUrl, getJobsControllerScheduleUrl, getJobsControllerUnscheduleUrl, getAdminScheduledTasksControllerListUrl, getAdminScheduledTasksControllerSaveScheduleUrl, getAdminScheduledTasksControllerRunUrl, getAdminScheduledTasksControllerStopUrl, getStreamsControllerListSessionsUrl, getStreamsControllerCancelSessionUrl, getDevicesControllerListUrl, getDevicesControllerSignOutUrl, getApiKeysControllerListUrl, getApiKeysControllerCreateUrl, getApiKeysControllerRevokeUrl, getMediaLibrariesControllerListUrl, getMediaLibrariesControllerCreateUrl, getMediaLibrariesControllerListRootsUrl, getMediaLibrariesControllerBrowseUrl, getMediaLibrariesControllerUpdateUrl, getMediaLibrariesControllerRemoveUrl, getStreamerRootsControllerListUrl, getStreamerRootsControllerTranscodingUrl, getIndexerApiControllerListLibrariesUrl, getIndexerApiControllerGetSettingsUrl, getIndexerApiControllerUpsertItemUrl, getIndexerApiControllerUpsertItemLyricsUrl, getIndexerApiControllerIntroSyncCandidatesUrl, getIndexerApiControllerExistingIntroSegmentsUrl, getIndexerApiControllerUpdateIntroSegmentsUrl, getIndexerApiControllerPruneLibraryUrl, getIndexerApiControllerRemoveItemsAtPathsUrl, getAdminIndexerControllerStatusUrl, getAdminIndexerControllerScanUrl, getAdminIndexerControllerQueueSegmentsUrl, getAdminIndexerControllerRefreshUrl, getAdminIndexerControllerTasksUrl, getAdminIndexerControllerTaskLogsUrl, getAdminIndexerControllerCancelTaskUrl, getAdminIndexerControllerRetryTaskUrl, getAdminIndexerControllerCancelActiveUrl, getAdminIndexerControllerClearFailedUrl, getAdminIndexerControllerPauseUrl, getAdminIndexerControllerResumeUrl, getAdminIndexerControllerSetConcurrencyUrl, getPluginsControllerInstalledUrl, getPluginsControllerRepositoriesUrl, getPluginsControllerAddRepositoryUrl, getPluginsControllerCatalogUrl, getPluginsControllerPluginSettingsViewUrl, getPluginsControllerUpdatePluginSettingsUrl, getPluginsControllerPluginUpdateHistoryUrl, getPluginsControllerInstallUrl, getPluginsControllerEnableUrl, getPluginsControllerDisableUrl, getPluginsControllerUninstallUrl, getPluginsControllerRefreshRepositoryUrl, getPluginsControllerRemoveRepositoryUrl, getPluginRuntimeControllerListPagesUrl, getPluginRuntimeControllerSearchSectionsUrl, getPluginRuntimeControllerInvokeUrl, getRequestImagesControllerTmdbUrl, getRequestImagesControllerDiscogsUrl, getRequestsControllerConfigUrl, getRequestsControllerSearchUrl, getRequestsControllerDiscoverUrl, getRequestsControllerDetailsUrl, getRequestsControllerListUrl, getRequestsControllerCreateUrl, getRequestsControllerApproveUrl, getRequestsControllerDeclineUrl, getRequestsControllerRetryUrl, getRequestsControllerRemoveUrl, getAdminRequestsControllerGetWebhookCredentialsUrl, getAdminRequestsControllerRotateWebhookCredentialsUrl, getAdminRequestsControllerListServicesUrl, getAdminRequestsControllerCreateServiceUrl, getAdminRequestsControllerTestServiceUrl, getAdminRequestsControllerUpdateServiceUrl, getAdminRequestsControllerRemoveServiceUrl, getAdminRequestsControllerListUsersUrl, getAdminRequestsControllerUpdateUserUrl, getRequestWebhookControllerReceiveUrl, getAdminMediaControllerListSubtitlesUrl, getAdminMediaControllerRemoveSubtitleUrl, getAdminMediaControllerSearchSubtitlesUrl, getAdminMediaControllerDownloadSubtitleUrl, getAdminMediaControllerSetSegmentUrl, getAdminMediaControllerClearSegmentUrl, getAdminMediaControllerListUrl, getAdminMediaControllerGetUrl, getAdminMediaControllerUpdateUrl, getAdminMediaControllerRemoveUrl, getAdminMediaControllerRefreshUrl, getAdminMediaControllerImageUrl, getAdminMediaControllerRemoveImageUrl, getAdminMediaControllerAddImageUrl, getMediaHomeControllerGetHomeUrl, getMediaHomeControllerGetProgressUrl, getMediaHomeControllerSaveProgressUrl, getMediaHomeControllerSetWatchedUrl, getMediaHomeControllerGenresUrl, getMediaHomeControllerSearchUrl, getMediaHomeControllerPersonImageUrl, getMediaHomeControllerPersonUrl, getMediaHomeControllerBrowseUrl, getMediaHomeControllerItemUrl, getMediaHomeControllerImageUrl, getAdminMediaSearchControllerStatusUrl, getAdminMediaSearchControllerTaskUrl, getAdminMediaSearchControllerSaveSettingsUrl, getAdminMediaSearchControllerRebuildUrl, getAdminMediaSearchControllerResetUrl, getNetworkSharesControllerListUrl, getNetworkSharesControllerCreateUrl, getNetworkSharesControllerSupportUrl, getNetworkSharesControllerUpdateUrl, getNetworkSharesControllerRemoveUrl, getNetworkSharesControllerReconnectUrl, getAdminUsersControllerListUrl, getAdminUsersControllerCreateUrl, getAdminUsersControllerUpdateUrl, getAdminUsersControllerRemoveUrl, getAdminUsersControllerSetAvatarUrl, getAdminUsersControllerRemoveAvatarUrl, getAdminUsersControllerSetPasswordUrl, getAdminUsersControllerRevokeSessionsUrl, getAccessControllerMeUrl, getAccessControllerUnlockUrl, getAccessControllerLockUrl, getAdminAccessControllerOptionsUrl, getAdminAccessControllerGetUrl, getAdminAccessControllerSaveUrl, getAdminAccessControllerPreviewUrl, getNotificationsControllerListUrl, getNotificationsControllerMarkReadUrl, getNotificationsControllerRemoveUrl, getNotificationsControllerConfigUrl, getNotificationsControllerPushKeyUrl, getNotificationsControllerPushStatusUrl, getNotificationsControllerSubscribeUrl, getNotificationsControllerUnsubscribeUrl, getAdminNotificationsControllerSendUrl, getFavoritesControllerListUrl, getFavoritesControllerIdsUrl, getFavoritesControllerAddUrl, getFavoritesControllerRemoveUrl, getPlaylistsControllerListUrl, getPlaylistsControllerCreateUrl, getPlaylistsControllerContainingUrl, getPlaylistsControllerGetUrl, getPlaylistsControllerUpdateUrl, getPlaylistsControllerRemoveUrl, getPlaylistsControllerAddItemUrl, getPlaylistsControllerRemoveTrackUrl, getPlaylistsControllerReorderUrl, getPartiesControllerCreateUrl, getPartiesControllerGetUrl, getPartiesControllerEndUrl, getChatControllerListUrl, getChatControllerStartUrl, getChatControllerUnreadUrl, getChatControllerEncryptionStatusUrl, getChatControllerRegisterMlsDeviceUrl, getChatControllerMlsDevicesUrl, getChatControllerChatHistoryBackupUrl, getChatControllerSaveChatHistoryBackupUrl, getChatControllerApproveMlsDeviceUrl, getChatControllerRevokeMlsDeviceUrl, getChatControllerAddMlsKeyPackageUrl, getChatControllerDeviceMlsKeyPackagesUrl, getChatControllerGetUrl, getChatControllerRenameUrl, getChatControllerDeleteConversationUrl, getChatControllerDowngradeToPlaintextUrl, getChatControllerUpgradeToEncryptedUrl, getChatControllerMessagesUrl, getChatControllerSendUrl, getChatControllerMlsKeyPackagesUrl, getChatControllerClaimMlsKeyPackageUrl, getChatControllerMlsWelcomesUrl, getChatControllerStoreMlsWelcomeUrl, getChatControllerAcknowledgeMlsWelcomeUrl, getChatControllerReadUrl, getChatControllerAddMembersUrl, getChatControllerRemoveMemberUrl, getIssueReportsControllerConfigurationUrl, getIssueReportsControllerListUrl, getIssueReportsControllerCreateUrl, getIssueReportsControllerGetUrl, getAdminIssueReportsControllerListUrl, getAdminIssueReportsControllerGetUrl, getAdminIssueReportsControllerDeleteUrl, getAdminIssueReportsControllerUpdateStatusUrl, getAdminIssueReportsControllerAddUpdateUrl, getAdminIssueReportsControllerSetChatUrl, getProfilesControllerDirectoryUrl, getProfilesControllerMeUrl, getProfilesControllerSetVisibilityUrl, getProfilesControllerListeningUrl, getProfilesControllerGetUrl, getFriendsControllerListUrl, getFriendsControllerCreateInviteUrl, getFriendsControllerGetInviteUrl, getFriendsControllerAcceptInviteUrl, getFriendsControllerRequestUrl, getFriendsControllerRemoveUrl, getFriendsControllerAcceptUrl, getThemesControllerAudioUrl, getThemesControllerSyncUrl, getAdminUpdatesControllerStatusUrl, getAdminUpdatesControllerApplyUrl, getAdminBackupsControllerStatusUrl, getAdminBackupsControllerCreateUrl, getAdminBackupsControllerUploadUrl, getAdminBackupsControllerSetPassphraseUrl, getAdminBackupsControllerClearPassphraseUrl, getAdminBackupsControllerRestoreUrl, getAdminBackupsControllerDownloadLinkUrl, getAdminBackupsControllerRemoveUrl, getBackupDownloadControllerDownloadUrl, getAdminDatabaseTransferControllerStatusUrl, getAdminDatabaseTransferControllerStartUrl, getAdminDatabaseTransferControllerRestoreWritesUrl, getOverviewControllerGetUrl, getOverviewControllerActivityListUrl, getSentryControllerGetConfigUrl, getAdminMailControllerStatusUrl, getAdminMailControllerGetSettingsUrl, getAdminMailControllerUpdateSettingsUrl, getAdminMailControllerDiagnosticsUrl, getAdminMailControllerListDomainsUrl, getAdminMailControllerCreateDomainUrl, getAdminMailControllerUpdateDomainUrl, getAdminMailControllerRemoveDomainUrl, getAdminMailControllerVerifyDomainUrl, getAdminMailControllerRotateDkimUrl, getAdminMailControllerListMailboxesUrl, getAdminMailControllerCreateMailboxUrl, getAdminMailControllerGenerateUserAddressesUrl, getAdminMailControllerUpdateMailboxUrl, getAdminMailControllerRemoveMailboxUrl, getAdminMailControllerListMessagesUrl, getAdminMailControllerGetMessageUrl, getAdminMailControllerRemoveMessageUrl, getAdminMailControllerAttachmentUrl, getAdminMailControllerSendUrl, getAdminMailControllerListTemplatesUrl, getAdminMailControllerGetTemplateUrl, getAdminMailControllerSaveTemplateUrl, getAdminMailControllerRemoveTemplateUrl, getAdminMailControllerPreviewTemplateUrl, getAdminMailControllerTestTemplateUrl, getUserMailControllerMeUrl, getUserMailControllerListUrl, getUserMailControllerGetUrl, getUserMailControllerRemoveUrl, getUserMailControllerAttachmentUrl, getPaymentsControllerStatusUrl, getPaymentsControllerSignupSetupUrl, getPaymentsControllerSignupCompleteUrl, getPaymentsControllerWebhookUrl, getPaymentsControllerMeUrl, getPaymentsControllerPlansUrl, getPaymentsControllerOffersUrl, getPaymentsControllerAccessUrl, getPaymentsControllerQuoteUrl, getPaymentsControllerCheckoutUrl, getPaymentsControllerReceiptUrl, getPaymentsControllerConfirmUrl, getPaymentsControllerBeginMethodUrl, getPaymentsControllerAddMethodUrl, getPaymentsControllerMakeDefaultUrl, getPaymentsControllerRemoveMethodUrl, getPaymentsControllerCancelUrl, getPaymentsControllerResumeUrl, getAdminPaymentsControllerCurrenciesUrl, getAdminPaymentsControllerGetConfigUrl, getAdminPaymentsControllerPutConfigUrl, getAdminPaymentsControllerTestUrl, getAdminPaymentsControllerStatsUrl, getAdminPaymentsControllerScopeSearchUrl, getAdminPaymentsControllerProductsUrl, getAdminPaymentsControllerCreateProductUrl, getAdminPaymentsControllerUpdateProductUrl, getAdminPaymentsControllerDeleteProductUrl, getAdminPaymentsControllerPlansUrl, getAdminPaymentsControllerCreatePlanUrl, getAdminPaymentsControllerUpdatePlanUrl, getAdminPaymentsControllerDeletePlanUrl, getAdminPaymentsControllerCouponsUrl, getAdminPaymentsControllerCreateCouponUrl, getAdminPaymentsControllerUpdateCouponUrl, getAdminPaymentsControllerDeleteCouponUrl, getAdminPaymentsControllerOrdersUrl, getAdminPaymentsControllerRefundUrl, getAdminPaymentsControllerSubscriptionsUrl, getAdminPaymentsControllerCancelSubscriptionUrl, getAdminPaymentsControllerUserOverviewUrl, getAdminPaymentsControllerWaiveSignupUrl, getAdminPaymentsControllerRemoveUserMethodUrl, getAdminPaymentsControllerGrantsUrl, getAdminPaymentsControllerGrantUrl, getAdminPaymentsControllerRevokeUrl };
 };
