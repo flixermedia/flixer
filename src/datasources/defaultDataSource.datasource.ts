@@ -13,6 +13,20 @@ import { Mailbox } from "../entities/mailbox.entity.js";
 import { MailMessage } from "../entities/mailMessage.entity.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
+import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
+import { CreatePaymentSignups1798300000001 } from "../migrations/createPaymentSignups1798300000001.js";
+import { AddPaymentProductRequiresPurchase1798300000002 } from "../migrations/addPaymentProductRequiresPurchase1798300000002.js";
+import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
+import { PaymentProduct } from "../entities/paymentProduct.entity.js";
+import { PaymentPlan } from "../entities/paymentPlan.entity.js";
+import { PaymentCoupon } from "../entities/paymentCoupon.entity.js";
+import { PaymentCustomer } from "../entities/paymentCustomer.entity.js";
+import { PaymentMethod } from "../entities/paymentMethod.entity.js";
+import { PaymentOrder } from "../entities/paymentOrder.entity.js";
+import { PaymentEntitlement } from "../entities/paymentEntitlement.entity.js";
+import { PaymentSubscription } from "../entities/paymentSubscription.entity.js";
+import { PaymentEvent } from "../entities/paymentEvent.entity.js";
+import { PaymentSignup } from "../entities/paymentSignup.entity.js";
 import { AddUserOriginalAccess1798100000000 } from "../migrations/addUserOriginalAccess1798100000000.js";
 import { ApiKey } from "../entities/apiKey.entity.js";
 import { MediaLibrary } from "../entities/mediaLibrary.entity.js";
@@ -127,6 +141,17 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				NativePasskeyHandoff,
 				UserPreference,
 				UserAccessPolicy,
+				PaymentConfigRow,
+				PaymentProduct,
+				PaymentPlan,
+				PaymentCoupon,
+				PaymentCustomer,
+				PaymentMethod,
+				PaymentOrder,
+				PaymentEntitlement,
+				PaymentSubscription,
+				PaymentEvent,
+				PaymentSignup,
 				ApiKey,
 				MediaLibrary,
 				MediaItem,
@@ -223,6 +248,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateMailServer1798000000000,
 				AddUserOriginalAccess1798100000000,
 				CreateUserAccessPolicies1798200000000,
+				CreatePayments1798300000000,
+				CreatePaymentSignups1798300000001,
+				AddPaymentProductRequiresPurchase1798300000002,
 			],
 			synchronize: false,
 			migrationsRun: false,
