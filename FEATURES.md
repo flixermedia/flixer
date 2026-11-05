@@ -4,7 +4,7 @@ A complete list of what the Flixer platform does, grouped by the repository that
 
 | Repository                                                        | Role                                                                                                  |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [flixer](.)                                                       | Ts.ED/Fastify API: accounts, libraries, catalogue, playback authorisation, admin, updates and backups |
+| [flixer](.)                                                       | Ts.ED/Fastify API: accounts, libraries, catalogue, playback authorisation, payments, admin, updates and backups |
 | [flixer-web](https://github.com/flixermedia/flixer-web)           | Vue 3 single-page app: browsing, video and music players, settings and the admin dashboard            |
 | [flixer-streamer](https://github.com/flixermedia/flixer-streamer) | Go media-delivery service: direct play, remux, transcoding, HLS, subtitles, trickplay                 |
 | [flixer-indexer](https://github.com/flixermedia/flixer-indexer)   | Go scanner and metadata pipeline: scanning, identification, artwork, probing, subtitles               |
@@ -95,6 +95,19 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Search and discovery of titles missing from the library via TMDB (movies, shows) and Discogs (albums), using the keys set under Providers.
 - Approved requests are sent to Sonarr, Radarr or Lidarr (multiple servers, default server, quality profile, root folder, season selection).
 - Approval queue (approve, decline with reason, retry, cancel), auto-approve, per-user permissions and quotas, notifications, and automatic "available" status once the title reaches the library.
+
+### Payments
+
+- Optional payments are off by default and use one active provider at a time: Stripe or Square.
+- Admins configure provider credentials, currency, tax rates, registration charges, and a 0–30 day subscription grace period (3 days by default). Admin accounts are exempt from paywalls.
+- Paywall scopes can cover all content, a media kind (movies, TV, music or guide), an item and its descendants, or an artist. Content outside active products, plans, or registration unlock scopes remains free.
+- Sell one-time purchases or rentals; rentals can begin at purchase or first play. Monthly and yearly subscriptions unlock their configured scopes, with optional free trials and recurring charges handled by Flixer.
+- Registration can require a one-time fee or a subscription and can unlock all content, selected scopes, or nothing beyond account creation. A card is required for new signups whenever payments are enabled: signup is two slides, the account is created first and stays pending payment (surviving reloads and other devices, with unlimited card retries) until the card is saved.
+- Existing accounts are grandfathered by default when payments are first enabled; admins can turn that off.
+- Coupons support percentage or fixed-amount discounts, redemption limits, expiry and product/plan restrictions. Tax can be configured as inclusive or exclusive.
+- Admins can view orders and subscriptions, issue full or partial refunds, and grant or revoke complimentary access, optionally for a limited number of hours.
+- Provider webhooks must carry a valid signature (Stripe signing secret, Square signature key and notification URL) and are reconciled against the provider API before Flixer updates payment state.
+- Admins choose the sold currencies from a curated, provider-aware list, and users can open provider receipts from their order history.
 
 ### Operations
 

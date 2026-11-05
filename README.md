@@ -28,6 +28,7 @@
 - **Library management:** Configure local or network-mounted media roots.
 - **Configurable settings:** SQLite-backed setup and application settings, with PostgreSQL for the main database.
 - **Deployment tooling:** Docker Compose, development stack and one-command installer.
+- **Optional payments:** Configure Stripe or Square for scoped media paywalls, rentals, subscriptions, registration fees, coupons, refunds and complimentary grants; disabled by default. See the [payments guide](https://flixermedia.github.io/flixer-docs/docs/flixer/payments/overview-and-concepts).
 
 ## 🏗️ Architecture
 
