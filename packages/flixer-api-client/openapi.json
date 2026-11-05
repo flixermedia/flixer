@@ -10085,6 +10085,9 @@
               }
             ]
           },
+          "requiresPurchase": {
+            "type": "boolean"
+          },
           "active": {
             "type": "boolean"
           },
@@ -10109,6 +10112,7 @@
           "prices",
           "rentalHours",
           "rentalStart",
+          "requiresPurchase",
           "active",
           "sortOrder",
           "createdAt",

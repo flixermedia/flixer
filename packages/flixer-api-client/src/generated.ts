@@ -2934,6 +2934,7 @@ export interface EntitiesPaymentProductEntityPaymentProduct {
   prices: ApiPaymentsPaymentTypesPrice[];
   rentalHours: null | number;
   rentalStart: 'purchase' | 'first_play';
+  requiresPurchase: boolean;
   active: boolean;
   sortOrder: number;
   createdAt: string;
