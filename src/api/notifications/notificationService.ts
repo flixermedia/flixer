@@ -184,6 +184,11 @@ export class NotificationService {
 		return { recipients: recipients.length, pushed };
 	}
 
+	/** Tells a user's open pages that something they hold changed, so they re-read it. */
+	touch(userId: string): void {
+		this.publish([userId]);
+	}
+
 	private publish(userIds: string[]): void {
 		for (const listener of this.listeners) {
 			try {

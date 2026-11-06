@@ -1,7 +1,7 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, NotFound, PaymentRequired, Unauthorized } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource, In, IsNull, type EntityManager } from "typeorm";
+import { DataSource, In, IsNull, LessThan, MoreThan, type EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { PaymentCoupon } from "../../entities/paymentCoupon.entity.js";
@@ -15,11 +15,14 @@ import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
 import { PaymentSignup } from "../../entities/paymentSignup.entity.js";
 import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
 import { User } from "../../entities/user.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
+import { imageIndexOf } from "../social/socialItems.js";
 import { MailService } from "../auth/mailService.js";
+import { NotificationService } from "../notifications/notificationService.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentConfigService } from "./paymentConfigService.js";
 import { PaymentProviderError, type CardSetupInput, type PaymentProvider } from "./paymentProvider.js";
-import { signPendingSignupToken, signSetupToken, verifyPendingSignupToken, verifySetupToken } from "./paymentSecrets.js";
+import { signPendingSignupToken, signReceiptArt, signSetupToken, verifyPendingSignupToken, verifySetupToken } from "./paymentSecrets.js";
 import { verifySquareSignature, verifyStripeSignature } from "./webhookSignature.js";
 import { addInterval, computeTotals, couponDiscount, formatMinor, isUuid, normalizeCurrency, pickPrice, scopeCovers, subscriptionGrantsAccess, type ContentScope, type Price, type Totals } from "./paymentTypes.js";
 
@@ -89,6 +92,7 @@ export class PaymentsService {
 		private readonly config: PaymentConfigService,
 		private readonly entitlements: EntitlementService,
 		private readonly mail: MailService,
+		private readonly notifications: NotificationService,
 	) {}
 
 	private get orders() {
@@ -426,6 +430,7 @@ export class PaymentsService {
 			if (!product) {
 				throw new NotFound("This product is not available.");
 			}
+			await this.assertNotAlreadyOwned(user.id, product);
 			kind = product.kind === "rent" ? "rental" : "purchase";
 			productId = product.id;
 			prices = product.prices;
@@ -461,31 +466,63 @@ export class PaymentsService {
 		};
 	}
 
+	/** Says why the user cannot be sold this product again, or null when they can. */
+	private async ownershipConflict(userId: string, product: PaymentProduct, manager: EntityManager = this.dataSource.manager): Promise<string | null> {
+		const now = new Date();
+		const held = (await manager.getRepository(PaymentEntitlement).findBy({ userId, revokedAt: IsNull() })).filter((entry) => (entry.source === "purchase" || entry.source === "rental") && entry.scope.type === product.scope.type && (entry.scope.ref ?? null) === (product.scope.ref ?? null));
+		if (held.some((entry) => entry.rentalHours === null && entry.expiresAt === null)) {
+			return "You already own this. Refresh the page to watch it.";
+		}
+		if (product.kind === "rent" && held.some((entry) => (entry.expiresAt !== null && entry.expiresAt > now) || (entry.activatedAt === null && entry.claimUntil !== null && entry.claimUntil > now))) {
+			return "You already have an active rental of this. Refresh the page to watch it.";
+		}
+		return null;
+	}
+
+	/** Stops a second tab, or a double click, from charging again for something the user already holds. */
+	private async assertNotAlreadyOwned(userId: string, product: PaymentProduct): Promise<void> {
+		const conflict = await this.ownershipConflict(userId, product);
+		if (conflict) {
+			throw new BadRequest(conflict);
+		}
+	}
+
 	async checkout(user: PayingUser, request: CheckoutRequest, options: { interactive: boolean } = { interactive: true }): Promise<CheckoutResult> {
 		const provider = await this.requireActive();
-		const quote = await this.quote(user, request);
-		const order = await this.orders.save(
-			this.orders.create({
-				id: randomUUID(),
-				userId: user.id,
-				kind: quote.kind,
-				productId: quote.productId,
-				planId: quote.planId,
-				subscriptionId: null,
-				description: quote.description,
-				currency: quote.currency,
-				subtotalMinor: quote.totals.subtotalMinor,
-				discountMinor: quote.totals.discountMinor,
-				taxMinor: quote.totals.taxMinor,
-				totalMinor: quote.totals.totalMinor,
-				couponCode: quote.couponCode,
-				status: "pending",
-				provider: provider.id,
-				providerRef: null,
-				refundedMinor: 0,
-				failure: null,
-			}),
-		);
+		// The lock serialises one user's checkouts, so a second tab cannot pass the ownership check while the first is still being recorded.
+		const { quote, order } = await this.dataSource.transaction(async (manager) => {
+			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${user.id}`]);
+			const quote = await this.quote(user, request);
+			if (quote.productId) {
+				const inFlight = await manager.getRepository(PaymentOrder).countBy({ userId: user.id, productId: quote.productId, status: "pending", createdAt: MoreThan(new Date(Date.now() - 5 * 60_000)) });
+				if (inFlight > 0) {
+					throw new BadRequest("This is already being processed. Give it a moment, then refresh the page.");
+				}
+			}
+			const order = await manager.getRepository(PaymentOrder).save(
+				manager.getRepository(PaymentOrder).create({
+					id: randomUUID(),
+					userId: user.id,
+					kind: quote.kind,
+					productId: quote.productId,
+					planId: quote.planId,
+					subscriptionId: null,
+					description: quote.description,
+					currency: quote.currency,
+					subtotalMinor: quote.totals.subtotalMinor,
+					discountMinor: quote.totals.discountMinor,
+					taxMinor: quote.totals.taxMinor,
+					totalMinor: quote.totals.totalMinor,
+					couponCode: quote.couponCode,
+					status: "pending",
+					provider: provider.id,
+					providerRef: null,
+					refundedMinor: 0,
+					failure: null,
+				}),
+			);
+			return { quote, order };
+		});
 		if (quote.totals.totalMinor === 0) {
 			await this.fulfil(order.id);
 			return { status: "paid", orderId: order.id };
@@ -568,19 +605,35 @@ export class PaymentsService {
 	/** Gives the buyer what they paid for. The status change is the claim, so a webhook racing the browser grants once. */
 	async fulfil(orderId: string): Promise<void> {
 		const config = await this.config.get();
+		let duplicate = false;
 		const granted = await this.dataSource.transaction(async (manager) => {
 			const claim = await manager.createQueryBuilder().update(PaymentOrder).set({ status: "paid", failure: null }).where("id = :orderId AND status IN ('pending', 'requires_action')", { orderId }).execute();
 			if (!claim.affected) {
 				return null;
 			}
 			const order = await manager.getRepository(PaymentOrder).findOneByOrFail({ id: orderId });
+			// Two checkouts can both be waiting on card verification; whichever completes second is a duplicate and is refunded instead of granted.
+			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${order.userId}`]);
+			if (order.productId && (order.kind === "purchase" || order.kind === "rental")) {
+				const product = await manager.getRepository(PaymentProduct).findOneBy({ id: order.productId });
+				if (product && (await this.ownershipConflict(order.userId, product, manager))) {
+					duplicate = true;
+					return order;
+				}
+			}
 			await this.grantFor(manager, order, config);
 			if (order.couponCode) {
 				await manager.query(`UPDATE payment_coupons SET redeemed = redeemed + 1 WHERE code = $1`, [order.couponCode]);
 			}
 			return order;
 		});
+		if (granted && duplicate) {
+			await this.refund(granted.id).catch((error: unknown) => logger().error(`Could not refund duplicate order ${granted.id}; refund it from the admin Sales list.`, error));
+			this.notifications.touch(granted.userId);
+			return;
+		}
 		if (granted) {
+			this.notifications.touch(granted.userId);
 			this.sendReceipt(granted).catch(() => undefined);
 		}
 	}
@@ -657,6 +710,30 @@ export class PaymentsService {
 		}
 		sub.cancelAtPeriodEnd = false;
 		return this.subscriptions.save(sub);
+	}
+
+	/** Re-checks card payments left waiting for verification for over a day: a completed one is granted, an abandoned one is marked failed. */
+	async settleStaleOrders(now = new Date()): Promise<number> {
+		if (!(await this.config.isActive())) {
+			return 0;
+		}
+		const stale = await this.orders.find({ where: { status: In(["pending", "requires_action"]), updatedAt: LessThan(new Date(now.getTime() - 24 * 3_600_000)) }, take: 200 });
+		let settled = 0;
+		for (const order of stale) {
+			try {
+				if (order.providerRef) {
+					await this.syncOrder(order);
+				}
+				const current = await this.orders.findOneBy({ id: order.id });
+				if (current && ["pending", "requires_action"].includes(current.status)) {
+					await this.orders.update({ id: order.id, status: current.status }, { status: "failed", failure: "The payment was never completed." });
+				}
+				settled++;
+			} catch (error) {
+				logger().warn(`Could not settle stale order ${order.id}.`, error);
+			}
+		}
+		return settled;
 	}
 
 	/** Charges every subscription whose period has ended; run hourly by the job scheduler. */
@@ -1074,7 +1151,7 @@ export class PaymentsService {
 		return user?.email ? user : null;
 	}
 
-	private async sendReceipt(order: Pick<PaymentOrder, "id" | "userId" | "description" | "currency" | "subtotalMinor" | "discountMinor" | "taxMinor" | "totalMinor">) {
+	private async sendReceipt(order: Pick<PaymentOrder, "id" | "userId" | "kind" | "productId" | "planId" | "description" | "currency" | "subtotalMinor" | "discountMinor" | "taxMinor" | "totalMinor" | "couponCode">) {
 		if (order.totalMinor === 0 || !(await this.mail.isConfigured())) {
 			return;
 		}
@@ -1083,14 +1160,43 @@ export class PaymentsService {
 			return;
 		}
 		const money = (amount: number) => formatMinor(amount, order.currency);
-		const lines = [`${order.description}: ${money(order.subtotalMinor)}`, ...(order.discountMinor ? [`Discount: -${money(order.discountMinor)}`] : []), ...(order.taxMinor ? [`Tax: ${money(order.taxMinor)}`] : []), `Total paid: ${money(order.totalMinor)}`];
-		const escape = (text: string) => text.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char] ?? char);
-		await this.mail.send({
-			to: user.email,
-			subject: `Your receipt: ${order.description}`,
-			text: `Thanks for your payment.\n\n${lines.join("\n")}\n\nOrder ${order.id}`,
-			html: `<p>Thanks for your payment.</p><p>${lines.map(escape).join("<br>")}</p><p style="color:#888">Order ${order.id}</p>`,
+		const appUrl = (appConfig().get("appUrl") || "").replace(/\/+$/, "");
+		const apiUrl = (appConfig().get("publicUrl") || appUrl).replace(/\/+$/, "");
+		const product = order.productId ? await this.dataSource.getRepository(PaymentProduct).findOneBy({ id: order.productId }) : null;
+		const plan = order.planId ? await this.dataSource.getRepository(PaymentPlan).findOneBy({ id: order.planId }) : null;
+		const item = product?.scope.type === "item" && product.scope.ref && isUuid(product.scope.ref) ? await this.dataSource.getRepository(MediaItem).findOneBy({ id: product.scope.ref }) : null;
+		const posterIndex = item ? imageIndexOf(item.images, ["poster", "thumb", "cover"]) : null;
+
+		const kinds: Record<string, string> = { purchase: "Purchase", rental: "Rental", subscription: "Subscription", registration: "Account access" };
+		let detail = "";
+		if (product?.kind === "rent" && product.rentalHours) {
+			const span = product.rentalHours % 24 === 0 ? `${product.rentalHours / 24} day${product.rentalHours === 24 ? "" : "s"}` : `${product.rentalHours} hours`;
+			detail = `${span} of access${product.rentalStart === "first_play" ? ", starting when you first press play" : ""}`;
+		} else if (product) {
+			detail = "Yours to watch or listen to any time";
+		} else if (plan) {
+			detail = `Renews every ${plan.interval}`;
+		}
+		const title = item?.title ?? product?.name ?? plan?.name ?? order.description;
+		const lines = [`${title}: ${money(order.subtotalMinor)}`, ...(order.discountMinor ? [`Discount: -${money(order.discountMinor)}`] : []), ...(order.taxMinor ? [`Tax: ${money(order.taxMinor)}`] : [])].join("\n");
+		const rendered = await this.mail.renderMessage("purchase-receipt", {
+			displayName: user.displayName || user.username,
+			kind: kinds[order.kind] ?? "Payment",
+			title,
+			detail,
+			posterUrl: item && posterIndex !== null ? `${apiUrl}/api/payments/receipt-art/${item.id}?i=${posterIndex}&sig=${signReceiptArt(item.id)}` : "",
+			lines,
+			subtotal: money(order.subtotalMinor),
+			discount: order.discountMinor ? money(order.discountMinor) : "",
+			tax: order.taxMinor ? money(order.taxMinor) : "",
+			total: money(order.totalMinor),
+			discountLabel: order.couponCode ? `Discount (${order.couponCode})` : "Discount",
+			orderId: order.id.slice(0, 8).toUpperCase(),
+			date: new Date().toUTCString().slice(0, 16),
+			watchUrl: item ? `${appUrl}/media/${item.id}` : appUrl,
+			watchLabel: item ? "Watch now" : "Open Flixer",
 		});
+		await this.mail.send({ to: user.email, ...rendered });
 	}
 
 	private async sendPaymentFailed(sub: PaymentSubscription, plan: PaymentPlan, graceUntil: Date, expired: boolean) {

@@ -103,7 +103,10 @@ export class JobScheduler {
 			await boss.schedule(SESSION_CLEANUP_JOB, SESSION_CLEANUP_CRON);
 			await boss.createQueue(PAYMENTS_RENEWAL_JOB);
 			await boss.work(PAYMENTS_RENEWAL_JOB, async () => {
-				const [jobError] = await tryCatch(() => this.payments.runRenewals());
+				const [jobError] = await tryCatch(async () => {
+					await this.payments.runRenewals();
+					await this.payments.settleStaleOrders();
+				});
 				if (jobError) {
 					logger().error(`Job ${PAYMENTS_RENEWAL_JOB} failed.`, jobError);
 					this.sentryService.captureException(jobError);

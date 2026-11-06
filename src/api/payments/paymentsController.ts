@@ -4,12 +4,14 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams, RawBodyParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
+import { AdminMediaService } from "../media/adminMediaService.js";
 import { currenciesFor } from "./currencies.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentCatalogService } from "./paymentCatalogService.js";
 import { PaymentConfigService } from "./paymentConfigService.js";
 import { PaymentsService, type CheckoutRequest } from "./paymentsService.js";
 import { CompleteSignupRequest, SignupPaymentTokenRequest } from "./signupPaymentRequest.js";
+import { verifyReceiptArt } from "./paymentSecrets.js";
 import { isUuid, parseScope } from "./paymentTypes.js";
 
 type Body = Record<string, unknown>;
@@ -68,7 +70,23 @@ export class PaymentsController {
 		private readonly payments: PaymentsService,
 		private readonly entitlements: EntitlementService,
 		private readonly config: PaymentConfigService,
+		private readonly media: AdminMediaService,
 	) {}
+
+	/** The poster shown in receipt emails. Public because mail clients can't log in; the signature ties it to one item. */
+	@Get("/receipt-art/:itemId")
+	async receiptArt(@PathParams("itemId") itemId: string, @QueryParams("sig") sig: string | undefined, @QueryParams("i", Number) index: number | undefined, @Context() ctx: PlatformContext) {
+		const itemRef = id(itemId, "Image");
+		if (!sig || !verifyReceiptArt(itemRef, sig) || !Number.isInteger(index) || (index ?? 0) < 0) {
+			throw new NotFound("Image not found.");
+		}
+		const { data, mime } = await this.media.image(itemRef, index ?? 0, 480);
+		ctx.response.setHeader("Content-Type", mime);
+		ctx.response.setHeader("Cache-Control", "public, max-age=86400");
+		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
+		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+		return data;
+	}
 
 	@Get("/status")
 	status() {

@@ -95,3 +95,14 @@ export function verifyPendingSignupToken(token: string, now = Date.now()): strin
 		return null;
 	}
 }
+
+/** Receipt emails embed a poster, so the image URL carries a signature instead of needing a login. */
+export function signReceiptArt(itemId: string): string {
+	return createHmac("sha256", key()).update(`receipt-art:${itemId}`).digest("base64url");
+}
+
+export function verifyReceiptArt(itemId: string, signature: string): boolean {
+	const expected = Buffer.from(signReceiptArt(itemId));
+	const received = Buffer.from(signature);
+	return received.length === expected.length && timingSafeEqual(received, expected);
+}

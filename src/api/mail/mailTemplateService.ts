@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/p
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { dataPath } from "../../config/dataPath.js";
+import { appConfig } from "../../config/store/appConfig.js";
 import { headerSafe } from "./mailAddress.js";
 
 const RESOURCE_DIRECTORY = path.resolve(process.cwd(), "resources", "emails");
@@ -29,6 +30,29 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 		text: "Welcome, {{displayName}}.\n\nConfirm your email address to finish setting up your Flixer account (link expires in {{expiresIn}}):\n{{verifyUrl}}\n\nDidn't create a Flixer account? You can safely ignore this email.",
 		variables: { displayName: "Alex", verifyUrl: "https://flixer.example.com/verify-email?token=example", expiresIn: "24 hours" },
 	},
+	"purchase-receipt": {
+		label: "Purchase receipt",
+		description: "Sent after a purchase, rental, subscription payment or signup payment.",
+		subject: "Your Flixer receipt: {{title}}",
+		text: "Thanks for your payment, {{displayName}}.\n\n{{kind}}: {{title}}\n{{detail}}\n\n{{lines}}\nTotal paid: {{total}}\n\nOrder {{orderId}} · {{date}}\n{{watchUrl}}",
+		variables: {
+			displayName: "Alex",
+			kind: "Rental",
+			title: "Blade Runner 2049",
+			detail: "48 hours of access",
+			posterUrl: "",
+			lines: "Blade Runner 2049: £3.99",
+			subtotal: "£3.99",
+			discount: "",
+			discountLabel: "Discount",
+			tax: "£0.80",
+			total: "£4.79",
+			orderId: "a1b2c3d4",
+			date: "Mon, 01 Jan 2029",
+			watchUrl: "https://flixer.example.com",
+			watchLabel: "Watch now",
+		},
+	},
 	"account-deleted": {
 		label: "Account deleted",
 		description: "Sent after a user's account has been permanently deleted.",
@@ -37,6 +61,48 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 		variables: { displayName: "Alex", username: "alex", deletedAt: "Mon, 01 Jan 2029 12:00:00 GMT", appUrl: "https://flixer.example.com" },
 	},
 };
+
+export interface TemplateKey {
+	key: string;
+	group: "global" | "account" | "payments";
+	description: string;
+	sample: string;
+}
+
+/** Every key a template can use. Global keys are filled automatically on every email; the rest come from the email that sends the template. */
+export const TEMPLATE_KEYS: TemplateKey[] = [
+	{ key: "appName", group: "global", description: "The name of this Flixer server.", sample: "Flixer" },
+	{ key: "appUrl", group: "global", description: "The address people use to open Flixer.", sample: "https://flixer.example.com" },
+	{ key: "year", group: "global", description: "The current year, handy for footers.", sample: "2029" },
+	{ key: "displayName", group: "account", description: "The recipient's display name.", sample: "Alex" },
+	{ key: "username", group: "account", description: "The recipient's username.", sample: "alex" },
+	{ key: "verifyUrl", group: "account", description: "Email verification link (verify-email only).", sample: "https://flixer.example.com/verify-email?token=example" },
+	{ key: "expiresIn", group: "account", description: "How long the verification link lasts (verify-email only).", sample: "24 hours" },
+	{ key: "deletedAt", group: "account", description: "When the account was deleted (account-deleted only).", sample: "Mon, 01 Jan 2029 12:00:00 GMT" },
+	{ key: "kind", group: "payments", description: "Purchase, Rental, Subscription or Account access.", sample: "Rental" },
+	{ key: "title", group: "payments", description: "The title, product or plan that was paid for.", sample: "Blade Runner 2049" },
+	{ key: "detail", group: "payments", description: "Rental length or renewal interval. Empty when there is nothing to add.", sample: "2 days of access" },
+	{ key: "posterUrl", group: "payments", description: "Signed poster image link. Empty when the item has no poster.", sample: "" },
+	{ key: "lines", group: "payments", description: "Plain-text line items, one per row.", sample: "Blade Runner 2049: £3.99" },
+	{ key: "subtotal", group: "payments", description: "Price before discount and tax.", sample: "£3.99" },
+	{ key: "discount", group: "payments", description: "Discount amount. Empty when no discount applied.", sample: "" },
+	{ key: "discountLabel", group: "payments", description: "Discount row label, including the coupon code when one was used.", sample: "Discount" },
+	{ key: "tax", group: "payments", description: "Tax amount. Empty when no tax was charged.", sample: "£0.80" },
+	{ key: "total", group: "payments", description: "Total charged.", sample: "£4.79" },
+	{ key: "orderId", group: "payments", description: "Short order reference.", sample: "A1B2C3D4" },
+	{ key: "date", group: "payments", description: "Date of the payment.", sample: "Mon, 01 Jan 2029" },
+	{ key: "watchUrl", group: "payments", description: "Link to the purchased title, or to Flixer.", sample: "https://flixer.example.com" },
+	{ key: "watchLabel", group: "payments", description: "Button text for the watch link.", sample: "Watch now" },
+];
+
+/** Values every template can use without the sender providing them. */
+function globalValues(): Record<string, string> {
+	return {
+		appName: appConfig().get("passkeyRpName") || "Flixer",
+		appUrl: (appConfig().get("appUrl") || appConfig().get("publicUrl") || "").replace(/\/+$/, ""),
+		year: String(new Date().getFullYear()),
+	};
+}
 
 interface StoredMeta {
 	label?: string;
@@ -54,6 +120,7 @@ export interface MailTemplate {
 	builtin: boolean;
 	customized: boolean;
 	variables: string[];
+	keys: TemplateKey[];
 	updatedAt: Date | null;
 }
 
@@ -75,8 +142,11 @@ export function templateVariables(...sources: string[]): string[] {
 	return [...found].sort();
 }
 
+const CONDITIONAL = /{{#if\s+(\w+)\s*}}([\s\S]*?){{\/if}}/g;
+
+/** Fills {{placeholders}}; a {{#if name}}...{{/if}} block is kept only when that value is non-empty. */
 export function fillTemplate(source: string, values: Record<string, string>, escape: (value: string) => string): string {
-	return source.replace(PLACEHOLDER, (_match, key: string) => escape(values[key] ?? ""));
+	return source.replace(CONDITIONAL, (_match, key: string, body: string) => (values[key] ? body : "")).replace(PLACEHOLDER, (_match, key: string) => escape(values[key] ?? ""));
 }
 
 /** Reads, edits and renders email templates. Edited and new templates are stored in DATA_DIR/emails. */
@@ -110,6 +180,7 @@ export class MailTemplateService {
 		const meta = custom?.meta ?? {};
 		const subject = meta.subject ?? builtin?.subject ?? "";
 		const text = custom?.text ?? builtin?.text ?? "";
+		const variables = [...new Set([...Object.keys(builtin?.variables ?? {}), ...templateVariables(html, subject, text)])].sort();
 		return {
 			name,
 			label: meta.label ?? builtin?.label ?? name,
@@ -119,7 +190,8 @@ export class MailTemplateService {
 			text,
 			builtin: Boolean(builtin),
 			customized: Boolean(custom),
-			variables: [...new Set([...Object.keys(builtin?.variables ?? {}), ...templateVariables(html, subject, text)])].sort(),
+			variables,
+			keys: TEMPLATE_KEYS,
 			updatedAt: custom?.updatedAt ?? null,
 		};
 	}
@@ -153,7 +225,8 @@ export class MailTemplateService {
 		return this.renderTemplate(await this.get(name), values);
 	}
 
-	renderTemplate(template: Pick<MailTemplate, "subject" | "html" | "text">, values: Record<string, string>): RenderedMail {
+	renderTemplate(template: Pick<MailTemplate, "subject" | "html" | "text">, provided: Record<string, string>): RenderedMail {
+		const values = { ...globalValues(), ...provided };
 		return {
 			subject: headerSafe(fillTemplate(template.subject, values, (value) => value), 200),
 			html: fillTemplate(template.html, values, escapeHtml),
@@ -163,7 +236,8 @@ export class MailTemplateService {
 
 	sampleValues(name: string, variables: string[]): Record<string, string> {
 		const known = BUILTIN_TEMPLATES[name]?.variables ?? {};
-		return Object.fromEntries(variables.map((variable) => [variable, known[variable] ?? `[${variable}]`]));
+		const catalog = Object.fromEntries(TEMPLATE_KEYS.map((entry) => [entry.key, entry.sample]));
+		return Object.fromEntries(variables.map((variable) => [variable, known[variable] ?? catalog[variable] ?? `[${variable}]`]));
 	}
 
 	private assertName(name: string): void {
