@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../api/auth/authService.js";
+import { CallService } from "./callService.js";
 import { ChatService } from "./chatService.js";
 import {
 	AddChatMlsKeyPackageRequest,
@@ -31,12 +32,20 @@ export class ChatController {
 	constructor(
 		private readonly authService: AuthService,
 		private readonly chat: ChatService,
+		private readonly calls: CallService,
 	) {}
 
 	@Get("/conversations")
 	async list(@HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.chat.conversations(user.id);
+	}
+
+	/** STUN/TURN servers for peer-to-peer calls, with short-lived TURN credentials. */
+	@Get("/calls/ice")
+	async callIce(@HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		return this.calls.iceConfig(user.id);
 	}
 
 	@Get("/unread")
@@ -191,9 +200,13 @@ export class ChatController {
 	}
 
 	@Get("/conversations/:id/mls/key-packages")
-	async mlsKeyPackages(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+	async mlsKeyPackages(
+		@PathParams("id") id: string,
+		@QueryParams("lenient") lenient?: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		return { keyPackages: await this.chat.conversationMlsKeyPackages(user.id, conversationId(id)) };
+		return { keyPackages: await this.chat.conversationMlsKeyPackages(user.id, conversationId(id), lenient === "1") };
 	}
 
 	@Post("/conversations/:id/mls/key-packages/:keyPackageId/claim")

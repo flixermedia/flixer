@@ -104,6 +104,30 @@ export class SettingsService {
 		if (key === "chat_user_downgrade_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The chat_user_downgrade_enabled setting must be a boolean.");
 		}
+		if ((key === "calls_enabled" || key === "calls_relay_only") && typeof request.value !== "boolean") {
+			throw new BadRequest(`The ${key} setting must be a boolean.`);
+		}
+		if (key === "calls_turn_username" && (typeof request.value !== "string" || request.value.length > 256)) {
+			throw new BadRequest("The calls_turn_username setting must be text of at most 256 characters.");
+		}
+		if (key === "calls_turn_secret") {
+			if (typeof request.value !== "string" || request.value.length > 256) {
+				throw new BadRequest("The calls_turn_secret setting must be text of at most 256 characters.");
+			}
+			if (request.value === SECRET_MASK) {
+				throw new BadRequest("Enter the new TURN secret instead of the masked placeholder.");
+			}
+		}
+		if (
+			(key === "calls_stun_urls" || key === "calls_turn_urls") &&
+			(!Array.isArray(request.value) ||
+				request.value.length > 10 ||
+				!request.value.every(
+					(url) => typeof url === "string" && /^(stun|stuns|turn|turns):[^\s]{1,250}$/.test(url),
+				))
+		) {
+			throw new BadRequest(`The ${key} setting must be a list of at most 10 stun:/turn: URLs.`);
+		}
 		if (
 			(key === "registration_enabled" || key === "email_verification_required") &&
 			typeof request.value !== "boolean"
@@ -273,7 +297,9 @@ export class SettingsService {
 	}
 
 	private toPublicSetting(setting: Setting): PublicSetting {
-		const isSecret = setting.key === "smtp_password" || setting.key === "requests_webhook_token";
+		const isSecret = setting.key === "smtp_password" ||
+			setting.key === "requests_webhook_token" ||
+			setting.key === "calls_turn_secret";
 		return {
 			key: setting.key,
 			value: isSecret

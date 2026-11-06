@@ -229,5 +229,11 @@
 	{ "key": "issue_reports_categories", "defaultValue": ["Playback", "Audio or subtitles", "Metadata", "Missing content", "App issue", "Other"], "isPublic": true },
 	{ "key": "issue_reports_chat_enabled", "defaultValue": true, "isPublic": true },
 	{ "key": "chat_e2ee_enabled", "defaultValue": false, "isPublic": false },
-	{ "key": "chat_user_downgrade_enabled", "defaultValue": false, "isPublic": false }
+	{ "key": "chat_user_downgrade_enabled", "defaultValue": false, "isPublic": false },
+	{ "key": "calls_enabled", "defaultValue": false, "isPublic": false },
+	{ "key": "calls_stun_urls", "defaultValue": ["stun:stun.l.google.com:19302"], "isPublic": false },
+	{ "key": "calls_turn_urls", "defaultValue": [], "isPublic": false },
+	{ "key": "calls_turn_secret", "defaultValue": "", "isPublic": false },
+	{ "key": "calls_turn_username", "defaultValue": "", "isPublic": false },
+	{ "key": "calls_relay_only", "defaultValue": false, "isPublic": false }
 ]

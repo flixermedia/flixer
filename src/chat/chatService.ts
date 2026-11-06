@@ -481,6 +481,7 @@ export class ChatService {
 	async conversationMlsKeyPackages(
 		userId: string,
 		conversationId: string,
+		lenient = false,
 	): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
 		const member = await this.assertMember(userId, conversationId);
 		if (member.kind === "group") {
@@ -490,7 +491,8 @@ export class ChatService {
 			)) as Array<{ user_id: string }>;
 			if (support[0]) await this.ensureSupportRequester(conversationId, support[0].user_id);
 		}
-		const unready = (await this.dataSource.query(
+		// Joiners only need the identity directory, so they skip the "everyone has a spare key package" check.
+		const unready = lenient ? [] : (await this.dataSource.query(
 			`SELECT m.user_id
 			FROM chat_members m
 			LEFT JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'

@@ -88,6 +88,8 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Profile visibility can be public, friends-only or hidden; directory, profile and playlist access follow that setting.
 - Profile sharing creates configurable friend-invite links (one-time by default, unlimited or expiring by choice) that expose only a limited identity preview; accepting the invite immediately creates the friendship, including for restricted profiles.
 - Watch and listen parties have separate public, friends-only or private invite-link visibility; friends-only access is enforced by the API.
+- Optional end-to-end encrypted party voice chat (same `calls_enabled` switch): a peer-to-peer mesh of up to 6 people where every pair has its own ephemeral MLS group, so the server only relays encrypted signalling over the party socket (`call-signal`) and serves party-scoped key packages and ICE settings (`/parties/:id/calls/*`, members only).
+- Optional end-to-end encrypted audio/video calls in direct chats (off by default, `calls_enabled`): media is peer-to-peer WebRTC and the server only relays MLS-encrypted signalling over the chat socket and hands out STUN/TURN settings (`GET /chat/calls/ice`, short-lived TURN credentials, or a static TURN username + credential for hosted services such as ExpressTURN; everything is configured in the admin dashboard).
 
 ### Requests
 
@@ -137,6 +139,8 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Person pages.
 - People directory and profiles with friend requests, friend management and profile sharing.
 - Watch and listen party creation with public, friends-only or private invite-link visibility.
+- Join voice chat from a watch or listen party, with mute and leave controls.
+- Audio and video calls from direct chats with accept/decline, mute and camera controls; admins configure STUN/TURN servers and an optional relay-only mode.
 - Settings, and an admin dashboard with an activity page.
 - Mobile tab bar and an offline banner.
 

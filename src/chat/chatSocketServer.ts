@@ -2,14 +2,19 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
+import type { CallService } from "./callService.js";
 import type { ChatEvent, ChatService } from "./chatService.js";
+import { AuthService } from "../api/auth/authService.js";
 
 export const CHAT_PATH = "/api/chat/live";
 
 const AUTH_TIMEOUT_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_CLIENTS = 2_000;
-const MAX_CLIENT_MESSAGE_BYTES = 2_048;
+const MAX_CLIENT_MESSAGE_BYTES = 32_768;
+const MAX_SIGNAL_PAYLOAD_CHARS = 24_000;
+const SIGNAL_WINDOW_MS = 10_000;
+const MAX_SIGNALS_PER_WINDOW = 60;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
 export type ChatAuthenticator = (token: string) => Promise<string>;
@@ -18,6 +23,7 @@ interface Connection {
 	authenticated: boolean;
 	userId?: string;
 	alive: boolean;
+	signals: number[];
 }
 
 /**
@@ -26,6 +32,9 @@ interface Connection {
  * Protocol: the client sends `{"type":"auth","token":"..."}`; the server replies `{"type":"ready"}` and then streams
  * `{"type":"message","conversationId":"...","message":{...}}` for new messages and
  * `{"type":"changed","conversationId":"..."}` when a conversation's members, name or read state change.
+ * Authenticated clients may also send `{"type":"call-signal","conversationId":"...","callId":"...","to"?:"userId","payload":"..."}`;
+ * the server checks membership and relays `{"type":"call-signal","conversationId","callId","from","payload"}` to the other
+ * members without storing it. The payload is MLS-encrypted by the client, so the server never sees call keys or SDP.
  * Sending messages stays on the REST API so validation, rate limiting and notifications live in one place.
  */
 export class ChatSocketServer {
@@ -40,6 +49,7 @@ export class ChatSocketServer {
 	constructor(
 		private readonly authenticate: ChatAuthenticator,
 		private readonly chat: ChatService,
+		private readonly calls?: CallService,
 	) {}
 
 	attach(server: Server): void {
@@ -60,7 +70,7 @@ export class ChatSocketServer {
 		this.wss.close();
 	}
 
-	private dispatch(userIds: string[], event: ChatEvent): void {
+	private dispatch(userIds: string[], event: ChatEvent | Record<string, unknown>): void {
 		const targets = new Set(userIds);
 		for (const [ws, connection] of this.connections) {
 			if (connection.userId && targets.has(connection.userId)) {
@@ -82,7 +92,7 @@ export class ChatSocketServer {
 	}
 
 	private onConnection(ws: WebSocket): void {
-		const connection: Connection = { authenticated: false, alive: true };
+		const connection: Connection = { authenticated: false, alive: true, signals: [] };
 		this.connections.set(ws, connection);
 		const authTimer = setTimeout(() => {
 			if (!connection.userId) {
@@ -109,6 +119,9 @@ export class ChatSocketServer {
 			return;
 		}
 		if (connection.authenticated) {
+			if (message.type === "call-signal" && connection.userId) {
+				await this.relaySignal(ws, connection.userId, connection, message as Record<string, unknown>);
+			}
 			return;
 		}
 		if (message.type !== "auth" || typeof message.token !== "string" || message.token === "") {
@@ -125,6 +138,51 @@ export class ChatSocketServer {
 			return;
 		}
 		this.send(ws, { type: "ready" });
+	}
+
+	private async relaySignal(
+		ws: WebSocket,
+		userId: string,
+		connection: Connection,
+		message: Record<string, unknown>,
+	): Promise<void> {
+		const { conversationId, callId, to, payload } = message;
+		const now = Date.now();
+		connection.signals = connection.signals.filter((at) => now - at < SIGNAL_WINDOW_MS);
+		if (connection.signals.length >= MAX_SIGNALS_PER_WINDOW) {
+			this.send(ws, { type: "call-error", callId, reason: "rate-limited" });
+			return;
+		}
+		connection.signals.push(now);
+		if (
+			!this.calls ||
+			typeof conversationId !== "string" ||
+			!AuthService.isUuid(conversationId) ||
+			typeof callId !== "string" ||
+			!/^[\w-]{1,64}$/.test(callId) ||
+			typeof payload !== "string" ||
+			payload.length === 0 ||
+			payload.length > MAX_SIGNAL_PAYLOAD_CHARS ||
+			(to !== undefined && typeof to !== "string")
+		) {
+			this.send(ws, { type: "call-error", callId, reason: "invalid" });
+			return;
+		}
+		let recipients: string[];
+		try {
+			recipients = await this.calls.recipients(userId, conversationId.toLowerCase());
+		} catch {
+			this.send(ws, { type: "call-error", callId, reason: "unavailable" });
+			return;
+		}
+		const targets = to === undefined ? recipients : recipients.filter((id) => id === to);
+		this.dispatch(targets, {
+			type: "call-signal",
+			conversationId: conversationId.toLowerCase(),
+			callId,
+			from: userId,
+			payload,
+		});
 	}
 
 	private send(ws: WebSocket, message: unknown): void {

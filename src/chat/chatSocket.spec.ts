@@ -65,4 +65,36 @@ describe("ChatSocketServer", () => {
 		expect(bob.received).toEqual([{ type: "ready" }]);
 		for (const { ws } of [alice, bob, mallory]) ws.close();
 	});
+
+	it("relays call signals to other members only and rejects non-members", async () => {
+		const chat = fakeChat();
+		const conversationId = "11111111-1111-4111-8111-111111111111";
+		const calls = {
+			recipients: async (userId: string, id: string) => {
+				if (id !== conversationId || userId === "mallory") throw new Error("no");
+				return ["alice", "bob", "carol"].filter((member) => member !== userId);
+			},
+		};
+		server = createServer();
+		sockets = new ChatSocketServer(async (token) => token, chat as never, calls as never);
+		sockets.attach(server);
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const port = (server.address() as AddressInfo).port;
+
+		const alice = await open(port, "alice");
+		const bob = await open(port, "bob");
+		const carol = await open(port, "carol");
+		const mallory = await open(port, "mallory");
+
+		alice.ws.send(JSON.stringify({ type: "call-signal", conversationId, callId: "c1", to: "bob", payload: "sealed" }));
+		mallory.ws.send(JSON.stringify({ type: "call-signal", conversationId, callId: "c2", payload: "x" }));
+		alice.ws.send(JSON.stringify({ type: "call-signal", conversationId, callId: "c3", payload: "" }));
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		expect(bob.received).toContainEqual({ type: "call-signal", conversationId, callId: "c1", from: "alice", payload: "sealed" });
+		expect(carol.received).toEqual([{ type: "ready" }]);
+		expect(mallory.received).toContainEqual({ type: "call-error", callId: "c2", reason: "unavailable" });
+		expect(alice.received).toContainEqual({ type: "call-error", callId: "c3", reason: "invalid" });
+		for (const { ws } of [alice, bob, carol, mallory]) ws.close();
+	});
 });

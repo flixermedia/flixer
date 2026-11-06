@@ -168,6 +168,34 @@ services:
         restart: unless-stopped
         init: true
 
+    # Optional relay for audio/video calls that can't connect directly (`docker compose --profile calls up`).
+    # It only forwards already end-to-end encrypted packets. Its secret is derived from the shared app secret, so leave
+    # "TURN secret" empty in Admin > General > Audio and video calls and add turn:<your-host>:3478 there.
+    # Open 3478 (tcp+udp) and 49160-49200/udp on your firewall.
+    turn:
+        image: coturn/coturn:4.6
+        profiles: ["calls"]
+        depends_on:
+            api:
+                condition: service_healthy
+        entrypoint:
+            - /bin/sh
+            - -c
+            - |
+                while [ ! -s /run/flixer-secrets/app-secret ]; do sleep 1; done
+                SECRET="$$(printf 'flixer:calls-turn:v1:%s' "$$(cat /run/flixer-secrets/app-secret)" | sha256sum | cut -d' ' -f1)"
+                exec turnserver -n --use-auth-secret --static-auth-secret="$$SECRET" --realm=${CALLS_TURN_REALM:-flixer} \
+                    --fingerprint --no-cli --no-multicast-peers --min-port=49160 --max-port=49200 \
+                    --denied-peer-ip=10.0.0.0-10.255.255.255 --denied-peer-ip=172.16.0.0-172.31.255.255 \
+                    --denied-peer-ip=192.168.0.0-192.168.255.255 --denied-peer-ip=127.0.0.0-127.255.255.255
+        volumes:
+            - flixer-secrets:/run/flixer-secrets:ro
+        ports:
+            - "3478:3478/udp"
+            - "3478:3478/tcp"
+            - "49160-49200:49160-49200/udp"
+        restart: unless-stopped
+
     # Bundled database. In the wizard use postgres://flixer:flixer@postgres:5432/flixer (it is pre-filled).
     # Only reachable inside the Compose network; point the wizard at your own server to skip it.
     postgres:

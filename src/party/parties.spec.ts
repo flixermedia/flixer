@@ -66,6 +66,11 @@ class FakeRedis {
 		return transaction;
 	}
 
+	publish = async (_channel: string, raw: string) => {
+		this.onMessage?.(raw);
+		return 1;
+	};
+
 	sMembers = async (key: string) => [...(this.sets.get(key) ?? [])];
 
 	lRange = async (key: string) => this.lists.get(key) ?? [];
@@ -110,7 +115,7 @@ class FakeRedis {
 		party.version++;
 		party.lastCommandId = command.commandId;
 		this.values.set(keys[0], JSON.stringify(party));
-		this.publish(party.id, { type: "state", party, serverTime: 1_000 });
+		this.emit(party.id, { type: "state", party, serverTime: 1_000 });
 		return JSON.stringify({ party, serverTime: 1_000 });
 	}
 
@@ -145,7 +150,7 @@ class FakeRedis {
 			return [member];
 		});
 		this.values.set(keys[0], JSON.stringify(party));
-		if (requestedAction !== "renew") this.publish(party.id, { type: "state", party, serverTime: 1_000 });
+		if (requestedAction !== "renew") this.emit(party.id, { type: "state", party, serverTime: 1_000 });
 		return JSON.stringify({ party, serverTime: 1_000 });
 	}
 
@@ -163,7 +168,7 @@ class FakeRedis {
 		const list = this.lists.get(keys[3]) ?? [];
 		list.unshift(JSON.stringify(message));
 		this.lists.set(keys[3], list.slice(0, 50));
-		this.publish(args[2], { type: "chat", message });
+		this.emit(args[2], { type: "chat", message });
 		return JSON.stringify(message);
 	}
 
@@ -172,7 +177,7 @@ class FakeRedis {
 		if (!raw) return JSON.stringify({ error: "missing" });
 		const party = JSON.parse(raw) as PartySnapshot;
 		if (args[0] && party.host.id !== args[0]) return JSON.stringify({ error: "forbidden" });
-		this.publish(party.id, { type: "ended", reason: args[1] as "host-ended" | "host-left" });
+		this.emit(party.id, { type: "ended", reason: args[1] as "host-ended" | "host-left" });
 		this.values.delete(keys[0]);
 		this.values.delete(keys[1]);
 		this.values.delete(keys[2]);
@@ -182,7 +187,7 @@ class FakeRedis {
 		return JSON.stringify({ party });
 	}
 
-	private publish(partyId: string, message: PartyMessage) {
+	private emit(partyId: string, message: PartyMessage) {
 		this.onMessage?.(JSON.stringify({ partyId, message }));
 	}
 }
@@ -276,5 +281,27 @@ describe("PartiesService", () => {
 		expect(messages.at(-1)).toMatchObject({ type: "chat", message: { text: "hello there" } });
 		expect(await service.chatHistory(id)).toHaveLength(1);
 		await expect(service.chat(id, person("stranger"), "hi")).rejects.toThrow(/Join the party/);
+	});
+
+	it("relays encrypted voice signals only to the addressed member, never back to the sender", async () => {
+		const service = await createService();
+		const { id } = await service.create(person("host"), "m1");
+		const host: PartyMessage[] = [];
+		const guest: PartyMessage[] = [];
+		const third: PartyMessage[] = [];
+		await service.join(id, person("host"), (message) => host.push(message));
+		await service.join(id, person("guest"), (message) => guest.push(message));
+		await service.join(id, person("third"), (message) => third.push(message));
+		const signals = (messages: PartyMessage[]) => messages.filter((message) => message.type === "call-signal");
+		await service.signal(id, "host", "guest", "call-1", "ciphertext");
+		expect(signals(guest)).toEqual([{ type: "call-signal", callId: "call-1", from: "host", to: "guest", payload: "ciphertext" }]);
+		expect(signals(host)).toHaveLength(0);
+		expect(signals(third)).toHaveLength(0);
+		await service.signal(id, "guest", undefined, "voice", "hello");
+		expect(signals(host)).toHaveLength(1);
+		expect(signals(third)).toHaveLength(1);
+		expect(signals(guest)).toHaveLength(1);
+		expect(await service.isMember(id, "guest")).toBe(true);
+		expect(await service.isMember(id, "stranger")).toBe(false);
 	});
 });

@@ -13,11 +13,19 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const VIEW_CACHE_MS = 10_000;
 const MAX_CLIENTS = 500;
 const MAX_CLIENT_MESSAGE_BYTES = 1_024;
+const MAX_SIGNAL_MESSAGE_BYTES = 32_768;
+const MAX_SIGNAL_PAYLOAD_CHARS = 24_000;
+const SIGNAL_WINDOW_MS = 10_000;
+const MAX_SIGNALS_PER_WINDOW = 120;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
 export type PartyAuthenticator = (token: string) => Promise<PartyPerson>;
 /** Resolves whether the signed-in user's viewing limits allow this media item. */
 export type PartyItemGuard = (token: string, itemId: string) => Promise<boolean>;
+/** Whether voice calls are switched on by the admin. */
+export interface PartyCallPolicy {
+	isEnabled(): Promise<boolean>;
+}
 
 interface Connection {
 	authenticated: boolean;
@@ -30,6 +38,7 @@ interface Connection {
 	leave?: () => Promise<void>;
 	renew?: () => Promise<void>;
 	alive: boolean;
+	signals?: number[];
 }
 
 /**
@@ -38,7 +47,7 @@ interface Connection {
  * The host sends playback commands; Redis commits the canonical timeline and fans the versioned state out to members.
  */
 export class PartySocketServer {
-	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
+	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_SIGNAL_MESSAGE_BYTES });
 	private readonly connections = new Map<WebSocket, Connection>();
 	private server?: Server;
 	private heartbeat?: NodeJS.Timeout;
@@ -49,6 +58,7 @@ export class PartySocketServer {
 		private readonly authenticate: PartyAuthenticator,
 		private readonly parties: PartiesService,
 		private readonly canView: PartyItemGuard,
+		private readonly calls?: PartyCallPolicy,
 	) {}
 
 	attach(server: Server): void {
@@ -116,6 +126,10 @@ export class PartySocketServer {
 		if (!person) {
 			return;
 		}
+		if (message.type !== "call-signal" && Buffer.byteLength(raw.toString()) > MAX_CLIENT_MESSAGE_BYTES) {
+			ws.close(1009, "Message too large");
+			return;
+		}
 
 		try {
 			if (message.type === "time-ping" && typeof message.requestId === "string") {
@@ -143,6 +157,8 @@ export class PartySocketServer {
 				connection.partyId = message.partyId;
 				this.send(ws, { type: "state", party: snapshot, serverTime });
 				this.send(ws, { type: "chat-history", messages: await this.parties.chatHistory(message.partyId) });
+			} else if (message.type === "call-signal" && connection.partyId) {
+				await this.relaySignal(ws, connection, person.id, message);
 			} else if (message.type === "chat" && connection.partyId && typeof message.text === "string") {
 				await this.parties.chat(connection.partyId, person, message.text);
 			} else if (message.type === "leave") {
@@ -199,6 +215,33 @@ export class PartySocketServer {
 			const { status, message: text } = error as { status?: number; message?: string };
 			this.send(ws, { type: "error", status: status ?? 500, message: text ?? "Something went wrong." });
 		}
+	}
+
+	private async relaySignal(ws: WebSocket, connection: Connection, userId: string, message: ClientMessage): Promise<void> {
+		const { callId, to, payload } = message;
+		const now = Date.now();
+		connection.signals = (connection.signals ?? []).filter((at) => now - at < SIGNAL_WINDOW_MS);
+		if (connection.signals.length >= MAX_SIGNALS_PER_WINDOW) {
+			this.send(ws, { type: "error", status: 429, message: "Too many call signals." });
+			return;
+		}
+		connection.signals.push(now);
+		if (
+			typeof callId !== "string" ||
+			!/^[\w-]{1,64}$/.test(callId) ||
+			typeof payload !== "string" ||
+			payload.length === 0 ||
+			payload.length > MAX_SIGNAL_PAYLOAD_CHARS ||
+			(to !== undefined && typeof to !== "string")
+		) {
+			this.send(ws, { type: "error", status: 400, message: "Invalid call signal." });
+			return;
+		}
+		if (!(await this.calls?.isEnabled()) || !connection.partyId) {
+			this.send(ws, { type: "error", status: 403, message: "Calls are disabled on this server." });
+			return;
+		}
+		await this.parties.signal(connection.partyId, userId, to, callId, payload);
 	}
 
 	/** Sends a party message, dropping the member from the party when the item it shows is restricted for them. */
@@ -283,6 +326,9 @@ interface ClientMessage {
 	position?: unknown;
 	text?: unknown;
 	requestId?: unknown;
+	callId?: unknown;
+	to?: unknown;
+	payload?: unknown;
 }
 
 function isPartyAction(value: unknown): value is "play" | "pause" | "seek" | "change-item" {

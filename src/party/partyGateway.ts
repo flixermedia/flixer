@@ -4,6 +4,7 @@ import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
 import { MediaAccessService } from "../api/access/mediaAccessService.js";
 import { AuthService } from "../api/auth/authService.js";
+import { CallService } from "../chat/callService.js";
 import { PartiesService } from "./partiesService.js";
 import { PARTY_PATH, PartySocketServer, personFrom } from "./partySocketServer.js";
 
@@ -17,6 +18,7 @@ export class PartyGateway {
 		private readonly authService: AuthService,
 		private readonly access: MediaAccessService,
 		private readonly parties: PartiesService,
+		private readonly calls: CallService,
 		@Inject(PlatformApplication) private readonly platformApp: PlatformApplication<{ server?: Server }>,
 	) {}
 
@@ -29,7 +31,7 @@ export class PartyGateway {
 		this.socketServer = new PartySocketServer(async (token) => personFrom(await this.authService.getAuthenticatedUser(`Bearer ${token}`)), this.parties, async (token, itemId) => {
 			const policy = await this.access.resolve(`Bearer ${token}`);
 			return this.access.isVisible(policy, itemId);
-		});
+		}, this.calls);
 		this.socketServer.attach(server);
 		logger().info(`Watch and listen parties are available on ${PARTY_PATH}.`);
 	}

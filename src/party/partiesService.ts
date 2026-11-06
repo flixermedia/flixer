@@ -62,7 +62,9 @@ export type PartyMessage =
 	| { type: "state"; party: PartySnapshot; serverTime: number }
 	| { type: "chat"; message: PartyChatMessage }
 	| { type: "chat-history"; messages: PartyChatMessage[] }
-	| { type: "ended"; reason: "host-ended" | "host-left" };
+	| { type: "ended"; reason: "host-ended" | "host-left" }
+	/** Ephemeral, MLS-encrypted voice signalling between members. Never stored. */
+	| { type: "call-signal"; callId: string; from: string; to?: string; payload: string };
 
 export type PartyCommand =
 	| { action: "play" | "pause"; commandId: string; itemId?: string }
@@ -409,6 +411,18 @@ export class PartiesService {
 		if (!result.party) throw new Error("Redis did not return the updated party state.");
 	}
 
+	/** Whether the person is currently in the party; used to scope voice key packages. */
+	async isMember(id: string, userId: string): Promise<boolean> {
+		const party = await this.read(id);
+		return !!party?.members.some((member) => member.id === userId);
+	}
+
+	/** Relays an already-encrypted voice signal to the other members (or one of them) on every server instance. */
+	async signal(id: string, from: string, to: string | undefined, callId: string, payload: string): Promise<void> {
+		const message: PartyMessage = { type: "call-signal", callId, from, ...(to ? { to } : {}), payload };
+		await this.partyRedis.commands.publish(PARTY_EVENTS_CHANNEL, JSON.stringify({ partyId: id, message }));
+	}
+
 	async chatHistory(id: string): Promise<PartyChatMessage[]> {
 		const messages = await this.partyRedis.commands.lRange(chatKey(id), 0, CHAT_HISTORY - 1);
 		return messages.reverse().map((message) => JSON.parse(message) as PartyChatMessage);
@@ -582,8 +596,12 @@ export class PartiesService {
 		try {
 			const event = JSON.parse(raw) as PartyEvent;
 			if (!event.partyId || !event.message) return;
+			const message = event.message;
 			for (const connection of this.connections.get(event.partyId) ?? []) {
-				connection.send(event.message);
+				if (message.type === "call-signal" && (connection.person.id === message.from || (message.to && message.to !== connection.person.id))) {
+					continue;
+				}
+				connection.send(message);
 			}
 			if (event.message.type === "state") {
 				const hostPresent = event.message.party.members.some(

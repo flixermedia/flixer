@@ -1,7 +1,8 @@
 import { Controller } from "@tsed/di";
 import { Forbidden, NotFound } from "@tsed/exceptions";
-import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
+import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Returns, Security } from "@tsed/schema";
+import { CallService } from "../../chat/callService.js";
 import { PartiesService } from "../../party/partiesService.js";
 import { personFrom } from "../../party/partySocketServer.js";
 import { MediaAccessService } from "../access/mediaAccessService.js";
@@ -23,6 +24,7 @@ export class PartiesController {
 		private readonly authService: AuthService,
 		private readonly parties: PartiesService,
 		private readonly access: MediaAccessService,
+		private readonly calls: CallService,
 	) {}
 
 	@Post("/")
@@ -44,6 +46,42 @@ export class PartiesController {
 			throw new Forbidden("This media is restricted for your account.");
 		}
 		return party;
+	}
+
+	/** STUN/TURN servers for party voice; same payload as the chat call endpoint. */
+	@Get("/:id/calls/ice")
+	async callIce(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		partyId(id);
+		return this.calls.iceConfig(user.id);
+	}
+
+	/** Key packages used to open an end-to-end encrypted voice link with one other party member. */
+	@Get("/:id/calls/key-packages")
+	async callKeyPackages(
+		@PathParams("id") id: string,
+		@QueryParams("peer") peer: string,
+		@QueryParams("lenient") lenient?: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		if (!AuthService.isUuid(peer ?? "")) {
+			throw new NotFound("Party member not found.");
+		}
+		return { keyPackages: await this.calls.partyKeyPackages(user.id, partyId(id), peer.toLowerCase(), lenient === "1") };
+	}
+
+	@Post("/:id/calls/key-packages/:keyPackageId/claim")
+	async claimCallKeyPackage(
+		@PathParams("id") id: string,
+		@PathParams("keyPackageId") keyPackageId: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		if (!AuthService.isUuid(keyPackageId)) {
+			throw new NotFound("Key package not found.");
+		}
+		return this.calls.claimPartyKeyPackage(user.id, partyId(id), keyPackageId.toLowerCase());
 	}
 
 	@Delete("/:id")
