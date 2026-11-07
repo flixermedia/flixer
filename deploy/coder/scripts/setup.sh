@@ -4,14 +4,22 @@
 set -euo pipefail
 
 ROOT="$HOME/projects"
-mkdir -p "$ROOT" "$HOME/bin" "$HOME/logs"
+mkdir -p "$ROOT" "$HOME/bin"
 sudo chown "$(id -u):$(id -g)" "$ROOT"
 mkdir -p "$ROOT/flixer-data"
 sudo chown "$(id -u):$(id -g)" "$ROOT/flixer-data"
 mkdir -p "$ROOT/flixer-data/media" "$ROOT/flixer-data/avatars" "$ROOT/flixer-data/config" "$ROOT/flixer-data/cache/images" "$ROOT/flixer-data/cache/people" "$ROOT/flixer-data/cache/theme" "$ROOT/flixer-data/cache/trickplay" "$ROOT/flixer-data/cache/subtitles" "$ROOT/flixer-data/database" "$ROOT/flixer-data/logs" "$ROOT/flixer-data/mounts" "$ROOT/flixer-data/backups" "$ROOT/flixer-data/ai/models"
+if [ -L "$ROOT/flixer-data" ] || [ -L "$ROOT/flixer-data/logs" ] || [ -L "$ROOT/flixer-data/logs/logger" ]; then
+  echo "Refusing symlinked Flixer Logger data paths." >&2
+  exit 1
+fi
+chmod 0755 "$ROOT/flixer-data" "$ROOT/flixer-data/logs"
+mkdir -p "$ROOT/flixer-data/logs/logger"
+sudo chown -R "$(id -u):$(id -g)" "$ROOT/flixer-data/logs/logger"
+chmod 0700 "$ROOT/flixer-data/logs/logger"
 export PATH="$HOME/bin:$PATH"
 
-for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-ai; do
+for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-updater flixer-docs flixer-cloud flixer-ai; do
   if [ ! -d "$ROOT/$repo/.git" ]; then
     if [ "$repo" = flixer-cloud ]; then
       git clone "${GIT_BASE_URL}/$repo.git" "$ROOT/$repo" || \
@@ -21,6 +29,15 @@ for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-
     fi
   fi
 done
+
+# Logger is not yet published on every Git host. Preserve an existing checkout
+# and keep the rest of the workspace usable if provisioning it fails.
+if [ ! -e "$ROOT/flixer-logger" ]; then
+  git clone "${GIT_BASE_URL}/flixer-logger.git" "$ROOT/flixer-logger" || \
+    echo "Warning: could not clone flixer-logger; logger lifecycle is unavailable until a checkout is supplied." >&2
+elif [ ! -d "$ROOT/flixer-logger/.git" ]; then
+  echo "Warning: $ROOT/flixer-logger exists but is not a Git checkout; preserving it." >&2
+fi
 
 # Repair ownership and tracked file modes in the persistent projects volume once per workspace user.
 restore_tracked_modes() {
@@ -40,7 +57,7 @@ restore_tracked_modes() {
 
 OWNERSHIP_MARKER="$ROOT/.flixer-repo-ownership-$(id -u)-$(id -g)-v2"
 if [ ! -e "$OWNERSHIP_MARKER" ]; then
-  for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-ai; do
+  for repo in flixer flixer-web flixer-indexer flixer-streamer flixer-docs flixer-cloud flixer-ai flixer-logger; do
     if [ -d "$ROOT/$repo" ]; then
       sudo chown -R "$(id -u):$(id -g)" "$ROOT/$repo"
       if git -C "$ROOT/$repo" rev-parse --git-dir >/dev/null 2>&1; then
@@ -49,6 +66,14 @@ if [ ! -e "$OWNERSHIP_MARKER" ]; then
     fi
   done
   touch "$OWNERSHIP_MARKER"
+fi
+UPDATER_OWNERSHIP_MARKER="$ROOT/.flixer-updater-ownership-$(id -u)-$(id -g)-v1"
+if [ ! -e "$UPDATER_OWNERSHIP_MARKER" ] && [ -d "$ROOT/flixer-updater" ]; then
+  sudo chown -R "$(id -u):$(id -g)" "$ROOT/flixer-updater"
+  if git -C "$ROOT/flixer-updater" rev-parse --git-dir >/dev/null 2>&1; then
+    restore_tracked_modes "$ROOT/flixer-updater"
+  fi
+  touch "$UPDATER_OWNERSHIP_MARKER"
 fi
 
 # Secrets are generated once and kept in the home volume.
@@ -86,7 +111,7 @@ if [ ! -f "$ROOT/flixer-streamer/.env" ]; then
   cat > "$ROOT/flixer-streamer/.env" <<EOF
 PORT=8091
 DATA_DIR=$ROOT/flixer-data
-FLIXER_URL=http://localhost:8083
+FLIXER_URL=http://127.0.0.1:8083
 EOF
 fi
 
@@ -95,7 +120,7 @@ if [ ! -f "$ROOT/flixer-indexer/.env" ]; then
 PORT=8092
 ROLE=all
 DATA_DIR=$ROOT/flixer-data
-FLIXER_URL=http://localhost:8083
+FLIXER_URL=http://127.0.0.1:8083
 EOF
 fi
 
@@ -104,6 +129,9 @@ fi
 for env_file in "$ROOT/flixer/.env" "$ROOT/flixer-streamer/.env" "$ROOT/flixer-indexer/.env"; do
   sed -i -E '/^(DATA_PATH|DATA_DIR|LOG_DIR|CACHE_PATH|TRICKPLAY_DIR|TRANSCODE_DIR|SUBTITLE_DIR)=/d' "$env_file"
   printf 'DATA_DIR=%s\n' "$ROOT/flixer-data" >> "$env_file"
+done
+for env_file in "$ROOT/flixer-streamer/.env" "$ROOT/flixer-indexer/.env"; do
+  sed -i 's|^FLIXER_URL=http://localhost:8083$|FLIXER_URL=http://127.0.0.1:8083|' "$env_file"
 done
 if grep -q '^FLIXER_AI_URL=' "$ROOT/flixer/.env"; then
   sed -i 's|^FLIXER_AI_URL=.*|FLIXER_AI_URL=http://localhost:8094|' "$ROOT/flixer/.env"
@@ -122,7 +150,7 @@ if [ ! -f "$ROOT/flixer-ai/.env" ]; then
 PORT=8094
 DATA_DIR=$ROOT/flixer-data
 MODELS_DIR=$ROOT/flixer-data/ai/models
-FLIXER_URL=http://localhost:8083
+FLIXER_URL=http://127.0.0.1:8083
 FLIXER_INTERNAL_TOKEN_FILE=$HOME/.flixer-run/app-secret
 RECOMMENDER_PROFILE=auto
 ALLOW_DOWNLOADS=true
@@ -139,21 +167,21 @@ set_managed_env() {
 set_managed_env "$ROOT/flixer-ai/.env" PORT 8094
 set_managed_env "$ROOT/flixer-ai/.env" DATA_DIR "$ROOT/flixer-data"
 set_managed_env "$ROOT/flixer-ai/.env" MODELS_DIR "$ROOT/flixer-data/ai/models"
-set_managed_env "$ROOT/flixer-ai/.env" FLIXER_URL http://localhost:8083
+set_managed_env "$ROOT/flixer-ai/.env" FLIXER_URL http://127.0.0.1:8083
 set_managed_env "$ROOT/flixer-ai/.env" FLIXER_INTERNAL_TOKEN_FILE "$HOME/.flixer-run/app-secret"
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash
-# Usage: flixer-stack [start|stop|restart|status|logs [service]] — service defaults to all: api streamer indexer ai web docs
+# Usage: flixer-stack [start|stop|restart|status|logs [service]]
 set -uo pipefail
 ROOT="$HOME/projects"
 RUN="$HOME/.flixer-run"
-LOGS="$HOME/logs"
-mkdir -p "$RUN" "$LOGS"
-SERVICES="api streamer indexer ai web docs"
+mkdir -p "$RUN"
+SERVICES="logger api streamer indexer ai web docs"
 
 command_for() {
   case "$1" in
+    logger) echo "$ROOT/flixer-logger|$RUN/flixer-logger --data-dir $ROOT/flixer-data --bootstrap-owner-file $RUN/logger/owner-token --listen 127.0.0.1:8098" ;;
     api) echo "$ROOT/flixer|npm start" ;;
     streamer) echo "$ROOT/flixer-streamer|go run ./cmd/flixer-streamer" ;;
     indexer) echo "$ROOT/flixer-indexer|go run ./cmd/flixer-indexer" ;;
@@ -165,6 +193,7 @@ command_for() {
 
 match_for() {
   case "$1" in
+    logger) echo 'flixer-logger' ;;
     api) echo 'npm start|npm run barrels|tsed' ;;
     streamer) echo 'go run|go-build|flixer-streamer' ;;
     indexer) echo 'go run|go-build|flixer-indexer' ;;
@@ -191,6 +220,29 @@ find_pids() {
 
 is_running() { [ -n "$(find_pids "$1")" ]; }
 
+build_logger() {
+  local dir="$ROOT/flixer-logger" hash temporary
+  if [ ! -f "$dir/go.mod" ]; then
+    echo "logger: no source checkout at $dir" >&2
+    return 1
+  fi
+  hash="$(
+    cd "$dir" || exit 1
+    { go version; printf '%s\n' "${GOFLAGS:-}"; sha256sum go.mod go.sum; find cmd internal pkg -type f -name '*.go' -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | cut -d' ' -f1
+  )" || return 1
+  if [ -x "$RUN/flixer-logger" ] && [ -f "$RUN/logger-build-hash" ] && [ "$(cat "$RUN/logger-build-hash")" = "$hash" ]; then
+    return 0
+  fi
+  temporary="$RUN/flixer-logger-build-$$"
+  if ! (cd "$dir" && go build -o "$temporary" ./cmd/flixer-logger); then
+    rm -f "$temporary"
+    echo "logger: build failed; previous binary was not started" >&2
+    return 1
+  fi
+  mv "$temporary" "$RUN/flixer-logger"
+  printf '%s\n' "$hash" > "$RUN/logger-build-hash"
+}
+
 # Signals a process, and its whole group when it leads one, so npm/go take their children down with them.
 signal_tree() {
   local sig="$1" pid="$2" pgid own
@@ -207,16 +259,30 @@ signal_tree() {
 start_one() {
   if is_running "$1"; then echo "$1 already running"; return; fi
   IFS='|' read -r dir cmd <<< "$(command_for "$1")"
+  if [ ! -w /proc/1/fd/1 ]; then
+    echo "$1: workspace supervisor output is unavailable; cannot safely capture diagnostics" >&2
+    return 1
+  fi
+  if [ "$1" = logger ]; then
+    build_logger || return 1
+    mkdir -p -m 700 "$RUN/logger" || return 1
+    (cd "$dir" && setsid "$RUN/flixer-logger" --data-dir "$ROOT/flixer-data" --bootstrap-owner-file "$RUN/logger/owner-token" --listen 127.0.0.1:8098 2>&1 | sed -u 's/^/[logger] /' >> /proc/1/fd/1 &)
+    echo "started logger (diagnostics go to the workspace supervisor)"
+    return
+  fi
   # The API publishes its app secret here and the streamer and indexer read it, so the three always agree.
   export APP_SECRET_FILE="${APP_SECRET_FILE:-$RUN/app-secret}"
+  if [ "$1" = api ]; then
+    export FLIXER_LOGGER_LOCAL_OWNER_FILE="$RUN/logger/owner-token"
+  fi
   # The workspace has passwordless sudo and SYS_ADMIN, which is how flixer mounts SMB shares without running as root.
   export SMB_MOUNT_SUDO="${SMB_MOUNT_SUDO:-true}"
   # Own session/process group so stop can take down npm/go and their children together.
   if [ "$1" = ai ]; then
     # The AI service loads its shared token at startup; wait for the API to publish the current secret.
-    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; while [ ! -s \"\$APP_SECRET_FILE\" ]; do sleep 1; done; exec $cmd" >> "$LOGS/$1.log" 2>&1 &)
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; while [ ! -s \"\$APP_SECRET_FILE\" ]; do sleep 1; done; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
   else
-    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; exec $cmd" >> "$LOGS/$1.log" 2>&1 &)
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
   fi
   echo "started $1"
 }
@@ -248,15 +314,30 @@ each_parallel() {
   wait
 }
 
-# Interleaves the logs of several services, each line prefixed with its service name. Ctrl+C ends all of them.
+# Reads supervisor-managed output; service prefixes allow a single service to be selected.
 tail_logs() {
-  local s
-  trap 'kill $(jobs -p) 2>/dev/null' EXIT INT TERM
+  local s pattern lines="${LOG_LINES:-20}"
+  local container="${WORKSPACE_CONTAINER_NAME:-}"
+  if [ -z "$container" ]; then
+    echo "workspace container name is unavailable; cannot read supervisor output" >&2
+    return 1
+  fi
+  if ! [[ "$lines" =~ ^[0-9]+$ ]]; then
+    echo "LOG_LINES must be a non-negative integer" >&2
+    return 2
+  fi
+  if [ "$#" -eq 0 ] || [ "$1" = all ]; then
+    docker logs --tail "$lines" --follow "$container"
+    return
+  fi
   for s in "$@"; do
-    touch "$LOGS/$s.log"
-    tail -n "${LOG_LINES:-20}" -F "$LOGS/$s.log" 2>/dev/null | sed -u "s/^/[$s] /" &
+    case " $SERVICES " in
+      *" $s "*) ;;
+      *) echo "unknown service: $s" >&2; return 2 ;;
+    esac
   done
-  wait
+  pattern="$(printf '%s\n' "$@" | paste -sd'|' -)"
+  docker logs --tail "$lines" --follow "$container" | grep --line-buffered -E "^\[($pattern)\] "
 }
 
 targets() { if [ "$#" -eq 0 ] || [ "$1" = all ]; then echo $SERVICES; else echo "$@"; fi; }
@@ -265,7 +346,13 @@ case "${1:-status}" in
   start) reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
   stop) each_parallel stop_one $(targets "${@:2}") ;;
   restart) each_parallel stop_one $(targets "${@:2}"); reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
-  status) for s in $SERVICES; do is_running "$s" && echo "$s: running" || echo "$s: stopped"; done ;;
+  status) for s in $SERVICES; do
+    if is_running "$s"; then
+      if [ "$s" = logger ]; then
+        if curl -fsS --max-time 2 http://127.0.0.1:8098/api/health/ready >/dev/null; then echo "logger: ready"; else echo "logger: running, not ready"; fi
+      else echo "$s: running"; fi
+    else echo "$s: stopped"; fi
+  done ;;
   logs) tail_logs $(targets "${@:2}") ;;
   *) echo "usage: flixer-stack [start|stop|restart|status|logs] [all|service]"; exit 1 ;;
 esac
@@ -285,6 +372,7 @@ install_node flixer-web
 install_node flixer-docs
 (cd "$ROOT/flixer-indexer" && go mod download)
 (cd "$ROOT/flixer-streamer" && go mod download)
+(cd "$ROOT/flixer-updater" && go mod download)
 
 # Python dependencies are isolated from the workspace image and refreshed when the AI manifest changes.
 AI_VENV="$ROOT/flixer-ai/.venv"

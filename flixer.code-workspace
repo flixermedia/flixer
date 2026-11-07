@@ -37,6 +37,9 @@
 		},
 		{
 			"path": "../flixer-ai"
+		},
+		{
+			"path": "../flixer-logger"
 		}
 	],
 	"settings": {

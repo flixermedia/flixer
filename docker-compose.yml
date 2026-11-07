@@ -1,7 +1,7 @@
 # Flixer. Start with `docker compose up -d`, open http://localhost:8080 and follow the setup wizard.
 #
 # Settings, in a .env file next to this file (or exported):
-#   DATA_DIR   (required) a folder Flixer keeps its own data in: avatars, config, database, cache, logs, backups and Nginx config.
+#   DATA_DIR   (required) a folder Flixer keeps its own data in: avatars, config, database, cache, Logger data, legacy log archive, backups and Nginx config.
 #   MEDIA_PATH (optional) the folder that holds your media; defaults to ./media.
 # Everything else is configured in the wizard.
 services:
@@ -10,19 +10,11 @@ services:
             image: alpine:3
             command:
               - /bin/sh
-              - -c
-              - |
-                set -e
-                mkdir -p /data/advertisements /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/cache/trailers /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch /data/ai/models
-                chown -R 1000:1000 /data/advertisements /data/avatars /data/config /data/mounts /data/backups /data/plugins /data/logs
-                chown 70:70 /data/database
-                chown -R 65532:65532 /data/cache
-                find /data/cache -type d -exec chmod 2775 {} +
-                chmod -R 0777 /data/logs
-                chmod 0755 /data/plugins
-                chown 10001:10001 /data/ai /data/ai/models
+              - /opt/flixer/init-data.sh
             volumes:
+              - ./deploy/docker/init-data.sh:/opt/flixer/init-data.sh:ro
               - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
+              - flixer-secrets:/run/flixer-secrets
             restart: "no"
 
     nginx-config-init:
@@ -49,19 +41,68 @@ services:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
         restart: "no"
 
+    logger-cert-init:
+        image: ghcr.io/flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
+        user: "1000:1000"
+        command: ["--init-cert"]
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
+        volumes:
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger:/data/logs/logger
+        restart: "no"
+
+    logger:
+        image: ghcr.io/flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
+        user: "1000:1000"
+        command:
+            - --data-dir
+            - /data
+            - --listen
+            - 0.0.0.0:8098
+            - --bootstrap-owner-file
+            - /run/flixer-secrets/logger/owner
+            - --tls-cert
+            - /data/logs/logger/tls.crt
+            - --tls-key
+            - /data/logs/logger/tls.key
+            - --checkpoint-dir
+            - /data/logs/logger/checkpoints
+        depends_on:
+            logger-cert-init:
+                condition: service_completed_successfully
+        volumes:
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger:/data/logs/logger
+            - flixer-secrets:/run/flixer-secrets
+        expose:
+            - "8098"
+        healthcheck:
+            test: ["CMD-SHELL", "wget -q --no-check-certificate -O /dev/null https://127.0.0.1:8098/api/health/ready || exit 1"]
+            interval: 15s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
+        restart: unless-stopped
+        init: true
+
     api:
         image: ghcr.io/flixermedia/flixer:${FLIXER_VERSION:-latest}
         depends_on:
             data-init:
+                condition: service_completed_successfully
+            logger-cert-init:
                 condition: service_completed_successfully
             postgres:
                 condition: service_healthy
         environment:
             PORT: 8081
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
+            FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
+            FLIXER_LOGGER_LOCAL_OWNER_FILE: /run/flixer-secrets/logger/owner
+            FLIXER_LOGGER_LOCAL_ENDPOINT: https://logger:8098
+            NODE_EXTRA_CA_CERTS: /run/flixer-secrets/logger-ca.crt
             DATA_PATH: /data
             STREAM_MEDIA_ROOT: /media
-            LOG_DIR: /data/logs
             STREAMER_PUBLIC_URL: ""
             STREAMER_INTERNAL_URL: http://streamer:8091
             INDEXER_URL: http://indexer:8092
@@ -74,12 +115,12 @@ services:
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/avatars:/data/avatars
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/backups:/data/backups
-            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins
         expose:
@@ -99,17 +140,21 @@ services:
 
     streamer:
         image: ghcr.io/flixermedia/flixer-streamer:${STREAMER_VERSION:-latest}
+        depends_on:
+            data-init:
+                condition: service_completed_successfully
         environment:
             PORT: 8091
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
+            FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
+            FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             TRANSCODE_DIR: /var/cache/flixer/transcode
             TRICKPLAY_DIR: /data/cache/trickplay
             FLIXER_URL: http://api:8081
-            LOG_DIR: /data/logs
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
-            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
@@ -135,8 +180,9 @@ services:
             PORT: 8092
             ROLE: all
             FLIXER_URL: http://api:8081
-            LOG_DIR: /data/logs
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
+            FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
+            FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             CACHE_PATH: /data/cache
             PLUGINS_PATH: /data/plugins/installed
             TRICKPLAY_DIR: /data/cache/trickplay
@@ -145,7 +191,7 @@ services:
             - ${MEDIA_PATH:-./media}:/media
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - flixer-secrets:/run/flixer-secrets:ro
-            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins:ro
         expose:
@@ -167,11 +213,14 @@ services:
             MODELS_DIR: /data/ai/models
             FLIXER_URL: http://api:8081
             FLIXER_INTERNAL_TOKEN_FILE: /run/flixer-secrets/app-secret
+            FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
+            FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             RECOMMENDER_PROFILE: ${RECOMMENDER_PROFILE:-auto}
             ALLOW_DOWNLOADS: ${AI_ALLOW_DOWNLOADS:-true}
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/ai:/data/ai
             - flixer-secrets:/run/flixer-secrets:ro
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
         expose:
             - "8094"
         restart: unless-stopped
@@ -283,10 +332,13 @@ services:
                 condition: service_completed_successfully
         environment:
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/app-secret
+            FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
+            FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             DATA_PATH: /data
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - flixer-secrets:/run/flixer-secrets
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro

@@ -205,7 +205,7 @@ if $USE_SMB; then
 fi
 
 info "Installing into $INSTALL_DIR"
-run mkdir -p "$INSTALL_DIR" "$DATA_DIR" "$MEDIA_PATH"
+run mkdir -p "$INSTALL_DIR/deploy/docker" "$DATA_DIR" "$MEDIA_PATH"
 
 fetch() { # fetch <file>
     info "Downloading $1"
@@ -213,6 +213,7 @@ fetch() { # fetch <file>
     curl -fsSL "$REPO_RAW/$REF/$1" -o "$INSTALL_DIR/$1.tmp" && mv "$INSTALL_DIR/$1.tmp" "$INSTALL_DIR/$1"
 }
 fetch docker-compose.yml
+fetch deploy/docker/init-data.sh
 $USE_SMB && fetch docker-compose.smb-volume.yml
 
 # --- .env -------------------------------------------------------------------
