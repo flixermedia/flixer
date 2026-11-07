@@ -1,5 +1,7 @@
 import { BadRequest, ServiceUnavailable, TooManyRequests } from "@tsed/exceptions";
 import { Injectable } from "@tsed/di";
+import { $log } from "@tsed/logger";
+import { randomBytes, randomUUID } from "node:crypto";
 import { appConfig } from "../../config/store/appConfig.js";
 import type { RecommendationRequest } from "./recommendationRequests.js";
 import { AiAdminService } from "./aiAdminService.js";
@@ -69,6 +71,12 @@ export class AiRecommendationsService {
 		}
 
 		let response: Response;
+		const traceId = randomUUID().replaceAll("-", "");
+		let spanId: string;
+		do {
+			spanId = randomBytes(8).toString("hex");
+		} while (spanId === "0000000000000000");
+		const started = performance.now();
 		try {
 			const url = new URL(path, `${baseUrl.replace(/\/+$/, "")}/`);
 			if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -79,16 +87,19 @@ export class AiRecommendationsService {
 				headers: {
 					"content-type": "application/json",
 					"x-flixer-internal-token": token,
+					traceparent: `00-${traceId}-${spanId}-01`,
 				},
 				body: JSON.stringify(body),
 				signal: AbortSignal.timeout(AI_RECOMMENDATION_TIMEOUT_MS),
 			});
 		} catch (error) {
+			$log.warn({ event: "AI_REQUEST_FAILED", trace_id: traceId, duration_ms: performance.now() - started, message: "AI recommendation request failed." });
 			if (error instanceof DOMException && error.name === "TimeoutError") {
 				throw new ServiceUnavailable("The AI recommendation service timed out.");
 			}
 			throw new ServiceUnavailable("The AI recommendation service could not be reached.");
 		}
+		$log.info({ event: "AI_REQUEST_COMPLETED", trace_id: traceId, duration_ms: performance.now() - started, status_code: response.status, message: `AI recommendation request completed with HTTP ${response.status}.` });
 		if (!response.ok) {
 			if (response.status === 429) {
 				const retryAfter = response.headers.get("retry-after");

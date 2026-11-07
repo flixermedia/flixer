@@ -123,10 +123,13 @@ export class ConfigStore {
 		return this.db.prepare("SELECT 1 FROM config WHERE key = ?").get(definitionOf(name).key) !== undefined;
 	}
 
-	/** Saves values atomically after validating all of them; nothing is written if one is invalid. */
-	setMany(values: Partial<Record<ConfigName, string>>): number {
+	/** Saves and removes values atomically after validation; nothing is written if one is invalid. */
+	setMany(values: Partial<Record<ConfigName, string>>, remove: ConfigName[] = []): number {
 		const entries = Object.entries(values) as [ConfigName, string][];
 		const errors: string[] = [];
+		if (remove.some((name) => Object.hasOwn(values, name))) {
+			throw new ConfigValidationError("A configuration key cannot be saved and removed together.");
+		}
 		for (const [name, value] of entries) {
 			const problem = definitionOf(name).validate?.(value);
 			if (problem) {
@@ -153,6 +156,10 @@ export class ConfigStore {
 					next,
 					now,
 				);
+			}
+			const deleteKey = this.db.prepare("DELETE FROM config WHERE key = ?");
+			for (const name of remove) {
+				deleteKey.run(definitionOf(name).key);
 			}
 			this.db
 				.prepare(

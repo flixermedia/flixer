@@ -2,15 +2,12 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
 import { BadRequest } from "@tsed/exceptions";
 import { createHmac } from "node:crypto";
-import { readdir, stat, unlink } from "node:fs/promises";
-import { join } from "node:path";
 import { PgBoss, type Job, type JobWithMetadata, type QueueResult, type Schedule } from "pg-boss";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../entities/setting.entity.js";
 import { SentryService } from "../sentry/sentryService.js";
 import { appConfig } from "../config/store/appConfig.js";
-import { logDirectory } from "../config/dataPath.js";
 import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
 import { IndexerClient } from "../api/indexer/indexerClient.js";
 import { GuideService } from "../api/guide/guideService.js";
@@ -35,7 +32,6 @@ const PG_BOSS_CONNECTION_POOL_SIZE = 2;
 const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
 const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface AdminTaskRunStatus {
 	id: AdminScheduledTaskId;
@@ -142,6 +138,7 @@ export class JobScheduler {
 					(jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs),
 				);
 			}
+			await boss.unschedule("admin-task-clean-logs");
 			const configs = await this.getAdminTaskConfigs(true);
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				const schedule = configs[task.id];
@@ -449,9 +446,6 @@ export class JobScheduler {
 				case "clean-transcode":
 					await this.requestStreamerCleanup(signal);
 					break;
-				case "clean-logs":
-					await this.cleanOldLogs(signal);
-					break;
 				case "refresh-epg":
 					await this.guide.refreshEnabledEpgSources();
 					break;
@@ -581,20 +575,6 @@ export class JobScheduler {
 			signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
 		});
 		if (!response.ok) throw new Error(`flixer-streamer cleanup returned status ${response.status}.`);
-	}
-
-	private async cleanOldLogs(signal: AbortSignal): Promise<void> {
-		const directory = logDirectory();
-		if (!directory) throw new Error("The log directory is not configured.");
-		const entries = await readdir(directory, { withFileTypes: true });
-		const cutoff = Date.now() - LOG_RETENTION_MS;
-		for (const entry of entries) {
-			if (signal.aborted) return;
-			if (!entry.isFile() || !/\.log\.\d+$/.test(entry.name)) continue;
-			const path = join(directory, entry.name);
-			const info = await stat(path);
-			if (info.mtimeMs < cutoff) await unlink(path);
-		}
 	}
 
 	private async optimizeDatabase(signal: AbortSignal): Promise<void> {

@@ -71,8 +71,11 @@ export function toUnifiedRecord(event: LogEvent): UnifiedLogRecord {
 	}
 
 	let message = formatLogMessage(text);
+	if (!message && typeof fields.message === "string") {
+		message = formatLogMessage([fields.message]);
+	}
 	if (!message && typeof fields.event === "string") {
-		message = fields.event;
+		message = formatLogMessage([fields.event]);
 	}
 
 	const extra: Record<string, unknown> = {};

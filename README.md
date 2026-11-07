@@ -50,8 +50,9 @@ Supported install targets described by the project are macOS and Debian/Ubuntu L
 ### Manual Docker Compose
 
 ```bash
-mkdir flixer && cd flixer
+mkdir -p flixer/deploy/docker && cd flixer
 curl -fsSLO https://raw.githubusercontent.com/flixermedia/flixer/main/docker-compose.yml
+curl -fsSLo deploy/docker/init-data.sh https://raw.githubusercontent.com/flixermedia/flixer/main/deploy/docker/init-data.sh
 printf 'DATA_DIR=/path/to/flixer-data\nMEDIA_PATH=/path/to/media\n' > .env
 docker compose up -d
 ```
@@ -60,7 +61,7 @@ docker compose up -d
 
 ## ⚙️ Configuration and operations
 
-- `DATA_DIR` is required for persisted settings, PostgreSQL data, logs, caches, avatars, backups and the bundled Nginx config.
+- `DATA_DIR` is required for persisted settings, PostgreSQL data, archived compatibility logs (`app-logs`), Logger storage (`logs/logger`), caches, avatars, backups and the bundled Nginx config. On startup, `data-init` migrates existing entries from `DATA_DIR/logs` into `DATA_DIR/app-logs` without moving `logs/logger`; it stops rather than overwriting a colliding destination. Flixer, Streamer and Indexer no longer write application-managed log files; console output remains available through Docker, and Logger connections receive events asynchronously.
 - The onboarding wizard stores settings in SQLite; explicitly supplied environment values take precedence.
 - PostgreSQL provides application data; Redis supports supporting services.
 - Only the reverse proxy should be published to the host by the bundled stack.
@@ -103,6 +104,63 @@ The script uses `DATA_DIR` from the environment or `.env` by default, preserves 
 ## 🤝 Contributing
 
 Contributions, bug reports and documentation improvements are welcome. Open an [issue](https://github.com/flixermedia/flixer/issues) with reproduction steps or a focused proposal, then submit a pull request against the repository. Keep configuration, examples and documentation aligned with implemented code. For backend contributions, also see the [main contribution guidelines](https://github.com/flixermedia/flixer/blob/main/CONTRIBUTING.md).
+
+Watch-party Redis scripts live in [`src/party/lua/`](src/party/lua/) and are imported as raw text into the API bundle. Their `ARGV` positions must stay aligned with the corresponding calls in [`partiesService.ts`](src/party/partiesService.ts); run `npx vitest run src/party/parties.spec.ts` after changes.
+
+### Flixer Logger
+
+The bundled Compose stack provisions an internal-only `flixer-logger` service.
+It stores events in Pebble under `DATA_DIR/logs/logger`, creates an internal
+TLS certificate on first startup, and pairs through Flixer's protected owner
+bootstrap file. The certificate is mounted read-only into producer containers
+for TLS verification; the Logger port is not published to the host. Producer
+credentials are delivered through Flixer's signed Unix control socket rather
+than the plaintext service network. Configure retention and other Logger
+policies in Admin > Logging. `docker compose logs -f logger` shows Logger
+diagnostics.
+
+The Logger repository publishes its container image to
+`ghcr.io/flixermedia/flixer-logger`; `LOGGER_VERSION` can pin another tag.
+`DATA_DIR/logs/logger` is private Logger-owned storage. Back up this directory
+with `docker compose kill -s USR1 logger` and copy the resulting checkpoint
+from `DATA_DIR/logs/logger/checkpoints`, or stop Logger before copying the
+store. Do not copy only the active Pebble files while the service is running.
+
+### Logger correlation integration test
+
+The optional `src/api/ai/loggerCorrelationIntegration.spec.ts` test sends two
+concurrent requests from Flixer's recommendation service to a running AI
+service and checks their trace-indexed events in a real logger. Use an isolated
+logger deployment and AI instance with recommendations disabled. Provision an
+AI ingestion credential for that deployment and set the following environment
+variables securely before running the test:
+
+- `LOGGER_CORRELATION_URL`: logger origin.
+- `LOGGER_CORRELATION_INGEST`: application-bound `flixer` ingestion credential.
+- `LOGGER_CORRELATION_QUERY`: query credential for the same deployment.
+- `LOGGER_CORRELATION_AI_URL`: AI service origin.
+- `LOGGER_CORRELATION_AI_SECRET`: AI internal authentication secret.
+
+Run `npx vitest run src/api/ai/loggerCorrelationIntegration.spec.ts`. The test
+is skipped when these values are absent; it does not provision the services or
+verify full-stack deployment.
+
+### Logger owner integration test
+
+The optional owner integration test starts a disposable local logger, creates
+temporary credentials, and verifies owner isolation and capacity rejection
+and recovery through Flixer's `LoggerService`. Build the logger first and
+provide its binary path:
+
+```sh
+cd ../flixer-logger
+go build -o /tmp/flixer-logger-test ./cmd/flixer-logger
+cd ../flixer
+FLIXER_LOGGER_TEST_BINARY=/tmp/flixer-logger-test npx vitest run src/api/logger/loggerOwnerIntegration.spec.ts
+```
+
+The test is skipped when the binary path is absent. It does not exercise the
+HTTP authentication layer of Flixer, browser-to-API integration or deployment.
 
 ## 📄 Licence
 

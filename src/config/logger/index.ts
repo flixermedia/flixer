@@ -1,37 +1,16 @@
 import { DILoggerOptions } from "@tsed/di";
 import { $log } from "@tsed/logger";
-import "@tsed/logger-file";
 import "@tsed/logger-std";
 import "@tsed/logger/layouts/JsonLayout.js";
-import { config as loadDotEnv } from "dotenv";
-import { join } from "node:path";
 import "../../logs/liveLogAppender.js";
+import "../../logs/loggerAppender.js";
 import "../../logs/unifiedLog.js";
-import { logDirectory } from "../dataPath.js";
 import { isProduction } from "../utils/index.js";
-
-// This module is evaluated before Ts.ED loads .env, so read LOG_DIR from it directly.
-loadDotEnv({ quiet: true });
-
-const LOG_FILE_MAX_BYTES = 10 * 1024 * 1024;
-const LOG_FILE_BACKUPS = 3;
+import { alterRequestLog } from "./requestLog.js";
 
 // Mirrors log events to the admin dashboard's live log stream.
 $log.appenders.set("live", { type: "live" });
-
-// JSON lines in LOG_DIR let Alloy ship the logs to Loki without Docker; console output is unchanged.
-const logDir = logDirectory();
-if (logDir) {
-	$log.appenders.set("file", {
-		type: "file",
-		filename: join(logDir, "flixer.log"),
-		maxLogSize: LOG_FILE_MAX_BYTES,
-		backups: LOG_FILE_BACKUPS,
-		layout: {
-			type: "unified",
-		},
-	});
-}
+$log.appenders.set("flixerLogger", { type: "flixerLogger" });
 
 if (isProduction) {
 	$log.appenders.set("stdout", {
@@ -53,4 +32,5 @@ if (isProduction) {
 
 export default <DILoggerOptions>{
 	disableRoutesSummary: isProduction,
+	alterLog: alterRequestLog,
 };

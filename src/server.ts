@@ -14,6 +14,9 @@ import { config } from "./config/config.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
+import { LoggerExportService } from "./logs/loggerExportService.js";
+import { LoggerControlSocket } from "./api/logger/loggerControlSocket.js";
+import { LoggerLocalBootstrapService } from "./api/logger/loggerLocalBootstrapService.js";
 import { LiveService } from "./live/liveService.js";
 import { MailDeliveryService } from "./api/mail/mailDeliveryService.js";
 import { MailInboundService } from "./api/mail/mailInboundService.js";
@@ -52,6 +55,9 @@ const fastifyPlugins = [
 		JobScheduler,
 		SentryService,
 		LiveLogService,
+		LoggerExportService,
+		LoggerControlSocket,
+		LoggerLocalBootstrapService,
 		LiveService,
 		MailDeliveryService,
 		MailInboundService,

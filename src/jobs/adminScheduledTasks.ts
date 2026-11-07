@@ -40,14 +40,6 @@ export const ADMIN_SCHEDULED_TASKS = [
 		defaultCron: "0 */6 * * *",
 	},
 	{
-		id: "clean-logs",
-		queue: "admin-task-clean-logs",
-		name: "Clean log files",
-		category: "Maintenance",
-		description: "Removes rotated log files older than 30 days.",
-		defaultCron: "0 2 * * *",
-	},
-	{
 		id: "optimize-database",
 		queue: "admin-task-optimize-database",
 		name: "Optimise database",

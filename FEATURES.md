@@ -39,6 +39,7 @@ Movie and series pages preview TMDB-listed YouTube trailers through the streamer
 - Media roots with identifiers so clients never send raw file paths.
 - Network shares (SMB) that can be added, reconnected and removed, with credentials stored encrypted.
 - Library scan, forced rescan, trickplay-only scan and prune of items whose files are gone.
+- Scan selected folders within a library without pruning other content; monitor queued work in indexer tasks. The folder picker identifies folders already included in libraries.
 - Removing a library also cancels that library's pending and running indexer tasks.
 - Folder browser for picking media folders.
 

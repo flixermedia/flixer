@@ -117,6 +117,19 @@ describe("config store", () => {
 		store.close();
 	});
 
+	it("atomically removes secrets while saving other values", () => {
+		const store = new ConfigStore(directory);
+		store.setMany({ appSecret: SECRET, publicUrl: "https://old.example.com" });
+		expect(() => store.setMany({ appSecret: "short", publicUrl: "https://new.example.com" }, ["appSecret"])).toThrow(ConfigValidationError);
+		expect(() => store.setMany({ publicUrl: "not a URL" }, ["appSecret"])).toThrow(ConfigValidationError);
+		expect(store.get("appSecret")).toBe(SECRET);
+		expect(store.get("publicUrl")).toBe("https://old.example.com");
+		expect(store.setMany({ publicUrl: "https://new.example.com" }, ["appSecret"])).toBe(2);
+		expect(store.get("appSecret")).toBeUndefined();
+		expect(store.get("publicUrl")).toBe("https://new.example.com");
+		store.close();
+	});
+
 	it("never leaves a completed setup without an explicit reset", () => {
 		const store = new ConfigStore(directory);
 		expect(store.setupState()).toBe("not_started");

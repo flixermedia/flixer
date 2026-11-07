@@ -72,6 +72,7 @@ export class SentryService {
 					dsn: config.dsn,
 					release: `flixer@${version}`,
 					environment: process.env.NODE_ENV ?? "development",
+					beforeSend: sanitizeLoggerManagementEvent,
 					// Errors the app catches and only logs would otherwise never reach Sentry.
     				// integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
 				});
@@ -83,9 +84,25 @@ export class SentryService {
 		}
 	}
 
-	captureException(error: unknown): void {
+	captureException(error: unknown, options?: { sensitiveRequest?: boolean }): void {
 		if (this.active) {
-			Sentry.captureException(error);
+			if (options?.sensitiveRequest) {
+				Sentry.withScope((scope) => {
+					scope.setTag("sensitive_logger_management", "true");
+					Sentry.captureException(error);
+				});
+			} else {
+				Sentry.captureException(error);
+			}
 		}
 	}
+}
+
+export function sanitizeLoggerManagementEvent<T extends Sentry.ErrorEvent>(event: T): T {
+	if (event.tags?.sensitive_logger_management === "true") {
+		delete event.request;
+		delete event.extra;
+		delete event.breadcrumbs;
+	}
+	return event;
 }
