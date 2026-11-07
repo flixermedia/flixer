@@ -105,7 +105,7 @@ describe("AdminMediaService", () => {
 
 		await service.update(item.id, {
 			chapters: [
-				{ title: "Later", startMs: 30000, endMs: 40000 },
+				{ title: "00:00:30.000", startMs: 30000, endMs: 40000 },
 				{ title: "First", startMs: 0, endMs: 20000 },
 			],
 		});
@@ -114,7 +114,7 @@ describe("AdminMediaService", () => {
 			overview: "Keep me",
 			adminChapters: [
 				{ title: "First", start: 0, end: 20 },
-				{ title: "Later", start: 30, end: 40 },
+				{ title: "Chapter 2", start: 30, end: 40 },
 			],
 		});
 		expect(item.editedFields).toContain("chapters");

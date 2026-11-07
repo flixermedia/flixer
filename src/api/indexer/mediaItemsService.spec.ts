@@ -142,6 +142,24 @@ describe("mergeIndexerProviderIds", () => {
 				expect(current.metadata.adminChapters).toEqual(adminChapters);
 				expect(current.technical).toEqual({ chapters: [{ title: "New indexed chapter", start: 0, end: 15 }] });
 			});
+
+			it.each([undefined, ["fileData"]])("normalizes indexed chapter titles on full and file-data updates (%s)", async (updateFields) => {
+				const { service, current } = setup({
+					libraryId: "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2",
+					type: "movie", path: "/movies/example.mkv", externalKey: "tmdb:123",
+					title: "Movie", metadata: {}, images: [], editedFields: [],
+				});
+				await service.upsert(parseItemPayload({
+					libraryId: current.libraryId, type: current.type, path: current.path, externalKey: current.externalKey,
+					metadata: { title: "Movie" }, images: [], updateFields,
+					technical: { chapters: [{ title: "00:00:00.000", start: 0, end: 5 }, { title: "Opening", start: 5, end: 10 }, { title: "00:00:10.000", start: 10, end: 15 }] },
+				}));
+				expect(current.technical?.chapters).toEqual([
+					{ title: "Chapter 1", start: 0, end: 5 },
+					{ title: "Opening", start: 5, end: 10 },
+					{ title: "Chapter 3", start: 10, end: 15 },
+				]);
+			});
 		});
 
 		describe("MediaItemsService.removePaths", () => {

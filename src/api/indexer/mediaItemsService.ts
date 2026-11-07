@@ -7,6 +7,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.js";
 import { allowedPersonImage } from "../media/personImages.js";
+import { normalizeChapterField } from "../media/chapterTitles.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 
 const CREDITED_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
@@ -240,7 +241,7 @@ export class MediaItemsService {
 			item ??= manager.create(MediaItem, { id: randomUUID(), libraryId: payload.libraryId });
 
 			const parentId = await this.resolveParent(manager, payload);
-			const metadata = payload.metadata;
+			const metadata = normalizeChapterField(payload.metadata, "adminChapters");
 
 			const edited = new Set(item.editedFields ?? []);
 			const incoming = {
@@ -276,7 +277,7 @@ export class MediaItemsService {
 			// Images an admin added are not the indexer's to replace.
 			const manual = (item.images ?? []).filter((image) => (image as { provider?: unknown }).provider === "manual");
 			item.images = [...payload.images, ...manual];
-			item.technical = payload.technical ?? null;
+			item.technical = payload.technical ? normalizeChapterField(payload.technical, "chapters") : null;
 			item.sizeBytes = payload.sizeBytes ?? null;
 			item.modifiedAt = payload.modifiedAt ?? null;
 			item.nfoPresent = payload.nfoPresent;
@@ -313,7 +314,7 @@ export class MediaItemsService {
 			}
 		}
 		if (fields.has("descriptions")) {
-			const metadata = payload.metadata;
+			const metadata = normalizeChapterField(payload.metadata, "adminChapters");
 			const edited = new Set(item.editedFields ?? []);
 			const incoming = {
 				title: (typeof metadata.title === "string" && metadata.title.trim()) || lastSegment(payload.path),
@@ -339,7 +340,7 @@ export class MediaItemsService {
 		if (fields.has("fileData")) {
 			if (payload.rootId !== undefined) item.rootId = payload.rootId;
 			if (payload.relativePath !== undefined) item.relativePath = payload.relativePath;
-			if (payload.technical !== undefined) item.technical = payload.technical;
+			if (payload.technical !== undefined) item.technical = normalizeChapterField(payload.technical, "chapters");
 			if (payload.sizeBytes !== undefined) item.sizeBytes = payload.sizeBytes;
 			if (payload.modifiedAt !== undefined) item.modifiedAt = payload.modifiedAt;
 		}

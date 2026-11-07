@@ -5,6 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
+import { normalizeChapterTitle } from "./chapterTitles.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
 
@@ -421,8 +422,8 @@ export class AdminMediaService {
 			}
 			item.metadata = {
 				...(item.metadata ?? {}),
-				adminChapters: chapters.map((chapter) => ({
-					title: chapter.title,
+				adminChapters: chapters.map((chapter, index) => ({
+					title: normalizeChapterTitle(chapter.title, index + 1),
 					start: chapter.startMs / 1000,
 					end: chapter.endMs / 1000,
 				})),
