@@ -77,6 +77,8 @@ docker compose down
 
 Be careful with `docker compose down -v` because named volumes are deleted. Back up persistent data before major changes.
 
+If `nginx-config-init` reports a missing Nginx template, run `docker compose down`, `docker compose pull`, and `docker compose up -d` to refresh the images. If you must use an older image, first update your Compose file from the [current version](docker-compose.yml), preserving any local changes. Then place the [Nginx configuration](deploy/proxy/nginx.conf) at `DATA_DIR/nginx/nginx.conf` and run `docker compose up -d` again. The initializer uses this file only when the image does not contain a template; otherwise it replaces it with the bundled version.
+
 To add HLS image playlists to existing trickplay cache entries, preview the conversion and then write the playlists:
 
 ```bash
