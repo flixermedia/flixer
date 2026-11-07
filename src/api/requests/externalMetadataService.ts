@@ -99,6 +99,23 @@ export class ExternalMetadataService {
 		return this.get(url);
 	}
 
+	/** Returns an embeddable YouTube trailer, preferring official releases. */
+	async trailer(type: "movie" | "tv", id: string): Promise<{ key: string; name: string } | null> {
+		if (!/^[1-9]\d*$/.test(id)) {
+			throw new BadRequest("Invalid TMDB ID.");
+		}
+		const select = (body: Json) =>
+			asList(body.results)
+				.filter((video) => video.site === "YouTube" && video.type === "Trailer" && typeof video.key === "string" && /^[A-Za-z0-9_-]{11}$/.test(video.key))
+				.sort((a, b) => Number(b.official === true) - Number(a.official === true) || String(b.published_at ?? "").localeCompare(String(a.published_at ?? "")))
+				.map((video) => ({ key: video.key as string, name: text(video.name) ?? "Trailer" }))[0] ?? null;
+		const path = `/${type}/${id}/videos`;
+		const result = select(await this.tmdb(path));
+		if (result) return result;
+		const { language } = await this.providerConfig();
+		return language.toLowerCase().startsWith("en") ? null : select(await this.tmdb(path, { language: "en-US" }));
+	}
+
 	private async discogs(path: string, params: Record<string, string> = {}): Promise<Json> {
 		const { discogsToken } = await this.providerConfig();
 		if (!discogsToken) {
