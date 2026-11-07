@@ -13,8 +13,8 @@ services:
               - -c
               - |
                 set -e
-                mkdir -p /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch /data/ai/models
-                chown -R 1000:1000 /data/avatars /data/config /data/mounts /data/backups /data/plugins /data/logs
+                mkdir -p /data/advertisements /data/avatars /data/config /data/database /data/cache/images /data/cache/people /data/cache/theme /data/cache/subtitles /data/cache/trickplay /data/cache/trailers /data/logs /data/mounts /data/backups /data/plugins /data/meilisearch /data/ai/models
+                chown -R 1000:1000 /data/advertisements /data/avatars /data/config /data/mounts /data/backups /data/plugins /data/logs
                 chown 70:70 /data/database
                 chown -R 65532:65532 /data/cache
                 find /data/cache -type d -exec chmod 2775 {} +
@@ -67,6 +67,7 @@ services:
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/avatars:/data/avatars
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
@@ -103,6 +104,7 @@ services:
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs:/data/logs
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache:ro
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts:ro
         expose:
             - "8091"

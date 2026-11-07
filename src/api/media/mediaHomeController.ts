@@ -2,12 +2,32 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Context, BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
-import { Get, Put, Returns, Security } from "@tsed/schema";
+import { Delete, Get, Nullable, Post, Property, Put, Required, Returns, Security } from "@tsed/schema";
 import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
 import { AdminMediaService } from "./adminMediaService.js";
 import { MediaHomeService } from "./mediaHomeService.js";
+import { MediaTrailerService } from "./mediaTrailerService.js";
+
+class TrailerView {
+	@Nullable(String)
+	@Required()
+	key!: string | null;
+
+	@Property()
+	@Required()
+	name!: string;
+
+	@Property()
+	streamUrl?: string;
+}
+
+class TrailerResponse {
+	@Nullable(TrailerView)
+	@Required()
+	trailer!: TrailerView | null;
+}
 
 /** What every signed-in user sees of the media library: the home page content and artwork. */
 @Controller("/media")
@@ -18,6 +38,7 @@ export class MediaHomeController {
 		private readonly access: MediaAccessService,
 		private readonly home: MediaHomeService,
 		private readonly media: AdminMediaService,
+		private readonly trailers: MediaTrailerService,
 	) {}
 
 	@Get("/home")
@@ -140,6 +161,29 @@ export class MediaHomeController {
 			throw new NotFound("Media item not found.");
 		}
 		return this.home.detail(id.toLowerCase(), policy.userId, policy);
+	}
+
+	@Get("/items/:id/trailer")
+	@Returns(200, TrailerResponse)
+	async trailer(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		if (!AuthService.isUuid(id)) {
+			throw new NotFound("Media item not found.");
+		}
+		return { trailer: await this.trailers.trailer(id.toLowerCase(), authorization) };
+	}
+
+	@Post("/items/:id/trailer/cache")
+	@Returns(204)
+	async cacheTrailer(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		if (!AuthService.isUuid(id)) throw new NotFound("Media item not found.");
+		await this.trailers.cacheTrailer(id.toLowerCase(), authorization);
+	}
+
+	@Delete("/items/:id/trailer/cache")
+	@Returns(204)
+	async removeTrailer(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		if (!AuthService.isUuid(id)) throw new NotFound("Media item not found.");
+		await this.trailers.removeTrailer(id.toLowerCase(), authorization);
 	}
 
 	/** An image's bytes. Authenticated, so the web app fetches it with its token rather than using a plain img src. */

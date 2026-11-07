@@ -3,11 +3,15 @@ import { Unauthorized } from "@tsed/exceptions";
 import { HeaderParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { MediaRootsService } from "./mediaRootsService.js";
+import { dataPath } from "../../config/dataPath.js";
+import { TRAILER_ROOT_ID } from "../media/trailerCacheService.js";
+import { AD_ROOT_ID } from "../advertisements/advertisementService.js";
 
 export const STREAMER_ROOTS_CONTEXT = "flixer-streamer:media-roots:v1";
 export const STREAMER_TRANSCODING_CONTEXT = "flixer-streamer:transcoding:v1";
@@ -26,12 +30,25 @@ export class StreamerRootsController {
 	) {}
 
 	@Get("/media-roots")
-	list(
+	async list(
 		@HeaderParams("x-streamer-timestamp") timestamp?: string,
 		@HeaderParams("x-streamer-signature") signature?: string,
 	) {
 		this.verify(STREAMER_ROOTS_CONTEXT, timestamp, signature);
-		return { roots: this.roots.list().map(({ id, path }) => ({ id, path })) };
+		const roots = this.roots.list().map(({ id, path }) => ({ id, path }));
+		try {
+			await mkdir(dataPath("advertisements"), { recursive: true });
+			roots.push({ id: AD_ROOT_ID, path: dataPath("advertisements") });
+		} catch (error) {
+			console.error("[advertisements] Could not initialize advertisement storage for the streamer", error);
+		}
+		try {
+			await mkdir(dataPath("cache", "trailers"), { recursive: true });
+			roots.push({ id: TRAILER_ROOT_ID, path: dataPath("cache", "trailers") });
+		} catch (error) {
+			console.error("[trailers] Could not initialize trailer storage for the streamer", error);
+		}
+		return { roots };
 	}
 
 	/** The video encoder settings an admin chose, so the streamer can apply them without a restart. */

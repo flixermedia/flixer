@@ -63,6 +63,28 @@ describe("synchronizeSettings", () => {
 		const webhookToken = settingsToSave.find(({ key }) => key === "requests_webhook_token");
 		expect(webhookToken).toMatchObject({ isPublic: false });
 		expect(webhookToken?.value).toMatch(/^[a-f0-9]{64}$/);
+		expect(settingsToSave.find(({ key }) => key === "trailers_cache_enabled")).toMatchObject({
+			value: false,
+			isPublic: false,
+		});
+	});
+
+	it("preserves an enabled trailer cache setting during synchronization", async () => {
+		const setting = { id: 1, key: "trailers_cache_enabled", value: true, isPublic: false } as Setting;
+		const repository = {
+			find: vi.fn(async () => [setting]),
+			create: vi.fn((entry: Partial<Setting>) => entry as Setting),
+			remove: vi.fn(async (entries: Setting[]) => entries),
+			save: vi.fn(async (entries: Setting[]) => entries),
+		};
+		const manager = { getRepository: vi.fn(() => repository), query: vi.fn(async () => undefined) };
+		const dataSource = { transaction: (run: (manager: never) => Promise<void>) => run(manager as never) } as unknown as DataSource;
+
+		await synchronizeSettings(dataSource);
+
+		expect(setting.value).toBe(true);
+		expect(repository.remove).not.toHaveBeenCalled();
+		expect(repository.save.mock.calls.flatMap(([entries]) => entries)).not.toContain(setting);
 	});
 
 	it("replaces an invalid webhook token with a generated secret", async () => {

@@ -211,6 +211,7 @@
 		"isPublic": false
 	},
 	{ "key": "themes_enabled", "defaultValue": false, "isPublic": true },
+	{ "key": "trailers_cache_enabled", "defaultValue": false, "isPublic": false },
 	{ "key": "requests_enabled", "defaultValue": false, "isPublic": true },
 	{ "key": "requests_auto_approve", "defaultValue": false, "isPublic": false },
 	{ "key": "requests_movies_enabled", "defaultValue": true, "isPublic": false },

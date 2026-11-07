@@ -11,6 +11,8 @@ A complete list of what the Flixer platform does, grouped by the repository that
 
 Flixer also relies on `flixer-updater` for the update and restore flow.
 
+Movie and series pages preview TMDB-listed YouTube trailers through the streamer. Administrators can enable on-demand trailer caching in the dashboard, provided they have permission to store and serve them. The first viewer streams the remote trailer while Flixer downloads a copy in the background; later viewers stream the cached copy from `DATA_DIR/cache/trailers`. Caching is off by default. Trailer resolution and downloads require `yt-dlp`, its `yt-dlp-ejs` challenge solver and Node.js; downloads also require `ffmpeg` (all included in the API Docker image). Trailers are limited to 20 minutes and cached files to 250 MiB. Remote playback requires a combined H.264/AAC MP4 format; availability depends on YouTube, the uploader and region. Standalone installations must make the same cache directory visible to both the API and streamer at the same path.
+
 ---
 
 ## flixer (API)
@@ -58,9 +60,42 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 - Direct-play decision based on the container and file type.
 - Next-episode lookup across seasons, ending after the last episode of the last season.
 - Chapters and skippable segments (intro, recap, credits, preview, break) returned with each item.
+- Chapter titles consisting only of timestamps are replaced with their chronological chapter number; descriptive titles are retained. The change applies to indexed and manually edited chapters without modifying media files.
 - Segment sources by priority: manual, timings synced from TheIntroDB with IntroDB as a fallback for missing timings or request failures, optional plugin segments, then chapter titles.
 - Admin tools to set or clear a manual segment on an item.
 - Active stream sessions listing for admins.
+
+### Personal playback webhooks
+
+- Disabled by default. Under Admin → Settings → Webhooks, administrators enable the feature, choose administrators only or all users, and configure allowed destination rules. By default, `regex:https?://.*` allows any HTTP(S) URL, including local-network and internal addresses. When enabled for all users this permits users to send requests from the server's network; restrict the rules to trusted destinations if users are not fully trusted. Redirects and URLs containing embedded credentials are rejected. HTTPS is recommended.
+- Rules are exact URLs or RE2 regular expressions prefixed with `regex:`, one per line. Expressions match the entire normalized URL and do not support lookarounds or backreferences. For example, `regex:https://automation\.example\.com/.*` allows paths on that host. An empty list denies all destinations. Existing nonempty exact-URL lists are retained on upgrade; an empty legacy list is changed to the default rule.
+- Eligible users manage up to 10 of their own webhooks under Settings → Webhooks. Only the authenticated user's events are delivered to their enabled destinations, and changing destination rules or disabling the feature stops future delivery to destinations no longer permitted. URLs, including any query tokens, are stored in the database; administrators can see the allowlist. Treat them as secrets.
+- Flixer's web and native video players, live TV player and music player emit `playback.started`, `playback.paused`, `playback.resumed` and `playback.stopped`. Every delivery is a JSON POST containing `id`, `event`, `occurredAt` (UTC), `userId`, `media` (`kind`, `id`, `title`, and for library media `type`), and `positionSeconds`. For example:
+
+  ```json
+  {"id":"a89c26d2-513c-4528-9d8b-7ca16004bf72","event":"playback.started","occurredAt":"2026-01-01T12:00:00.000Z","userId":"d3929747-385b-4245-a8d2-682c37626192","media":{"kind":"video","id":"b89c26d2-513c-4528-9d8b-7ca16004bf72","title":"Movie","type":"movie"},"positionSeconds":0}
+  ```
+
+- Playback reports are client-generated and best effort: interruptions, other clients, player reloads and ad breaks can omit or split transitions. Deliveries are ordered per webhook within one API process, bounded, time out after five seconds, and are not retried or persisted. Failures are logged without logging destination URLs. They are not signed, so secure receiving endpoints with an unguessable URL and network controls.
+
+### Video advertisements
+
+- Disabled by default; administrators manage advertisements under Admin → Advertising → Advertisements.
+- Upload MP4 videos (H.264 video, AAC audio when present), up to 100 MiB, in retryable chunks. Uploads are staged for up to 24 hours; expired sessions are removed when another upload is started. The API requires `ffprobe`.
+- Uploaded videos are stored in `DATA_DIR/advertisements`. The API needs write access, and Flixer Streamer needs read access to the same directory at the same path. Back up this directory separately: the built-in system backup currently does not include it.
+- Enable individual ads and target all content, a content kind, or specific items using the scope picker. Configure pre-roll and mid-roll positions in seconds, a minimum interval between breaks, and a maximum number of breaks per playback. These limits apply per playback, not across sessions; positions before a resume point are not replayed.
+- Ads link to an HTTP(S) destination and can be unskippable or skippable after a configured viewing time. Ads use the web player in native apps when scheduled.
+- Payment products can exempt the covered purchased or rented content, and subscription plans can exempt subscribers server-wide while their subscription grants access. The exemption follows the current product or plan configuration.
+
+### Analytics
+
+- Admin → Analytics provides video rankings based on latest per-user watch progress, cumulative music plays, searchable watch progress, client-reported ad views and watch time, and order and subscription snapshots. Payment values are grouped by currency and current status, not presented as revenue.
+- Client-reported video and live TV sessions record measured playback time from this version onwards. Pauses, seeks, advertising breaks and stalled playback are excluded; interrupted or offline reports may be incomplete. Sessions may split during ads or player changes. Analytics → Watch History shows up to 50 recent sessions as well as separately searchable latest saved progress. Session records are associated with signed-in users, deleted when the user or media item is deleted, and removed after 90 UTC calendar days by the daily analytics-retention job.
+- Music analytics records new song starts from this version, separately from the pre-existing cumulative play counts. Music events are deleted with their user or track and retained for 90 UTC calendar days. Payment order trends group orders by UTC creation day, kind, currency and current status; current values and refunds are not cash-flow or revenue figures.
+- Ad viewing data is associated with the signed-in user and removed when that user or advertisement is deleted. Collection begins with this version, may be incomplete, and is not suitable for billing. Ad records currently have no automatic retention limit. Latest watch progress is not a full play history or total watch time.
+- Advertising analytics supports the last 7, 30 or 90 UTC calendar days, including today. Views, current outcomes and reported watch time are attributed to the day each view began. The optional dashboard widget displays all-time ad totals.
+- Optional dashboard widgets show advertising totals and seven-day video and live viewing sessions.
+- Daily analytics charts visualize viewing sessions, advertisement views, song starts and order counts; detailed tables remain available for exact values.
 
 ### Subtitles
 

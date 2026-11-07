@@ -52,3 +52,6 @@ export { OverviewController } from "./api/overview/overviewController.js";
 export { SentryController } from "./sentry/sentryController.js";
 export { AdminMailController, UserMailController } from "./api/mail/mailController.js";
 export { PaymentsController, AdminPaymentsController } from "./api/payments/paymentsController.js";
+export { AdvertisementController } from "./api/advertisements/advertisementController.js";
+export { AnalyticsController, AnalyticsReportController } from "./api/analytics/analyticsController.js";
+export { AdminUserWebhookController, UserWebhookController } from "./api/webhooks/userWebhookController.js";

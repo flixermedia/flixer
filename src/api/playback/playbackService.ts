@@ -17,6 +17,11 @@ import { pickNextEpisode, type NextEpisode } from "./nextEpisode.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 import { GuideService, type LiveStreamContainer } from "../guide/guideService.js";
 import { EntitlementService } from "../payments/entitlementService.js";
+import { TRAILER_ROOT_ID } from "../media/trailerCacheService.js";
+import { Advertisement } from "../../entities/advertisement.entity.js";
+import { AD_ROOT_ID } from "../advertisements/advertisementService.js";
+import { AdvertisementSettings } from "../../entities/advertisementSettings.entity.js";
+import { scheduleAdvertisements } from "../advertisements/adSchedule.js";
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
 const LOCATOR_AAD = "flixer-streamer:media-locator:v1";
@@ -70,6 +75,33 @@ export class PlaybackService {
 		return (await this.scanSamples()).map(({ relativePath: _relativePath, rootId: _rootId, ...sample }) => sample);
 	}
 
+	/** Issues a streamer token after the trailer service has checked item visibility. */
+	async issueTrailer(userId: string, item: MediaItem, filename: string): Promise<PlaybackInfo> {
+		return this.issue(userId, {
+			id: item.id,
+			title: item.title,
+			container: "mp4",
+			directPlay: true,
+			rootId: TRAILER_ROOT_ID,
+			relativePath: filename,
+		}, await this.originalAllowed(userId));
+	}
+
+	issueRemoteTrailer(userId: string, item: MediaItem, url: string): string {
+		const secret = this.getSecret();
+		const now = Math.floor(Date.now() / 1000);
+		const claims = {
+			iss: "flixer", aud: "flixer-streamer", sub: userId, userId,
+			mediaItemId: item.id, mediaSourceId: item.id, playSessionId: randomUUID(),
+			mediaLocator: this.encryptLocator({ type: "trailer", url }, secret),
+			iat: now, exp: now + TOKEN_LIFETIME_SECONDS, jti: randomUUID(),
+		};
+		const signingInput = `${base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${base64Url(JSON.stringify(claims))}`;
+		const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
+		const streamerUrl = (appConfig().get("streamerPublicUrl") || "").replace(/\/+$/, "");
+		return `${streamerUrl}/streamer/trailer/${signingInput}.${signature}`;
+	}
+
 	async createPlaybackInfo(sampleId: string, authorization?: string): Promise<PlaybackInfo> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		const sample = (await this.scanSamples()).find((entry) => entry.id === sampleId);
@@ -91,7 +123,7 @@ export class PlaybackService {
 	async createItemPlaybackInfo(
 		itemId: string,
 		authorization?: string,
-	): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null } & ItemSegments> {
+	): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null; advertisements: { id: string; name: string; targetUrl: string; atSeconds: number; skipAfterSeconds: number | null; streamUrl: string }[] } & ItemSegments> {
 		const policy = await this.access.resolve(authorization);
 		const user = { id: policy.userId };
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
@@ -119,10 +151,18 @@ export class PlaybackService {
 			rootId: item.rootId,
 			relativePath: item.relativePath,
 		}, await this.originalAllowed(user.id));
+		const settings = await this.dataSource.getRepository(AdvertisementSettings).findOneByOrFail({ id: 1 });
+		const ads = item.type !== "track" && settings.enabled && context && !(await this.entitlements.isAdExempt(user.id, context))
+			? scheduleAdvertisements(await this.dataSource.getRepository(Advertisement).findBy({ enabled: true }), settings, context)
+			: [];
 		return {
 			...info,
 			title: item.title,
 			nextEpisode: await this.visibleNext(policy, await this.findNextEpisode(item)),
+			advertisements: ads.map(({ ad, atSeconds }) => ({
+				id: ad.id, name: ad.name, targetUrl: ad.targetUrl, atSeconds, skipAfterSeconds: ad.skipAfterSeconds,
+				streamUrl: this.issue(user.id, { id: ad.id, title: ad.name, container: "mp4", directPlay: true, rootId: AD_ROOT_ID, relativePath: ad.filename }, true).mediaSource.streamUrl,
+			})),
 			...(await this.segments.forItem(item)),
 		};
 	}
@@ -256,7 +296,7 @@ export class PlaybackService {
 	}
 
 	private encryptLocator(
-		locator: { rootId: string; relativePath: string } | { type: "iptv"; url: string },
+		locator: { rootId: string; relativePath: string } | { type: "iptv" | "trailer"; url: string },
 		secret: Buffer,
 	): string {
 		const key = createHash("sha256")

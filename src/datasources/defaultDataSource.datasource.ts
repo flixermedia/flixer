@@ -16,6 +16,16 @@ import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserA
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
 import { CreatePaymentSignups1798300000001 } from "../migrations/createPaymentSignups1798300000001.js";
 import { AddPaymentProductRequiresPurchase1798300000002 } from "../migrations/addPaymentProductRequiresPurchase1798300000002.js";
+import { AddTrailerCacheSetting1798300000003 } from "../migrations/addTrailerCacheSetting1798300000003.js";
+import { NormalizeChapterTitles1798300000004 } from "../migrations/normalizeChapterTitles1798300000004.js";
+import { CreateAdvertisements1798300000005 } from "../migrations/createAdvertisements1798300000005.js";
+import { CreateAdvertisementAnalytics1798300000006 } from "../migrations/createAdvertisementAnalytics1798300000006.js";
+import { CreateViewingAnalytics1798300000007 } from "../migrations/createViewingAnalytics1798300000007.js";
+import { CreateListeningAnalytics1798300000008 } from "../migrations/createListeningAnalytics1798300000008.js";
+import { CreateUserWebhooks1798300000009 } from "../migrations/createUserWebhooks1798300000009.js";
+import { DefaultUserWebhookUrlRules1798300000010 } from "../migrations/defaultUserWebhookUrlRules1798300000010.js";
+import { Advertisement } from "../entities/advertisement.entity.js";
+import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
 import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
 import { PaymentProduct } from "../entities/paymentProduct.entity.js";
 import { PaymentPlan } from "../entities/paymentPlan.entity.js";
@@ -142,6 +152,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				UserPreference,
 				UserAccessPolicy,
 				PaymentConfigRow,
+				Advertisement,
+				AdvertisementSettings,
 				PaymentProduct,
 				PaymentPlan,
 				PaymentCoupon,
@@ -251,6 +263,14 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreatePayments1798300000000,
 				CreatePaymentSignups1798300000001,
 				AddPaymentProductRequiresPurchase1798300000002,
+				AddTrailerCacheSetting1798300000003,
+				NormalizeChapterTitles1798300000004,
+				CreateAdvertisements1798300000005,
+				CreateAdvertisementAnalytics1798300000006,
+				CreateViewingAnalytics1798300000007,
+				CreateListeningAnalytics1798300000008,
+				CreateUserWebhooks1798300000009,
+				DefaultUserWebhookUrlRules1798300000010,
 			],
 			synchronize: false,
 			migrationsRun: false,

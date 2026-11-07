@@ -179,6 +179,9 @@ export class SettingsService {
 		if (key === "themes_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The themes_enabled setting must be a boolean.");
 		}
+		if (key === "trailers_cache_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The trailers_cache_enabled setting must be a boolean.");
+		}
 		if (["issue_reports_enabled", "issue_reports_chat_enabled"].includes(key) && typeof request.value !== "boolean") {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
