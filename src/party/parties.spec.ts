@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { FriendsService } from "../api/social/friendsService.js";
+import { FriendsService } from "../api/social/friendsService.js";
+import type { NotificationService } from "../api/notifications/notificationService.js";
 import type { PartyRedisService } from "./partyRedisService.js";
+import controlScript from "./lua/control.lua?raw";
+import presenceScript from "./lua/presence.lua?raw";
+import chatScript from "./lua/chat.lua?raw";
+import endScript from "./lua/end.lua?raw";
 
 vi.mock("../api/social/socialItems.js", () => ({
 	loadSocialItems: vi.fn(async (_source: unknown, ids: string[]) =>
@@ -82,10 +87,19 @@ class FakeRedis {
 	};
 
 	async eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<string> {
-		if (script.includes("local command = cjson.decode(ARGV[2])")) return this.control(options);
-		if (script.includes("local isMember = false")) return this.chat(options);
-		if (script.includes("local action = ARGV[1]")) return this.updatePresence(options);
-		if (script.includes("message={type='ended'")) return this.end(options);
+		if (script === controlScript) {
+			expect(options.arguments.slice(4)).toEqual(["86400", "86400"]);
+			return this.control(options);
+		}
+		if (script === chatScript) {
+			expect(options.arguments.slice(3)).toEqual(["50", "86400"]);
+			return this.chat(options);
+		}
+		if (script === presenceScript) {
+			expect(options.arguments[7]).toBe("86400");
+			return this.updatePresence(options);
+		}
+		if (script === endScript) return this.end(options);
 		throw new Error("Unrecognized party Lua script.");
 	}
 
@@ -194,8 +208,10 @@ class FakeRedis {
 
 const activeServices: PartiesService[] = [];
 
-async function createService(friends: FriendsService = { areFriends: async () => false } as FriendsService) {
+async function createService() {
 	const redis = new FakeRedis();
+	const friends = new FriendsService({} as DataSource, {} as NotificationService);
+	vi.spyOn(friends, "areFriends").mockResolvedValue(false);
 	const partyRedis = {
 		get commands() {
 			return redis;

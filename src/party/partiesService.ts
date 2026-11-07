@@ -6,6 +6,10 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.j
 import { loadSocialItems, toSocialItem, type SocialItem } from "../api/social/socialItems.js";
 import { FriendsService } from "../api/social/friendsService.js";
 import { PARTY_EVENTS_CHANNEL, PartyRedisService } from "./partyRedisService.js";
+import CONTROL_SCRIPT from "./lua/control.lua?raw";
+import PRESENCE_SCRIPT from "./lua/presence.lua?raw";
+import CHAT_SCRIPT from "./lua/chat.lua?raw";
+import END_SCRIPT from "./lua/end.lua?raw";
 
 export const PARTY_TYPES = ["movie", "episode", "video", "track"] as const;
 export const MAX_PARTY_MEMBERS = 50;
@@ -81,154 +85,6 @@ interface LocalConnection {
 	person: PartyPerson;
 	send: (message: PartyMessage) => void;
 }
-
-const CONTROL_SCRIPT = `
-local raw = redis.call('GET', KEYS[1])
-if not raw then return cjson.encode({error='missing'}) end
-local party = cjson.decode(raw)
-if party.host.id ~= ARGV[1] then return cjson.encode({error='forbidden'}) end
-local command = cjson.decode(ARGV[2])
-if party.lastCommandId == command.commandId then
-  local time = redis.call('TIME')
-  return cjson.encode({party=party, serverTime=(tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000)})
-end
-local count = redis.call('INCR', KEYS[2])
-if count == 1 then redis.call('EXPIRE', KEYS[2], 5) end
-if count > 30 then return cjson.encode({error='control-rate-limited'}) end
-local time = redis.call('TIME')
-local now = (tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000)
-local delay = tonumber(ARGV[3])
-local rate = tonumber(party.playbackRate) or 1
-local position = tonumber(party.position) or 0
-if party.playing then position = position + math.max(0, now - (tonumber(party.at) or now)) * rate / 1000 end
-local itemChanged = false
-if ARGV[4] ~= '' then
-  local item = cjson.decode(ARGV[4])
-  if ((item.type == 'track') ~= (party.kind == 'music')) then
-    return cjson.encode({error='kind-mismatch'})
-  end
-  if item.id ~= party.item.id then
-    party.item = item
-    position = 0
-    itemChanged = true
-  end
-end
-if command.action == 'play' then
-  if party.playing then position = position + delay * rate / 1000 end
-  party.playing = true
-elseif command.action == 'pause' then
-  if party.playing then position = position + delay * rate / 1000 end
-  party.playing = false
-elseif command.action == 'seek' then
-  if not itemChanged then
-    position = math.max(0, math.min(tonumber(command.position) or 0, ${MAX_POSITION_SECONDS}))
-  end
-elseif command.action ~= 'change-item' then
-  return cjson.encode({error='invalid-command'})
-end
-party.position = position
-party.at = now + delay
-party.version = (tonumber(party.version) or 0) + 1
-party.lastCommandId = command.commandId
-redis.call('SET', KEYS[1], cjson.encode(party), 'EX', ${PARTY_TTL_SECONDS})
-local message = {type='state', party=party, serverTime=now}
-redis.call('PUBLISH', KEYS[3], cjson.encode({partyId=party.id, message=message}))
-return cjson.encode({party=party, serverTime=now})
-`;
-
-const PRESENCE_SCRIPT = `
-local raw = redis.call('GET', KEYS[1])
-if not raw then return cjson.encode({error='missing'}) end
-local party = cjson.decode(raw)
-local time = redis.call('TIME')
-local now = (tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000)
-redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', now)
-for _, id in ipairs(redis.call('HKEYS', KEYS[3])) do
-  if not redis.call('ZSCORE', KEYS[2], id) then redis.call('HDEL', KEYS[3], id) end
-end
-local action = ARGV[1]
-local connectionId = ARGV[2]
-if action == 'join' then
-  local unique = {}
-  for _, id in ipairs(redis.call('ZRANGE', KEYS[2], 0, -1)) do
-    local value = redis.call('HGET', KEYS[3], id)
-    if value then unique[cjson.decode(value).id] = true end
-  end
-  if not unique[ARGV[3]] then
-    local count = 0
-    for _ in pairs(unique) do count = count + 1 end
-    if count >= tonumber(ARGV[5]) then return cjson.encode({error='full'}) end
-  end
-  redis.call('ZADD', KEYS[2], now + tonumber(ARGV[4]), connectionId)
-  redis.call('HSET', KEYS[3], connectionId, ARGV[6])
-elseif action == 'leave' then
-  redis.call('ZREM', KEYS[2], connectionId)
-  redis.call('HDEL', KEYS[3], connectionId)
-elseif action == 'renew' then
-  if redis.call('ZSCORE', KEYS[2], connectionId) then
-    redis.call('ZADD', KEYS[2], now + tonumber(ARGV[4]), connectionId)
-  end
-end
-local members = cjson.decode('[]')
-local seen = {}
-for _, id in ipairs(redis.call('ZRANGE', KEYS[2], 0, -1)) do
-  local value = redis.call('HGET', KEYS[3], id)
-  if value then
-    local person = cjson.decode(value)
-    if not seen[person.id] then
-      seen[person.id] = true
-      table.insert(members, person)
-    end
-  end
-end
-party.members = members
-redis.call('SET', KEYS[1], cjson.encode(party), 'EX', ${PARTY_TTL_SECONDS})
-redis.call('EXPIRE', KEYS[2], ${PARTY_TTL_SECONDS})
-redis.call('EXPIRE', KEYS[3], ${PARTY_TTL_SECONDS})
-local message = {type='state', party=party, serverTime=now}
-if action ~= 'renew' then
-  redis.call('PUBLISH', KEYS[4], cjson.encode({partyId=party.id, message=message}))
-elseif ARGV[7] == 'sweep' then
-  redis.call('PUBLISH', KEYS[4], cjson.encode({partyId=party.id, message=message}))
-end
-return cjson.encode({party=party, serverTime=now})
-`;
-
-const CHAT_SCRIPT = `
-local raw = redis.call('GET', KEYS[1])
-if not raw then return cjson.encode({error='missing'}) end
-local isMember = false
-for _, value in ipairs(redis.call('HVALS', KEYS[2])) do
-  if cjson.decode(value).id == ARGV[1] then isMember = true; break end
-end
-if not isMember then return cjson.encode({error='not-member'}) end
-local count = redis.call('INCR', KEYS[3])
-if count == 1 then redis.call('EXPIRE', KEYS[3], 5) end
-if count > 5 then return cjson.encode({error='rate-limited'}) end
-local time = redis.call('TIME')
-local now = (tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000)
-local message = cjson.decode(ARGV[2])
-message.at = now
-local encoded = cjson.encode(message)
-redis.call('LPUSH', KEYS[4], encoded)
-redis.call('LTRIM', KEYS[4], 0, ${CHAT_HISTORY - 1})
-redis.call('EXPIRE', KEYS[4], ${PARTY_TTL_SECONDS})
-redis.call('PUBLISH', KEYS[5], cjson.encode({partyId=ARGV[3], message={type='chat', message=message}}))
-return encoded
-`;
-
-const END_SCRIPT = `
-local raw = redis.call('GET', KEYS[1])
-if not raw then return cjson.encode({error='missing'}) end
-local party = cjson.decode(raw)
-if ARGV[1] ~= '' and party.host.id ~= ARGV[1] then return cjson.encode({error='forbidden'}) end
-redis.call('PUBLISH', KEYS[7], cjson.encode({partyId=party.id, message={type='ended', reason=ARGV[2]}}))
-if redis.call('GET', KEYS[2]) == party.id then redis.call('DEL', KEYS[2]) end
-if redis.call('GET', KEYS[3]) == party.id then redis.call('DEL', KEYS[3]) end
-redis.call('SREM', KEYS[4], party.id)
-redis.call('DEL', KEYS[1], KEYS[5], KEYS[6])
-return cjson.encode({party=party})
-`;
 
 interface ScriptResult<T> {
 	error?: string;
@@ -404,7 +260,14 @@ export class PartiesService {
 		const result = parseJson<ScriptResult<PartySnapshot>>(
 			await this.partyRedis.commands.eval(CONTROL_SCRIPT, {
 				keys: [stateKey(id), `flixer:party:${id}:control:${userId}`, PARTY_EVENTS_CHANNEL],
-				arguments: [userId, JSON.stringify(command), String(COMMAND_LEAD_MS), item ? JSON.stringify(item) : ""],
+				arguments: [
+					userId,
+					JSON.stringify(command),
+					String(COMMAND_LEAD_MS),
+					item ? JSON.stringify(item) : "",
+					String(MAX_POSITION_SECONDS),
+					String(PARTY_TTL_SECONDS),
+				],
 			}),
 		);
 		this.throwScriptError(result.error);
@@ -445,7 +308,7 @@ export class PartiesService {
 				chatKey(id),
 				PARTY_EVENTS_CHANNEL,
 			],
-			arguments: [person.id, JSON.stringify(message), id],
+			arguments: [person.id, JSON.stringify(message), id, String(CHAT_HISTORY), String(PARTY_TTL_SECONDS)],
 		});
 		const parsed = parseJson<ScriptResult<PartyChatMessage>>(result);
 		this.throwScriptError(parsed.error);
@@ -516,6 +379,7 @@ export class PartiesService {
 					String(MAX_PARTY_MEMBERS),
 					person ? JSON.stringify(person) : "",
 					action,
+					String(PARTY_TTL_SECONDS),
 				],
 			}),
 		);
@@ -603,10 +467,9 @@ export class PartiesService {
 				}
 				connection.send(message);
 			}
-			if (event.message.type === "state") {
-				const hostPresent = event.message.party.members.some(
-					(member) => member.id === event.message.party.host.id,
-				);
+			if (message.type === "state") {
+				const party = message.party;
+				const hostPresent = party.members.some((member) => member.id === party.host.id);
 				if (hostPresent) this.clearHostTimer(event.partyId);
 				else this.armHostTimer(event.partyId);
 			}
