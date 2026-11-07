@@ -92,6 +92,14 @@ describe("ProfilesService listening", () => {
 		expect(query).toHaveBeenCalledTimes(2);
 	});
 
+	it("allows a failed listening write to be retried", async () => {
+		const { service, query } = setup();
+		query.mockRejectedValueOnce(new Error("database unavailable"));
+		await expect(service.reportListening(USER, TRACK, "playing")).rejects.toThrow("database unavailable");
+		await service.reportListening(USER, TRACK, "playing");
+		expect(query).toHaveBeenCalledTimes(2);
+	});
+
 	it("keeps users separate and rejects anything that is not a song", async () => {
 		const { service, query } = setup();
 		await service.reportListening(USER, TRACK, "playing");

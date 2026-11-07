@@ -152,13 +152,26 @@ export class ProfilesService {
 		}
 		const previous = this.listening.get(userId);
 		const continuing = previous?.itemId === itemId && isFresh(previous.at);
-		this.listening.set(userId, { itemId, at: Date.now(), position: positionSeconds });
+		const current = { itemId, at: Date.now(), position: positionSeconds };
+		this.listening.set(userId, current);
 		if (!continuing) {
-			await this.dataSource.query(
-				`INSERT INTO listening_history (user_id, item_id, played_at, play_count) VALUES ($1, $2, now(), 1)
-				ON CONFLICT (user_id, item_id) DO UPDATE SET played_at = now(), play_count = listening_history.play_count + 1`,
-				[userId, itemId],
-			);
+			try {
+				await this.dataSource.query(
+					`WITH recorded AS (
+						INSERT INTO listening_history (user_id, item_id, played_at, play_count) VALUES ($1, $2, now(), 1)
+						ON CONFLICT (user_id, item_id) DO UPDATE SET played_at = now(), play_count = listening_history.play_count + 1
+						RETURNING user_id, item_id
+					)
+					INSERT INTO listening_events (user_id, item_id) SELECT user_id, item_id FROM recorded`,
+					[userId, itemId],
+				);
+			} catch (error) {
+				if (this.listening.get(userId) === current) {
+					if (previous) this.listening.set(userId, previous);
+					else this.listening.delete(userId);
+				}
+				throw error;
+			}
 		}
 	}
 

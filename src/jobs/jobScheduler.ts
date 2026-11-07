@@ -28,11 +28,12 @@ import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanu
 import { PaymentsService } from "../api/payments/paymentsService.js";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
+const ANALYTICS_RETENTION_JOB = "analytics-retention";
 
 const SESSION_CLEANUP_CRON = "0 * * * *";
 const PG_BOSS_CONNECTION_POOL_SIZE = 2;
 const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
-const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
+const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -101,6 +102,25 @@ export class JobScheduler {
 				}
 			});
 			await boss.schedule(SESSION_CLEANUP_JOB, SESSION_CLEANUP_CRON);
+			await boss.createQueue(ANALYTICS_RETENTION_JOB);
+			await boss.work(ANALYTICS_RETENTION_JOB, async () => {
+				const [jobError] = await tryCatch(async () => {
+					await this.dataSource.query(`
+						DELETE FROM viewing_sessions
+						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
+					`);
+					await this.dataSource.query(`
+						DELETE FROM listening_events
+						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
+					`);
+				});
+				if (jobError) {
+					logger().error(`Job ${ANALYTICS_RETENTION_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(ANALYTICS_RETENTION_JOB, "15 0 * * *", undefined, { tz: "UTC" });
 			await boss.createQueue(PAYMENTS_RENEWAL_JOB);
 			await boss.work(PAYMENTS_RENEWAL_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
