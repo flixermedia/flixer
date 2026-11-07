@@ -98,6 +98,8 @@ export class PaymentCatalogService {
 			target.rentalStart = "purchase";
 		}
 		target.requiresPurchase = body.requiresPurchase === true;
+		if (body.adsExempt !== undefined && typeof body.adsExempt !== "boolean") throw new BadRequest("Invalid ad exemption.");
+		target.adsExempt = body.adsExempt === undefined ? (target.adsExempt ?? false) : body.adsExempt;
 		target.active = body.active !== false;
 		target.sortOrder = sortOrder(body.sortOrder);
 		return target;
@@ -134,6 +136,8 @@ export class PaymentCatalogService {
 			throw new BadRequest("A free trial can last up to 365 days.");
 		}
 		target.trialDays = trial;
+		if (body.adsExempt !== undefined && typeof body.adsExempt !== "boolean") throw new BadRequest("Invalid ad exemption.");
+		target.adsExempt = body.adsExempt === undefined ? (target.adsExempt ?? false) : body.adsExempt;
 		target.active = body.active !== false;
 		target.sortOrder = sortOrder(body.sortOrder);
 		return target;

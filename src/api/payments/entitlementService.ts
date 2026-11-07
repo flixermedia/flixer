@@ -8,6 +8,7 @@ import { PaymentEntitlement } from "../../entities/paymentEntitlement.entity.js"
 import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
 import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
 import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
+import { PaymentOrder } from "../../entities/paymentOrder.entity.js";
 import { PaymentConfigService } from "./paymentConfigService.js";
 import { anyScopeCovers, kindForItemType, scopeCovers, subscriptionGrantsAccess, type ContentScope, type ItemContext } from "./paymentTypes.js";
 
@@ -130,6 +131,32 @@ export class EntitlementService {
 		const live = entitlements.filter((entry) => entry.expiresAt === null || entry.expiresAt > now);
 		const subscribed = subscriptions.filter((sub) => subscriptionGrantsAccess(sub, now)).flatMap((sub) => plans.get(sub.planId)?.scopes ?? []);
 		return { entitlements: live, subscribed };
+	}
+
+	/** Ad-free subscriptions apply server-wide; purchases and rentals only cover their purchased scope. */
+	async isAdExempt(userId: string, context: ItemContext): Promise<boolean> {
+		if (!(await this.config.isActive())) return false;
+		const now = new Date();
+		const [entitlements, subscriptions] = await Promise.all([
+			this.dataSource.getRepository(PaymentEntitlement).findBy({ userId, revokedAt: IsNull() }),
+			this.dataSource.getRepository(PaymentSubscription).findBy({ userId }),
+		]);
+		const active = subscriptions.filter((entry) => subscriptionGrantsAccess(entry, now));
+		if (active.length) {
+			const plans = await this.dataSource.getRepository(PaymentPlan).findBy({ id: In(active.map((entry) => entry.planId)) });
+			if (plans.some((plan) => plan.adsExempt)) return true;
+		}
+		const orders = entitlements.filter((entry) =>
+			(entry.source === "purchase" || entry.source === "rental") &&
+			entry.orderId !== null && (entry.expiresAt === null || entry.expiresAt > now) &&
+			(entry.rentalHours === null || entry.activatedAt !== null) && scopeCovers(entry.scope, context),
+		).map((entry) => entry.orderId!);
+		if (!orders.length) return false;
+		const paid = await this.dataSource.getRepository(PaymentOrder).findBy({ id: In(orders), userId });
+		const productIds = paid.filter((order) => order.status === "paid" || order.status === "partially_refunded")
+			.map((order) => order.productId).filter((id): id is string => id !== null);
+		if (!productIds.length) return false;
+		return (await this.dataSource.getRepository(PaymentProduct).findBy({ id: In(productIds) })).some((product) => product.adsExempt);
 	}
 
 	private async isGrandfathered(subject: AccessSubject): Promise<boolean> {

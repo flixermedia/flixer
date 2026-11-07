@@ -26,6 +26,9 @@ export class PaymentPlan {
 	@Column({ name: "trial_days", type: "int", default: 0 })
 	trialDays!: number;
 
+	@Column({ name: "ads_exempt", type: "boolean", default: false })
+	adsExempt!: boolean;
+
 	@Column({ type: "boolean", default: true })
 	active!: boolean;
 

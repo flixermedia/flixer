@@ -33,6 +33,9 @@ export class PaymentProduct {
 	@Column({ name: "requires_purchase", type: "boolean", default: false })
 	requiresPurchase!: boolean;
 
+	@Column({ name: "ads_exempt", type: "boolean", default: false })
+	adsExempt!: boolean;
+
 	@Column({ type: "boolean", default: true })
 	active!: boolean;
 
