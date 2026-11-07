@@ -24,7 +24,14 @@ services:
             - |
                 set -e
                 mkdir -p /data/nginx
-                cp /opt/resources/nginx.conf /data/nginx/nginx.conf
+                if [ -f /opt/resources/nginx.conf ] && [ -s /opt/resources/nginx.conf ]; then
+                    cp /opt/resources/nginx.conf /data/nginx/nginx.conf
+                elif [ -f /data/nginx/nginx.conf ] && [ -s /data/nginx/nginx.conf ]; then
+                    echo "Warning: image has no Nginx template; using existing /data/nginx/nginx.conf." >&2
+                else
+                    echo "Error: image has no Nginx template. Pull a newer Flixer image or place nginx.conf in DATA_DIR/nginx/." >&2
+                    exit 1
+                fi
                 chmod 0644 /data/nginx/nginx.conf
         depends_on:
             data-init:
