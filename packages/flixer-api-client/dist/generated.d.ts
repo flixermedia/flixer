@@ -1499,7 +1499,7 @@ export interface ApiGuideGuideServicePublicGuideSource {
     lastError: null | string;
 }
 export interface JobsJobSchedulerAdminTaskRunStatus {
-    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'optimize-database';
     name: string;
     category: string;
     description: string;
@@ -3711,7 +3711,7 @@ export type AdminScheduledTasksControllerList200 = {
     tasks: JobsJobSchedulerAdminTaskRunStatus[];
 };
 export type AdminScheduledTasksControllerSaveSchedule200 = {
-    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'clean-logs' | 'optimize-database';
+    id: 'scan-libraries' | 'refresh-metadata' | 'trickplay' | 'refresh-epg' | 'clean-transcode' | 'optimize-database';
     enabled: boolean;
     cron: string;
 };
@@ -3814,9 +3814,6 @@ export type AdminIndexerControllerTasksParams = {
     state?: string;
     page?: number;
     size?: number;
-};
-export type AdminIndexerControllerTaskLogsParams = {
-    offset?: number;
 };
 export type AdminIndexerControllerCancelActive200 = {
     queue: 'metadata' | 'images' | 'trickplay' | 'scan' | 'identify' | 'probe' | 'refresh' | 'themes' | 'lyrics' | 'intro-movies' | 'intro-episodes' | 'identify-priority' | 'metadata-priority' | 'images-priority' | 'probe-priority' | 'refresh-priority';
@@ -5643,7 +5640,6 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     adminIndexerControllerQueueSegments: (id: string, librarySegmentScanRequest?: LibrarySegmentScanRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
     adminIndexerControllerRefresh: (refreshItemRequest?: RefreshItemRequest, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
     adminIndexerControllerTasks: (params?: AdminIndexerControllerTasksParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIndexerAdminIndexerServiceIndexerTaskPage>>;
-    adminIndexerControllerTaskLogs: (queue: string, id: string, params?: AdminIndexerControllerTaskLogsParams, options?: AxiosRequestConfig) => Promise<AxiosResponse<ApiIndexerAdminIndexerServiceIndexerTaskLogs>>;
     adminIndexerControllerCancelTask: (queue: string, id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
     adminIndexerControllerRetryTask: (queue: string, id: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<unknown>>;
     adminIndexerControllerCancelActive: (queue: string, options?: AxiosRequestConfig) => Promise<AxiosResponse<AdminIndexerControllerCancelActive200>>;
@@ -6026,7 +6022,6 @@ export declare const getApiDocumentation: (axiosInstance?: AxiosInstance) => {
     getAdminIndexerControllerQueueSegmentsUrl: (id: string) => string;
     getAdminIndexerControllerRefreshUrl: () => string;
     getAdminIndexerControllerTasksUrl: (params?: AdminIndexerControllerTasksParams) => string;
-    getAdminIndexerControllerTaskLogsUrl: (queue: string, id: string, params?: AdminIndexerControllerTaskLogsParams) => string;
     getAdminIndexerControllerCancelTaskUrl: (queue: string, id: string) => string;
     getAdminIndexerControllerRetryTaskUrl: (queue: string, id: string) => string;
     getAdminIndexerControllerCancelActiveUrl: (queue: string) => string;
@@ -6410,7 +6405,6 @@ export type AdminIndexerControllerScanResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerQueueSegmentsResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerRefreshResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerTasksResult = AxiosResponse<ApiIndexerAdminIndexerServiceIndexerTaskPage>;
-export type AdminIndexerControllerTaskLogsResult = AxiosResponse<ApiIndexerAdminIndexerServiceIndexerTaskLogs>;
 export type AdminIndexerControllerCancelTaskResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerRetryTaskResult = AxiosResponse<unknown>;
 export type AdminIndexerControllerCancelActiveResult = AxiosResponse<AdminIndexerControllerCancelActive200>;

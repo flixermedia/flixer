@@ -41,8 +41,6 @@ export type IndexerQueueStats = IndexerStatus["queues"][number];
 export type IndexerTask = FlixerApiRouteData<"get", "/admin/indexer/tasks">["tasks"][number];
 export type IndexerQueueName = IndexerQueueStats["queue"];
 export type IndexerTaskState = IndexerTask["state"];
-export type IndexerTaskLogs = FlixerApiRouteData<"get", "/admin/indexer/tasks/{param}/{param}/logs">;
-export type IndexerTaskLogEntry = IndexerTaskLogs["entries"][number];
 
 export type MediaItemPage = FlixerApiRouteData<"get", "/admin/media/items">;
 export type MediaItemSummary = MediaItemPage["items"][number];

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaLibrary, type MediaImageStorage, type MediaLibraryFolder, type MediaLibraryType } from "../../entities/mediaLibrary.entity.js";
@@ -65,6 +65,40 @@ export class MediaLibrariesService {
 	/** Raw libraries, used by playback to find the media files. */
 	async entities(): Promise<MediaLibrary[]> {
 		return this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } });
+	}
+
+	/** Validate selected folders against the library and resolve indexer-visible paths. */
+	async scanPaths(id: string, folders: MediaLibraryFolder[]): Promise<string[]> {
+		const library = await this.dataSource.getRepository(MediaLibrary).findOneBy({ id });
+		if (!library) throw new NotFound("Media library not found.");
+		if (!Array.isArray(folders) || folders.length < 1 || folders.length > 50) {
+			throw new BadRequest("Select between 1 and 50 library folders.");
+		}
+		const paths = new Set<string>();
+		for (const folder of folders) {
+			if (!folder || typeof folder.rootId !== "string" || typeof folder.path !== "string" || folder.path.length > 4096) {
+				throw new BadRequest("Invalid library folder.");
+			}
+			const path = parseRelativePath(folder.path).join("/");
+			const matching = library.folders.filter((entry) => {
+				const base = parseRelativePath(entry.path).join("/");
+				return entry.rootId === folder.rootId && (!base || path === base || path.startsWith(`${base}/`));
+			});
+			if (!matching.length) throw new BadRequest("Folder is not part of this library.");
+			const canonical = await this.roots.resolveDirectory(folder.rootId, path);
+			let contained = false;
+			for (const entry of matching) {
+				const base = await this.roots.resolveDirectory(entry.rootId, entry.path);
+				const rel = relative(base, canonical);
+				if (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)) {
+					contained = true;
+					break;
+				}
+			}
+			if (!contained) throw new BadRequest("Folder is outside the library.");
+			paths.add(join(this.roots.get(folder.rootId).path, ...parseRelativePath(path)));
+		}
+		return [...paths];
 	}
 
 	async create(input: Required<Pick<LibraryInput, "name" | "type" | "folders">> & Pick<LibraryInput, "imageStorage">): Promise<PublicMediaLibrary> {

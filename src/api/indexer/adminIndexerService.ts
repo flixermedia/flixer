@@ -62,20 +62,6 @@ export interface IndexerTaskPage {
 	tasks: IndexerTask[];
 }
 
-export interface IndexerTaskLogEntry {
-	time: string;
-	level: string;
-	message: string;
-}
-
-export interface IndexerTaskLogs {
-	queue: IndexerTaskQueueName;
-	id: string;
-	state: IndexerTaskState | "";
-	total: number;
-	entries: IndexerTaskLogEntry[];
-}
-
 export interface IndexerStatus {
 	reachable: boolean;
 	scans: IndexerScan[];

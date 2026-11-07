@@ -3346,17 +3346,6 @@ export const routes = [
     },
     {
         "method": "get",
-        "path": "/admin/indexer/tasks/{queue}/{id}/logs",
-        "operationId": "adminIndexerControllerTaskLogs",
-        "pathParameters": [
-            "queue",
-            "id"
-        ],
-        "hasBody": false,
-        "hasQuery": true
-    },
-    {
-        "method": "get",
         "path": "/admin/media/items/{id}/images/{index}",
         "operationId": "adminMediaControllerImage",
         "pathParameters": [

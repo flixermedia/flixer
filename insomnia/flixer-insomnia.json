@@ -2874,40 +2874,6 @@
       "_type": "request"
     },
     {
-      "_id": "req_flixer_3f25e6245fae",
-      "parentId": "grp_flixer_api_d033e22ae348",
-      "modified": 1793320162393,
-      "created": 1793320162393,
-      "url": "{{ _.base_url }}/api/admin/indexer/tasks/{{ _.path_queue }}/{{ _.path_id }}/logs",
-      "name": "GET /api/admin/indexer/tasks/{queue}/{id}/logs",
-      "description": "Tags: AdminIndexerController",
-      "method": "GET",
-      "body": {},
-      "parameters": [
-        {
-          "name": "offset",
-          "value": "{{ _.query_offset }}",
-          "disabled": false
-        }
-      ],
-      "headers": [
-        {
-          "name": "Authorization",
-          "value": "Bearer {{ _.access_token }}"
-        }
-      ],
-      "authentication": {},
-      "metaSortKey": -1793320162311,
-      "isPrivate": false,
-      "settingStoreCookies": true,
-      "settingSendCookies": true,
-      "settingDisableRenderRequestBody": false,
-      "settingEncodeUrl": true,
-      "settingRebuildPath": true,
-      "settingFollowRedirects": "global",
-      "_type": "request"
-    },
-    {
       "_id": "req_flixer_10067efe6ecd",
       "parentId": "grp_flixer_api_d033e22ae348",
       "modified": 1793320162393,

@@ -2604,13 +2604,6 @@ export declare const routes: readonly [{
     readonly hasQuery: false;
 }, {
     readonly method: "get";
-    readonly path: "/admin/indexer/tasks/{queue}/{id}/logs";
-    readonly operationId: "adminIndexerControllerTaskLogs";
-    readonly pathParameters: readonly ["queue", "id"];
-    readonly hasBody: false;
-    readonly hasQuery: true;
-}, {
-    readonly method: "get";
     readonly path: "/admin/media/items/{id}/images/{index}";
     readonly operationId: "adminMediaControllerImage";
     readonly pathParameters: readonly ["id", "index"];

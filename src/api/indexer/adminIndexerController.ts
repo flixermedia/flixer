@@ -9,11 +9,11 @@ import {
 	AdminIndexerService,
 	INDEXER_TASK_STATES,
 	type IndexerTaskPage,
-	type IndexerTaskLogs,
 } from "./adminIndexerService.js";
 import { MEDIA_ITEM_TYPES } from "../../entities/mediaItem.entity.js";
 import { LibrarySegmentScanRequest, RefreshItemRequest, ScanLibraryRequest } from "./indexerRequests.js";
 import { LiveService } from "../../live/liveService.js";
+import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -30,6 +30,7 @@ export class AdminIndexerController {
 		private readonly indexer: IndexerClient,
 		private readonly admin: AdminIndexerService,
 		private readonly live: LiveService,
+		private readonly libraries: MediaLibrariesService,
 	) {}
 
 	/** Everything the indexer dashboard shows: scan progress, queue stats and worker counts. */
@@ -61,12 +62,17 @@ export class AdminIndexerController {
 		if (jobs.length > 0 && request?.trickplayOnly) {
 			throw new BadRequest("trickplayOnly cannot be combined with scan jobs.");
 		}
+		if (request?.folders !== undefined && request?.trickplayOnly) {
+			throw new BadRequest("trickplayOnly cannot be combined with folders.");
+		}
+		const paths = request?.folders === undefined ? undefined : await this.libraries.scanPaths(id.toLowerCase(), request.folders);
 		const result = await this.indexer.request("POST", "/internal/scan", {
 			body: {
 				libraryId: id.toLowerCase(),
 				force: request?.force === true,
 				trickplayOnly: request?.trickplayOnly === true,
 				jobs,
+				...(paths ? { paths } : {}),
 			},
 		});
 		this.live.invalidate("indexer", "overview");
@@ -118,23 +124,6 @@ export class AdminIndexerController {
 			throw new BadRequest(`state must be one of ${INDEXER_TASK_STATES.join(", ")}.`);
 		}
 		return this.indexer.request<IndexerTaskPage>("GET", "/internal/tasks", { query: { queue, state, page, size } });
-	}
-
-	/** Recorded log lines of one task, from `offset` on. Polled by the dashboard while a task runs. */
-	@Get("/tasks/:queue/:id/logs")
-	async taskLogs(
-		@PathParams("queue") queue: string,
-		@PathParams("id") id: string,
-		@QueryParams("offset", Number) offset?: number,
-		@HeaderParams("authorization") authorization?: string,
-	) {
-		await this.authService.requireAdmin(authorization);
-		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? offset : 0;
-		return this.indexer.request<IndexerTaskLogs>(
-			"GET",
-			`/internal/tasks/${this.requireTaskQueue(queue)}/${this.requireTaskId(id)}/logs`,
-			{ query: { offset: safeOffset } },
-		);
 	}
 
 	@Post("/tasks/:queue/:id/cancel")

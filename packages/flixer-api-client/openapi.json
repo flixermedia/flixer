@@ -3398,10 +3398,6 @@
               },
               {
                 "type": "string",
-                "const": "clean-logs"
-              },
-              {
-                "type": "string",
                 "const": "optimize-database"
               }
             ]
@@ -18852,10 +18848,6 @@
                         },
                         {
                           "type": "string",
-                          "const": "clean-logs"
-                        },
-                        {
-                          "type": "string",
                           "const": "optimize-database"
                         }
                       ]
@@ -20547,65 +20539,6 @@
           "AdminIndexerController"
         ],
         "operationId": "adminIndexerControllerTasks"
-      }
-    },
-    "/api/admin/indexer/tasks/{queue}/{id}/logs": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/api_indexer_adminIndexerService_IndexerTaskLogs"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "queue",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "tags": [
-          "AdminIndexerController"
-        ],
-        "operationId": "adminIndexerControllerTaskLogs"
       }
     },
     "/api/admin/indexer/tasks/{queue}/{id}/cancel": {
