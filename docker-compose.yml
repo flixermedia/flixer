@@ -55,6 +55,9 @@ services:
     logger:
         image: ghcr.io/flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
         user: "1000:1000"
+        environment:
+            FLIXER_URL: http://api:8081
+            SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
         command:
             - --data-dir
             - /data
@@ -108,7 +111,7 @@ services:
             INDEXER_URL: http://indexer:8092
             FLIXER_AI_URL: http://ai:8094
             WEB_INTERNAL_URL: http://web
-            UPDATER_URL: http://updater:8093
+            UPDATER_URL: http://flixer-updater:8093
             MEILISEARCH_URL: http://meilisearch:7700
         group_add:
             - "65532"
@@ -217,6 +220,7 @@ services:
             FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             RECOMMENDER_PROFILE: ${RECOMMENDER_PROFILE:-auto}
             ALLOW_DOWNLOADS: ${AI_ALLOW_DOWNLOADS:-true}
+            SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/ai:/data/ai
             - flixer-secrets:/run/flixer-secrets:ro
@@ -332,6 +336,7 @@ services:
                 condition: service_completed_successfully
         environment:
             STREAM_TOKEN_SECRET_FILE: /run/flixer-secrets/app-secret
+            SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
             FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
             FLIXER_LOGGER_CA_FILE: /run/flixer-secrets/logger-ca.crt
             DATA_PATH: /data

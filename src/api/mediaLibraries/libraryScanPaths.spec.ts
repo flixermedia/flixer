@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import type { NetworkSharesService } from "../networkShares/networkSharesService.js";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { MediaLibrariesService } from "./mediaLibrariesService.js";
 import { MediaRootsService } from "./mediaRootsService.js";
 
@@ -43,5 +44,19 @@ describe("library scan paths", () => {
 		}
 		await expect(service.scanPaths("id", [])).rejects.toThrow();
 		await expect(service.scanPaths("id", [{ rootId: "other", path: "Movies" }])).rejects.toThrow();
+	});
+
+	it("retains unresolved roots so the indexer cannot prune a partial library", async () => {
+		const library = new MediaLibrary();
+		Object.assign(library, {
+			id: "id", name: "Movies", type: "movies", imageStorage: "cache",
+			folders: [{ rootId, path: "Movies" }, { rootId: "missing", path: "More" }],
+		});
+		vi.spyOn(service, "entities").mockResolvedValue([library]);
+		const [result] = await service.forIndexer();
+		expect(result.folders).toEqual([
+			{ rootId, path: "Movies", absolutePath: join(directory, "Movies") },
+			{ rootId: "missing", path: "More", absolutePath: "" },
+		]);
 	});
 });

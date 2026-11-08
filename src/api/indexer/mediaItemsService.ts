@@ -1,7 +1,9 @@
 import { NotificationService } from "../notifications/notificationService.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { stat } from "node:fs/promises";
+import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { DataSource, EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
@@ -18,6 +20,7 @@ export interface IndexerItemPayload {
 	path: string;
 	externalKey: string;
 	parentPath?: string;
+	seriesPath?: string;
 	parentExternalKey?: string;
 	parentProviderIds: Record<string, string>;
 	rootId?: string;
@@ -172,6 +175,7 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 		path,
 		externalKey,
 		parentPath: optionalText(body.parentPath, "parentPath"),
+		seriesPath: optionalText(body.seriesPath, "seriesPath"),
 		parentExternalKey: optionalText(body.parentExternalKey, "parentExternalKey", MAX_KEY_LENGTH),
 		parentProviderIds: stringMap(body.parentProviderIds, "parentProviderIds"),
 		rootId: optionalText(body.rootId, "rootId", 64),
@@ -196,6 +200,50 @@ function lastSegment(path: string): string {
 	return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }
 
+function sourceKey(type: MediaItemType, path: string): string {
+	return `source:${createHash("sha256").update(JSON.stringify([type, path])).digest("hex")}`;
+}
+
+function matchesManualProviderIds(item: MediaItem, incoming: Record<string, string>): boolean {
+	return (item.editedFields ?? []).every((field) => {
+		if (!field.startsWith("providerId:")) return true;
+		const provider = field.slice("providerId:".length);
+		const value = item.providerIds?.[provider];
+		return !value || incoming[provider] === value;
+	});
+}
+
+async function pathMissing(path: string): Promise<boolean> {
+	try {
+		await stat(path);
+		return false;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+		throw error;
+	}
+}
+
+async function sameAvailableRoot(item: MediaItem, payload: IndexerItemPayload): Promise<boolean> {
+	if (!item.rootId || item.rootId !== payload.rootId || !item.relativePath || !payload.relativePath) return false;
+	const rootOf = (path: string, relativePath: string): string | null => {
+		if (!isAbsolute(path) || isAbsolute(relativePath)) return null;
+		const parts = relativePath.split(/[\\/]/);
+		if (parts.some((part) => !part || part === "." || part === "..")) return null;
+		let root = path;
+		for (const _part of parts) root = dirname(root);
+		return resolve(root, ...parts) === resolve(path) ? resolve(root) : null;
+	};
+	const previousRoot = rootOf(item.path, item.relativePath);
+	const nextRoot = rootOf(payload.path, payload.relativePath);
+	if (!previousRoot || previousRoot !== nextRoot || previousRoot === sep) return false;
+	try {
+		return (await stat(previousRoot)).isDirectory();
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+		throw error;
+	}
+}
+
 /** Stores what flixer-indexer finds and keeps the series → season → episode (and album → track) tree linked. */
 @Injectable()
 export class MediaItemsService {
@@ -205,6 +253,18 @@ export class MediaItemsService {
 		private readonly notifications: NotificationService,
 	) {}
 
+	async manualMatch(libraryId: string, type: MediaItemType, path: string): Promise<Record<string, string>> {
+		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ libraryId, type, path });
+		const ids: Record<string, string> = {};
+		for (const field of item?.editedFields ?? []) {
+			if (!field.startsWith("providerId:")) continue;
+			const provider = field.slice("providerId:".length);
+			const value = item?.providerIds?.[provider];
+			if (value) ids[provider] = value;
+		}
+		return ids;
+	}
+
 	async upsert(payload: IndexerItemPayload): Promise<{ id: string }> {
 		let announce: { id: string; type: string } | null = null;
 		const result = await this.dataSource.transaction(async (manager) => {
@@ -212,23 +272,37 @@ export class MediaItemsService {
 				throw new NotFound("Media library not found.");
 			}
 
-			// Parents are always locked after their children, so concurrent upserts cannot deadlock on each other.
-			await this.lock(manager, payload.libraryId, payload.externalKey);
+			// Serializing identity decisions within a library prevents two sources claiming the same key.
+			await this.lock(manager, payload.libraryId, "source-identity");
 
-			// An item is first matched by its stable key; otherwise by path, which covers an item whose
-			// key changed because it was identified (path:... becomes tmdb:...).
-			let item =
-				(await manager.findOneBy(MediaItem, {
-					libraryId: payload.libraryId,
-					externalKey: payload.externalKey,
-				})) ??
-				(await manager.findOneBy(MediaItem, {
-					libraryId: payload.libraryId,
-					path: payload.path,
-					type: payload.type,
-				})) ??
-				// The library folder may have moved: the same content now sits under a different base path.
-				(await this.findByRelativeKey(manager, payload.libraryId, payload.type, payload.externalKey));
+			// Exact source paths take precedence over a provider key shared by different sources.
+			const byKey = await manager.findOneBy(MediaItem, {
+				libraryId: payload.libraryId,
+				externalKey: payload.externalKey,
+			});
+			const byPath = await manager.findOneBy(MediaItem, {
+				libraryId: payload.libraryId,
+				path: payload.path,
+				type: payload.type,
+			});
+			let item = byPath;
+			const moved = byKey?.type === payload.type && !byKey.isPlaceholder && byKey.path !== payload.path &&
+				!payload.updateFields?.length && (!byPath || byPath.isPlaceholder) &&
+				matchesManualProviderIds(byKey, payload.providerIds) &&
+				await sameAvailableRoot(byKey, payload) &&
+				!(await pathMissing(payload.path)) && await pathMissing(byKey.path);
+			if (moved && byPath && byKey) {
+				await manager.update(MediaItem, { parentId: byPath.id }, { parentId: byKey.id });
+				await manager.delete(MediaItem, { id: byPath.id });
+				item = byKey;
+			} else if (!item && byKey?.type === payload.type &&
+				(!byKey.path || byKey.path === payload.path || moved)) {
+				item = byKey;
+			}
+			if (!item && !byKey && !payload.updateFields?.length) {
+				item = await this.findByRelativeKey(manager, payload.libraryId, payload.type, payload.externalKey);
+				if (item && (item.isPlaceholder || !matchesManualProviderIds(item, payload.providerIds) || !(await sameAvailableRoot(item, payload)) || await pathMissing(payload.path) || !(await pathMissing(item.path)))) item = null;
+			}
 			if (payload.updateFields?.length) {
 				if (!item || item.isPlaceholder) {
 					return { id: "" };
@@ -257,7 +331,7 @@ export class MediaItemsService {
 			const keptAdminChapters = edited.has("chapters") ? item.metadata?.adminChapters : undefined;
 
 			item.type = payload.type;
-			item.externalKey = payload.externalKey;
+			item.externalKey = byKey && byKey.id !== item.id ? (item.externalKey || sourceKey(payload.type, payload.path)) : payload.externalKey;
 			item.path = payload.path;
 			item.parentId = parentId !== item.id ? parentId : null;
 			item.rootId = payload.rootId ?? null;
@@ -461,93 +535,42 @@ export class MediaItemsService {
 		});
 	}
 
-	/**
-	 * Finds the parent by its stable key, then by the series' provider ids (it may have been identified through a
-	 * different provider), then by path. If it has not been indexed yet a placeholder is created, which the real
-	 * item replaces when it arrives.
-	 */
 	private async resolveParent(manager: EntityManager, payload: IndexerItemPayload): Promise<string | null> {
 		const parentType = PARENT_TYPES[payload.type];
-		if (!parentType) {
-			return null;
-		}
+		if (!parentType) return null;
 		const { libraryId, parentExternalKey, parentPath } = payload;
-
-		if (parentExternalKey) {
-			await this.lock(manager, libraryId, parentExternalKey);
-			const byKey = await manager.findOneBy(MediaItem, { libraryId, externalKey: parentExternalKey });
-			if (byKey) {
-				return byKey.id;
-			}
+		if (!parentPath) {
+			if (!parentExternalKey) return null;
+			const parent = await manager.findOneBy(MediaItem, { libraryId, externalKey: parentExternalKey, type: parentType });
+			return parent?.id ?? null;
 		}
-		const byProviderIds = await this.findParentByProviderIds(manager, payload, parentType);
-		if (byProviderIds) {
-			return byProviderIds;
-		}
-		if (parentPath) {
-			const byPath = await manager.findOneBy(MediaItem, { libraryId, path: parentPath, type: parentType });
+		const ensure = async (type: MediaItemType, path: string, key: string, parentId: string | null): Promise<MediaItem> => {
+			const byPath = await manager.findOneBy(MediaItem, { libraryId, path, type });
 			if (byPath) {
-				return byPath.id;
+				if (parentId && byPath.isPlaceholder && byPath.parentId !== parentId) {
+					byPath.parentId = parentId;
+					await manager.save(byPath);
+				}
+				return byPath;
 			}
+			const byKey = await manager.findOneBy(MediaItem, { libraryId, externalKey: key });
+			const placeholder = manager.create(MediaItem, {
+				id: randomUUID(), libraryId, type, path, parentId,
+				externalKey: byKey ? sourceKey(type, path) : key,
+				title: lastSegment(path),
+				seasonNumber: type === "season" ? (payload.seasonNumber ?? null) : null,
+				providerIds: type === "series" ? payload.parentProviderIds : {},
+				metadata: {}, images: [], isPlaceholder: true,
+			});
+			return manager.save(placeholder);
+		};
+		let seriesId: string | null = null;
+		if (parentType === "season" && payload.seriesPath) {
+			const seriesKey = parentExternalKey && /:s\d+$/.test(parentExternalKey)
+				? parentExternalKey.replace(/:s\d+$/, "")
+				: sourceKey("series", payload.seriesPath);
+			seriesId = (await ensure("series", payload.seriesPath, seriesKey, null)).id;
 		}
-		if (parentExternalKey) {
-			const moved = await this.findByRelativeKey(manager, libraryId, parentType, parentExternalKey);
-			if (moved) {
-				return moved.id;
-			}
-		}
-		if (!parentExternalKey) {
-			return null;
-		}
-
-		const placeholder = manager.create(MediaItem, {
-			id: randomUUID(),
-			libraryId,
-			type: parentType,
-			externalKey: parentExternalKey,
-			path: parentPath ?? "",
-			title: parentPath ? lastSegment(parentPath) : parentExternalKey,
-			seasonNumber: parentType === "season" ? (payload.seasonNumber ?? null) : null,
-			providerIds: parentType === "series" ? payload.parentProviderIds : {},
-			metadata: {},
-			images: [],
-			isPlaceholder: true,
-		});
-		return (await manager.save(placeholder)).id;
-	}
-
-	private async findParentByProviderIds(manager: EntityManager, payload: IndexerItemPayload, parentType: MediaItemType): Promise<string | null> {
-		const ids = Object.entries(payload.parentProviderIds).filter(([, id]) => id);
-		if (ids.length === 0 || (parentType !== "series" && parentType !== "season")) {
-			return null;
-		}
-		const params: Record<string, string | number> = { library: payload.libraryId };
-		ids.forEach(([provider, id], index) => {
-			params[`provider${index}`] = provider;
-			params[`id${index}`] = id;
-		});
-		const matches = (alias: string) => ids.map((_, index) => `${alias}.providerIds ->> :provider${index} = :id${index}`).join(" OR ");
-
-		if (parentType === "series") {
-			const series = await manager
-				.createQueryBuilder(MediaItem, "series")
-				.where("series.libraryId = :library AND series.type = 'series'")
-				.andWhere(`(${matches("series")})`)
-				.setParameters(params)
-				.getOne();
-			return series?.id ?? null;
-		}
-
-		if (payload.seasonNumber === undefined) {
-			return null;
-		}
-		const season = await manager
-			.createQueryBuilder(MediaItem, "season")
-			.innerJoin(MediaItem, "series", "series.id = season.parentId")
-			.where("season.libraryId = :library AND season.type = 'season' AND season.seasonNumber = :seasonNumber")
-			.andWhere(`(${matches("series")})`)
-			.setParameters({ ...params, seasonNumber: payload.seasonNumber })
-			.getOne();
-		return season?.id ?? null;
+		return (await ensure(parentType, parentPath, parentExternalKey || sourceKey(parentType, parentPath), seriesId)).id;
 	}
 }

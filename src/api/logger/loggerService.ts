@@ -6,7 +6,7 @@ import { isIP } from "node:net";
 import { dirname, isAbsolute } from "node:path";
 import { appConfig } from "../../config/store/appConfig.js";
 import type { ConfigName } from "../../config/store/configSchema.js";
-import { loggerExporter } from "../../logs/loggerExporter.js";
+import { loggerExporter, webLoggerExporter } from "../../logs/loggerExporter.js";
 import { AuthService } from "../auth/authService.js";
 import type { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.js";
 
@@ -18,6 +18,7 @@ interface RetentionPolicy {
 
 const producerKeys = {
 	"flixer-ai": ["loggerAiIngestToken", "loggerAiIngestExpiry", "loggerAiIngestId"],
+	"flixer-web": ["loggerWebIngestToken", "loggerWebIngestExpiry", "loggerWebIngestId"],
 	"flixer-indexer": ["loggerIndexerIngestToken", "loggerIndexerIngestExpiry", "loggerIndexerIngestId"],
 	"flixer-streamer": ["loggerStreamerIngestToken", "loggerStreamerIngestExpiry", "loggerStreamerIngestId"],
 	"flixer-updater": ["loggerUpdaterIngestToken", "loggerUpdaterIngestExpiry", "loggerUpdaterIngestId"],
@@ -202,8 +203,23 @@ export class LoggerService {
 		if (!store) throw new Exception(503, "The Flixer configuration store is unavailable.");
 		const endpoint = store.get("loggerUrl");
 		const expiry = store.get("loggerManageExpiry");
+		let managementRenewal: "automatic" | "manual" | "unavailable" = "manual";
+		if (store.get("loggerLocalManaged") === "true") {
+			managementRenewal = "unavailable";
+			const ownerPath = process.env.FLIXER_LOGGER_LOCAL_OWNER_FILE?.trim();
+			const localEndpoint = process.env.FLIXER_LOGGER_LOCAL_ENDPOINT?.trim() || "http://127.0.0.1:8098";
+			try {
+				const url = new URL(loggerOrigin(localEndpoint));
+				if (ownerPath && endpoint === url.origin &&
+					(url.protocol === "https:" || (url.protocol === "http:" && url.hostname === "127.0.0.1"))) {
+					managementRenewal = "automatic";
+				}
+			} catch {
+				// Invalid local bootstrap configuration cannot renew the credential.
+			}
+		}
 		return { configured: Boolean(endpoint && store.get("loggerManageToken")), endpoint: endpoint ?? null,
-			...(expiry && Number.isFinite(Date.parse(expiry)) ? { managementExpiresAt: expiry } : {}) };
+			...(expiry && Number.isFinite(Date.parse(expiry)) ? { managementExpiresAt: expiry, managementRenewal } : {}) };
 	}
 
 	async configure(request: LoggerConfigurationRequest, authorization?: string) {
@@ -237,6 +253,7 @@ export class LoggerService {
 			loggerIngestApp: "flixer",
 			...(ingest.id ? { loggerIngestId: ingest.id } : {}),
 		}, ["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", "loggerLocalManaged", ...localRenewalKeys, ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])]);
+		webLoggerExporter.configure();
 		loggerExporter.configure({ endpoint, ...ingest });
 		return { configured: true, endpoint };
 	}
@@ -328,8 +345,9 @@ export class LoggerService {
 			...(locallyManaged ? { loggerLocalManaged: "true" } : {}),
 			...(ingest.id ? { loggerIngestId: ingest.id } : {}),
 		}, ["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", ...localRenewalKeys, ...(!locallyManaged ? ["loggerLocalManaged" as const] : []), ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])]);
+		webLoggerExporter.configure();
 		loggerExporter.configure({ endpoint, ...ingest });
-		return { configured: true, endpoint, managementExpiresAt: expiry };
+		return { configured: true, endpoint, managementExpiresAt: expiry, ...(!locallyManaged ? { managementRenewal: "manual" as const } : {}) };
 	}
 
 	/** Opt-in local development bootstrap and renewal; never replaces a manually configured connection. */
@@ -773,7 +791,10 @@ export class LoggerService {
 				loggerExporter.configure();
 			}
 			for (const [tokenKey, expiryKey, idKey] of Object.values(producerKeys)) {
-				if (store.get(idKey) === id) store.setMany({}, [tokenKey, expiryKey, idKey]);
+				if (store.get(idKey) === id) {
+					store.setMany({}, [tokenKey, expiryKey, idKey]);
+					if (idKey === "loggerWebIngestId") webLoggerExporter.configure();
+				}
 			}
 		}
 		return { revoked: true };

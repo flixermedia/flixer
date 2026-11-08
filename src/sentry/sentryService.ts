@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.j
 import { Setting } from "../entities/setting.entity.js";
 import { version } from "../config/config.js";
 
-export const SENTRY_APPS = ["flixer", "streamer", "indexer", "web"] as const;
+export const SENTRY_APPS = ["flixer", "streamer", "indexer", "web", "ai", "logger", "updater"] as const;
 export type SentryApp = (typeof SENTRY_APPS)[number];
 
 export interface SentryAppConfig {

@@ -1,9 +1,48 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaCredit } from "../../entities/mediaCredit.entity.js";
+import { PersonProfile } from "../../entities/personProfile.entity.js";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaSearchService } from "./mediaSearchService.js";
 import { MediaHomeService } from "./mediaHomeService.js";
+
+describe("MediaHomeService person images", () => {
+	it.each(["credit", "profile"])("passes the normalized person ID to the indexer for a %s image", async (source) => {
+		const id = "594da9b3-83da-0000-67b5-6dbe9f8c012c";
+		const url = `https://image.tmdb.org/t/p/original/regression-${source}.jpg`;
+		const image = { data: Buffer.from("image bytes"), mime: "image/jpeg" };
+		const query = {
+			where: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			limit: vi.fn().mockReturnThis(),
+			getMany: vi.fn().mockResolvedValue(source === "credit" ? [{ image: url }] : []),
+		};
+		const profile = { findOneBy: vi.fn().mockResolvedValue({ image: url }) };
+		const dataSource = {
+			getRepository: vi.fn((entity: unknown) => {
+				if (entity === MediaCredit) return { createQueryBuilder: () => query };
+				if (entity === PersonProfile) return profile;
+				throw new Error("Unexpected repository");
+			}),
+		} as unknown as DataSource;
+		const indexer = { fetchPersonImage: vi.fn().mockResolvedValue(image) } as unknown as IndexerClient;
+		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService);
+
+		await expect(service.personImage(id.toUpperCase(), 128)).resolves.toEqual(image);
+		expect(query.where).toHaveBeenCalledWith(
+			"credit.person_id = :id AND credit.image IS NOT NULL",
+			{ id },
+		);
+		expect(indexer.fetchPersonImage).toHaveBeenCalledOnce();
+		expect(indexer.fetchPersonImage).toHaveBeenCalledWith(id, url);
+		if (source === "profile") {
+			expect(profile.findOneBy).toHaveBeenCalledWith({ personId: id });
+		} else {
+			expect(profile.findOneBy).not.toHaveBeenCalled();
+		}
+	});
+});
 
 describe("MediaHomeService search ranking", () => {
 	it("returns recommendation cards in AI-ranked order and ignores missing ids", async () => {

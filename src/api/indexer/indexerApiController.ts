@@ -10,6 +10,7 @@ import { IndexerIntroSegmentsService, parseIntroSegmentUpdate } from "./indexerI
 import { MediaItemsService, parseItemPayload, type IndexerPathRemoval } from "./mediaItemsService.js";
 import { indexerWriteLimiter } from "./workLimiter.js";
 import { MediaSearchService } from "../media/mediaSearchService.js";
+import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.entity.js";
 
 const PREFIX = "/api/indexer";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -53,6 +54,26 @@ export class IndexerApiController {
 			signature,
 		});
 		return this.settings.forIndexer();
+	}
+
+	@Post("/media/manual-match")
+	async manualMatch(@RawBodyParams() raw: Buffer | string | undefined, @HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string, @HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string) {
+		const body = Buffer.from(raw ?? "");
+		verifyIndexerRequest({ method: "POST", path: `${PREFIX}/media/manual-match`, body, timestamp, signature });
+		let value: unknown;
+		try {
+			value = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
+		if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadRequest("Invalid match request.");
+		const request = value as Record<string, unknown>;
+		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) ||
+			typeof request.type !== "string" || !(MEDIA_ITEM_TYPES as readonly string[]).includes(request.type) ||
+			typeof request.path !== "string" || !request.path || request.path.length > 4096) {
+			throw new BadRequest("Invalid match request.");
+		}
+		return { providerIds: await this.items.manualMatch(request.libraryId.toLowerCase(), request.type as MediaItemType, request.path) };
 	}
 
 	/** Creates or updates an item. The body is read raw because the signature covers its exact bytes. */

@@ -28,7 +28,30 @@ describe("logger pairing control plane", () => {
 		setAppConfig(undefined);
 		store.close();
 		vi.unstubAllGlobals();
+		vi.unstubAllEnvs();
 		rmSync(directory, { recursive: true, force: true });
+	});
+
+	it("reports manual, configured local, and unavailable local renewal separately", async () => {
+		const service = new LoggerService({ requireAdmin });
+		store.setMany({
+			loggerUrl: "http://127.0.0.1:8098", loggerManageToken: manage,
+			loggerManageExpiry: "2099-01-01T00:00:00.000Z",
+		});
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_OWNER_FILE", "/private/owner");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_ENDPOINT", "");
+		expect((await service.configuration("admin")).managementRenewal).toBe("manual");
+		store.setMany({ loggerLocalManaged: "true" });
+		expect((await service.configuration("admin")).managementRenewal).toBe("automatic");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_OWNER_FILE", "");
+		expect((await service.configuration("admin")).managementRenewal).toBe("unavailable");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_OWNER_FILE", "/private/owner");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_ENDPOINT", "https://other.example");
+		expect((await service.configuration("admin")).managementRenewal).toBe("unavailable");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_ENDPOINT", "not a URL");
+		expect((await service.configuration("admin")).managementRenewal).toBe("unavailable");
+		vi.stubEnv("FLIXER_LOGGER_LOCAL_ENDPOINT", "http://other.example");
+		expect((await service.configuration("admin")).managementRenewal).toBe("unavailable");
 	});
 
 	it("persists a redeemed credential encrypted when setup fails and retries without redeeming again", async () => {

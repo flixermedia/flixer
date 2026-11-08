@@ -6,10 +6,15 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.j
 import { loadSocialItems, toSocialItem, type SocialItem } from "../api/social/socialItems.js";
 import { FriendsService } from "../api/social/friendsService.js";
 import { PARTY_EVENTS_CHANNEL, PartyRedisService } from "./partyRedisService.js";
-import CONTROL_SCRIPT from "./lua/control.lua?raw";
-import PRESENCE_SCRIPT from "./lua/presence.lua?raw";
+import partyJsonScript from "./lua/partyJson.lua?raw";
+import controlScript from "./lua/control.lua?raw";
+import presenceScript from "./lua/presence.lua?raw";
 import CHAT_SCRIPT from "./lua/chat.lua?raw";
-import END_SCRIPT from "./lua/end.lua?raw";
+import endScript from "./lua/end.lua?raw";
+
+const CONTROL_SCRIPT = `${partyJsonScript}\n${controlScript}`;
+const PRESENCE_SCRIPT = `${partyJsonScript}\n${presenceScript}`;
+const END_SCRIPT = `${partyJsonScript}\n${endScript}`;
 
 export const PARTY_TYPES = ["movie", "episode", "video", "track"] as const;
 export const MAX_PARTY_MEMBERS = 50;
@@ -97,6 +102,15 @@ function parseJson<T>(value: unknown): T {
 		throw new Error("Redis returned an invalid party response.");
 	}
 	return JSON.parse(value) as T;
+}
+
+function normalizeParty(party: PartySnapshot): PartySnapshot {
+	const members: unknown = party.members;
+	if (Array.isArray(members)) return party;
+	if (members !== null && typeof members === "object" && Object.keys(members).length === 0) {
+		return { ...party, members: [] };
+	}
+	throw new Error("Redis returned invalid party members.");
 }
 
 function stateKey(id: string): string {
@@ -387,7 +401,7 @@ export class PartiesService {
 		if (!result.party || typeof result.serverTime !== "number") {
 			throw new Error("Redis did not return the updated party presence.");
 		}
-		return { party: result.party, serverTime: result.serverTime };
+		return { party: normalizeParty(result.party), serverTime: result.serverTime };
 	}
 
 	private async refreshMembers(id: string): Promise<PartySnapshot> {
@@ -396,7 +410,7 @@ export class PartiesService {
 
 	private async read(id: string): Promise<PartySnapshot | null> {
 		const value = await this.partyRedis.commands.get(stateKey(id));
-		return value ? (JSON.parse(value) as PartySnapshot) : null;
+		return value ? normalizeParty(JSON.parse(value) as PartySnapshot) : null;
 	}
 
 	private async require(id: string): Promise<PartySnapshot> {
@@ -461,6 +475,7 @@ export class PartiesService {
 			const event = JSON.parse(raw) as PartyEvent;
 			if (!event.partyId || !event.message) return;
 			const message = event.message;
+			if (message.type === "state") message.party = normalizeParty(message.party);
 			for (const connection of this.connections.get(event.partyId) ?? []) {
 				if (message.type === "call-signal" && (connection.person.id === message.from || (message.to && message.to !== connection.person.id))) {
 					continue;

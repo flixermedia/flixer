@@ -8563,6 +8563,14 @@
               {
                 "type": "string",
                 "const": "indexer"
+              },
+              {
+                "type": "string",
+                "const": "ai"
+              },
+              {
+                "type": "string",
+                "const": "logger"
               }
             ]
           },

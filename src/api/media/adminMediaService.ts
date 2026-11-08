@@ -312,6 +312,23 @@ export class AdminMediaService {
 		};
 	}
 
+	async matchConflicts(id: string): Promise<Array<{ id: string; title: string; path: string; providers: string[] }>> {
+		const item = await this.find(id);
+		if (!["movie", "series"].includes(item.type)) return [];
+		return this.dataSource.query(
+			`SELECT other.id, other.title, other.path, array_agg(ids.key ORDER BY ids.key) AS providers
+			 FROM media_items other
+			 CROSS JOIN LATERAL jsonb_each_text($4::jsonb) ids
+			 WHERE other.library_id = $1 AND other.type = $2 AND other.id <> $3
+			   AND NOT other.is_placeholder AND ids.value <> ''
+			   AND other.provider_ids ->> ids.key = ids.value
+			 GROUP BY other.id, other.title, other.path
+			 ORDER BY other.title, other.path
+			 LIMIT 50`,
+			[item.libraryId, item.type, item.id, JSON.stringify(item.providerIds ?? {})],
+		);
+	}
+
 	/** The bytes of one of an item's images, read from flixer's own storage or fetched from the indexer. A width scales it down. */
 	async image(id: string, index: number, width?: number): Promise<{ data: Buffer; mime: string }> {
 		const item = await this.find(id);

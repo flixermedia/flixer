@@ -112,6 +112,13 @@ describe("BackupService", () => {
 		rmSync(root, { recursive: true, force: true });
 	});
 
+	it("does not offer restore through a development-mode updater", async () => {
+		updater.call.mockResolvedValue(new Response(JSON.stringify({ mode: "development", state: { run: null } }), { status: 200 }));
+		expect(await service.status()).toMatchObject({ updaterReachable: true, canRestore: false });
+		updater.call.mockResolvedValue(new Response(JSON.stringify({ mode: "compose", state: { run: null } }), { status: 200 }));
+		expect(await service.status()).toMatchObject({ updaterReachable: true, canRestore: true });
+	});
+
 	it("creates a restorable archive through the run state machine", async () => {
 		const run = await service.create();
 		expect(run).toMatchObject({ kind: "backup", status: "running" });

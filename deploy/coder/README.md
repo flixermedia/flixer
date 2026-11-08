@@ -28,6 +28,12 @@ authenticated SMB share exposes `~/projects` to tailnet devices. Project reposit
 workspace home volume mounted at `~/projects`. The workspace and Postgres share the persistent data volume mounted at
 `~/projects/flixer-data` and `/data`, respectively; PostgreSQL stores its files under `database/`.
 
+The workspace image also includes Playwright's Ubuntu Chromium system dependencies, fonts, and Xvfb for browser
+tests. The browser itself is installed separately: from `~/projects/flixer-web`, run
+`npx playwright install chromium` if the required Playwright browser is not already cached. Existing workspaces need
+an upgrade to a template version built with these dependencies, or can install them immediately with
+`npx playwright install-deps chromium`.
+
 ## Use
 
 Requires a Coder deployment with Docker access on the provisioner host.
@@ -62,10 +68,10 @@ flixer-stack logs api        # service-filtered workspace supervisor output
 docker ps
 ```
 
-The setup also provisions the `flixer-updater` source and Go modules for
-development and testing. It does not start the updater: the workspace has
-access to the shared provisioner Docker daemon, and update/restore operations
-require an explicitly configured, isolated Compose project.
+The setup starts `flixer-updater` on loopback in development mode. It exposes
+authenticated status and logging, but does not update native checkouts or
+restore backups: those operations require an isolated Compose deployment and
+must not target the workspace's shared provisioner Docker daemon.
 
 The setup attempts to clone `flixer-logger` without changing an existing
 checkout. If the repository is unavailable, the rest of the stack continues
@@ -75,6 +81,10 @@ change, then starts it on loopback. Its Pebble data uses the existing
 `~/projects/flixer-data/logs/logger` path and its owner bootstrap token is
 private under `~/.flixer-run/logger`; back up that token securely. No logger
 `.env` file is created. The logger refuses unsafe data-directory permissions.
+The API, AI, Indexer, Streamer and Logger report their source version with a `-dev` suffix in
+Coder; these are not published releases and are not eligible for Compose updates.
+When the Vite development page is open, it also displays its own package version
+with a `-dev` suffix if the API cannot query the web server's version endpoint.
 The API automatically enrolls the local logger using this private owner file
 when no logger connection is already configured. It retries while the logger
 starts and keeps an encrypted pending management credential if registration
@@ -98,6 +108,10 @@ previous management credentials remain valid until expiry or owner revocation.
 
 Service diagnostics are prefixed and written to the workspace supervisor;
 `flixer-stack logs [service]` reads that output through Docker's logs API.
+If the default Docker socket is not writable by the workspace user, the command
+uses passwordless `sudo` for that local socket only. An explicitly configured
+`DOCKER_HOST`, `DOCKER_CONTEXT`, or non-default Docker CLI context is used without this fallback. Docker access,
+including through `sudo`, grants control over the provisioner's daemon.
 The API, Indexer and Streamer no longer write application-managed log files,
 and setup no longer creates or appends to `~/logs/<service>.log`. Existing
 `~/logs` or `flixer-data/logs/*.log` files are left untouched; review them
@@ -130,6 +144,9 @@ The web app installs its generated API client from the public npm registry; no G
   `~/projects/flixer-ai/.env` (`RECOMMENDER_PROFILE=auto|classic|micro|mini`, `ALLOW_DOWNLOADS=true|false`);
   restart it with `flixer-stack restart ai` after changing those values. The API's AI service URL is maintained as
   `FLIXER_AI_URL=http://localhost:8094` in `~/projects/flixer/.env`.
+  Configure AI and logger Sentry reporting in General > Error Monitoring, including their DSNs.
+  Restart the corresponding service after changes. The logger starts independently of the API
+  and retries loading its monitoring settings until the API becomes available.
 
 If you previously used the Docker host projects folder, it is no longer mounted and its contents are not migrated.
 They remain on the host; separately copy or back up anything you need before applying this change.

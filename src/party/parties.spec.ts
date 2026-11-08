@@ -3,6 +3,7 @@ import type { DataSource } from "typeorm";
 import { FriendsService } from "../api/social/friendsService.js";
 import type { NotificationService } from "../api/notifications/notificationService.js";
 import type { PartyRedisService } from "./partyRedisService.js";
+import partyJsonScript from "./lua/partyJson.lua?raw";
 import controlScript from "./lua/control.lua?raw";
 import presenceScript from "./lua/presence.lua?raw";
 import chatScript from "./lua/chat.lua?raw";
@@ -87,7 +88,7 @@ class FakeRedis {
 	};
 
 	async eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<string> {
-		if (script === controlScript) {
+		if (script === `${partyJsonScript}\n${controlScript}`) {
 			expect(options.arguments.slice(4)).toEqual(["86400", "86400"]);
 			return this.control(options);
 		}
@@ -95,11 +96,11 @@ class FakeRedis {
 			expect(options.arguments.slice(3)).toEqual(["50", "86400"]);
 			return this.chat(options);
 		}
-		if (script === presenceScript) {
+		if (script === `${partyJsonScript}\n${presenceScript}`) {
 			expect(options.arguments[7]).toBe("86400");
 			return this.updatePresence(options);
 		}
-		if (script === endScript) return this.end(options);
+		if (script === `${partyJsonScript}\n${endScript}`) return this.end(options);
 		throw new Error("Unrecognized party Lua script.");
 	}
 
@@ -208,8 +209,7 @@ class FakeRedis {
 
 const activeServices: PartiesService[] = [];
 
-async function createService() {
-	const redis = new FakeRedis();
+async function createService(redis = new FakeRedis()) {
 	const friends = new FriendsService({} as DataSource, {} as NotificationService);
 	vi.spyOn(friends, "areFriends").mockResolvedValue(false);
 	const partyRedis = {
@@ -286,6 +286,25 @@ describe("PartiesService", () => {
 		await host.leave();
 		await vi.advanceTimersByTimeAsync(HOST_GRACE_MS + 1);
 		await expect(service.get(id, "host")).rejects.toThrow(/ended/);
+	});
+
+	it("normalizes legacy empty member objects before reading or broadcasting them", async () => {
+		vi.useFakeTimers();
+		const redis = new FakeRedis();
+		const service = await createService(redis);
+		const party = await service.create(person("host"), "m1");
+		await redis.set(`flixer:party:${party.id}:state`, JSON.stringify({ ...party, members: {} }));
+		expect(await service.isMember(party.id, "host")).toBe(false);
+
+		const messages: PartyMessage[] = [];
+		await service.join(party.id, person("guest"), (message) => messages.push(message));
+		await redis.publish("flixer:parties:events", JSON.stringify({
+			partyId: party.id,
+			message: { type: "state", party: { ...party, members: {} }, serverTime: 1000 },
+		}));
+		expect(messages.at(-1)).toMatchObject({ type: "state", party: { members: [] } });
+		await vi.advanceTimersByTimeAsync(HOST_GRACE_MS + 1);
+		await expect(service.get(party.id, "host")).rejects.toThrow(/ended/);
 	});
 
 	it("limits chat to current members and returns recent history", async () => {

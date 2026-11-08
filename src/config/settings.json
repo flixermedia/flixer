@@ -191,6 +191,21 @@
 		"isPublic": false
 	},
 	{
+		"key": "sentry_ai_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_logger_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_updater_enabled",
+		"defaultValue": true,
+		"isPublic": false
+	},
+	{
 		"key": "sentry_flixer_dsn",
 		"defaultValue": "https://749a5ec6e67365da970d126ddce48375@o4512285684596736.ingest.us.sentry.io/4512285693771776",
 		"isPublic": false
@@ -208,6 +223,21 @@
 	{
 		"key": "sentry_web_dsn",
 		"defaultValue": "https://d1b4ac66b848d6c4b977e6eecbb69a64@o4512285684596736.ingest.us.sentry.io/4512285695148032",
+		"isPublic": false
+	},
+	{
+		"key": "sentry_ai_dsn",
+		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_logger_dsn",
+		"defaultValue": null,
+		"isPublic": false
+	},
+	{
+		"key": "sentry_updater_dsn",
+		"defaultValue": null,
 		"isPublic": false
 	},
 	{ "key": "themes_enabled", "defaultValue": false, "isPublic": true },

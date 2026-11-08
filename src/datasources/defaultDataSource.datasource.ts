@@ -24,6 +24,7 @@ import { CreateViewingAnalytics1798300000007 } from "../migrations/createViewing
 import { CreateListeningAnalytics1798300000008 } from "../migrations/createListeningAnalytics1798300000008.js";
 import { CreateUserWebhooks1798300000009 } from "../migrations/createUserWebhooks1798300000009.js";
 import { DefaultUserWebhookUrlRules1798300000010 } from "../migrations/defaultUserWebhookUrlRules1798300000010.js";
+import { CreateMediaSourceGroups1798300000011 } from "../migrations/createMediaSourceGroups1798300000011.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
 import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
@@ -271,6 +272,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateListeningAnalytics1798300000008,
 				CreateUserWebhooks1798300000009,
 				DefaultUserWebhookUrlRules1798300000010,
+				CreateMediaSourceGroups1798300000011,
 			],
 			synchronize: false,
 			migrationsRun: false,

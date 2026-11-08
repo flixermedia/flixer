@@ -11,6 +11,7 @@ export { UserController } from "./api/user/userController.js";
 export { PreferencesController } from "./api/preferences/preferencesController.js";
 export { SettingsController } from "./api/settings/settingsController.js";
 export { LoggerController } from "./api/logger/loggerController.js";
+export { WebLogController } from "./api/logger/webLogController.js";
 export { AiLoggerController } from "./api/logger/aiLoggerController.js";
 export { ProducerLoggerController } from "./api/logger/producerLoggerController.js";
 export { PlaybackController } from "./api/playback/playbackController.js";

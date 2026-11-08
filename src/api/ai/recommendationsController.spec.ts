@@ -11,7 +11,9 @@ describe("RecommendationsController", () => {
 		const home = {
 			cardsByIds: vi.fn().mockResolvedValue([{ id: "album-id", type: "album", title: "Album" }]),
 		};
-		const controller = new RecommendationsController(authService as never, recommendations as never, home as never);
+		const policy = { userId: "user-id" };
+		const access = { resolve: vi.fn().mockResolvedValue(policy) };
+		const controller = new RecommendationsController(authService as never, recommendations as never, home as never, access as never);
 
 		await expect(controller.musicRecommendations("Bearer token")).resolves.toEqual({
 			enabled: true,
@@ -21,6 +23,7 @@ describe("RecommendationsController", () => {
 			limit: 20,
 			filters: { types: ["album"] },
 		});
-		expect(home.cardsByIds).toHaveBeenCalledWith(["album-id"]);
+		expect(access.resolve).toHaveBeenCalledOnce();
+		expect(home.cardsByIds).toHaveBeenCalledWith(["album-id"], policy);
 	});
 });

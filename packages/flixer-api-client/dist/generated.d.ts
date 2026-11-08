@@ -2369,7 +2369,7 @@ export interface ApiSocialFriendsServiceFriendPerson {
     avatarUrl: null | string;
 }
 export interface ApiUpdatesUpdateServiceComponentStatus {
-    id: 'flixer' | 'web' | 'streamer' | 'indexer';
+    id: 'flixer' | 'web' | 'streamer' | 'indexer' | 'ai' | 'logger';
     label: string;
     installed: null | string;
     latest: null | string;

@@ -183,6 +183,7 @@ services:
             FLIXER_INTERNAL_TOKEN_FILE: /run/flixer-secrets/app-secret
             RECOMMENDER_PROFILE: ${RECOMMENDER_PROFILE:-auto}
             ALLOW_DOWNLOADS: ${AI_ALLOW_DOWNLOADS:-true}
+            SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/ai:/data/ai
             - flixer-secrets:/run/flixer-secrets:ro

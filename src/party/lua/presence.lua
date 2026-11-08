@@ -47,7 +47,7 @@ elseif action == 'renew' then
   end
 end
 -- Rebuild the public member list from the remaining live connections.
-local members = cjson.decode('[]')
+local members = {}
 local seen = {}
 for _, id in ipairs(redis.call('ZRANGE', presenceKey, 0, -1)) do
   local value = redis.call('HGET', peopleKey, id)
@@ -60,14 +60,13 @@ for _, id in ipairs(redis.call('ZRANGE', presenceKey, 0, -1)) do
   end
 end
 party.members = members
-redis.call('SET', stateKey, cjson.encode(party), 'EX', tonumber(partyTtlSeconds))
+redis.call('SET', stateKey, encodeParty(party), 'EX', tonumber(partyTtlSeconds))
 redis.call('EXPIRE', presenceKey, tonumber(partyTtlSeconds))
 redis.call('EXPIRE', peopleKey, tonumber(partyTtlSeconds))
-local message = {type='state', party=party, serverTime=now}
 -- Normal heartbeats stay quiet; joins, leaves, and sweeps broadcast state.
 if action ~= 'renew' then
-  redis.call('PUBLISH', eventsChannel, cjson.encode({partyId=party.id, message=message}))
+  redis.call('PUBLISH', eventsChannel, encodeStateEvent(party, now))
 elseif requestedAction == 'sweep' then
-  redis.call('PUBLISH', eventsChannel, cjson.encode({partyId=party.id, message=message}))
+  redis.call('PUBLISH', eventsChannel, encodeStateEvent(party, now))
 end
-return cjson.encode({party=party, serverTime=now})
+return encodeState(party, now)

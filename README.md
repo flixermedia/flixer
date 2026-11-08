@@ -121,6 +121,13 @@ diagnostics.
 
 The Logger repository publishes its container image to
 `ghcr.io/flixermedia/flixer-logger`; `LOGGER_VERSION` can pin another tag.
+The updater detects the bundled Logger using `FLIXER_LOGGER_LOCAL_ENDPOINT`
+(or the local owner bootstrap's loopback default), not an independently
+configured external Logger. AI and Logger updates require published stable
+GitHub releases and matching numeric container image tags.
+When GitHub's API rate limit is reached, release checks use the public latest
+release redirect; unavailable releases remain unknown rather than being inferred
+from the running version.
 `DATA_DIR/logs/logger` is private Logger-owned storage. Back up this directory
 with `docker compose kill -s USR1 logger` and copy the resulting checkpoint
 from `DATA_DIR/logs/logger/checkpoints`, or stop Logger before copying the

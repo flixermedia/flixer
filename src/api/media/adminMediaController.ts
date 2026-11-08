@@ -119,6 +119,12 @@ export class AdminMediaController {
 		return this.media.get(this.requireId(id));
 	}
 
+	@Get("/items/:id/match-conflicts")
+	async matchConflicts(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return { items: await this.media.matchConflicts(this.requireId(id)) };
+	}
+
 	@Patch("/items/:id")
 	async update(
 		@PathParams("id") id: string,

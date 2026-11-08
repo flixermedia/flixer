@@ -169,6 +169,9 @@ set_managed_env "$ROOT/flixer-ai/.env" DATA_DIR "$ROOT/flixer-data"
 set_managed_env "$ROOT/flixer-ai/.env" MODELS_DIR "$ROOT/flixer-data/ai/models"
 set_managed_env "$ROOT/flixer-ai/.env" FLIXER_URL http://127.0.0.1:8083
 set_managed_env "$ROOT/flixer-ai/.env" FLIXER_INTERNAL_TOKEN_FILE "$HOME/.flixer-run/app-secret"
+if ! grep -q '^UPDATER_URL=' "$ROOT/flixer/.env"; then
+  printf 'UPDATER_URL=http://127.0.0.1:8093\n' >> "$ROOT/flixer/.env"
+fi
 
 cat > "$HOME/bin/flixer-stack" <<'EOS'
 #!/usr/bin/env bash
@@ -177,7 +180,7 @@ set -uo pipefail
 ROOT="$HOME/projects"
 RUN="$HOME/.flixer-run"
 mkdir -p "$RUN"
-SERVICES="logger api streamer indexer ai web docs"
+SERVICES="logger api streamer indexer ai updater web docs"
 
 command_for() {
   case "$1" in
@@ -186,6 +189,7 @@ command_for() {
     streamer) echo "$ROOT/flixer-streamer|go run ./cmd/flixer-streamer" ;;
     indexer) echo "$ROOT/flixer-indexer|go run ./cmd/flixer-indexer" ;;
     ai) echo "$ROOT/flixer-ai|$ROOT/flixer-ai/.venv/bin/uvicorn flixer_ai.main:app --host 127.0.0.1 --port 8094" ;;
+    updater) echo "$ROOT/flixer-updater|go run ./cmd/flixer-updater" ;;
     web) echo "$ROOT/flixer-web|npm run dev -- --port 5175" ;;
     docs) echo "$ROOT/flixer-docs|npm start -- --host 0.0.0.0 --port 3000 --no-open" ;;
   esac
@@ -198,6 +202,7 @@ match_for() {
     streamer) echo 'go run|go-build|flixer-streamer' ;;
     indexer) echo 'go run|go-build|flixer-indexer' ;;
     ai) echo 'uvicorn flixer_ai.main:app|python.*flixer_ai.main' ;;
+    updater) echo 'go run|go-build|flixer-updater' ;;
     web) echo 'npm run dev|vite' ;;
     docs) echo 'npm start|docusaurus' ;;
   esac
@@ -228,7 +233,7 @@ build_logger() {
   fi
   hash="$(
     cd "$dir" || exit 1
-    { go version; printf '%s\n' "${GOFLAGS:-}"; sha256sum go.mod go.sum; find cmd internal pkg -type f -name '*.go' -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | cut -d' ' -f1
+    { go version; printf '%s\n' "${GOFLAGS:-}"; sha256sum go.mod go.sum internal/httpapi/VERSION; find cmd internal pkg -type f -name '*.go' -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | cut -d' ' -f1
   )" || return 1
   if [ -x "$RUN/flixer-logger" ] && [ -f "$RUN/logger-build-hash" ] && [ "$(cat "$RUN/logger-build-hash")" = "$hash" ]; then
     return 0
@@ -266,7 +271,7 @@ start_one() {
   if [ "$1" = logger ]; then
     build_logger || return 1
     mkdir -p -m 700 "$RUN/logger" || return 1
-    (cd "$dir" && setsid "$RUN/flixer-logger" --data-dir "$ROOT/flixer-data" --bootstrap-owner-file "$RUN/logger/owner-token" --listen 127.0.0.1:8098 2>&1 | sed -u 's/^/[logger] /' >> /proc/1/fd/1 &)
+    (cd "$dir" && FLIXER_URL=http://127.0.0.1:8083 setsid "$RUN/flixer-logger" --data-dir "$ROOT/flixer-data" --bootstrap-owner-file "$RUN/logger/owner-token" --listen 127.0.0.1:8098 2>&1 | sed -u 's/^/[logger] /' >> /proc/1/fd/1 &)
     echo "started logger (diagnostics go to the workspace supervisor)"
     return
   fi
@@ -280,7 +285,13 @@ start_one() {
   # Own session/process group so stop can take down npm/go and their children together.
   if [ "$1" = ai ]; then
     # The AI service loads its shared token at startup; wait for the API to publish the current secret.
-    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; while [ ! -s \"\$APP_SECRET_FILE\" ]; do sleep 1; done; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; export FLIXER_DEVELOPMENT_BUILD=true; while [ ! -s \"\$APP_SECRET_FILE\" ]; do sleep 1; done; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
+  elif [ "$1" = updater ]; then
+    (cd "$dir" && UPDATER_MODE=development SENTRY_ENVIRONMENT=development LISTEN_HOST=127.0.0.1 PORT=8093 DATA_PATH="$ROOT/flixer-data" STATE_DIR="$ROOT/flixer-data/updater-state" FLIXER_URL=http://127.0.0.1:8083 STREAM_TOKEN_SECRET_FILE="$APP_SECRET_FILE" setsid bash -c 'while [ ! -s "$STREAM_TOKEN_SECRET_FILE" ]; do sleep 1; done; exec go run ./cmd/flixer-updater' 2>&1 | sed -u 's/^/[updater] /' >> /proc/1/fd/1 &)
+  elif [ "$1" = streamer ] || [ "$1" = indexer ]; then
+    (cd "$dir" && setsid bash -c 'set -a; [ -f .env ] && . ./.env; set +a; version=$(tr -d "[:space:]" < VERSION) || exit 1; [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid VERSION" >&2; exit 1; }; export APP_VERSION="$version-dev"; exec go run ./cmd/flixer-'"$1" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
+  elif [ "$1" = api ]; then
+    (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; export FLIXER_DEVELOPMENT_BUILD=true; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
   else
     (cd "$dir" && setsid bash -c "set -a; [ -f .env ] && . ./.env; set +a; exec $cmd" 2>&1 | sed -u "s/^/[$1] /" >> /proc/1/fd/1 &)
   fi
@@ -316,8 +327,9 @@ each_parallel() {
 
 # Reads supervisor-managed output; service prefixes allow a single service to be selected.
 tail_logs() {
-  local s pattern lines="${LOG_LINES:-20}"
+  local s pattern context lines="${LOG_LINES:-20}"
   local container="${WORKSPACE_CONTAINER_NAME:-}"
+  local -a docker_command=(docker)
   if [ -z "$container" ]; then
     echo "workspace container name is unavailable; cannot read supervisor output" >&2
     return 1
@@ -326,8 +338,18 @@ tail_logs() {
     echo "LOG_LINES must be a non-negative integer" >&2
     return 2
   fi
+  if [ -z "${DOCKER_HOST:-}" ] && [ -z "${DOCKER_CONTEXT:-}" ] && [ -S /var/run/docker.sock ] && [ ! -w /var/run/docker.sock ]; then
+    context="$(docker context show)" || return 1
+    if [ "$context" = default ]; then
+      if ! sudo -n true; then
+        echo "Docker socket is not writable and passwordless sudo is unavailable; cannot read supervisor output" >&2
+        return 1
+      fi
+      docker_command=(sudo -n docker --host unix:///var/run/docker.sock)
+    fi
+  fi
   if [ "$#" -eq 0 ] || [ "$1" = all ]; then
-    docker logs --tail "$lines" --follow "$container"
+    "${docker_command[@]}" logs --tail "$lines" --follow "$container"
     return
   fi
   for s in "$@"; do
@@ -337,7 +359,7 @@ tail_logs() {
     esac
   done
   pattern="$(printf '%s\n' "$@" | paste -sd'|' -)"
-  docker logs --tail "$lines" --follow "$container" | grep --line-buffered -E "^\[($pattern)\] "
+  "${docker_command[@]}" logs --tail "$lines" --follow "$container" | grep --line-buffered -E "^\[($pattern)\] "
 }
 
 targets() { if [ "$#" -eq 0 ] || [ "$1" = all ]; then echo $SERVICES; else echo "$@"; fi; }
@@ -350,6 +372,8 @@ case "${1:-status}" in
     if is_running "$s"; then
       if [ "$s" = logger ]; then
         if curl -fsS --max-time 2 http://127.0.0.1:8098/api/health/ready >/dev/null; then echo "logger: ready"; else echo "logger: running, not ready"; fi
+      elif [ "$s" = updater ]; then
+        if curl -fsS --max-time 2 http://127.0.0.1:8093/health >/dev/null; then echo "updater: ready (development mode)"; else echo "updater: running, not ready"; fi
       else echo "$s: running"; fi
     else echo "$s: stopped"; fi
   done ;;

@@ -5,6 +5,21 @@ import type { MediaItem } from "../../entities/mediaItem.entity.js";
 import { AdminMediaService } from "./adminMediaService.js";
 
 describe("AdminMediaService", () => {
+	it("finds matching source conflicts only within the item's library and type", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			type: "series",
+			providerIds: { tmdb: "42" },
+		} as MediaItem;
+		const query = vi.fn().mockResolvedValue([{ id: "other", title: "Other", path: "/tv/Other", providers: ["tmdb"] }]);
+		const dataSource = { getRepository: () => ({ findOneBy: vi.fn().mockResolvedValue(item) }), query } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, {} as IndexerClient);
+		await expect(service.matchConflicts(item.id)).resolves.toEqual([{ id: "other", title: "Other", path: "/tv/Other", providers: ["tmdb"] }]);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("other.library_id = $1 AND other.type = $2"), [item.libraryId, item.type, item.id, '{"tmdb":"42"}']);
+		expect(query.mock.calls[0]?.[0]).toContain("NOT other.is_placeholder");
+	});
+
 	it("shows the most-watched 13 items per section on the unfiltered overview", async () => {
 		const query = vi.fn().mockResolvedValue([
 			{

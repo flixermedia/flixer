@@ -6,7 +6,7 @@ import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 
-const DEFAULT_UPDATER_URL = "http://updater:8093";
+const DEFAULT_UPDATER_URL = "http://flixer-updater:8093";
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 /** Must match the updater: hex(HMAC-SHA256(secret, "flixer-updater-token")). */

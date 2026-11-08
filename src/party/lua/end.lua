@@ -20,4 +20,4 @@ if redis.call('GET', hostKey) == party.id then redis.call('DEL', hostKey) end
 if redis.call('GET', usernameKey) == party.id then redis.call('DEL', usernameKey) end
 redis.call('SREM', activePartiesKey, party.id)
 redis.call('DEL', stateKey, presenceKey, peopleKey)
-return cjson.encode({party=party})
+return '{"party":' .. encodeParty(party) .. '}'

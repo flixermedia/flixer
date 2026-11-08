@@ -5,6 +5,7 @@ import { defaultAlterLog } from "@tsed/platform-log-request";
 export function isLoggerManagementPath(url: string): boolean {
 	const path = url.split("?")[0];
 	return path === "/api/admin/logger" || path.startsWith("/api/admin/logger/") ||
+		path === "/api/logs/web" || path === "/api/logs/web/" ||
 		path === "/api/internal/ai/logger-configuration" ||
 		path === "/api/internal/logger" || path.startsWith("/api/internal/logger/");
 }

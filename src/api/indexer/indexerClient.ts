@@ -1,10 +1,19 @@
-import { Injectable } from "@tsed/di";
+import { Injectable, logger } from "@tsed/di";
 import { Exception } from "@tsed/exceptions";
 import { appConfig } from "../../config/store/appConfig.js";
 import { signIndexerRequest } from "./indexerAuth.js";
 
 const DEFAULT_INDEXER_URL = "http://localhost:8092";
 const REQUEST_TIMEOUT_MS = 15_000;
+
+function imageConnectionFailure(error: unknown, timedOut: boolean): string {
+	if (timedOut) return "timeout";
+	const cause = error instanceof Error ? error.cause : undefined;
+	const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
+	return typeof code === "string" && /^(ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)$/.test(code)
+		? code
+		: "unknown";
+}
 
 export interface IndexerRequestOptions {
 	query?: Record<string, string | number | undefined>;
@@ -83,15 +92,18 @@ export class IndexerClient {
 	async fetchImage(path: string): Promise<{ data: Buffer; contentType: string }> {
 		const body = Buffer.from(JSON.stringify({ path }));
 		const url = new URL(`${this.baseUrl()}/internal/image`);
+		const headers = { ...signIndexerRequest("POST", url.pathname, body), "content-type": "application/json" };
+		const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 		let response: Response;
 		try {
 			response = await fetch(url, {
 				method: "POST",
-				headers: { ...signIndexerRequest("POST", url.pathname, body), "content-type": "application/json" },
+				headers,
 				body,
-				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+				signal,
 			});
-		} catch {
+		} catch (error) {
+			logger().warn(`Indexer artwork request failed: ${imageConnectionFailure(error, signal.aborted)}.`);
 			throw new Exception(503, "flixer-indexer is not reachable.");
 		}
 		if (!response.ok) {

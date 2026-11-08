@@ -54,6 +54,8 @@ function retryAfter(value: string | null): number {
 
 /** Bounded asynchronous delivery; the normal Ts.ED appenders remain unchanged. */
 export class LoggerExporter {
+	constructor(private readonly app: "flixer" | "flixer-web" = "flixer") {}
+
 	private configuration?: Configuration;
 	private queue: ExportEvent[] = [];
 	private timer?: ReturnType<typeof setTimeout>;
@@ -135,7 +137,7 @@ export class LoggerExporter {
 			time: record.time,
 			level: record.level,
 			instance_id: instanceId,
-			app: "flixer",
+			app: this.app,
 			source: redact(record.source).slice(0, 256),
 			message: redact(record.message).slice(0, 4000) || "(empty log message)",
 			event: identifier(record.event),
@@ -328,3 +330,4 @@ export class LoggerExporter {
 }
 
 export const loggerExporter = new LoggerExporter();
+export const webLoggerExporter = new LoggerExporter("flixer-web");

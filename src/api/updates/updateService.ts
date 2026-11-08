@@ -4,6 +4,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { DataSource, IsNull } from "typeorm";
 import { version as flixerVersion } from "../../config/config.js";
+import { runtimeVersion } from "../../config/runtimeVersion.js";
 import { dataPath } from "../../config/dataPath.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
@@ -21,6 +22,8 @@ const COMPONENTS = [
 	{ id: "web", label: "Web", repo: "flixermedia/flixer-web" },
 	{ id: "streamer", label: "Streamer", repo: "flixermedia/flixer-streamer" },
 	{ id: "indexer", label: "Indexer", repo: "flixermedia/flixer-indexer" },
+	{ id: "ai", label: "AI", repo: "flixermedia/flixer-ai" },
+	{ id: "logger", label: "Logger", repo: "flixermedia/flixer-logger" },
 ] as const;
 export type ComponentId = (typeof COMPONENTS)[number]["id"];
 
@@ -61,6 +64,7 @@ export interface UpdateStatus {
 	lastCheckedAt: string | null;
 	canApply: boolean;
 	updaterReachable: boolean;
+	updaterMode: "compose" | "development" | null;
 	run: UpdateRun | null;
 	backups: Array<{ name: string; sizeBytes: number; createdAt: string }>;
 }
@@ -132,8 +136,9 @@ export class UpdateService {
 			components,
 			updatesAvailable: components.filter((component) => component.updateAvailable).length,
 			lastCheckedAt: state.lastCheckedAt,
-			canApply: this.updater.token() !== undefined,
+			canApply: this.updater.token() !== undefined && updaterState?.mode !== "development",
 			updaterReachable: updaterState !== null,
+			updaterMode: updaterState?.mode ?? null,
 			run: updaterState?.run ?? null,
 			backups: await this.listBackups(),
 		};
@@ -148,6 +153,9 @@ export class UpdateService {
 		if (!status.updaterReachable) {
 			throw new BadRequest("The updater is not reachable. Check that the flixer-updater container is running.");
 		}
+		if (status.updaterMode === "development") {
+			throw new BadRequest("Native development checkouts cannot be updated by the Compose updater.");
+		}
 		if (status.run?.status === "running") {
 			throw new Conflict("An update is already in progress.");
 		}
@@ -156,7 +164,10 @@ export class UpdateService {
 			throw new BadRequest("Everything is already up to date.");
 		}
 		const targets = Object.fromEntries(outdated.map((component) => [component.id, component.latest as string]));
-		const current = Object.fromEntries(status.components.filter((component) => component.installed).map((component) => [component.id, component.installed as string]));
+		const current = Object.fromEntries(status.components.flatMap((component) => {
+			const parsed = parseVersion(component.installed);
+			return parsed ? [[component.id, parsed.join(".")]] : [];
+		}));
 		logger().info(`Starting update: ${outdated.map((component) => `${component.id} ${component.installed} -> ${component.latest}`).join(", ")}.`);
 		const databaseUrl = appConfig().get("databaseUrl");
 		if (!databaseUrl) {
@@ -174,7 +185,7 @@ export class UpdateService {
 	}
 
 	/** The latest run as the updater reports it, or null when the updater is not configured or not reachable. */
-	private async updaterStatus(): Promise<{ run: UpdateRun | null } | null> {
+	private async updaterStatus(): Promise<{ run: UpdateRun | null; mode: "compose" | "development" } | null> {
 		if (!this.updater.token()) {
 			return null;
 		}
@@ -183,9 +194,9 @@ export class UpdateService {
 			if (!response.ok) {
 				return null;
 			}
-			const body = (await response.json()) as { state?: { run?: (UpdateRun & { kind?: string }) | null } };
+			const body = (await response.json()) as { mode?: string; state?: { run?: (UpdateRun & { kind?: string }) | null } };
 			const run = body.state?.run ?? null;
-			return { run: run && (run.kind === undefined || run.kind === "update") ? run : null };
+			return { run: run && (run.kind === undefined || run.kind === "update") ? run : null, mode: body.mode === "development" ? "development" : "compose" };
 		} catch {
 			return null;
 		}
@@ -238,14 +249,21 @@ export class UpdateService {
 				return undefined;
 			}
 		};
-		const [web, streamer, indexer] = await Promise.all([
+		const aiUrl = config.get("aiUrl")?.replace(/\/+$/, "");
+		const loggerUrl = (
+			process.env.FLIXER_LOGGER_LOCAL_ENDPOINT?.trim() ||
+			(process.env.FLIXER_LOGGER_LOCAL_OWNER_FILE?.trim() ? "http://127.0.0.1:8098" : "")
+		).replace(/\/+$/, "");
+		const [web, streamer, indexer, ai, loggerVersion] = await Promise.all([
 			read(`${webUrl}/version.json`),
 			config.get("streamerInternalUrl")
 				? read(`${config.get("streamerInternalUrl")!.replace(/\/+$/, "")}/streamer/healthz`)
 				: Promise.resolve(undefined),
 			read(`${config.get("indexerUrl")}/health`),
+			aiUrl ? read(`${aiUrl}/healthz`) : Promise.resolve(undefined),
+			loggerUrl ? read(`${loggerUrl}/api/health/live`) : Promise.resolve(undefined),
 		]);
-		return { flixer: flixerVersion, ...(web ? { web } : {}), ...(streamer ? { streamer } : {}), ...(indexer ? { indexer } : {}) };
+		return { flixer: runtimeVersion(), ...(web ? { web } : {}), ...(streamer ? { streamer } : {}), ...(indexer ? { indexer } : {}), ...(ai ? { ai } : {}), ...(loggerVersion ? { logger: loggerVersion } : {}) };
 	}
 
 	private async latestVersions(force: boolean): Promise<Partial<Record<ComponentId, string>>> {
@@ -260,18 +278,55 @@ export class UpdateService {
 						headers: { accept: "application/vnd.github+json", "user-agent": `flixer/${flixerVersion}` },
 						signal: AbortSignal.timeout(8_000),
 					});
-					const parsed = parseVersion(((await response.json()) as { tag_name?: string }).tag_name);
-					if (response.ok && parsed) {
+					if (response.status === 429 || (response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0")) {
+						const fallback = await fetch(`https://github.com/${component.repo}/releases/latest`, {
+							redirect: "manual",
+							headers: { "user-agent": `flixer/${flixerVersion}` },
+							signal: AbortSignal.timeout(8_000),
+						});
+						const location = fallback.headers.get("location");
+						if (fallback.status !== 302 || !location) {
+							throw new Error(`release redirect returned status ${fallback.status}`);
+						}
+						const target = new URL(location, "https://github.com");
+						const base = `/${component.repo}/releases`;
+						if (target.origin !== "https://github.com" || target.search || target.hash) {
+							throw new Error("invalid release redirect");
+						}
+						if (target.pathname === base) {
+							return;
+						}
+						const prefix = `${base}/tag/`;
+						if (!target.pathname.startsWith(prefix)) {
+							throw new Error("invalid release redirect");
+						}
+						const parsed = parseVersion(target.pathname.slice(prefix.length));
+						if (!parsed) {
+							throw new Error("invalid release version");
+						}
 						versions[component.id] = parsed.join(".");
+						return;
 					}
-				} catch {
-					// An unreachable GitHub just means no update information for this component.
+					if (response.status === 404) {
+						return;
+					}
+					if (!response.ok) {
+						throw new Error(`GitHub returned status ${response.status}`);
+					}
+					const parsed = parseVersion(((await response.json()) as { tag_name?: string }).tag_name);
+					if (!parsed) {
+						throw new Error("invalid release version");
+					}
+					versions[component.id] = parsed.join(".");
+				} catch (error) {
+					logger().warn(`Could not check the latest ${component.label} release.`, error);
+					const cached = this.latestCache?.versions[component.id];
+					if (cached) {
+						versions[component.id] = cached;
+					}
 				}
 			}),
 		);
-		if (Object.keys(versions).length === 0 && this.latestCache) {
-			return this.latestCache.versions;
-		}
 		this.latestCache = { at: Date.now(), versions };
 		await this.writeState({ ...(await this.readState()), lastCheckedAt: new Date().toISOString() });
 		return versions;

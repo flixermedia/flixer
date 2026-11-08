@@ -55,9 +55,13 @@ export class MediaLibrariesService {
 			name: library.name,
 			type: library.type,
 			imageStorage: library.imageStorage,
-			folders: library.folders.flatMap((folder) => {
+			folders: library.folders.map((folder) => {
 				const root = roots.find((entry) => entry.id === folder.rootId);
-				return root ? [{ rootId: folder.rootId, path: folder.path, absolutePath: join(root.path, ...parseRelativePath(folder.path)) }] : [];
+				return {
+					rootId: folder.rootId,
+					path: folder.path,
+					absolutePath: root ? join(root.path, ...parseRelativePath(folder.path)) : "",
+				};
 			}),
 		}));
 	}

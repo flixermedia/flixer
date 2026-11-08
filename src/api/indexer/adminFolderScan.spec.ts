@@ -9,6 +9,8 @@ import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.j
 import { AdminIndexerController } from "./adminIndexerController.js";
 import { AdminIndexerService } from "./adminIndexerService.js";
 import { IndexerClient } from "./indexerClient.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { NetworkSharesService } from "../networkShares/networkSharesService.js";
 
 @Configuration({})
 class TestServer {}
@@ -30,6 +32,8 @@ describe("folder scan endpoint", () => {
 				{ token: AuthService, use: auth }, { token: MediaLibrariesService, use: libraries },
 				{ token: IndexerClient, use: indexer }, { token: LiveService, use: live },
 				{ token: AdminIndexerService, use: {} },
+				{ token: DefaultDataSource, use: {} },
+				{ token: NetworkSharesService, use: { $onInit: vi.fn(), $onDestroy: vi.fn() } },
 			],
 		});
 		await platform.listen(false);

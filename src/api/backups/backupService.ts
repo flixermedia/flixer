@@ -182,7 +182,7 @@ export class BackupService {
 		const run = updaterRun.run?.kind === "restore" ? updaterRun.run : this.lastRun ? structuredClone(this.lastRun) : null;
 		return {
 			updaterReachable: updaterRun.reachable,
-			canRestore: updaterRun.reachable && this.updater.token() !== undefined,
+			canRestore: updaterRun.reachable && updaterRun.mode !== "development" && this.updater.token() !== undefined,
 			passphraseSet: (await this.readPassphrase()) !== undefined,
 			schedule: await this.schedule(),
 			keep: await this.keep(),
@@ -377,7 +377,7 @@ export class BackupService {
 	}
 
 	/** The updater's current run, if it can be reached. Unreachable is a normal answer, not an error. */
-	private async updaterRun(): Promise<{ reachable: boolean; run: BackupRun | null }> {
+	private async updaterRun(): Promise<{ reachable: boolean; run: BackupRun | null; mode?: string }> {
 		if (!this.updater.token()) {
 			return { reachable: false, run: null };
 		}
@@ -386,8 +386,8 @@ export class BackupService {
 			if (!response.ok) {
 				return { reachable: false, run: null };
 			}
-			const run = ((await response.json()) as { state?: { run?: BackupRun | null } }).state?.run ?? null;
-			return { reachable: true, run };
+			const body = (await response.json()) as { mode?: string; state?: { run?: BackupRun | null } };
+			return { reachable: true, run: body.state?.run ?? null, mode: body.mode };
 		} catch {
 			return { reachable: false, run: null };
 		}

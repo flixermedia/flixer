@@ -19,7 +19,7 @@ local command = cjson.decode(commandJson)
 -- Retried command IDs are idempotent and do not consume the rate limit.
 if party.lastCommandId == command.commandId then
   local time = redis.call('TIME')
-  return cjson.encode({party=party, serverTime=(tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000)})
+  return encodeState(party, (tonumber(time[1]) * 1000) + math.floor(tonumber(time[2]) / 1000))
 end
 local count = redis.call('INCR', rateLimitKey)
 if count == 1 then redis.call('EXPIRE', rateLimitKey, 5) end
@@ -62,7 +62,6 @@ party.position = position
 party.at = now + delay
 party.version = (tonumber(party.version) or 0) + 1
 party.lastCommandId = command.commandId
-redis.call('SET', stateKey, cjson.encode(party), 'EX', tonumber(partyTtlSeconds))
-local message = {type='state', party=party, serverTime=now}
-redis.call('PUBLISH', eventsChannel, cjson.encode({partyId=party.id, message=message}))
-return cjson.encode({party=party, serverTime=now})
+redis.call('SET', stateKey, encodeParty(party), 'EX', tonumber(partyTtlSeconds))
+redis.call('PUBLISH', eventsChannel, encodeStateEvent(party, now))
+return encodeState(party, now)
