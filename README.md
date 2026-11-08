@@ -47,6 +47,8 @@ curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh 
 
 Supported install targets described by the project are macOS and Debian/Ubuntu Linux. The installer configures Docker and Compose, prompts for directories and port, and launches onboarding at `http://localhost:8080` by default. Quick setup uses the bundled Redis service; advanced setup configures Redis before connecting the database.
 
+New macOS installations keep the rebuildable Meilisearch index in the `meilisearch-data` Docker volume to avoid Docker Desktop bind-mount filesystem issues. Existing installations retain their current storage. Back up the volume if you need to preserve the index; `docker compose down -v` removes it.
+
 ### Manual Docker Compose
 
 ```bash

@@ -1,6 +1,6 @@
 {
 	"name": "flixer",
-	"version": "1.13.3",
+	"version": "1.13.4",
 	"description": "",
 	"scripts": {
 		"build": "npm run barrels && tsed build",

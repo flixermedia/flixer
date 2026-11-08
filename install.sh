@@ -240,6 +240,7 @@ if $write_env; then
             echo "MEDIA_PATH=$MEDIA_PATH"
             echo "HTTP_PORT=$HTTP_PORT"
             echo "PROJECT_DIR=$INSTALL_DIR"
+            [ "$PLATFORM" = mac ] && echo "MEILISEARCH_STORAGE=meilisearch-data"
             [ -n "$FLIXER_VERSION_PIN" ] && echo "FLIXER_VERSION=$FLIXER_VERSION_PIN"
             if $USE_SMB; then
                 echo "COMPOSE_FILE=docker-compose.yml:docker-compose.smb-volume.yml"
@@ -270,7 +271,8 @@ cd "$INSTALL_DIR"
 info "Waiting for Flixer to become healthy"
 URL="http://localhost:$HTTP_PORT"
 for _ in $(seq 1 90); do
-    if curl -fsS "$URL/healthz" >/dev/null 2>&1 && curl -fsS "$URL/api/setup/status" >/dev/null 2>&1; then
+    if curl -fsS "$URL/healthz" >/dev/null 2>&1 && curl -fsS "$URL/api/setup/status" >/dev/null 2>&1 \
+        && "${DOCKER[@]}" compose exec -T meilisearch curl -fsS http://127.0.0.1:7700/health >/dev/null 2>&1; then
         printf '\n%sFlixer is running!%s\n  Open %s to create your admin account.\n' "$G$B" "$N" "$URL"
         printf '  Manage:  cd %s && docker compose logs -f | down | pull\n' "$INSTALL_DIR"
         printf '  If the database is ever lost, check "docker compose logs api" for a recovery code.\n\n'
