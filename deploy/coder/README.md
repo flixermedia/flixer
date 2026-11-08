@@ -44,14 +44,15 @@ coder templates push flixer-dev --directory .
 ```
 
 By default the workspace image is built from `build/` on the provisioner host. Terraform hides the build output, so if
-that build hangs, run `docker buildx build --progress=plain deploy/coder/build` on the provisioner host to see which step
-stalls. To skip the build, publish the image once (from `deploy/coder`, after `docker login ghcr.io`; the package must be
-public or pullable by the provisioner host) and set the `workspace_image` template variable to it:
+that build hangs, run `docker buildx build --progress=plain build` from `deploy/coder` on the provisioner host to see
+which step stalls.
 
-```sh
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/flixermedia/coder-flixer-workspace:latest --push build
-```
+The **Publish Coder workspace image** GitHub Actions workflow publishes `ghcr.io/flixermedia/coder-flixer-workspace`
+for `linux/amd64` and `linux/arm64` when the image build files change on `main`; it can also be run manually from
+Actions on `main`. It publishes both `latest` and a tag matching the source commit SHA. To skip the provisioner build,
+set the `workspace_image` template variable to one of these tags. The package must be public or pullable by the
+provisioner host. A mutable `latest` tag does not automatically update an existing Terraform image resource; use a new
+commit SHA tag to select a new image.
 
 Then create a workspace from `flixer-dev`. On every start it clones the repos into `~/projects`, writes a `.env`
 in each (random `JWT_SECRET`/`APP_SECRET`, wired to the local Postgres/Redis/Meilisearch), runs `npm ci` / `go mod download`
