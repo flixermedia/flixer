@@ -270,7 +270,7 @@ cd "$INSTALL_DIR"
 info "Waiting for Flixer to become healthy"
 URL="http://localhost:$HTTP_PORT"
 for _ in $(seq 1 90); do
-    if curl -fsS "$URL/healthz" >/dev/null 2>&1; then
+    if curl -fsS "$URL/healthz" >/dev/null 2>&1 && curl -fsS "$URL/api/setup/status" >/dev/null 2>&1; then
         printf '\n%sFlixer is running!%s\n  Open %s to create your admin account.\n' "$G$B" "$N" "$URL"
         printf '  Manage:  cd %s && docker compose logs -f | down | pull\n' "$INSTALL_DIR"
         printf '  If the database is ever lost, check "docker compose logs api" for a recovery code.\n\n'

@@ -177,6 +177,9 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 			if (typeof flow !== "string" || !FLOWS.has(flow)) {
 				throw new SetupError(400, "flow must be quick or advanced.");
 			}
+			if (flow === "quick" && !appConfig().get("redisUrl")) {
+				store.setMany({ redisUrl: suggestedRedisUrl() });
+			}
 			store.setWizardProgress({ ...store.wizardProgress(), flow: flow as "quick" | "advanced" });
 			markStarted();
 			return ok({ flow });

@@ -45,7 +45,7 @@ Review the installer before execution, then run:
 curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
 ```
 
-Supported install targets described by the project are macOS and Debian/Ubuntu Linux. The installer configures Docker and Compose, prompts for directories and port, and launches onboarding at `http://localhost:8080` by default.
+Supported install targets described by the project are macOS and Debian/Ubuntu Linux. The installer configures Docker and Compose, prompts for directories and port, and launches onboarding at `http://localhost:8080` by default. Quick setup uses the bundled Redis service; advanced setup configures Redis before connecting the database.
 
 ### Manual Docker Compose
 

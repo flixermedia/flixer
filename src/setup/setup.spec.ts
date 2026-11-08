@@ -141,6 +141,28 @@ describe("setup api", () => {
 		expect(store.wizardProgress().completedSteps).toEqual(["database"]);
 	});
 
+	it("configures Redis before the database starts the application in quick setup", async () => {
+		expect((await call("POST", "/flow", { flow: "quick" }))?.status).toBe(200);
+		expect(store.get("redisUrl")).toBe(suggestedRedisUrl());
+		expect((await call("POST", "/steps/database", { databaseUrl: "postgres://db:5432/flixer" }))?.status).toBe(200);
+		expect(appConfig().get("redisUrl")).toBe(suggestedRedisUrl());
+	});
+
+	it("preserves configured Redis and does not choose it for advanced setup", async () => {
+		expect((await call("POST", "/flow", { flow: "advanced" }))?.status).toBe(200);
+		expect(store.has("redisUrl")).toBe(false);
+		store.setMany({ redisUrl: "redis://custom:6379" });
+		expect((await call("POST", "/flow", { flow: "quick" }))?.status).toBe(200);
+		expect(store.get("redisUrl")).toBe("redis://custom:6379");
+	});
+
+	it("does not replace Redis configured through the environment in quick setup", async () => {
+		process.env.REDIS_URL = "redis://env-redis:6379";
+		expect((await call("POST", "/flow", { flow: "quick" }))?.status).toBe(200);
+		expect(store.has("redisUrl")).toBe(false);
+		expect(appConfig().get("redisUrl")).toBe("redis://env-redis:6379");
+	});
+
 	it("tests a step without saving it", async () => {
 		const response = await call("POST", "/steps/redis/test", { redisUrl: "redis://bad:6379" });
 		expect(response).toEqual({ status: 200, body: { ok: false, message: "refused" } });
