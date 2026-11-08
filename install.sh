@@ -5,8 +5,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash -s -- --yes --dir ~/flixer
 #
 # Options:
-#   --fresh            install into a new directory (never replace an installation)
+#   --fresh            install fresh; existing data is moved to a backup after confirmation
 #   --update           update an existing installation without changing its configuration
+#   --confirm-reset    explicitly authorize a fresh reset without an interactive prompt
 #   --dir <path>       install directory (default ~/flixer)
 #   --data <path>      data folder (default <dir>/data)
 #   --media <path>     media folder (default <dir>/media)
@@ -28,6 +29,8 @@ INSTALL_DIR="${FLIXER_DIR:-$HOME/flixer}"
 DATA_DIR="${FLIXER_DATA_PATH:-}"
 MEDIA_PATH="${FLIXER_MEDIA_PATH:-}"
 HTTP_PORT="${FLIXER_HTTP_PORT:-8080}"
+HTTP_PORT_CHOSEN=false
+[ -z "${FLIXER_HTTP_PORT+x}" ] || HTTP_PORT_CHOSEN=true
 FLIXER_VERSION_PIN="${FLIXER_VERSION:-}"
 SMB_HOST="${SMB_HOST:-}"
 SMB_SHARE="${SMB_SHARE:-}"
@@ -42,6 +45,10 @@ ENABLE_AI=true
 AI_EXPLICIT=false
 MODE=auto
 INSTALL_OPTIONS=false
+CONFIRM_RESET=false
+RESET_EXISTING=false
+RESET_PROJECT=""
+RESET_COMPOSE_FILE=""
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 info() { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
@@ -53,10 +60,11 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --fresh) [ "$MODE" != update ] || die "Choose either --fresh or --update."; MODE=fresh; shift ;;
         --update) [ "$MODE" != fresh ] || die "Choose either --fresh or --update."; MODE=update; shift ;;
+        --confirm-reset) CONFIRM_RESET=true; shift ;;
         --dir) INSTALL_DIR="${2:?}"; shift 2 ;;
         --data) DATA_DIR="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
         --media) MEDIA_PATH="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
-        --port) HTTP_PORT="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
+        --port) HTTP_PORT="${2:?}"; HTTP_PORT_CHOSEN=true; INSTALL_OPTIONS=true; shift 2 ;;
         --version) FLIXER_VERSION_PIN="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
         --ref) REF="${2:?}"; shift 2 ;;
         --ai) ENABLE_AI=true; AI_EXPLICIT=true; INSTALL_OPTIONS=true; shift ;;
@@ -70,7 +78,7 @@ while [ $# -gt 0 ]; do
         --yes | -y) ASSUME_YES=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --no-start) START=false; shift ;;
-        -h | --help) sed -n '2,26p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h | --help) sed -n '2,27p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "Unknown option: $1" ;;
     esac
 done
@@ -102,7 +110,6 @@ as_root() {
 }
 # shellcheck disable=SC2088 # the tilde is matched literally on purpose
 expand() { case "$1" in "~") printf '%s' "$HOME" ;; "~/"*) printf '%s' "$HOME/${1#\~/}" ;; *) printf '%s' "$1" ;; esac; }
-rand_hex() { LC_ALL=C tr -dc 'a-f0-9' </dev/urandom | head -c "${1:-32}"; }
 
 OS="$(uname -s)"
 case "$OS" in
@@ -217,12 +224,82 @@ if [ "$MODE" = update ]; then
     if $START; then "${COMPOSE[@]}" up -d; ok "Update applied."; else ok "Images pulled; the stack was not started."; fi
     exit 0
 fi
-[ ! -e "$INSTALL_DIR/.env" ] && [ ! -e "$INSTALL_DIR/docker-compose.yml" ] || die "An installation already exists in $INSTALL_DIR. Use --update or choose a different directory."
+if [ -e "$INSTALL_DIR/.env" ] || [ -e "$INSTALL_DIR/docker-compose.yml" ]; then
+    [ -f "$INSTALL_DIR/.env" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ] || die "Existing installation is incomplete; both .env and docker-compose.yml are required for a fresh reset."
+    RESET_EXISTING=true
+    for override in COMPOSE_PROJECT_NAME COMPOSE_FILE DATA_DIR MEDIA_PATH MEILISEARCH_STORAGE; do
+        if printenv "$override" >/dev/null; then
+            die "Unset exported $override before resetting; it could override the installation configuration."
+        fi
+    done
+    RESET_COMPOSE=("${DOCKER[@]}" compose)
+    if grep -Fq '"xCMD-SHELL"' "$INSTALL_DIR/docker-compose.yml"; then
+        if grep -Eq '^[[:space:]]*(export[[:space:]]+)?COMPOSE_FILE[[:space:]]*=' "$INSTALL_DIR/.env"; then
+            die "The existing Compose file has an invalid xCMD-SHELL healthcheck and uses a custom COMPOSE_FILE. Correct that healthcheck before resetting."
+        fi
+        RESET_COMPOSE_FILE=$(mktemp "$INSTALL_DIR/.flixer-reset-compose.XXXXXXXX")
+        trap 'rm -f "$RESET_COMPOSE_FILE"' EXIT
+        sed 's/"xCMD-SHELL"/"CMD-SHELL"/g' "$INSTALL_DIR/docker-compose.yml" >"$RESET_COMPOSE_FILE"
+        RESET_COMPOSE+=(-f "$RESET_COMPOSE_FILE")
+        warn "Using a temporary correction for the existing invalid Compose healthcheck."
+    fi
+    old_environment=$(cd "$INSTALL_DIR" && "${RESET_COMPOSE[@]}" config --environment) || die "Cannot inspect the existing Compose configuration; no reset was performed."
+    old_data=$(printf '%s\n' "$old_environment" | sed -n 's/^DATA_DIR=//p')
+    old_media=$(printf '%s\n' "$old_environment" | sed -n 's/^MEDIA_PATH=//p')
+    old_port=$(printf '%s\n' "$old_environment" | sed -n 's/^HTTP_PORT=//p')
+    if ! $HTTP_PORT_CHOSEN && [ -n "$old_port" ]; then HTTP_PORT=$old_port; fi
+    [ -n "$old_data" ] && [ -n "$old_media" ] || die "Cannot determine existing DATA_DIR and MEDIA_PATH safely."
+    [ -z "$DATA_DIR" ] || die "Do not change --data during a fresh reset; reset the existing installation first."
+    [ -z "$MEDIA_PATH" ] || die "Do not change --media during a fresh reset; reset the existing installation first."
+    case "$old_data" in /*) ;; *) old_data="$INSTALL_DIR/$old_data" ;; esac
+    case "$old_media" in /*) ;; *) old_media="$INSTALL_DIR/$old_media" ;; esac
+    [ -d "$old_data" ] && [ ! -L "$old_data" ] || die "Existing DATA_DIR must be an existing directory, not a symlink."
+    [ -d "$old_media" ] || die "Existing MEDIA_PATH must be an accessible directory for safety checks."
+    DATA_DIR=$(cd "$old_data" && pwd -P)
+    MEDIA_PATH=$(cd "$old_media" && pwd -P)
+    install_path=$(cd "$INSTALL_DIR" && pwd -P)
+    home_path=$(cd "$HOME" && pwd -P)
+    current_path=$(pwd -P)
+    case "$DATA_DIR" in /|"$home_path"|"$install_path") die "Refusing to reset a broad or installation directory." ;; esac
+    [ ! -e "$DATA_DIR/.git" ] || die "DATA_DIR is a repository root; refusing reset."
+    case "$install_path/" in "$DATA_DIR/"*) die "DATA_DIR contains the installation directory; refusing reset." ;; esac
+    case "$home_path/" in "$DATA_DIR/"*) die "DATA_DIR contains the home directory; refusing reset." ;; esac
+    case "$current_path/" in "$DATA_DIR/"*) die "DATA_DIR contains the current working directory; refusing reset." ;; esac
+    case "$MEDIA_PATH/" in "$DATA_DIR/"*) die "DATA_DIR contains MEDIA_PATH; refusing reset." ;; esac
+    case "$DATA_DIR/" in "$MEDIA_PATH/"*) die "DATA_DIR is inside MEDIA_PATH; refusing reset." ;; esac
+    if [ "$OS" = Linux ]; then
+        [ -r /proc/self/mountinfo ] || die "Cannot inspect mounted filesystems."
+        while read -r _ _ _ _ mount_path _; do
+            printf -v mount_path '%b' "$mount_path"
+            case "$mount_path/" in "$DATA_DIR/"*) die "DATA_DIR contains a mount point ($mount_path); refusing reset." ;; esac
+        done </proc/self/mountinfo
+    else
+        mounts=$(mount) || die "Cannot inspect mounted filesystems."
+        while IFS= read -r mount_line; do
+            case "$mount_line" in *" on "*" ("*) ;; *) die "Cannot parse mounted filesystems safely." ;; esac
+            mount_path=${mount_line#* on }
+            mount_path=${mount_path% (*}
+            case "$mount_path/" in "$DATA_DIR/"*) die "DATA_DIR contains a mount point ($mount_path); refusing reset." ;; esac
+        done <<EOF
+$mounts
+EOF
+    fi
+    backup="${DATA_DIR}.flixer-backup-$(date +%Y%m%d%H%M%S)-$(od -An -N 8 -tx1 /dev/urandom | tr -d ' \n')"
+    [ ! -e "$backup" ] && [ ! -L "$backup" ] || die "Backup destination already exists: $backup"
+    warn "Fresh reset will stop and remove the existing Compose containers, move $DATA_DIR to $backup, and create a new empty data directory."
+    warn "The backup includes the bundled PostgreSQL database and all Flixer data. Old named volumes and external databases remain unchanged. Media is not deleted."
+    if ! $CONFIRM_RESET && ! confirm "Proceed with this fresh reset?" n; then
+        die "Fresh reset not confirmed; no data was changed. Use --confirm-reset for unattended execution."
+    fi
+    RESET_PROJECT="flixer-reset-$(date +%s)-$(od -An -N 8 -tx1 /dev/urandom | tr -d ' \n')"
+fi
 DATA_DIR="$(expand "${DATA_DIR:-$INSTALL_DIR/data}")"
 MEDIA_PATH="$(expand "${MEDIA_PATH:-$INSTALL_DIR/media}")"
 if $CAN_PROMPT; then
-    DATA_DIR="$(expand "$(ask "Data folder (database, config, cache, avatars, logs and backups)" "$DATA_DIR")")"
-    MEDIA_PATH="$(expand "$(ask "Media folder (your movies and shows)" "$MEDIA_PATH")")"
+    if ! $RESET_EXISTING; then
+        DATA_DIR="$(expand "$(ask "Data folder (database, config, cache, avatars, logs and backups)" "$DATA_DIR")")"
+        MEDIA_PATH="$(expand "$(ask "Media folder (your movies and shows)" "$MEDIA_PATH")")"
+    fi
     HTTP_PORT="$(ask "HTTP port" "$HTTP_PORT")"
     if ! $AI_EXPLICIT; then
         if confirm "Enable Flixer AI (may download models)?" y; then ENABLE_AI=true; else ENABLE_AI=false; fi
@@ -230,10 +307,10 @@ if $CAN_PROMPT; then
     if ! $USE_SMB && confirm "Connect a network (SMB) share for media?" n; then USE_SMB=true; fi
 fi
 case "$HTTP_PORT" in '' | *[!0-9]*) die "Invalid port: $HTTP_PORT" ;; esac
-if [ -d "$DATA_DIR" ]; then
+if ! $RESET_EXISTING && [ -d "$DATA_DIR" ]; then
     data_contents=$(ls -A "$DATA_DIR")
     [ -z "$data_contents" ] || die "Fresh installation cannot use a nonempty data directory: $DATA_DIR. No data was removed."
-elif [ -e "$DATA_DIR" ]; then
+elif ! $RESET_EXISTING && [ -e "$DATA_DIR" ]; then
     die "Data path is not a directory: $DATA_DIR."
 fi
 
@@ -252,6 +329,18 @@ if $USE_SMB; then
 fi
 
 info "Installing into $INSTALL_DIR"
+if $RESET_EXISTING; then
+    info "Backing up the existing installation before fresh setup"
+    if ! $DRY_RUN; then
+        cp "$INSTALL_DIR/.env" "$backup.env"
+        cp "$INSTALL_DIR/docker-compose.yml" "$backup.compose.yml"
+        (cd "$INSTALL_DIR" && "${RESET_COMPOSE[@]}" --profile '*' down)
+        mv "$DATA_DIR" "$backup" || die "Could not move $DATA_DIR. The old stack has been stopped; its configuration remains in $INSTALL_DIR."
+        warn "Previous data is retained at $backup. Existing external PostgreSQL databases are not reset."
+    else
+        echo "  [dry-run] stop existing stack and move $DATA_DIR to $backup"
+    fi
+fi
 run mkdir -p "$INSTALL_DIR/deploy/docker" "$DATA_DIR" "$MEDIA_PATH"
 
 fetch() { # fetch <file>
@@ -269,7 +358,7 @@ $USE_SMB && fetch docker-compose.smb-volume.yml
 # --- .env -------------------------------------------------------------------
 ENV_FILE="$INSTALL_DIR/.env"
 write_env=true
-if [ -f "$ENV_FILE" ]; then
+if [ -f "$ENV_FILE" ] && ! $RESET_EXISTING; then
     if confirm ".env already exists. Overwrite it (a backup is kept)?" n; then
         run cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%s)"
     else
@@ -290,8 +379,8 @@ if $write_env; then
             echo "MEDIA_PATH=$MEDIA_PATH"
             echo "HTTP_PORT=$HTTP_PORT"
             echo "PROJECT_DIR=$INSTALL_DIR"
+            [ -n "$RESET_PROJECT" ] && echo "COMPOSE_PROJECT_NAME=$RESET_PROJECT"
             $ENABLE_AI && echo "COMPOSE_PROFILES=ai"
-            [ "$PLATFORM" = mac ] && echo "MEILISEARCH_STORAGE=meilisearch-data"
             [ -n "$FLIXER_VERSION_PIN" ] && echo "FLIXER_VERSION=$FLIXER_VERSION_PIN"
             if $USE_SMB; then
                 echo "COMPOSE_FILE=docker-compose.yml:docker-compose.smb-volume.yml"

@@ -4,13 +4,16 @@ $temp = Join-Path ([IO.Path]::GetTempPath()) ("flixer-wsl-test-" + [guid]::NewGu
 New-Item -ItemType Directory $temp | Out-Null
 $global:wslCalls = [Collections.Generic.List[object]]::new()
 $global:failWsl = $false
+$global:resetAnswer = 'yes'
 function global:wsl.exe {
     $scriptText = @($input) -join "`n"
     $global:wslCalls.Add([pscustomobject]@{ Arguments = @($args); Script = $scriptText })
     $global:LASTEXITCODE = 0
     if ($global:failWsl) { $global:LASTEXITCODE = 7; return }
     if (($args -join ' ') -match 'printenv HOME') { return '/home/flixer user' }
+    if ($scriptText -match 'echo existing; else echo new') { return 'existing' }
 }
+function global:Read-Host { param([string]$Prompt) return $global:resetAnswer }
 function global:Invoke-WebRequest {
     param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
     if ($Uri -notmatch '/manage.ps1$') { throw "Unexpected download $Uri" }
@@ -33,6 +36,27 @@ try {
     $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
     $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
     if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--ref|main|--update') { throw "Incorrect update arguments: $decoded" }
+    & (Join-Path $root 'install.ps1') -Yes -Distro Ubuntu -Fresh -ConfirmReset -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' } | Select-Object -Last 1
+    $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
+    $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
+    if (($decoded -join '|') -notmatch '\|--fresh\|--confirm-reset') { throw "Reset confirmation was not forwarded: $decoded" }
+    & (Join-Path $root 'install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstraps = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' })
+    $preview = $bootstraps[$bootstraps.Count - 2]
+    $separator = [array]::IndexOf($preview.Arguments, '-s')
+    $decoded = @($preview.Arguments[($separator + 1)..($preview.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
+    if (($decoded -join '|') -notmatch '\|--confirm-reset\|--dry-run\|--no-start') { throw "Missing reset preview: $decoded" }
+    $bootstrap = $bootstraps[$bootstraps.Count - 1]
+    $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
+    $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
+    if (($decoded -join '|') -notmatch '\|--confirm-reset') { throw "Interactive confirmation was not forwarded: $decoded" }
+    $global:resetAnswer = 'no'
+    $failed = $false
+    $before = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' }).Count
+    try { & (Join-Path $root 'install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management') } catch { $failed = $true }
+    $after = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' }).Count
+    if (-not $failed -or $after -ne ($before + 1)) { throw 'Declined reset must run only the preview and fail.' }
     foreach ($action in @('start', 'stop', 'restart', 'update', 'status')) { & $manager $action }
     $management = @($global:wslCalls | Where-Object { $_.Script -match 'manage.sh' })
     if ($management.Count -ne 5) { throw 'Not all management actions were invoked.' }
@@ -55,4 +79,5 @@ try {
     Remove-Item -Recurse -Force $temp
     Remove-Item Function:\wsl.exe
     Remove-Item Function:\Invoke-WebRequest
+    Remove-Item Function:\Read-Host
 }

@@ -308,10 +308,10 @@ services:
                 export MEILI_MASTER_KEY="$$(cat /run/flixer-secrets/app-secret)"
                 exec /bin/meilisearch
         volumes:
-            - ${MEILISEARCH_STORAGE:-${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/meilisearch}:/meili_data
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/meilisearch:/meili_data
             - flixer-secrets:/run/flixer-secrets:ro
         healthcheck:
-            test: ["xCMD-SHELL", "curl -fsS http://127.0.0.1:7700/health >/dev/null || exit 1"]
+            test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7700/health >/dev/null || exit 1"]
             interval: 15s
             timeout: 5s
             retries: 5
@@ -384,4 +384,3 @@ services:
 
 volumes:
     flixer-secrets:
-    meilisearch-data:

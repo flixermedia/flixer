@@ -11,6 +11,7 @@ param(
     [string]$Ref = 'main',
     [switch]$Fresh,
     [switch]$Update,
+    [switch]$ConfirmReset,
     [switch]$NoAi,
     [switch]$Yes,
     [switch]$NoStart
@@ -73,6 +74,7 @@ try {
     $installerArgs = @('--yes', '--dir', $LinuxDir, '--ref', $Ref)
     if ($Fresh) { $installerArgs += '--fresh' }
     if ($Update) { $installerArgs += '--update' }
+    if ($ConfirmReset) { $installerArgs += '--confirm-reset' }
     if ($Data) { $installerArgs += @('--data', $Data) }
     if ($Media) { $installerArgs += @('--media', $Media) }
     if ($PSBoundParameters.ContainsKey('Port')) { $installerArgs += @('--port', "$Port") }
@@ -87,6 +89,21 @@ args=()
 for arg in "$@"; do args+=("$(printf '%s' "$arg" | base64 -d)"); done
 curl -fsSL "https://raw.githubusercontent.com/flixermedia/flixer/$ref/install.sh" | bash -s -- "${args[@]}"
 '@
+    if ($Fresh -and -not $ConfirmReset -and -not $Yes) {
+        $encodedDir = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($LinuxDir))
+        $detect = 'dir=$(printf "%s" "$1" | base64 -d) || exit; if [ -e "$dir/.env" ] || [ -e "$dir/docker-compose.yml" ]; then echo existing; else echo new; fi'
+        $state = (($detect + "`n#") | & wsl.exe @wslArgs --exec bash -s -- $encodedDir | Select-Object -Last 1)
+        if ($LASTEXITCODE -ne 0 -or $state -notin @('existing', 'new')) { throw 'Unable to detect the WSL installation.' }
+        if ($state -eq 'existing') {
+            $previewArgs = @($Ref) + $installerArgs + @('--confirm-reset', '--dry-run', '--no-start') | ForEach-Object { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_)) }
+            (($bootstrap -replace "`r`n", "`n") + "`n#") | & wsl.exe @wslArgs --exec bash -s -- @previewArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to preview the fresh reset. No reset was performed.' }
+            Write-Warning 'The final backup name will differ from the preview; the installer will display the actual path.'
+            $answer = Read-Host 'Proceed with the fresh reset? [y/N]'
+            if ($answer -notmatch '^(y|yes)$') { throw 'Fresh reset not confirmed; no data was changed.' }
+            $installerArgs += '--confirm-reset'
+        }
+    }
     $encodedArgs = @($Ref) + $installerArgs | ForEach-Object { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_)) }
     (($bootstrap -replace "`r`n", "`n") + "`n#") | & wsl.exe @wslArgs --exec bash -s -- @encodedArgs
     if ($LASTEXITCODE -ne 0) { throw "Flixer installation failed inside WSL (exit $LASTEXITCODE)." }
