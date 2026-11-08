@@ -45,7 +45,20 @@ Review the installer before execution, then run:
 curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
 ```
 
-Supported install targets described by the project are macOS and Debian/Ubuntu Linux. The installer configures Docker and Compose, prompts for directories and port, and launches onboarding at `http://localhost:8080` by default. Quick setup uses the bundled Redis service; advanced setup configures Redis before connecting the database.
+The Bash installer supports macOS and Linux (automatic Docker installation is supported on Debian/Ubuntu). It launches onboarding at `http://localhost:8080` by default. Quick setup uses the bundled Redis service; advanced setup configures Redis before connecting the database.
+
+On Windows, install a WSL 2 Linux distribution (for example `wsl --install -d Ubuntu`) and install and start [Docker Engine and Compose inside that distribution](https://docs.docker.com/engine/install/ubuntu/). The Windows installer requires the local Linux engine, not Docker Desktop or a remote Docker context, so that the dashboard updater can access the same Linux paths as the daemon. Enable systemd in WSL as needed and make sure your WSL user can run `docker info` without sudo.
+
+Then run in PowerShell:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/flixermedia/flixer/main/install.ps1 -OutFile install-flixer.ps1
+powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
+```
+
+By default this installs into `~/flixer` inside the default WSL distribution. Use `-Distro Ubuntu` to select a distribution, and `-LinuxDir`, `-Data`, or `-Media` to specify absolute Linux paths. Windows drives are accessible under paths such as `/mnt/c/Media`; ensure WSL and Docker can access them. Pass `-NoStart` to write the installation without starting it.
+
+AI is enabled by default for new installs and may download models. Choose no at the installer prompt, or pass `--no-ai` (Bash) / `-NoAi` (PowerShell) for unattended installs. Existing `.env` files are preserved unless you explicitly overwrite them.
 
 New macOS installations keep the rebuildable Meilisearch index in the `meilisearch-data` Docker volume to avoid Docker Desktop bind-mount filesystem issues. Existing installations retain their current storage. Back up the volume if you need to preserve the index; `docker compose down -v` removes it.
 
@@ -71,6 +84,12 @@ docker compose up -d
 - See [`FEATURES.md`](FEATURES.md), [`VERSION.md`](VERSION.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) for complete feature, release and contribution details.
 
 ## 🧰 Maintenance
+
+The installer downloads management scripts into the install directory. On macOS or Linux, run `./manage.sh` for a menu, or pass `start`, `stop`, `restart`, `update`, or `status` (for example, `./manage.sh update`). On Windows, run `powershell -ExecutionPolicy Bypass -File "$HOME\flixer-management\manage.ps1"` and optionally append one of the same actions. Docker and Compose must be running in the installation's Linux environment.
+
+The update command pulls configured image tags and recreates the stack; it does not back up the database or change pinned versions. Use **Admin > Updates** for version selection, database backup, and rollback. Stopping does not delete data. AI can be enabled or disabled after installation by editing `COMPOSE_PROFILES` in `.env`; restart the stack after changing it. Disabled services are stopped but their containers are not removed.
+
+For manual Compose operations:
 
 ```bash
 docker compose pull && docker compose up -d

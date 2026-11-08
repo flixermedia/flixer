@@ -11,6 +11,7 @@
 #   --port <port>      HTTP port (default 8080)
 #   --version <tag>    pin the Flixer image version (default latest)
 #   --ref <git ref>    repo ref to download compose files from (default main)
+#   --ai / --no-ai     enable or disable AI (default enabled)
 #   --smb              set up an SMB share (host, share, user and password are asked for)
 #   --smb-host/--smb-share/--smb-user/--smb-pass <value>   SMB details (implies --smb)
 #   --install-docker   install Docker if it is missing without asking
@@ -35,6 +36,8 @@ ASSUME_YES=false
 DRY_RUN=false
 START=true
 INSTALL_DOCKER=false
+ENABLE_AI=true
+AI_EXPLICIT=false
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 info() { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
@@ -50,6 +53,8 @@ while [ $# -gt 0 ]; do
         --port) HTTP_PORT="${2:?}"; shift 2 ;;
         --version) FLIXER_VERSION_PIN="${2:?}"; shift 2 ;;
         --ref) REF="${2:?}"; shift 2 ;;
+        --ai) ENABLE_AI=true; AI_EXPLICIT=true; shift ;;
+        --no-ai) ENABLE_AI=false; AI_EXPLICIT=true; shift ;;
         --smb) USE_SMB=true; shift ;;
         --smb-host) SMB_HOST="${2:?}"; USE_SMB=true; shift 2 ;;
         --smb-share) SMB_SHARE="${2:?}"; USE_SMB=true; shift 2 ;;
@@ -59,7 +64,7 @@ while [ $# -gt 0 ]; do
         --yes | -y) ASSUME_YES=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --no-start) START=false; shift ;;
-        -h | --help) sed -n '2,23p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h | --help) sed -n '2,24p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "Unknown option: $1" ;;
     esac
 done
@@ -186,6 +191,9 @@ if $CAN_PROMPT; then
     DATA_DIR="$(expand "$(ask "Data folder (database, config, cache, avatars, logs and backups)" "$DATA_DIR")")"
     MEDIA_PATH="$(expand "$(ask "Media folder (your movies and shows)" "$MEDIA_PATH")")"
     HTTP_PORT="$(ask "HTTP port" "$HTTP_PORT")"
+    if ! $AI_EXPLICIT; then
+        if confirm "Enable Flixer AI (may download models)?" y; then ENABLE_AI=true; else ENABLE_AI=false; fi
+    fi
     if ! $USE_SMB && confirm "Connect a network (SMB) share for media?" n; then USE_SMB=true; fi
 fi
 case "$HTTP_PORT" in '' | *[!0-9]*) die "Invalid port: $HTTP_PORT" ;; esac
@@ -214,6 +222,9 @@ fetch() { # fetch <file>
 }
 fetch docker-compose.yml
 fetch deploy/docker/init-data.sh
+fetch manage.sh
+fetch manage.ps1
+run chmod +x "$INSTALL_DIR/manage.sh"
 $USE_SMB && fetch docker-compose.smb-volume.yml
 
 # --- .env -------------------------------------------------------------------
@@ -231,7 +242,7 @@ fi
 if $write_env; then
     info "Writing .env"
     if $DRY_RUN; then
-        echo "  [dry-run] $ENV_FILE with DATA_DIR=$DATA_DIR MEDIA_PATH=$MEDIA_PATH HTTP_PORT=$HTTP_PORT"
+        echo "  [dry-run] $ENV_FILE with DATA_DIR=$DATA_DIR MEDIA_PATH=$MEDIA_PATH HTTP_PORT=$HTTP_PORT AI=$ENABLE_AI"
     else
         umask 077
         {
@@ -240,6 +251,7 @@ if $write_env; then
             echo "MEDIA_PATH=$MEDIA_PATH"
             echo "HTTP_PORT=$HTTP_PORT"
             echo "PROJECT_DIR=$INSTALL_DIR"
+            $ENABLE_AI && echo "COMPOSE_PROFILES=ai"
             [ "$PLATFORM" = mac ] && echo "MEILISEARCH_STORAGE=meilisearch-data"
             [ -n "$FLIXER_VERSION_PIN" ] && echo "FLIXER_VERSION=$FLIXER_VERSION_PIN"
             if $USE_SMB; then
@@ -256,7 +268,7 @@ fi
 
 # --- Start ------------------------------------------------------------------
 if ! $START; then
-    ok "Files written. Start Flixer with: cd $INSTALL_DIR && docker compose up -d"
+    ok "Files written. Start Flixer with: $INSTALL_DIR/manage.sh start"
     exit 0
 fi
 
@@ -266,15 +278,24 @@ if $DRY_RUN; then
     exit 0
 fi
 cd "$INSTALL_DIR"
-"${DOCKER[@]}" compose up -d --pull always
+compose_environment=$("${DOCKER[@]}" compose config --environment)
+effective_data_dir=$(printf '%s\n' "$compose_environment" | sed -n 's/^DATA_DIR=//p')
+[ -n "$effective_data_dir" ] || die "DATA_DIR is not configured."
+COMPOSE=("${DOCKER[@]}" compose)
+if [ -f "$effective_data_dir/updater-state/versions.env" ]; then
+    COMPOSE+=(--env-file .env --env-file "$effective_data_dir/updater-state/versions.env")
+fi
+"${COMPOSE[@]}" up -d --pull always
 
 info "Waiting for Flixer to become healthy"
+HTTP_PORT=$(printf '%s\n' "$compose_environment" | sed -n 's/^HTTP_PORT=//p')
+HTTP_PORT=${HTTP_PORT:-8080}
 URL="http://localhost:$HTTP_PORT"
 for _ in $(seq 1 90); do
     if curl -fsS "$URL/healthz" >/dev/null 2>&1 && curl -fsS "$URL/api/setup/status" >/dev/null 2>&1 \
-        && "${DOCKER[@]}" compose exec -T meilisearch curl -fsS http://127.0.0.1:7700/health >/dev/null 2>&1; then
+        && "${COMPOSE[@]}" exec -T meilisearch curl -fsS http://127.0.0.1:7700/health >/dev/null 2>&1; then
         printf '\n%sFlixer is running!%s\n  Open %s to create your admin account.\n' "$G$B" "$N" "$URL"
-        printf '  Manage:  cd %s && docker compose logs -f | down | pull\n' "$INSTALL_DIR"
+        printf '  Manage:  %s/manage.sh\n' "$INSTALL_DIR"
         printf '  If the database is ever lost, check "docker compose logs api" for a recovery code.\n\n'
         exit 0
     fi

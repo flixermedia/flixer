@@ -311,7 +311,7 @@ services:
             - ${MEILISEARCH_STORAGE:-${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/meilisearch}:/meili_data
             - flixer-secrets:/run/flixer-secrets:ro
         healthcheck:
-            test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7700/health >/dev/null || exit 1"]
+            test: ["xCMD-SHELL", "curl -fsS http://127.0.0.1:7700/health >/dev/null || exit 1"]
             interval: 15s
             timeout: 5s
             retries: 5

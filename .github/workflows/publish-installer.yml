@@ -6,7 +6,7 @@ name: Publish installer
 on:
     push:
         branches: [main]
-        paths: [install.sh, .github/workflows/publish-installer.yml]
+        paths: [install.sh, install.ps1, manage.sh, manage.ps1, deploy/docker/installer.test.mjs, deploy/docker/installer.test.ps1, .github/workflows/publish-installer.yml]
     workflow_dispatch:
 
 permissions:
@@ -19,7 +19,16 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    windows-test:
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+            - run: ./deploy/docker/installer.test.ps1
+              shell: pwsh
+            - run: ./deploy/docker/installer.test.ps1
+              shell: powershell
     deploy:
+        needs: windows-test
         runs-on: ubuntu-latest
         environment:
             name: github-pages
@@ -30,12 +39,14 @@ jobs:
               run: |
                   bash -n install.sh
                   sudo apt-get install -y shellcheck >/dev/null
-                  shellcheck -S warning install.sh
+                  shellcheck -S warning install.sh manage.sh
+                  FLIXER_TEST_PWSH="$(command -v pwsh)" node --test deploy/docker/installer.test.mjs
             - name: Build site
               run: |
                   mkdir site
                   cp install.sh site/index.html
                   cp install.sh site/install.sh
+                  cp install.ps1 site/install.ps1
                   echo get.flixer.dev > site/CNAME
             - uses: actions/configure-pages@v5
             - uses: actions/upload-pages-artifact@v3
