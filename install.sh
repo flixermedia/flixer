@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Flixer installer for macOS and Debian/Ubuntu Linux.
 #
-#   curl -fsSL https://get.flixer.dev | bash
-#   curl -fsSL https://get.flixer.dev | bash -s -- --yes --dir ~/flixer
+#   curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash -s -- --yes --dir ~/flixer
 #
 # Options:
 #   --dir <path>       install directory (default ~/flixer)

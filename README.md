@@ -42,7 +42,7 @@ For the full platform, the API coordinates services; the browser interacts with 
 Review the installer before execution, then run:
 
 ```bash
-curl -fsSL https://get.flixer.dev | bash
+curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
 ```
 
 Supported install targets described by the project are macOS and Debian/Ubuntu Linux. The installer configures Docker and Compose, prompts for directories and port, and launches onboarding at `http://localhost:8080` by default.
