@@ -27,7 +27,12 @@ try {
     $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
     if ($separator -lt 0) { throw "Missing argument separator: $($bootstrap.Arguments -join '|')" }
     $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
-    if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--port|8090|--ref|main|--no-ai|--no-start') { throw "Incorrect installer arguments: $decoded" }
+    if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--ref|main|--port|8090|--no-ai|--no-start') { throw "Incorrect installer arguments: $decoded" }
+    & (Join-Path $root 'install.ps1') -Yes -Distro Ubuntu -Update -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' } | Select-Object -Last 1
+    $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
+    $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
+    if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--ref|main|--update') { throw "Incorrect update arguments: $decoded" }
     foreach ($action in @('start', 'stop', 'restart', 'update', 'status')) { & $manager $action }
     $management = @($global:wslCalls | Where-Object { $_.Script -match 'manage.sh' })
     if ($management.Count -ne 5) { throw 'Not all management actions were invoked.' }
@@ -43,6 +48,8 @@ try {
     $failed = $false
     try { & (Join-Path $root 'install.ps1') -Yes } catch { $failed = $true }
     if (-not $failed) { throw 'WSL preflight failures must fail installation.' }
+    # The deliberately failed WSL mock leaves a nonzero native exit code.
+    $global:LASTEXITCODE = 0
     Write-Host 'Windows WSL installer and management tests passed.'
 } finally {
     Remove-Item -Recurse -Force $temp

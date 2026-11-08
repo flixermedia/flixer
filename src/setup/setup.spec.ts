@@ -156,6 +156,23 @@ describe("setup api", () => {
 		expect(store.get("redisUrl")).toBe("redis://custom:6379");
 	});
 
+	it("does not start the database transition until Redis is reachable", async () => {
+		probes.redis = async () => ({ ok: false, message: "connection refused" });
+		const result = await call("POST", "/steps/database", { databaseUrl: "postgres://db:5432/flixer" });
+		expect(result?.status).toBe(409);
+		expect(result?.body).toHaveProperty("error", "Redis is unavailable. Check the Redis connection before continuing.");
+		expect(store.has("databaseUrl")).toBe(false);
+		expect(store.has("redisUrl")).toBe(false);
+	});
+
+	it("requires an explicit Redis connection before advanced database setup", async () => {
+		await call("POST", "/flow", { flow: "advanced" });
+		const result = await call("POST", "/steps/database", { databaseUrl: "postgres://db:5432/flixer" });
+		expect(result?.status).toBe(409);
+		expect(result?.body).toHaveProperty("error", "Configure Redis before connecting the database.");
+		expect(store.has("databaseUrl")).toBe(false);
+	});
+
 	it("does not replace Redis configured through the environment in quick setup", async () => {
 		process.env.REDIS_URL = "redis://env-redis:6379";
 		expect((await call("POST", "/flow", { flow: "quick" }))?.status).toBe(200);
@@ -193,6 +210,14 @@ describe("setup api", () => {
 		expect(JSON.stringify(progress?.body)).not.toContain(store.get("jwtSecret") as string);
 		expect(progress?.body).toHaveProperty("config.jwtSecret.set", true);
 		expect((await call("POST", "/steps/secrets", {}))?.status).toBe(400);
+	});
+
+	it("requests a Meilisearch restart when the application secret changes", async () => {
+		const response = await call("POST", "/steps/secrets", { generate: ["appSecret"] });
+		expect(response?.status).toBe(200);
+		expect(response?.body).toHaveProperty("restart", ["api", "indexer", "streamer", "meilisearch"]);
+		const jwt = await call("POST", "/steps/secrets", { generate: ["jwtSecret"] });
+		expect(jwt?.body).toHaveProperty("restart", ["api"]);
 	});
 
 	it("does not return secret values in progress", async () => {

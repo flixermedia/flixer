@@ -1,4 +1,5 @@
 import { appConfig } from "../config/store/appConfig.js";
+import { suggestedRedisUrl } from "../config/store/configSchema.js";
 import { probeDatabase, type DatabaseProbe } from "./databaseProbe.js";
 import { adoptEnvironmentInstall, adoptExistingUsers, updateRuntime } from "./setupStatus.js";
 
@@ -36,6 +37,13 @@ export async function waitForDatabase(log: (message: string) => void, probe: (ur
 		const result = await probe(appConfig().get("databaseUrl"));
 		if (result.ok) {
 			adoptExistingUsers(result.hasUsers);
+			const config = appConfig();
+			const store = config.persistent;
+			if (store?.setupState() === "in_progress" && store.wizardProgress().flow === "quick" &&
+				!result.hasUsers && !config.get("redisUrl")) {
+				store.setMany({ redisUrl: suggestedRedisUrl() });
+				log("Restored the bundled Redis setting for incomplete quick setup.");
+			}
 			updateRuntime({ database: "ok" });
 			return;
 		}

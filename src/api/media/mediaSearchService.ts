@@ -830,7 +830,10 @@ export class MediaSearchService {
 				typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
 					? body.message
 					: response.statusText;
-			throw new Error(`Meilisearch ${init.method ?? "GET"} ${path} failed (${response.status}): ${message}`);
+			const hint = response.status === 401 || response.status === 403
+				? " Check the Meilisearch API key and permissions; if the shared application secret changed, restart the bundled Meilisearch service."
+				: "";
+			throw new Error(`Meilisearch ${init.method ?? "GET"} ${path} failed (${response.status}): ${message}${hint}`);
 		}
 		return body as T;
 	}

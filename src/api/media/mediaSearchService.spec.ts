@@ -110,6 +110,13 @@ describe("MediaSearchService", () => {
 		);
 	});
 
+	it("reports actionable guidance when Meilisearch rejects the API key", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => response({ message: "Invalid API key." }, 403)));
+		const service = new MediaSearchService(emptySettingsDataSource());
+		await expect(service.getAdminTask(1)).rejects.toThrow("Check the Meilisearch API key and permissions");
+		await expect(service.getAdminTask(1)).rejects.toThrow("restart the bundled Meilisearch service");
+	});
+
 	it("reuses an existing media index instead of trying to create it again", async () => {
 		const fetch = vi
 			.fn()

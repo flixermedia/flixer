@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { CONFIG_KEYS, validateHttpUrl, validatePostgresUrl, validateRedisUrl, validateSecret, type ConfigName } from "../config/store/configSchema.js";
+import { CONFIG_KEYS, suggestedRedisUrl, validateHttpUrl, validatePostgresUrl, validateRedisUrl, validateSecret, type ConfigName } from "../config/store/configSchema.js";
 import type { AppConfig } from "../config/store/appConfig.js";
 import type { ConfigStore } from "../config/store/configStore.js";
 import { probeDatabase, type DatabaseProbe } from "../bootstrap/databaseProbe.js";
@@ -98,12 +98,27 @@ const databaseStep: SetupStep = {
 		return result.ok ? { ok: true } : { ok: false, message: result.message };
 	},
 	async apply(values, context) {
+		const defaults: Partial<Record<ConfigName, string>> = {};
+		if (context.store.setupState() !== "completed") {
+			let redisUrl = context.config.get("redisUrl");
+			if (!redisUrl && context.store.wizardProgress().flow === "quick") {
+				redisUrl = suggestedRedisUrl();
+				defaults.redisUrl = redisUrl;
+			}
+			if (!redisUrl) {
+				throw new SetupError(409, "Configure Redis before connecting the database.");
+			}
+			const redis = await context.probes.redis(redisUrl);
+			if (!redis.ok) {
+				throw new SetupError(409, "Redis is unavailable. Check the Redis connection before continuing.");
+			}
+		}
 		// Recorded before the server reconnects, so existing accounts do not mark a half-finished setup as complete.
 		const probe = await context.probes.database(values.databaseUrl as string);
 		if (probe.ok && probe.hasUsers) {
 			context.store.setWizardProgress({ ...context.store.wizardProgress(), adoptedAccounts: true });
 		}
-		save(values, context);
+		save({ ...defaults, ...values }, context);
 		retryDatabaseNow();
 		return { ok: true, restart: [] };
 	},
@@ -257,7 +272,7 @@ const secretsStep: SetupStep = {
 		publishAppSecret(context.config);
 		const restart = ["api"];
 		if (values.appSecret) {
-			restart.push("indexer", "streamer");
+			restart.push("indexer", "streamer", "meilisearch");
 		}
 		return { ok: true, message: values.jwtSecret ? "Everyone will have to sign in again." : undefined, restart };
 	},

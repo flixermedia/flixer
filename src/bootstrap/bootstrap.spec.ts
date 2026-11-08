@@ -4,13 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
+import { suggestedRedisUrl } from "../config/store/configSchema.js";
 import { ConfigStore } from "../config/store/configStore.js";
 import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.js";
 import { adoptEnvironmentInstall, adoptExistingUsers, setupStatus, updateRuntime } from "./setupStatus.js";
 import { waitForDatabase } from "./waitForDatabase.js";
 
 const SECRET = "s".repeat(40);
-const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET"];
+const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL"];
 
 describe("bootstrap", () => {
 	let directory: string;
@@ -129,5 +130,34 @@ describe("bootstrap", () => {
 		expect(setupStatus(config).database).toBe("ok");
 		expect(store.setupState()).toBe("completed");
 		expect(logs).toEqual(["Waiting for PostgreSQL: refused"]);
+	});
+
+	it("repairs missing Redis for an incomplete quick setup before starting", async () => {
+		store.setSetupState("in_progress");
+		store.setMany({ databaseUrl: "postgres://db/flixer" });
+		const logs: string[] = [];
+		await waitForDatabase((message) => logs.push(message), async () => ({ ok: true, hasUsers: false }));
+		expect(config.get("redisUrl")).toBe(suggestedRedisUrl());
+		expect(store.get("redisUrl")).toBe(suggestedRedisUrl());
+		expect(logs).toContain("Restored the bundled Redis setting for incomplete quick setup.");
+	});
+
+	it("preserves explicit Redis settings and does not change advanced or existing installations", async () => {
+		const probe = async () => ({ ok: true, hasUsers: false }) as const;
+		store.setSetupState("in_progress");
+		store.setMany({ redisUrl: "redis://custom:6379" });
+		await waitForDatabase(() => {}, probe);
+		expect(config.get("redisUrl")).toBe("redis://custom:6379");
+		store.setMany({}, ["redisUrl"]);
+		process.env.REDIS_URL = "redis://environment:6379";
+		await waitForDatabase(() => {}, probe);
+		expect(store.get("redisUrl")).toBeUndefined();
+		delete process.env.REDIS_URL;
+		store.setWizardProgress({ flow: "advanced", completedSteps: [] });
+		await waitForDatabase(() => {}, probe);
+		expect(store.get("redisUrl")).toBeUndefined();
+		store.setWizardProgress({ flow: "quick", completedSteps: [] });
+		await waitForDatabase(() => {}, async () => ({ ok: true, hasUsers: true }));
+		expect(store.get("redisUrl")).toBeUndefined();
 	});
 });

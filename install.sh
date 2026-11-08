@@ -5,6 +5,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash -s -- --yes --dir ~/flixer
 #
 # Options:
+#   --fresh            install into a new directory (never replace an installation)
+#   --update           update an existing installation without changing its configuration
 #   --dir <path>       install directory (default ~/flixer)
 #   --data <path>      data folder (default <dir>/data)
 #   --media <path>     media folder (default <dir>/media)
@@ -17,7 +19,7 @@
 #   --install-docker   install Docker if it is missing without asking
 #   --yes              accept all defaults, never prompt
 #   --dry-run          print what would happen without changing anything
-#   --no-start         write the files but do not start the stack
+#   --no-start         write install files or pull updates without starting the stack
 set -euo pipefail
 
 REPO_RAW="https://raw.githubusercontent.com/flixermedia/flixer"
@@ -38,6 +40,8 @@ START=true
 INSTALL_DOCKER=false
 ENABLE_AI=true
 AI_EXPLICIT=false
+MODE=auto
+INSTALL_OPTIONS=false
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 info() { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
@@ -47,24 +51,26 @@ die() { printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2; exit 1; }
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --fresh) [ "$MODE" != update ] || die "Choose either --fresh or --update."; MODE=fresh; shift ;;
+        --update) [ "$MODE" != fresh ] || die "Choose either --fresh or --update."; MODE=update; shift ;;
         --dir) INSTALL_DIR="${2:?}"; shift 2 ;;
-        --data) DATA_DIR="${2:?}"; shift 2 ;;
-        --media) MEDIA_PATH="${2:?}"; shift 2 ;;
-        --port) HTTP_PORT="${2:?}"; shift 2 ;;
-        --version) FLIXER_VERSION_PIN="${2:?}"; shift 2 ;;
+        --data) DATA_DIR="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
+        --media) MEDIA_PATH="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
+        --port) HTTP_PORT="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
+        --version) FLIXER_VERSION_PIN="${2:?}"; INSTALL_OPTIONS=true; shift 2 ;;
         --ref) REF="${2:?}"; shift 2 ;;
-        --ai) ENABLE_AI=true; AI_EXPLICIT=true; shift ;;
-        --no-ai) ENABLE_AI=false; AI_EXPLICIT=true; shift ;;
-        --smb) USE_SMB=true; shift ;;
-        --smb-host) SMB_HOST="${2:?}"; USE_SMB=true; shift 2 ;;
-        --smb-share) SMB_SHARE="${2:?}"; USE_SMB=true; shift 2 ;;
-        --smb-user) SMB_USERNAME="${2:?}"; USE_SMB=true; shift 2 ;;
-        --smb-pass) SMB_PASSWORD="${2:?}"; USE_SMB=true; shift 2 ;;
+        --ai) ENABLE_AI=true; AI_EXPLICIT=true; INSTALL_OPTIONS=true; shift ;;
+        --no-ai) ENABLE_AI=false; AI_EXPLICIT=true; INSTALL_OPTIONS=true; shift ;;
+        --smb) USE_SMB=true; INSTALL_OPTIONS=true; shift ;;
+        --smb-host) SMB_HOST="${2:?}"; USE_SMB=true; INSTALL_OPTIONS=true; shift 2 ;;
+        --smb-share) SMB_SHARE="${2:?}"; USE_SMB=true; INSTALL_OPTIONS=true; shift 2 ;;
+        --smb-user) SMB_USERNAME="${2:?}"; USE_SMB=true; INSTALL_OPTIONS=true; shift 2 ;;
+        --smb-pass) SMB_PASSWORD="${2:?}"; USE_SMB=true; INSTALL_OPTIONS=true; shift 2 ;;
         --install-docker) INSTALL_DOCKER=true; shift ;;
         --yes | -y) ASSUME_YES=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --no-start) START=false; shift ;;
-        -h | --help) sed -n '2,24p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h | --help) sed -n '2,26p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "Unknown option: $1" ;;
     esac
 done
@@ -185,6 +191,33 @@ fi
 # --- Configuration ----------------------------------------------------------
 INSTALL_DIR="$(expand "$INSTALL_DIR")"
 $CAN_PROMPT && INSTALL_DIR="$(expand "$(ask "Install directory" "$INSTALL_DIR")")"
+if [ "$MODE" = auto ]; then
+    if [ -e "$INSTALL_DIR/.env" ] || [ -e "$INSTALL_DIR/docker-compose.yml" ]; then default_mode=update; else default_mode=fresh; fi
+    MODE="$(ask "Install fresh or update an existing installation (fresh/update)" "$default_mode")"
+fi
+case "$MODE" in fresh | update) ;; *) die "Choose fresh or update." ;; esac
+if [ "$MODE" = update ]; then
+    [ -f "$INSTALL_DIR/.env" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ] || die "Update requires an existing .env and docker-compose.yml in $INSTALL_DIR."
+    ! $INSTALL_OPTIONS || die "Install configuration options cannot be used with an update; existing settings are preserved."
+    info "Updating the existing installation in $INSTALL_DIR (configuration and pinned image versions are preserved)"
+    if $DRY_RUN; then
+        echo "  [dry-run] pull configured images"
+        $START && echo "  [dry-run] recreate running services"
+        exit 0
+    fi
+    cd "$INSTALL_DIR"
+    data_dir=$("${DOCKER[@]}" compose config --environment | sed -n 's/^DATA_DIR=//p')
+    [ -n "$data_dir" ] || die "DATA_DIR is not configured."
+    COMPOSE=("${DOCKER[@]}" compose)
+    if [ -f "$data_dir/updater-state/versions.env" ]; then
+        COMPOSE+=(--env-file .env --env-file "$data_dir/updater-state/versions.env")
+    fi
+    warn "This update does not back up the database or change pinned versions; use Admin > Updates for version selection and rollback."
+    "${COMPOSE[@]}" pull
+    if $START; then "${COMPOSE[@]}" up -d; ok "Update applied."; else ok "Images pulled; the stack was not started."; fi
+    exit 0
+fi
+[ ! -e "$INSTALL_DIR/.env" ] && [ ! -e "$INSTALL_DIR/docker-compose.yml" ] || die "An installation already exists in $INSTALL_DIR. Use --update or choose a different directory."
 DATA_DIR="$(expand "${DATA_DIR:-$INSTALL_DIR/data}")"
 MEDIA_PATH="$(expand "${MEDIA_PATH:-$INSTALL_DIR/media}")"
 if $CAN_PROMPT; then
@@ -197,6 +230,12 @@ if $CAN_PROMPT; then
     if ! $USE_SMB && confirm "Connect a network (SMB) share for media?" n; then USE_SMB=true; fi
 fi
 case "$HTTP_PORT" in '' | *[!0-9]*) die "Invalid port: $HTTP_PORT" ;; esac
+if [ -d "$DATA_DIR" ]; then
+    data_contents=$(ls -A "$DATA_DIR")
+    [ -z "$data_contents" ] || die "Fresh installation cannot use a nonempty data directory: $DATA_DIR. No data was removed."
+elif [ -e "$DATA_DIR" ]; then
+    die "Data path is not a directory: $DATA_DIR."
+fi
 
 if $USE_SMB; then
     if $CAN_PROMPT; then

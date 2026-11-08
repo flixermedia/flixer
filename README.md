@@ -58,7 +58,9 @@ powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
 
 By default this installs into `~/flixer` inside the default WSL distribution. Use `-Distro Ubuntu` to select a distribution, and `-LinuxDir`, `-Data`, or `-Media` to specify absolute Linux paths. Windows drives are accessible under paths such as `/mnt/c/Media`; ensure WSL and Docker can access them. Pass `-NoStart` to write the installation without starting it.
 
-AI is enabled by default for new installs and may download models. Choose no at the installer prompt, or pass `--no-ai` (Bash) / `-NoAi` (PowerShell) for unattended installs. Existing `.env` files are preserved unless you explicitly overwrite them.
+AI is enabled by default for new installs and may download models. Choose no at the installer prompt, or pass `--no-ai` (Bash) / `-NoAi` (PowerShell) for unattended installs. Existing `.env` files are preserved.
+
+The installers offer **fresh** or **update**. Without an explicit choice, they detect an existing installation in the selected directory. For unattended runs use `--fresh` or `--update` (Bash), or `-Fresh` or `-Update` (PowerShell). Fresh installation refuses to replace an existing `.env`, Compose file, or nonempty data directory; it does not erase existing data. Update requires both files, keeps them and all data unchanged, and pulls the currently configured image tags before starting the services. It does not update the Compose file, select newer pinned versions, back up the database, or provide rollback; use **Admin > Updates** for version selection and backup. `--no-start` / `-NoStart` pulls update images without starting services.
 
 New macOS installations keep the rebuildable Meilisearch index in the `meilisearch-data` Docker volume to avoid Docker Desktop bind-mount filesystem issues. Existing installations retain their current storage. Back up the volume if you need to preserve the index; `docker compose down -v` removes it.
 
@@ -88,6 +90,10 @@ docker compose up -d
 The installer downloads management scripts into the install directory. On macOS or Linux, run `./manage.sh` for a menu, or pass `start`, `stop`, `restart`, `update`, or `status` (for example, `./manage.sh update`). On Windows, run `powershell -ExecutionPolicy Bypass -File "$HOME\flixer-management\manage.ps1"` and optionally append one of the same actions. Docker and Compose must be running in the installation's Linux environment.
 
 The update command pulls configured image tags and recreates the stack; it does not back up the database or change pinned versions. Use **Admin > Updates** for version selection, database backup, and rollback. Stopping does not delete data. AI can be enabled or disabled after installation by editing `COMPOSE_PROFILES` in `.env`; restart the stack after changing it. Disabled services are stopped but their containers are not removed.
+
+During setup, Redis must be reachable before the database step starts the full API. Quick setup uses the bundled Redis; advanced setup lets you configure another server. If Redis is unavailable, check the Redis service and its connection settings before retrying. Incomplete quick setups created by older releases are repaired when the API starts, without replacing an existing Redis setting.
+
+The bundled Meilisearch service reads the shared application secret when it starts. If that secret is changed, restart the services listed by the setup wizard, including Meilisearch. If search reports an authentication error, check the key and permissions; for the bundled service, restarting Meilisearch after a secret change may resolve it. Do not remove the search data or application secrets to troubleshoot this.
 
 For manual Compose operations:
 

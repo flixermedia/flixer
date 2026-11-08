@@ -47,15 +47,38 @@ cp "$TEST_ROOT/$file" "$out"
 		assert.equal(result.status, 0, result.stderr);
 		assert.doesNotMatch(readFileSync(join(off, ".env"), "utf8"), /^COMPOSE_PROFILES=/m);
 		writeFileSync(join(off, ".env"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
+		const offCompose = readFileSync(join(off, "docker-compose.yml"), "utf8");
 		result = run("install.sh", ["--yes", "--no-start", "--dir", off]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(readFileSync(join(off, ".env"), "utf8"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
+		assert.equal(readFileSync(join(off, "docker-compose.yml"), "utf8"), offCompose);
+		assert.match(result.stdout, /Images pulled; the stack was not started/);
+		result = run("install.sh", ["--yes", "--fresh", "--dir", off]);
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /installation already exists/);
+		assert.equal(readFileSync(join(off, ".env"), "utf8"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
+		result = run("install.sh", ["--yes", "--update", "--dir", join(temp, "missing")]);
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /requires an existing/);
+		result = run("install.sh", ["--yes", "--update", "--no-ai", "--dir", off]);
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /configuration options cannot be used/);
+		const populated = join(temp, "populated");
+		mkdirSync(populated);
+		writeFileSync(join(populated, "keep"), "existing data");
+		result = run("install.sh", ["--yes", "--fresh", "--no-start", "--dir", join(temp, "fresh"), "--data", populated]);
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /nonempty data directory/);
+		assert.equal(readFileSync(join(populated, "keep"), "utf8"), "existing data");
 
 		mkdirSync(join(dir, "data", "updater-state"), { recursive: true });
 		writeFileSync(join(dir, "data", "updater-state", "versions.env"), "FLIXER_VERSION=1.2.3\n");
-		result = run("install.sh", ["--yes", "--dir", dir]);
+		result = run("install.sh", ["--yes", "--update", "--dir", dir]);
 		assert.equal(result.status, 0, result.stderr);
-		assert.match(readFileSync(log, "utf8"), /versions\.env up -d --pull always/);
+		assert.match(readFileSync(log, "utf8"), /versions\.env pull/);
+		assert.match(readFileSync(log, "utf8"), /versions\.env up -d/);
+		result = run("install.sh", ["--yes", "--update", "--dir", dir], { FAIL_PULL: "yes" });
+		assert.equal(result.status, 7);
 		for (const action of ["start", "stop", "restart", "update", "status"]) {
 			result = spawnSync("bash", [join(dir, "manage.sh"), action], { encoding: "utf8", env });
 			assert.equal(result.status, 0, `${action}: ${result.stderr}`);
@@ -119,6 +142,7 @@ if [ -n "\${out:-}" ]; then cp "$TEST_ROOT/$file" "$out"; else cat "$TEST_ROOT/$
     Copy-Item (Join-Path $env:TEST_ROOT 'manage.ps1') $OutFile
 }
 & (Join-Path $env:TEST_ROOT 'install.ps1') -Yes -NoStart -ManagementDir $env:TEST_MANAGER
+& (Join-Path $env:TEST_ROOT 'install.ps1') -Yes -Update -ManagementDir $env:TEST_MANAGER
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') start
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') stop
 `);
@@ -130,6 +154,7 @@ if [ -n "\${out:-}" ]; then cp "$TEST_ROOT/$file" "$out"; else cat "$TEST_ROOT/$
 		assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 		assert.match(readFileSync(join(linuxHome, "flixer", ".env"), "utf8"), /^COMPOSE_PROFILES=ai$/m);
 		assert.match(readFileSync(log, "utf8"), /compose up -d/);
+		assert.match(readFileSync(log, "utf8"), /compose pull/);
 		assert.match(readFileSync(log, "utf8"), /compose --profile \* stop/);
 	} finally {
 		rmSync(temp, { recursive: true, force: true });
