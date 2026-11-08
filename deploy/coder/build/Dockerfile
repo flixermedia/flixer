@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 ARG NODE_VERSION=26.12.0
 ARG GO_VERSION=1.26.0
 
@@ -10,18 +8,18 @@ ARG TARGETARCH
 RUN apk add --no-cache curl xz \
     && node_arch="$([ "$TARGETARCH" = arm64 ] && echo arm64 || echo x64)" \
     && mkdir /out \
-    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" | tar -xJ -C /out --strip-components=1 \
+    && curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 --max-time 600 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" | tar -xJ -C /out --strip-components=1 \
     && rm -rf /out/CHANGELOG.md /out/LICENSE /out/README.md
 
 FROM alpine:3.20 AS go
 ARG GO_VERSION
 ARG TARGETARCH
 RUN apk add --no-cache curl \
-    && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz" | tar -xz -C /usr/local
+    && curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 --max-time 600 "https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz" | tar -xz -C /usr/local
 
 FROM alpine:3.20 AS pgdg-key
 RUN apk add --no-cache curl gnupg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /apt.postgresql.org.gpg
+    && curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 --max-time 600 https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /apt.postgresql.org.gpg
 
 FROM codercom/enterprise-base:ubuntu
 
@@ -33,6 +31,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     set -eux; \
     rm -f /etc/apt/apt.conf.d/docker-clean; \
+    printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\n' > /etc/apt/apt.conf.d/99network; \
     . /etc/os-release; \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \

@@ -23,6 +23,12 @@ variable "smb_password" {
   sensitive   = true
 }
 
+variable "workspace_image" {
+  type        = string
+  description = "Prebuilt workspace image to pull instead of building build/Dockerfile on the provisioner, e.g. ghcr.io/flixermedia/coder-flixer-workspace:latest. Leave empty to build locally."
+  default     = ""
+}
+
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
@@ -151,9 +157,13 @@ module "code-server" {
 }
 
 resource "docker_image" "workspace" {
-  name = "coder-flixer-workspace:${substr(sha1(file("${path.module}/build/Dockerfile")), 0, 12)}"
-  build {
-    context = "${path.module}/build"
+  name = var.workspace_image != "" ? var.workspace_image : "coder-flixer-workspace:${substr(sha1(file("${path.module}/build/Dockerfile")), 0, 12)}"
+
+  dynamic "build" {
+    for_each = var.workspace_image == "" ? [1] : []
+    content {
+      context = "${path.module}/build"
+    }
   }
   keep_locally = true
 
