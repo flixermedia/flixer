@@ -156,6 +156,10 @@ resource "docker_image" "workspace" {
     context = "${path.module}/build"
   }
   keep_locally = true
+
+  timeouts {
+    create = "60m"
+  }
 }
 
 resource "docker_image" "samba" {

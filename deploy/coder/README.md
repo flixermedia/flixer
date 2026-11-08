@@ -43,6 +43,9 @@ cd deploy/coder
 coder templates push flixer-dev --directory .
 ```
 
+The workspace image is built on the provisioner host during the push. Its build timeout is 60 minutes to accommodate
+the initial install of system packages and language toolchains.
+
 Then create a workspace from `flixer-dev`. On every start it clones the repos into `~/projects`, writes a `.env`
 in each (random `JWT_SECRET`/`APP_SECRET`, wired to the local Postgres/Redis/Meilisearch), runs `npm ci` / `go mod download`
 when needed and starts the services. Existing `.env` files keep provider keys (`TMDB_API_KEY`, `DISCOGS_TOKEN`, ...);
