@@ -4,71 +4,215 @@
 
 # Flixer
 
-**Your media, your rules, beautifully streamed.**
+**Your media, your server, your rules.**
 
-[![Stars](https://img.shields.io/github/stars/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/stargazers) [![Issues](https://img.shields.io/github/issues/flixermedia/flixer?style=flat-square)](https://github.com/flixermedia/flixer/issues)
-
-[Flixer](https://github.com/flixermedia/flixer) · [Documentation](https://github.com/flixermedia/flixer-docs) · [Report an issue](https://github.com/flixermedia/flixer/issues)
+[Documentation](https://github.com/flixermedia/flixer-docs) · [Report an issue](https://github.com/flixermedia/flixer/issues) · [Features](FEATURES.md)
 
 </div>
 
----
+Flixer is a self-hosted media platform for organizing and streaming your own
+movies, shows and other media. This repository provides the main backend and
+the installer for the full stack.
 
 > [!WARNING]
-> **Under active development.** Flixer components and integration contracts may change. Check current source and release notes before upgrading production installations.
+> Flixer is under active development. Components and integration contracts may
+> change; review release notes and back up your data before upgrading.
 
-> [!NOTE]
-> **Role in Flixer:** The self-hosted backend API, authentication, libraries, and administration service. This is the main install entry point for the full stack.
+## What can Flixer do?
 
-## ✨ Features
+- Manage media libraries, users and server settings from a web interface.
+- Stream your media using the Flixer streamer and indexer.
+- Set up your server and first administrator with a guided wizard.
+- Use local media folders or supported network shares.
+- Optionally enable AI and, if configured, payments. Payments are disabled by
+  default; see the [payments guide](https://flixermedia.github.io/flixer-docs/docs/flixer/payments/overview-and-concepts).
 
-- **Self-hosted control:** Manage users, libraries and settings without a mandatory cloud account.
-- **Multi-service architecture:** Coordinate the web client, indexer, streamer and updater.
-- **Guided setup:** Configure the server and create the initial administrator account through onboarding.
-- **Library management:** Configure local or network-mounted media roots.
-- **Configurable settings:** SQLite-backed setup and application settings, with PostgreSQL for the main database.
-- **Deployment tooling:** Docker Compose, development stack and one-command installer.
-- **Optional payments:** Configure Stripe or Square for scoped media paywalls, rentals, subscriptions, registration fees, coupons, refunds and complimentary grants; disabled by default. See the [payments guide](https://flixermedia.github.io/flixer-docs/docs/flixer/payments/overview-and-concepts).
+## Install Flixer
 
-## 🏗️ Architecture
+Choose the instructions for your server. Review the installer before running it.
 
-Flixer separates application logic from its web UI, media indexing, media delivery, update management, plugins and documentation. **Flixer** owns the following responsibility: the self-hosted backend API, authentication, libraries, and administration service.
+### macOS and Linux
 
-For the full platform, the API coordinates services; the browser interacts with the backend and the streamer receives authorised playback requests. Components should be operated as part of the supported Flixer stack unless you are developing or testing them directly.
-
-## 🚀 Getting started
-
-### Recommended installation
-Review the installer before execution, then run:
+Install Docker and Docker Compose, then run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
 ```
 
-The Bash installer supports macOS and Linux (automatic Docker installation is supported on Debian/Ubuntu). It launches onboarding at `http://localhost:8080` by default. Quick setup uses the bundled Redis service; advanced setup configures Redis before connecting the database.
+The installer supports macOS and Linux; automatic Docker installation is
+available on Debian and Ubuntu. Follow the prompts to choose your installation,
+data and media folders. It can also configure an SMB share.
 
-On Windows, install a WSL 2 Linux distribution (for example `wsl --install -d Ubuntu`) and install and start [Docker Engine and Compose inside that distribution](https://docs.docker.com/engine/install/ubuntu/). The Windows installer requires the local Linux engine, not Docker Desktop or a remote Docker context, so that the dashboard updater can access the same Linux paths as the daemon. Enable systemd in WSL as needed and make sure your WSL user can run `docker info` without sudo.
+### Windows
 
-Then run in PowerShell:
+Windows installations run inside WSL 2:
 
-```powershell
-Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/flixermedia/flixer/main/install.ps1 -OutFile install-flixer.ps1
-powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
+1. Install a Linux distribution, for example with `wsl --install -d Ubuntu`.
+2. Install and start [Docker Engine and Compose inside WSL](https://docs.docker.com/engine/install/ubuntu/).
+   Enable systemd if needed and make sure `docker info` works in WSL without
+   `sudo`. The installer requires a local Linux Docker Engine, not Docker
+   Desktop or a remote Docker context.
+3. Run this in PowerShell:
+
+   ```powershell
+   Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/flixermedia/flixer/main/install.ps1 -OutFile install-flixer.ps1
+   powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
+   ```
+
+The default installation directory is `~/flixer` inside the default WSL
+distribution. Use `-Distro Ubuntu` to select a distribution and `-LinuxDir`,
+`-Data` or `-Media` to provide absolute Linux paths. Windows drives are
+available through paths such as `/mnt/c/Media`, provided WSL and Docker can
+access them. Use `-NoStart` to write the installation without starting it.
+
+### Finish setup
+
+1. Open `http://localhost:8080` on the server, or use the server's address and
+   the port you selected from another device.
+2. Follow the setup wizard and create your administrator account.
+3. Add your media libraries.
+
+Quick setup uses the bundled Redis service. Advanced setup lets you configure
+Redis before connecting the database.
+
+AI is enabled by default for new installations and may download models. You can
+turn it off at the installer prompt, or use `--no-ai` on macOS/Linux or `-NoAi`
+on Windows. Existing configuration is preserved when updating.
+
+## Manage your server
+
+The installer provides a management menu for starting, stopping, restarting and
+updating Flixer or checking its status. Docker must be running first.
+
+**macOS/Linux:** Run this from your installation directory:
+
+```bash
+./manage.sh
 ```
 
-By default this installs into `~/flixer` inside the default WSL distribution. Use `-Distro Ubuntu` to select a distribution, and `-LinuxDir`, `-Data`, or `-Media` to specify absolute Linux paths. Windows drives are accessible under paths such as `/mnt/c/Media`; ensure WSL and Docker can access them. Pass `-NoStart` to write the installation without starting it.
+You can also pass an action, for example `./manage.sh restart` or
+`./manage.sh status`.
 
-AI is enabled by default for new installs and may download models. Choose no at the installer prompt, or pass `--no-ai` (Bash) / `-NoAi` (PowerShell) for unattended installs. Existing `.env` files are preserved.
+**Windows:** Open PowerShell and run:
 
-The installers offer **fresh** or **update**. Without an explicit choice, they detect an existing installation in the selected directory. For unattended runs use `--fresh` or `--update` (Bash), or `-Fresh` or `-Update` (PowerShell). Fresh installation over an existing installation requires confirmation: it stops the old stack and moves its data directory, including the standard bundled PostgreSQL database, to a sibling `*.flixer-backup-*` directory before creating a new empty data directory. The old `.env` and Compose file are saved beside that backup; the new stack uses a new Compose project, leaving old named volumes intact. These backups continue to use disk space. Media and external PostgreSQL databases are not reset, so choose a new or empty external database during setup. Custom database or volume locations outside the data directory are not reset. The installer refuses overlapping media/data paths, mounted data directories, and other unsafe or incomplete layouts. For unattended reset explicitly add `--confirm-reset` / `-ConfirmReset`; `--yes` alone is not consent. A nonempty data directory without an existing installation is never reset.
+```powershell
+powershell -ExecutionPolicy Bypass -File "$HOME\flixer-management\manage.ps1"
+```
 
-Update requires an existing `.env` and Compose file, keeps them and all data unchanged, and pulls the currently configured image tags before starting the services. It does not update the Compose file, select newer pinned versions, back up the database, or provide rollback; use **Admin > Updates** for version selection and backup. `--no-start` / `-NoStart` pulls update images without starting services.
+You can append `start`, `stop`, `restart`, `update` or `status` to either
+management command. Stopping Flixer does not delete your data.
 
-The bundled Meilisearch index is stored in `DATA_DIR/meilisearch` on all platforms. If an older installation used the `meilisearch-data` Docker volume, switching to the new Compose file starts with a separate empty index; Flixer automatically queues a rebuild from the media database. The old volume is not deleted or copied. Keep it until you have verified search, and remove any obsolete `MEILISEARCH_STORAGE` setting from `.env`. The installer's update command does not replace existing Compose files, so existing installations must update their Compose file to switch storage.
+### Updates and backups
 
-On macOS, Docker Desktop bind-mount filesystem limitations may prevent Meilisearch from starting on some host filesystems. If it fails, check the Meilisearch container logs and use a `DATA_DIR` on a filesystem compatible with Meilisearch.
+For version selection, database backup and rollback, use **Admin > Updates**.
+The installer and management script can also pull the currently configured
+image tags and recreate services, but they do not back up the database, change
+pinned versions or replace the Compose file. Back up persistent data before
+major changes.
 
-### Manual Docker Compose
+The installer offers **update** or **fresh**:
+
+| Choice | What happens |
+| --- | --- |
+| **Update** | Keeps the existing `.env`, Compose files and data; pulls configured images and starts services. |
+| **Fresh** | Starts a new installation. For an existing installation, it first asks for confirmation and backs up the old data directory. |
+
+For unattended use, select `--update` or `--fresh` on macOS/Linux, or `-Update`
+or `-Fresh` on Windows. `--no-start` / `-NoStart` pulls update images without
+starting services.
+
+> [!IMPORTANT]
+> A confirmed fresh reset stops the old stack and moves `DATA_DIR`, including
+> the standard bundled PostgreSQL database, to a sibling
+> `*.flixer-backup-*` directory. It saves the old `.env` and Compose file beside
+> the backup and uses a new Compose project; old named volumes remain. Backups
+> continue to use disk space.
+>
+> Media and external PostgreSQL databases are **not** reset. Choose a new or
+> empty external database during setup. Custom database or volume locations
+> outside `DATA_DIR` are also left untouched. The installer refuses unsafe or
+> incomplete layouts, including overlapping media/data paths and mounted data
+> directories. A nonempty data directory without an existing installation is
+> never reset.
+>
+> For an unattended reset, explicitly pass `--confirm-reset` or
+> `-ConfirmReset`. `--yes` alone does not authorize a reset.
+
+## Where is my data?
+
+| Location | Contents |
+| --- | --- |
+| `DATA_DIR` | Flixer settings, the bundled PostgreSQL database, cache, avatars, backups, logs and other application data. |
+| `MEDIA_PATH` | Your media library root. Choose folders inside it when creating libraries. |
+| `DATA_DIR/meilisearch` | The bundled Meilisearch search index. |
+| `DATA_DIR/logs/logger` | Private Flixer Logger storage. |
+
+The setup wizard stores settings in SQLite; explicitly supplied environment
+values take precedence. PostgreSQL stores the main application data. See
+[`.env.example`](.env.example) for advanced configuration.
+
+AI can be enabled or disabled later by editing `COMPOSE_PROFILES` in `.env` and
+restarting the stack. Disabled services are stopped but their containers are
+not removed.
+
+<details>
+<summary>Moving from an older Meilisearch Docker volume</summary>
+
+Older macOS installs may use a `meilisearch-data` Docker volume. After switching
+to the current Compose file, Meilisearch uses `DATA_DIR/meilisearch` and Flixer
+queues a rebuild of the empty index from the media database. The old volume is
+not copied or deleted; keep it until you have verified search. Remove the
+obsolete `MEILISEARCH_STORAGE` setting from `.env`. The installer update command
+does not replace existing Compose files, so update the Compose file separately.
+
+On macOS, Docker Desktop bind-mount filesystem limitations may prevent
+Meilisearch from starting on some host filesystems. Check its container logs
+and use a `DATA_DIR` on a compatible filesystem if necessary.
+
+</details>
+
+## Troubleshooting
+
+- **Setup cannot continue after the database step:** Redis must be reachable
+  before the full API can start. Check the Redis service and its connection
+  settings, then retry. Older incomplete quick setups are repaired at API
+  startup without replacing an existing Redis setting.
+- **Search reports an authentication error:** Check the Meilisearch key and
+  permissions. The bundled service reads the shared application secret at
+  startup; after changing it, restart the services listed by the setup wizard,
+  including Meilisearch. Do not remove search data or application secrets as
+  a troubleshooting step.
+- **Need logs?** From the installation directory, run `docker compose logs -f`
+  or add a service name, such as `docker compose logs -f logger`.
+
+For other problems, consult the [documentation](https://github.com/flixermedia/flixer-docs)
+or [open an issue](https://github.com/flixermedia/flixer/issues) with the
+relevant error and steps to reproduce it. Do not include passwords or secrets.
+
+<details>
+<summary>Nginx template errors</summary>
+
+If `nginx-config-init` reports a missing Nginx template, refresh the images:
+
+```bash
+docker compose down
+docker compose pull
+docker compose up -d
+```
+
+If you must use an older image, first update your Compose file from the
+[current version](docker-compose.yml), preserving local changes. Place the
+[Nginx configuration](deploy/proxy/nginx.conf) at
+`DATA_DIR/nginx/nginx.conf`, then run `docker compose up -d` again. The
+initializer uses that file only when the image lacks a template; otherwise it
+replaces it with the bundled version.
+
+</details>
+
+## Advanced installation and maintenance
+
+<details>
+<summary>Install manually with Docker Compose</summary>
 
 ```bash
 mkdir -p flixer/deploy/docker && cd flixer
@@ -78,28 +222,12 @@ printf 'DATA_DIR=/path/to/flixer-data\nMEDIA_PATH=/path/to/media\n' > .env
 docker compose up -d
 ```
 
-`DATA_DIR` maps into containers as `/data`; `MEDIA_PATH` is the host library root. Override `HTTP_PORT` when required. See [`.env.example`](.env.example) for advanced settings and [the installer source](install.sh) before running it. Use `docker compose logs -f` to troubleshoot.
+`DATA_DIR` maps into containers as `/data`; `MEDIA_PATH` is the host library
+root. Set `HTTP_PORT` if needed. Only the reverse proxy should be published to
+the host. See [`.env.example`](.env.example) and the [installer source](install.sh)
+for more options.
 
-## ⚙️ Configuration and operations
-
-- `DATA_DIR` is required for persisted settings, PostgreSQL data, archived compatibility logs (`app-logs`), Logger storage (`logs/logger`), caches, avatars, backups and the bundled Nginx config. On startup, `data-init` migrates existing entries from `DATA_DIR/logs` into `DATA_DIR/app-logs` without moving `logs/logger`; it stops rather than overwriting a colliding destination. Flixer, Streamer and Indexer no longer write application-managed log files; console output remains available through Docker, and Logger connections receive events asynchronously.
-- The onboarding wizard stores settings in SQLite; explicitly supplied environment values take precedence.
-- PostgreSQL provides application data; Redis supports supporting services.
-- Only the reverse proxy should be published to the host by the bundled stack.
-- For source-based development, clone sibling services and run `docker compose -f docker-compose.dev.yml up --build`.
-- See [`FEATURES.md`](FEATURES.md), [`VERSION.md`](VERSION.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) for complete feature, release and contribution details.
-
-## 🧰 Maintenance
-
-The installer downloads management scripts into the install directory. On macOS or Linux, run `./manage.sh` for a menu, or pass `start`, `stop`, `restart`, `update`, or `status` (for example, `./manage.sh update`). On Windows, run `powershell -ExecutionPolicy Bypass -File "$HOME\flixer-management\manage.ps1"` and optionally append one of the same actions. Docker and Compose must be running in the installation's Linux environment.
-
-The update command pulls configured image tags and recreates the stack; it does not back up the database or change pinned versions. Use **Admin > Updates** for version selection, database backup, and rollback. Stopping does not delete data. AI can be enabled or disabled after installation by editing `COMPOSE_PROFILES` in `.env`; restart the stack after changing it. Disabled services are stopped but their containers are not removed.
-
-During setup, Redis must be reachable before the database step starts the full API. Quick setup uses the bundled Redis; advanced setup lets you configure another server. If Redis is unavailable, check the Redis service and its connection settings before retrying. Incomplete quick setups created by older releases are repaired when the API starts, without replacing an existing Redis setting.
-
-The bundled Meilisearch service reads the shared application secret when it starts. If that secret is changed, restart the services listed by the setup wizard, including Meilisearch. If search reports an authentication error, check the key and permissions; for the bundled service, restarting Meilisearch after a secret change may resolve it. Do not remove the search data or application secrets to troubleshoot this.
-
-For manual Compose operations:
+For manual operations:
 
 ```bash
 docker compose pull && docker compose up -d
@@ -107,109 +235,112 @@ docker compose logs -f
 docker compose down
 ```
 
-Be careful with `docker compose down -v` because named volumes are deleted. Back up persistent data before major changes.
+`docker compose down -v` deletes named volumes; use it with care.
 
-If `nginx-config-init` reports a missing Nginx template, run `docker compose down`, `docker compose pull`, and `docker compose up -d` to refresh the images. If you must use an older image, first update your Compose file from the [current version](docker-compose.yml), preserving any local changes. Then place the [Nginx configuration](deploy/proxy/nginx.conf) at `DATA_DIR/nginx/nginx.conf` and run `docker compose up -d` again. The initializer uses this file only when the image does not contain a template; otherwise it replaces it with the bundled version.
+</details>
 
-To add HLS image playlists to existing trickplay cache entries, preview the conversion and then write the playlists:
+<details>
+<summary>Logging and Logger backups</summary>
+
+The bundled Logger stores events in `DATA_DIR/logs/logger` and is reachable
+only internally. It creates a TLS certificate on first startup and pairs using
+Flixer's protected owner bootstrap file. Producer credentials are delivered
+over Flixer's signed Unix control socket. Configure retention and other
+policies under **Admin > Logging**.
+
+Back up this private Logger store by running `docker compose kill -s USR1 logger`
+and copying the resulting checkpoint from `DATA_DIR/logs/logger/checkpoints`, or
+stop Logger before copying the store. Do not copy only active Pebble files
+while Logger is running.
+
+On startup, `data-init` moves legacy entries from `DATA_DIR/logs` to
+`DATA_DIR/app-logs`, leaving `logs/logger` in place. It stops rather than
+overwriting an existing destination. Flixer, Streamer and Indexer use console
+output and Logger rather than application-managed log files.
+
+The Logger image is `ghcr.io/flixermedia/flixer-logger`; `LOGGER_VERSION` can
+pin its tag. The updater detects the bundled Logger using
+`FLIXER_LOGGER_LOCAL_ENDPOINT` or the local owner bootstrap's loopback default.
+AI and Logger updates require stable GitHub releases with matching numeric
+image tags. On GitHub API rate limits, release checks use the public latest
+release redirect; unavailable releases remain unknown.
+
+</details>
+
+<details>
+<summary>Convert existing trickplay cache entries</summary>
+
+To preview and then add HLS image playlists:
 
 ```bash
 node scripts/convert-trickplay-cache.mjs
 node scripts/convert-trickplay-cache.mjs --write
 ```
 
-The script uses `DATA_DIR` from the environment or `.env` by default, preserves existing indexes and JPEG sheets, and skips existing playlists unless `--force` is supplied. Use `--data-dir /path/to/data` to select another data directory.
+The script uses `DATA_DIR` from the environment or `.env` by default, preserves
+existing indexes and JPEG sheets, and skips existing playlists unless `--force`
+is supplied. Use `--data-dir /path/to/data` to choose another data directory.
 
-## 🧩 Flixer ecosystem
+</details>
 
-| Repository | Purpose |
-| --- | --- |
-| [Flixer](https://github.com/flixermedia/flixer) | The self-hosted backend API, authentication, libraries, and administration service. |
-| [Flixer Web](https://github.com/flixermedia/flixer-web) | The Vue 3 application that powers browsing, sign-in, discovery, and playback interfaces. |
-| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | The Go service responsible for authorised media delivery and FFmpeg processing. |
-| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | The Go worker and API service for discovering, identifying, probing, and enriching media. |
-| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | The Go sidecar that orchestrates Docker Compose updates and restores. |
-| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins) | The official versioned catalogue of Flixer plugins and plugin schemas. |
-| [Flixer Docs](https://github.com/flixermedia/flixer-docs) | The Docusaurus source for Flixer platform documentation. |
+## For contributors
 
-## 🤝 Contributing
+Bug reports, pull requests and documentation improvements are welcome. For
+source-based development, clone the sibling services and run
+`docker compose -f docker-compose.dev.yml up --build`. See
+[FEATURES.md](FEATURES.md), [VERSION.md](VERSION.md) and
+[SECURITY.md](SECURITY.md) for additional information.
 
-Contributions, bug reports and documentation improvements are welcome. Open an [issue](https://github.com/flixermedia/flixer/issues) with reproduction steps or a focused proposal, then submit a pull request against the repository. Keep configuration, examples and documentation aligned with implemented code. For backend contributions, also see the [main contribution guidelines](https://github.com/flixermedia/flixer/blob/main/CONTRIBUTING.md).
+<details>
+<summary>Development and integration test notes</summary>
 
-Watch-party Redis scripts live in [`src/party/lua/`](src/party/lua/) and are imported as raw text into the API bundle. Their `ARGV` positions must stay aligned with the corresponding calls in [`partiesService.ts`](src/party/partiesService.ts); run `npx vitest run src/party/parties.spec.ts` after changes.
+Watch-party Redis scripts live in [`src/party/lua/`](src/party/lua/) and are
+imported as raw text into the API bundle. Keep their `ARGV` positions aligned
+with [`partiesService.ts`](src/party/partiesService.ts); run
+`npx vitest run src/party/parties.spec.ts` after changes.
 
-### Flixer Logger
+The optional Logger correlation test sends two concurrent recommendation
+requests to a running AI service and checks trace-indexed events in a real
+Logger. Use isolated Logger and AI instances with recommendations disabled.
+Securely provide `LOGGER_CORRELATION_URL`, `LOGGER_CORRELATION_INGEST` (an
+application-bound `flixer` ingestion credential), `LOGGER_CORRELATION_QUERY`,
+`LOGGER_CORRELATION_AI_URL` and `LOGGER_CORRELATION_AI_SECRET`, then run:
 
-The bundled Compose stack provisions an internal-only `flixer-logger` service.
-It stores events in Pebble under `DATA_DIR/logs/logger`, creates an internal
-TLS certificate on first startup, and pairs through Flixer's protected owner
-bootstrap file. The certificate is mounted read-only into producer containers
-for TLS verification; the Logger port is not published to the host. Producer
-credentials are delivered through Flixer's signed Unix control socket rather
-than the plaintext service network. Configure retention and other Logger
-policies in Admin > Logging. `docker compose logs -f logger` shows Logger
-diagnostics.
+```bash
+npx vitest run src/api/ai/loggerCorrelationIntegration.spec.ts
+```
 
-The Logger repository publishes its container image to
-`ghcr.io/flixermedia/flixer-logger`; `LOGGER_VERSION` can pin another tag.
-The updater detects the bundled Logger using `FLIXER_LOGGER_LOCAL_ENDPOINT`
-(or the local owner bootstrap's loopback default), not an independently
-configured external Logger. AI and Logger updates require published stable
-GitHub releases and matching numeric container image tags.
-When GitHub's API rate limit is reached, release checks use the public latest
-release redirect; unavailable releases remain unknown rather than being inferred
-from the running version.
-`DATA_DIR/logs/logger` is private Logger-owned storage. Back up this directory
-with `docker compose kill -s USR1 logger` and copy the resulting checkpoint
-from `DATA_DIR/logs/logger/checkpoints`, or stop Logger before copying the
-store. Do not copy only the active Pebble files while the service is running.
+The test is skipped when these values are absent; it does not provision
+services or verify full-stack deployment.
 
-### Logger correlation integration test
+The optional Logger owner test starts a disposable local Logger and checks
+owner isolation and capacity rejection/recovery. Build Logger and provide its
+binary path:
 
-The optional `src/api/ai/loggerCorrelationIntegration.spec.ts` test sends two
-concurrent requests from Flixer's recommendation service to a running AI
-service and checks their trace-indexed events in a real logger. Use an isolated
-logger deployment and AI instance with recommendations disabled. Provision an
-AI ingestion credential for that deployment and set the following environment
-variables securely before running the test:
-
-- `LOGGER_CORRELATION_URL`: logger origin.
-- `LOGGER_CORRELATION_INGEST`: application-bound `flixer` ingestion credential.
-- `LOGGER_CORRELATION_QUERY`: query credential for the same deployment.
-- `LOGGER_CORRELATION_AI_URL`: AI service origin.
-- `LOGGER_CORRELATION_AI_SECRET`: AI internal authentication secret.
-
-Run `npx vitest run src/api/ai/loggerCorrelationIntegration.spec.ts`. The test
-is skipped when these values are absent; it does not provision the services or
-verify full-stack deployment.
-
-### Logger owner integration test
-
-The optional owner integration test starts a disposable local logger, creates
-temporary credentials, and verifies owner isolation and capacity rejection
-and recovery through Flixer's `LoggerService`. Build the logger first and
-provide its binary path:
-
-```sh
+```bash
 cd ../flixer-logger
 go build -o /tmp/flixer-logger-test ./cmd/flixer-logger
 cd ../flixer
 FLIXER_LOGGER_TEST_BINARY=/tmp/flixer-logger-test npx vitest run src/api/logger/loggerOwnerIntegration.spec.ts
 ```
 
-The test is skipped when the binary path is absent. It does not exercise the
-HTTP authentication layer of Flixer, browser-to-API integration or deployment.
+It is skipped without the binary path and does not exercise Flixer HTTP
+authentication, browser-to-API integration or deployment.
 
-## 📄 Licence
+</details>
 
-Check this repository's [`LICENSE`](LICENSE) file, if present, for the authoritative licensing terms. The [main Flixer backend](https://github.com/flixermedia/flixer/blob/main/LICENSE) uses MIT; licensing for separate components should be verified individually before redistribution.
+### Flixer ecosystem
 
----
+| Repository | Purpose |
+| --- | --- |
+| [Flixer](https://github.com/flixermedia/flixer) | Backend API, authentication, libraries and administration. |
+| [Flixer Web](https://github.com/flixermedia/flixer-web) | Browsing, sign-in, discovery and playback interface. |
+| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | Media delivery and FFmpeg processing. |
+| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | Media discovery, identification, probing and enrichment. |
+| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | Docker Compose updates and restores. |
+| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins) | Official plugin catalogue and schemas. |
+| [Flixer Docs](https://github.com/flixermedia/flixer-docs) | Platform documentation. |
 
-<div align="center">
+## Licence
 
-**Your media. Your server. Your rules.**
-
-Made for the [Flixer](https://github.com/flixermedia) ecosystem.
-
-</div>
+Check the applicable licence for each component before redistributing it.
