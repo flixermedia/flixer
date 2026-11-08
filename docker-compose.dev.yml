@@ -28,6 +28,8 @@ services:
                 chmod 0600 /data/logs/logger/tls.key
                 chown 1000:1000 /run/flixer-secrets
                 chmod 0755 /run/flixer-secrets
+                touch /run/flixer-secrets/logger-ca.crt
+                chmod 0644 /run/flixer-secrets/logger-ca.crt
                 install -d -o 1000 -g 1000 -m 0700 /run/flixer-secrets/logger
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data

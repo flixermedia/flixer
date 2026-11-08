@@ -43,6 +43,8 @@ chmod 0755 "$DATA_ROOT/plugins"
 chown 10001:10001 "$DATA_ROOT/ai" "$DATA_ROOT/ai/models"
 chown 1000:1000 /run/flixer-secrets
 chmod 0755 /run/flixer-secrets
+touch /run/flixer-secrets/logger-ca.crt
+chmod 0644 /run/flixer-secrets/logger-ca.crt
 install -d -o 1000 -g 1000 -m 0700 /run/flixer-secrets/logger
 
 mkdir -p "$LOGGER_LOGS/logger"
