@@ -6,7 +6,7 @@ import "../../logs/liveLogAppender.js";
 import "../../logs/loggerAppender.js";
 import "../../logs/unifiedLog.js";
 import { isProduction } from "../utils/index.js";
-import { alterRequestLog } from "./requestLog.js";
+import { alterRequestLog, logRequestResponse } from "./requestLog.js";
 
 // Mirrors log events to the admin dashboard's live log stream.
 $log.appenders.set("live", { type: "live" });
@@ -33,4 +33,5 @@ if (isProduction) {
 export default <DILoggerOptions>{
 	disableRoutesSummary: isProduction,
 	alterLog: alterRequestLog,
+	onLogResponse: logRequestResponse,
 };

@@ -1,8 +1,21 @@
 import { DIContext } from "@tsed/di";
 import { describe, expect, it } from "vitest";
-import { alterRequestLog } from "./requestLog.js";
+import { alterRequestLog, setLogSuccessfulApiRequests, shouldLogRequestResponse } from "./requestLog.js";
 
 describe("logger administration request logs", () => {
+	it("logs failed API requests by default and only logs successful ones when enabled", () => {
+		setLogSuccessfulApiRequests(false);
+		expect(shouldLogRequestResponse("/api/media", 200)).toBe(false);
+		expect(shouldLogRequestResponse("/api/media?limit=10", 304)).toBe(false);
+		expect(shouldLogRequestResponse("/api/media", 400)).toBe(true);
+		expect(shouldLogRequestResponse("/api/media", 500)).toBe(true);
+		expect(shouldLogRequestResponse("/health", 200)).toBe(true);
+
+		setLogSuccessfulApiRequests(true);
+		expect(shouldLogRequestResponse("/api/media", 200)).toBe(true);
+		setLogSuccessfulApiRequests(false);
+	});
+
 	it.each(["/api/internal/ai/logger-configuration", "/api/internal/logger/indexer"])("sanitizes credential responses at %s", (url) => {
 		const ctx = new DIContext({ id: "ai-logger" });
 		ctx.request = { method: "GET", url, headers: {}, body: {}, query: {}, params: {} };
@@ -58,7 +71,8 @@ describe("logger administration request logs", () => {
 		ctx.request = {
 			method: "PUT", url: "/api/admin/logger/configuration?secret=hidden", headers: {
 				traceparent: `00-${"a".repeat(32)}-${"1".repeat(16)}-01`, authorization: "private",
-			}, body: { token: "private" }, query: { secret: "hidden" }, params: {},
+			},
+			body: { token: "private" }, query: { secret: "hidden" }, params: {},
 		};
 		const result = alterRequestLog("error", { event: "request.end", status: 400, error_body: "private" }, ctx);
 		expect(result).toMatchObject({ trace_id: "a".repeat(32), url: "/api/admin/logger/configuration" });

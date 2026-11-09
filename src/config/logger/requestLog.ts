@@ -1,5 +1,27 @@
 import type { DIContext } from "@tsed/di";
-import { defaultAlterLog } from "@tsed/platform-log-request";
+import { defaultAlterLog, defaultLogResponse } from "@tsed/platform-log-request";
+
+export const LOG_SUCCESSFUL_API_REQUESTS_SETTING = "log_successful_api_requests";
+
+let logSuccessfulApiRequests = false;
+
+export function setLogSuccessfulApiRequests(enabled: boolean): void {
+	logSuccessfulApiRequests = enabled;
+}
+
+function isApiRequest(url: string): boolean {
+	return url === "/api" || url.startsWith("/api/");
+}
+
+export function shouldLogRequestResponse(url: string, statusCode: number): boolean {
+	return !isApiRequest(url.split("?")[0] ?? "") || logSuccessfulApiRequests || statusCode >= 400;
+}
+
+export function logRequestResponse(ctx: DIContext): void {
+	const requestUrl = typeof ctx.request.url === "string" ? ctx.request.url.split("?")[0] : "";
+	if (!shouldLogRequestResponse(requestUrl, ctx.response.statusCode)) return;
+	defaultLogResponse(ctx);
+}
 
 /** Logger management requests can contain long-lived credentials. */
 export function isLoggerManagementPath(url: string): boolean {
