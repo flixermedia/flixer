@@ -401,14 +401,19 @@ install_node flixer-docs
 # Python dependencies are isolated from the workspace image and refreshed when the AI manifest changes.
 AI_VENV="$ROOT/flixer-ai/.venv"
 AI_STAMP="$AI_VENV/.requirements-hash"
-AI_HASH="$(sha256sum "$ROOT/flixer-ai/pyproject.toml" "$ROOT/flixer-ai/VERSION" | sha256sum | cut -d' ' -f1)"
 if ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 12))'; then
   echo "flixer-ai requires Python 3.12 or newer." >&2
   exit 1
 fi
+AI_PYTHON_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 if [ ! -x "$AI_VENV/bin/uvicorn" ]; then
   python3 -m venv "$AI_VENV"
 fi
+AI_VENV_PYTHON_VERSION="$(sed -n 's/^version = \([0-9]*\.[0-9]*\).*/\1/p' "$AI_VENV/pyvenv.cfg")"
+if [ "$AI_VENV_PYTHON_VERSION" != "$AI_PYTHON_VERSION" ]; then
+  python3 -m venv --upgrade "$AI_VENV"
+fi
+AI_HASH="$(printf '%s\n' "$AI_PYTHON_VERSION" "$(sha256sum "$ROOT/flixer-ai/pyproject.toml" "$ROOT/flixer-ai/VERSION" | sha256sum | cut -d' ' -f1)" | sha256sum | cut -d' ' -f1)"
 if [ ! -f "$AI_STAMP" ] || [ "$(cat "$AI_STAMP")" != "$AI_HASH" ]; then
   "$AI_VENV/bin/pip" install --upgrade pip
   "$AI_VENV/bin/pip" install -e "$ROOT/flixer-ai"
