@@ -9,11 +9,16 @@ import { RegisterRequest } from "./registerRequest.js";
 import { SetPasskeyRequiredRequest } from "./setPasskeyRequiredRequest.js";
 import { UpdateProfileRequest } from "./updateProfileRequest.js";
 import { VerifyEmailRequest } from "./verifyEmailRequest.js";
+import { QuickConnectDecisionRequest, QuickConnectPollRequest } from "./quickConnectRequest.js";
+import { QuickConnectService } from "./quickConnectService.js";
 
 @Controller("/auth")
 export class AuthController {
 
-	constructor(private readonly authService: AuthService) {}
+	constructor(
+		private readonly authService: AuthService,
+		private readonly quickConnect: QuickConnectService,
+	) {}
 
 	@Post("/register")
 	register(@BodyParams() request: RegisterRequest, @HeaderParams("authorization") authorization?: string) {
@@ -63,6 +68,33 @@ export class AuthController {
 	@Post("/login")
 	login(@BodyParams() request: LoginRequest) {
 		return this.authService.login(request.username, request.password);
+	}
+
+	@Get("/quick-connect/status")
+	quickConnectStatus() {
+		return this.quickConnect.getStatus();
+	}
+
+	@Post("/quick-connect/start")
+	startQuickConnect() {
+		return this.quickConnect.start();
+	}
+
+	@Post("/quick-connect/poll")
+	pollQuickConnect(@BodyParams() request: QuickConnectPollRequest) {
+		return this.quickConnect.poll(request.requestId, request.pollToken);
+	}
+
+	@Post("/quick-connect/approve")
+	@Security("BearerAuth")
+	approveQuickConnect(@BodyParams() request: QuickConnectDecisionRequest, @HeaderParams("authorization") authorization?: string) {
+		return this.quickConnect.approve(authorization, request.userCode);
+	}
+
+	@Post("/quick-connect/deny")
+	@Security("BearerAuth")
+	denyQuickConnect(@BodyParams() request: QuickConnectDecisionRequest, @HeaderParams("authorization") authorization?: string) {
+		return this.quickConnect.deny(authorization, request.userCode);
 	}
 
 	@Get("/sessions")

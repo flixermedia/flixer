@@ -3,7 +3,7 @@ import { Inject, Injectable } from "@tsed/di";
 import { getContext } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
 import { createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
-import { DataSource, MoreThan, Not } from "typeorm";
+import { DataSource, EntityManager, MoreThan, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
@@ -475,7 +475,7 @@ export class AuthService {
 		return { id: session.id, loggedOut: true };
 	}
 
-	private async requireAuthenticatedSession(authorization?: string): Promise<AuthenticatedSession> {
+	async requireAuthenticatedSession(authorization?: string): Promise<AuthenticatedSession> {
 		const match = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(authorization ?? "");
 		if (!match) {
 			throw new Unauthorized("A valid bearer access token is required.");
@@ -579,8 +579,8 @@ export class AuthService {
 		return this.toPublicUser(user);
 	}
 
-	async issueAuthResult(user: User): Promise<AuthResult> {
-		return this.createAuthResult(user, this.getTokenSecret());
+	async issueAuthResult(user: User, manager: EntityManager = this.dataSource.manager): Promise<AuthResult> {
+		return this.createAuthResult(user, this.getTokenSecret(), manager);
 	}
 
 	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired | PaymentPending> {
@@ -698,7 +698,7 @@ export class AuthService {
 		return timingSafeEqual(actualKey, expectedKey);
 	}
 
-	private async createAuthResult(user: User, secret: string): Promise<AuthResult> {
+	private async createAuthResult(user: User, secret: string, manager: EntityManager = this.dataSource.manager): Promise<AuthResult> {
 		if (user.disabledAt) {
 			throw new Forbidden("This account has been disabled. Contact your server administrator.");
 		}
@@ -708,8 +708,9 @@ export class AuthService {
 		const issuedAt = Math.floor(Date.now() / 1000);
 		const expiresAt = new Date((issuedAt + ACCESS_TOKEN_LIFETIME_SECONDS) * 1000);
 		const { userAgent, ipAddress } = readClientInfo();
-		const session = await this.dataSource.getRepository(UserSession).save(
-			this.dataSource.getRepository(UserSession).create({
+		const sessionRepository = manager.getRepository(UserSession);
+		const session = await sessionRepository.save(
+			sessionRepository.create({
 				id: randomUUID(),
 				userId: user.id,
 				expiresAt,

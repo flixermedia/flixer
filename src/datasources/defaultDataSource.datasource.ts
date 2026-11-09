@@ -1,5 +1,6 @@
 import { injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
+import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../config/logger/requestLog.js";
 import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { Setting } from "../entities/setting.entity.js";
@@ -25,6 +26,7 @@ import { CreateListeningAnalytics1798300000008 } from "../migrations/createListe
 import { CreateUserWebhooks1798300000009 } from "../migrations/createUserWebhooks1798300000009.js";
 import { DefaultUserWebhookUrlRules1798300000010 } from "../migrations/defaultUserWebhookUrlRules1798300000010.js";
 import { CreateMediaSourceGroups1798300000011 } from "../migrations/createMediaSourceGroups1798300000011.js";
+import { CreateQuickConnectRequests1798300000012 } from "../migrations/createQuickConnectRequests1798300000012.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
 import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
@@ -115,6 +117,7 @@ import { synchronizeSettings } from "../config/settingsSync.js";
 import { appConfig } from "../config/store/appConfig.js";
 import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
 import { AiRecommendationCache } from "../entities/aiRecommendationCache.entity.js";
+import { QuickConnectRequest } from "../entities/quickConnectRequest.entity.js";
 import { CreateAiRecommendationCaches1796600000000 } from "../migrations/createAiRecommendationCaches1796600000000.js";
 import { AddAiRecommendationCacheScopes1796700000000 } from "../migrations/addAiRecommendationCacheScopes1796700000000.js";
 import { AddRequestWebhookToken1796800000000 } from "../migrations/addRequestWebhookToken1796800000000.js";
@@ -196,6 +199,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				GuideSettings,
 				GuideProgramme,
 				AiRecommendationCache,
+				QuickConnectRequest,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -273,6 +277,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateUserWebhooks1798300000009,
 				DefaultUserWebhookUrlRules1798300000010,
 				CreateMediaSourceGroups1798300000011,
+				CreateQuickConnectRequests1798300000012,
 			],
 			synchronize: false,
 			migrationsRun: false,
@@ -281,6 +286,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 		await dataSource.initialize();
 		await dataSource.runMigrations();
 		await synchronizeSettings(dataSource);
+		const requestLoggingSetting = await dataSource.getRepository(Setting).findOneBy({ key: LOG_SUCCESSFUL_API_REQUESTS_SETTING });
+		setLogSuccessfulApiRequests(requestLoggingSetting?.value === true);
 		await cleanupExpiredUserSessions(dataSource);
 		logger().info("Connected to PostgreSQL.");
 
