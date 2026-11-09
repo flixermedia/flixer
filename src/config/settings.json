@@ -10,6 +10,11 @@
 		"isPublic": false
 	},
 	{
+		"key": "quick_connect_enabled",
+		"defaultValue": false,
+		"isPublic": true
+	},
+	{
 		"key": "original_quality_access",
 		"defaultValue": "admins",
 		"isPublic": false
@@ -171,6 +176,11 @@
 		"isPublic": false
 	},
 	{
+		"key": "log_successful_api_requests",
+		"defaultValue": false,
+		"isPublic": false
+	},
+	{
 		"key": "sentry_flixer_enabled",
 		"defaultValue": true,
 		"isPublic": false
@@ -266,5 +276,7 @@
 	{ "key": "calls_turn_urls", "defaultValue": [], "isPublic": false },
 	{ "key": "calls_turn_secret", "defaultValue": "", "isPublic": false },
 	{ "key": "calls_turn_username", "defaultValue": "", "isPublic": false },
-	{ "key": "calls_relay_only", "defaultValue": false, "isPublic": false }
+	{ "key": "calls_relay_only", "defaultValue": false, "isPublic": false },
+	{ "key": "widevine_drm_enabled", "defaultValue": false, "isPublic": true },
+	{ "key": "widevine_license_server_url", "defaultValue": "", "isPublic": true }
 ]

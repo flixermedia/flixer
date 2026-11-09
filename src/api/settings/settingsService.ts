@@ -13,6 +13,7 @@ import { SECRET_MASK } from "./secretMask.js";
 import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
+import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.js";
 
 export { SECRET_MASK };
 
@@ -107,6 +108,9 @@ export class SettingsService {
 		if ((key === "calls_enabled" || key === "calls_relay_only") && typeof request.value !== "boolean") {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
+		if (key === "quick_connect_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The quick_connect_enabled setting must be a boolean.");
+		}
 		if (key === "calls_turn_username" && (typeof request.value !== "string" || request.value.length > 256)) {
 			throw new BadRequest("The calls_turn_username setting must be text of at most 256 characters.");
 		}
@@ -116,6 +120,27 @@ export class SettingsService {
 			}
 			if (request.value === SECRET_MASK) {
 				throw new BadRequest("Enter the new TURN secret instead of the masked placeholder.");
+			}
+		}
+		if (key === "widevine_drm_enabled" && typeof request.value !== "boolean") {
+			throw new BadRequest("The widevine_drm_enabled setting must be a boolean.");
+		}
+		if (key === "widevine_license_server_url") {
+			if (typeof request.value !== "string" || request.value.length > 2048) {
+				throw new BadRequest("The Widevine license server URL must be text of at most 2048 characters.");
+			}
+			const value = request.value.trim();
+			if (value !== "") {
+				let url: URL;
+				try {
+					url = new URL(value);
+				} catch {
+					throw new BadRequest("The Widevine license server URL must be a valid HTTPS URL.");
+				}
+				if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+					throw new BadRequest("The Widevine license server URL must use HTTPS and cannot contain credentials, query parameters, or a fragment.");
+				}
+				request.value = value;
 			}
 		}
 		if (
@@ -132,6 +157,9 @@ export class SettingsService {
 			(key === "registration_enabled" || key === "email_verification_required") &&
 			typeof request.value !== "boolean"
 		) {
+			throw new BadRequest(`The ${key} setting must be a boolean.`);
+		}
+		if (key === LOG_SUCCESSFUL_API_REQUESTS_SETTING && typeof request.value !== "boolean") {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
 
@@ -242,6 +270,12 @@ export class SettingsService {
 		}
 
 		const settings = this.dataSource.getRepository(Setting);
+		if (key === "widevine_drm_enabled" && request.value === true) {
+			const licenseUrl = await settings.findOneBy({ key: "widevine_license_server_url" });
+			if (!licenseUrl || typeof licenseUrl.value !== "string" || licenseUrl.value.trim() === "") {
+				throw new BadRequest("Configure the Widevine license server URL before enabling DRM.");
+			}
+		}
 		const setting = await settings.findOneBy({ key });
 		if (!setting) {
 			throw new NotFound("Setting not found. Add new settings through a database migration.");
@@ -251,6 +285,9 @@ export class SettingsService {
 			? this.indexerSettings.validate(key, request.value, setting.value)
 			: request.value;
 		const saved = await settings.save(setting);
+		if (key === LOG_SUCCESSFUL_API_REQUESTS_SETTING) {
+			setLogSuccessfulApiRequests(request.value === true);
+		}
 		if (SENTRY_SETTING_KEYS.includes(key)) {
 			await this.sentryService.apply();
 		}

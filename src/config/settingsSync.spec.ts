@@ -67,6 +67,18 @@ describe("synchronizeSettings", () => {
 			value: false,
 			isPublic: false,
 		});
+		expect(settingsToSave.find(({ key }) => key === "log_successful_api_requests")).toMatchObject({
+			value: false,
+			isPublic: false,
+		});
+		expect(settingsToSave.find(({ key }) => key === "widevine_drm_enabled")).toMatchObject({
+			value: false,
+			isPublic: true,
+		});
+		expect(settingsToSave.find(({ key }) => key === "widevine_license_server_url")).toMatchObject({
+			value: "",
+			isPublic: true,
+		});
 	});
 
 	it("preserves an enabled trailer cache setting during synchronization", async () => {
