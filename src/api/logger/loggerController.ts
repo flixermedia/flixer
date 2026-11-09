@@ -169,6 +169,11 @@ export class LoggerController {
 		return this.logger.setQuota(request, authorization);
 	}
 
+	@Post("/clear")
+	clearLogs(@HeaderParams("authorization") authorization?: string) {
+		return this.logger.clearLogs(authorization);
+	}
+
 	@Post("/query-token")
 	queryToken(@Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string) {
 		ctx.response.setHeader("Cache-Control", "private, no-store");

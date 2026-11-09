@@ -748,6 +748,17 @@ export class LoggerService {
 		return quotaPolicy(await this.request(endpoint, token, "PUT", "/api/logger/quota", { max_bytes: request.maxBytes }));
 	}
 
+	async clearLogs(authorization?: string) {
+		await this.auth.requireAdmin(authorization);
+		const { endpoint, token } = this.credentials();
+		const payload = await this.request(endpoint, token, "POST", "/api/logs/clear");
+		if (!payload || typeof payload !== "object" || !("cleared" in payload) ||
+			typeof payload.cleared !== "number" || !Number.isSafeInteger(payload.cleared) || payload.cleared < 0) {
+			throw new Exception(502, "The logger returned an invalid log-clear response.");
+		}
+		return { cleared: payload.cleared };
+	}
+
 	async issueQueryToken(authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		const { endpoint, token } = this.credentials();
