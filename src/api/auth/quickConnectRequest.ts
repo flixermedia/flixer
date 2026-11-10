@@ -20,6 +20,6 @@ export class QuickConnectDecisionRequest {
 	@Required()
 	@MinLength(8)
 	@MaxLength(9)
-	@Pattern(/^(?:[23456789A-HJ-NP-Z]{8}|[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4})$/i)
+	@Pattern("^(?:[23456789A-HJ-NP-Za-hj-np-z]{8}|[23456789A-HJ-NP-Za-hj-np-z]{4}-[23456789A-HJ-NP-Za-hj-np-z]{4})$")
 	userCode!: string;
 }
