@@ -56,6 +56,17 @@ describe("logger administration request logs", () => {
 		expect(alterRequestLog("info", { event: "request.end" }, ctx)).toMatchObject({ event: "request.end", url: "/api/other" });
 	});
 
+	it.each(["/api/admin/oidc/clients", "/api/oidc/interaction/example/details"])("does not log OAuth credentials or interaction cookies at %s", (url) => {
+		const ctx = new DIContext({ id: "oauth-test" });
+		ctx.request = {
+			method: "POST", url: `${url}?private-query=value`, headers: { authorization: "private-token", cookie: "private-cookie" },
+			body: { secret: "private-secret" }, query: { "private-query": "value" }, params: {},
+		};
+		const result = alterRequestLog("error", { event: "request.end", status: 400, error_body: "private-error" }, ctx);
+		expect(result).toMatchObject({ url, status: 400 });
+		expect(JSON.stringify(result)).not.toContain("private");
+	});
+
 	it("adds valid trace context to request logs", () => {
 		const ctx = new DIContext({ id: "test" });
 		ctx.request = {

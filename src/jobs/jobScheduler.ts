@@ -23,6 +23,7 @@ import {
 } from "./adminScheduledTasks.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
+import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
 const ANALYTICS_RETENTION_JOB = "analytics-retention";
@@ -90,7 +91,10 @@ export class JobScheduler {
 		const [setupError] = await tryCatch(async () => {
 			await boss.createQueue(SESSION_CLEANUP_JOB);
 			await boss.work(SESSION_CLEANUP_JOB, async () => {
-				const [jobError] = await tryCatch(() => cleanupExpiredUserSessions(this.dataSource));
+				const [jobError] = await tryCatch(async () => {
+					await cleanupExpiredUserSessions(this.dataSource);
+					await cleanupExpiredOidcArtifacts(this.dataSource);
+				});
 				if (jobError) {
 					logger().error(`Job ${SESSION_CLEANUP_JOB} failed.`, jobError);
 					this.sentryService.captureException(jobError);

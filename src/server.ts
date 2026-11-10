@@ -1,12 +1,15 @@
 import "@tsed/ajv";
 import "@tsed/platform-log-request";
 
-import { Configuration } from "@tsed/di";
+import { Configuration, Inject } from "@tsed/di";
 import { application } from "@tsed/platform-http";
 import type { PlatformFastifyPluginSettings } from "@tsed/platform-fastify";
+import type { FastifyInstance } from "fastify";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 
 import "@tsed/platform-fastify";
+import "@fastify/middie";
 import "@tsed/platform-multer";
 import "@tsed/scalar";
 import * as api from "./api.js";
@@ -26,6 +29,7 @@ import { NotificationGateway } from "./api/notifications/notificationGateway.js"
 import "./sentry/sentryErrorFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 import { CORS_METHODS, CORS_ORIGINS } from "./cors.js";
+import { OidcProviderService } from "./api/oidc/oidcProviderService.js";
 
 const fastifyPlugins = [
 	{
@@ -105,4 +109,25 @@ const fastifyPlugins = [
 })
 export class Server {
 	protected app = application();
+	@Inject(OidcProviderService) private readonly oidc!: OidcProviderService;
+
+	$beforeRoutesInit(): void {
+		const fastify = this.app.getApp() as FastifyInstance;
+		fastify.use("/.well-known/oauth-authorization-server/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
+			if (request.url !== "/" && !request.url?.startsWith("/?")) return next();
+			request.url = `/.well-known/oauth-authorization-server${request.url.slice(1)}`;
+			void this.oidc.getProvider().then((provider) => provider.callback()(request, response)).catch((error: unknown) => {
+				next(error instanceof Error ? error : new Error(String(error)));
+			});
+		});
+		fastify.use("/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
+			if (/^\/interaction(?:\/|$)/.test(request.url || "")) {
+				next();
+				return;
+			}
+			void this.oidc.getProvider().then((provider) => provider.callback()(request, response)).catch((error: unknown) => {
+				next(error instanceof Error ? error : new Error(String(error)));
+			});
+		});
+	}
 }

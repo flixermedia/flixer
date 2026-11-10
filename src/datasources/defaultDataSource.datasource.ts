@@ -29,6 +29,10 @@ import { CreateMediaSourceGroups1798300000011 } from "../migrations/createMediaS
 import { CreateQuickConnectRequests1798300000012 } from "../migrations/createQuickConnectRequests1798300000012.js";
 import { CreateThemes1798300000013 } from "../migrations/createThemes1798300000013.js";
 import { CreateThemeVersions1798300000014 } from "../migrations/createThemeVersions1798300000014.js";
+import { CreateOidcProvider1798300000015 } from "../migrations/createOidcProvider1798300000015.js";
+import { RepairOidcConfiguration1798300000016 } from "../migrations/repairOidcConfiguration1798300000016.js";
+import { CreateOidcConsents1798300000017 } from "../migrations/createOidcConsents1798300000017.js";
+import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
 import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
@@ -286,6 +290,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateQuickConnectRequests1798300000012,
 				CreateThemes1798300000013,
 				CreateThemeVersions1798300000014,
+				CreateOidcProvider1798300000015,
+				RepairOidcConfiguration1798300000016,
+				CreateOidcConsents1798300000017,
 			],
 			synchronize: false,
 			migrationsRun: false,
@@ -297,6 +304,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 		const requestLoggingSetting = await dataSource.getRepository(Setting).findOneBy({ key: LOG_SUCCESSFUL_API_REQUESTS_SETTING });
 		setLogSuccessfulApiRequests(requestLoggingSetting?.value === true);
 		await cleanupExpiredUserSessions(dataSource);
+		await cleanupExpiredOidcArtifacts(dataSource);
 		logger().info("Connected to PostgreSQL.");
 
 		return dataSource;

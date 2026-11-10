@@ -32,6 +32,12 @@ export function isLoggerManagementPath(url: string): boolean {
 		path === "/api/internal/logger" || path.startsWith("/api/internal/logger/");
 }
 
+function isOidcSensitivePath(url: string): boolean {
+	const path = url.split("?")[0];
+	return path === "/api/admin/oidc" || path.startsWith("/api/admin/oidc/") ||
+		path === "/api/oidc" || path.startsWith("/api/oidc/");
+}
+
 function requestTraceId(header: unknown): string | undefined {
 	if (typeof header !== "string") return undefined;
 	const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/.exec(header);
@@ -42,7 +48,7 @@ function requestTraceId(header: unknown): string | undefined {
 export function alterRequestLog(level: string, value: Record<string, unknown>, ctx: DIContext) {
 	const requestUrl = typeof ctx.request.url === "string" ? ctx.request.url.split("?")[0] : "";
 	const traceId = requestTraceId(ctx.request.headers?.traceparent);
-	if (isLoggerManagementPath(requestUrl)) {
+	if (isLoggerManagementPath(requestUrl) || isOidcSensitivePath(requestUrl)) {
 		return {
 			method: ctx.request.method,
 			url: requestUrl,
