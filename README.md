@@ -6,7 +6,7 @@
 
 **Your media, your server, your rules.**
 
-[Documentation](https://github.com/flixermedia/flixer-docs) · [Report an issue](https://github.com/flixermedia/flixer/issues) · [Features](FEATURES.md)
+[Install Flixer](https://get.flixer.dev) · [Documentation](https://docs.flixer.dev) · [Report an issue](https://github.com/flixermedia/flixer/issues) · [Features](FEATURES.md)
 
 </div>
 
@@ -21,63 +21,72 @@ the installer for the full stack.
 ## What can Flixer do?
 
 - Manage media libraries, users and server settings from a web interface.
-- Stream your media using the Flixer streamer and indexer.
+- Scan and organize media, then stream it through the Flixer web app.
 - Set up your server and first administrator with a guided wizard.
 - Use local media folders or supported network shares.
-- Optionally enable AI and, if configured, payments. Payments are disabled by
-  default; see the [payments guide](https://flixermedia.github.io/flixer-docs/docs/flixer/payments/overview-and-concepts).
+- Optionally enable AI recommendations and audio/video calls. Payments are
+  disabled by default; see the
+  [payments guide](https://docs.flixer.dev/flixer/payments/overview-and-concepts).
 
 ## Install Flixer
 
-Choose the instructions for your server. Review the installer before running it.
+Use the official installer at [get.flixer.dev](https://get.flixer.dev). It
+downloads the current Compose files, guides you through installation choices,
+and starts the Flixer stack.
 
-### macOS and Linux
+### macOS and supported Linux
 
-Install Docker and Docker Compose, then run:
+Install Docker and Docker Compose. On Debian and Ubuntu the installer can
+install Docker for you. Then run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/flixermedia/flixer/main/install.sh | bash
+curl -fsSL https://get.flixer.dev | bash
 ```
 
-The installer supports macOS and Linux; automatic Docker installation is
-available on Debian and Ubuntu. Follow the prompts to choose your installation,
-data and media folders. It can also configure an SMB share.
+Follow the prompts to choose your installation, data and media folders. The
+installer can also configure an SMB share.
 
 ### Windows
 
-Windows installations run inside WSL 2:
+The Windows installer runs Flixer inside WSL 2 using a local Docker Engine
+installed inside the Linux distribution. Docker Desktop is not supported by
+this installer.
 
-1. Install a Linux distribution, for example with `wsl --install -d Ubuntu`.
-2. Install and start [Docker Engine and Compose inside WSL](https://docs.docker.com/engine/install/ubuntu/).
-   Enable systemd if needed and make sure `docker info` works in WSL without
-   `sudo`. The installer requires a local Linux Docker Engine, not Docker
-   Desktop or a remote Docker context.
-3. Run this in PowerShell:
+Install Ubuntu if needed, then install and start Docker Engine and Compose
+inside WSL. Run the installer from PowerShell:
 
-   ```powershell
-   Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/flixermedia/flixer/main/install.ps1 -OutFile install-flixer.ps1
-   powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
-   ```
+```powershell
+wsl --install -d Ubuntu
+Invoke-WebRequest -UseBasicParsing https://get.flixer.dev/install.ps1 -OutFile install-flixer.ps1
+powershell -ExecutionPolicy Bypass -File .\install-flixer.ps1
+```
 
-The default installation directory is `~/flixer` inside the default WSL
-distribution. Use `-Distro Ubuntu` to select a distribution and `-LinuxDir`,
-`-Data` or `-Media` to provide absolute Linux paths. Windows drives are
-available through paths such as `/mnt/c/Media`, provided WSL and Docker can
-access them. Use `-NoStart` to write the installation without starting it.
+See [get.flixer.dev](https://get.flixer.dev) for current options. Windows
+install paths are Linux paths inside WSL; Windows drives are available through
+paths such as `/mnt/c/Media` when WSL and Docker can access them.
 
 ### Finish setup
 
-1. Open `http://localhost:8080` on the server, or use the server's address and
-   the port you selected from another device.
-2. Follow the setup wizard and create your administrator account.
+1. Open the address printed by the installer (default `http://localhost:8080`).
+2. Follow the setup wizard to connect a database and create your administrator
+   account. The standard installation includes PostgreSQL and Redis.
 3. Add your media libraries.
 
-Quick setup uses the bundled Redis service. Advanced setup lets you configure
-Redis before connecting the database.
+AI is enabled by default for new installations and may download models. You
+can turn it off during setup or use the installer's `--no-ai` option on macOS
+and Linux, or `-NoAi` on Windows. Existing configuration is preserved when
+updating.
 
-AI is enabled by default for new installations and may download models. You can
-turn it off at the installer prompt, or use `--no-ai` on macOS/Linux or `-NoAi`
-on Windows. Existing configuration is preserved when updating.
+## Flixer ecosystem
+
+The standard self-hosted stack includes the API, web app, streamer, indexer,
+PostgreSQL, Redis, Meilisearch, Logger, and updater. AI recommendations and
+TURN relay for calls are optional Compose services. Plugins are installed
+through Flixer; Flixer Cloud is a separate website and is not required to run
+the self-hosted server.
+
+See the [ecosystem guide](https://docs.flixer.dev/ecosystem) for the full
+repository list and what each project does.
 
 ## Manage your server
 
@@ -331,15 +340,26 @@ authentication, browser-to-API integration or deployment.
 
 ### Flixer ecosystem
 
+The standard self-hosted stack includes the API, web app, streamer, indexer,
+Logger, and updater. AI recommendations and the Coturn-based TURN relay for
+audio/video calls are optional Compose services. Plugins are installed through
+Flixer, while Flixer Cloud is a separate website.
+
 | Repository | Purpose |
 | --- | --- |
-| [Flixer](https://github.com/flixermedia/flixer) | Backend API, authentication, libraries and administration. |
-| [Flixer Web](https://github.com/flixermedia/flixer-web) | Browsing, sign-in, discovery and playback interface. |
+| [Flixer](https://github.com/flixermedia/flixer) | Backend API, authentication, libraries, and administration. |
+| [Flixer Web](https://github.com/flixermedia/flixer-web) | Browsing, sign-in, discovery, and playback interface. |
 | [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | Media delivery and FFmpeg processing. |
-| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | Media discovery, identification, probing and enrichment. |
-| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | Docker Compose updates and restores. |
+| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | Media discovery, identification, probing, and enrichment. |
+| [Flixer Logger](https://github.com/flixermedia/flixer-logger) | Structured service logs and event search. |
+| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | In-dashboard updates, backups, and rollback. |
+| [Flixer AI](https://github.com/flixermedia/flixer-ai) | Optional recommendation service. |
 | [Flixer Plugins](https://github.com/flixermedia/flixer-plugins) | Official plugin catalogue and schemas. |
+| [Flixer Cloud](https://github.com/flixermedia/flixer-cloud) | Independent Flixer-branded marketing and account website. |
 | [Flixer Docs](https://github.com/flixermedia/flixer-docs) | Platform documentation. |
+
+See the [ecosystem guide](https://docs.flixer.dev/ecosystem) for which
+projects are part of the server installation.
 
 ## Licence
 
