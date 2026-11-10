@@ -1,5 +1,6 @@
 import type { CardSetupInput, ChargeInput, ChargeResult, PaymentProvider, ProviderCard } from "./paymentProvider.js";
 import { PaymentProviderError } from "./paymentProvider.js";
+import { providerErrorMessage } from "./providerErrors.js";
 
 const API = "https://api.stripe.com/v1";
 const TIMEOUT_MS = 20_000;
@@ -9,6 +10,7 @@ type Form = Record<string, string | number | boolean | undefined>;
 interface StripeError {
 	message?: string;
 	code?: string;
+	decline_code?: string;
 	payment_intent?: StripePaymentIntent;
 }
 
@@ -16,7 +18,7 @@ interface StripePaymentIntent {
 	id: string;
 	status: string;
 	client_secret?: string;
-	last_payment_error?: { message?: string } | null;
+	last_payment_error?: StripeError | null;
 	latest_charge?: string | { amount_refunded?: number; receipt_url?: string | null } | null;
 }
 
@@ -73,7 +75,7 @@ export class StripeProvider implements PaymentProvider {
 		const payload = (await response.json().catch(() => ({}))) as T & { error?: StripeError };
 		if (!response.ok) {
 			const error = payload.error;
-			throw Object.assign(new PaymentProviderError(error?.message ?? `Stripe returned ${response.status}.`, response.status >= 500), {
+			throw Object.assign(new PaymentProviderError(providerErrorMessage("stripe", response.status, [error?.decline_code, error?.code]), response.status >= 500 || response.status === 429, error?.message ?? `Stripe returned ${response.status}.`), {
 				intent: error?.payment_intent,
 			});
 		}
@@ -92,7 +94,7 @@ export class StripeProvider implements PaymentProvider {
 				detail: `Connected to ${name} (${this.secretKey.includes("_live_") ? "live" : "test"} mode)${account.charges_enabled === false ? ", but charges are not enabled on the account" : ""}.`,
 			};
 		} catch (error) {
-			return { ok: false, detail: error instanceof Error ? error.message : "Could not connect to Stripe." };
+			return { ok: false, detail: error instanceof PaymentProviderError ? error.diagnosticMessage : error instanceof Error ? error.message : "Could not connect to Stripe." };
 		}
 	}
 
@@ -171,7 +173,8 @@ export class StripeProvider implements PaymentProvider {
 		if (intent.status === "requires_action") {
 			return { status: "requires_action", ref: intent.id, clientSecret: intent.client_secret };
 		}
-		return { status: "failed", ref: intent.id, error: intent.last_payment_error?.message ?? "The payment did not go through." };
+		const error = intent.last_payment_error;
+		return { status: "failed", ref: intent.id, error: error ? providerErrorMessage("stripe", 400, [error.decline_code, error.code]) : "The payment did not go through." };
 	}
 
 	async retrieveCharge(ref: string): Promise<ChargeResult> {

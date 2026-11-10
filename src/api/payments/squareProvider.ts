@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { CardSetupInput, ChargeInput, ChargeResult, PaymentProvider, ProviderCard } from "./paymentProvider.js";
 import { PaymentProviderError } from "./paymentProvider.js";
+import { providerErrorMessage } from "./providerErrors.js";
 
 const VERSION = "2025-01-23";
 const TIMEOUT_MS = 20_000;
@@ -66,7 +67,8 @@ export class SquareProvider implements PaymentProvider {
 		}
 		const payload = (await response.json().catch(() => ({}))) as T & SquareErrorBody;
 		if (!response.ok) {
-			throw new PaymentProviderError(payload.errors?.[0]?.detail ?? `Square returned ${response.status}.`, response.status >= 500);
+			const error = payload.errors?.[0];
+			throw new PaymentProviderError(providerErrorMessage("square", response.status, [error?.code]), response.status >= 500 || response.status === 429, error?.detail ?? `Square returned ${response.status}.`);
 		}
 		return payload;
 	}
@@ -80,7 +82,7 @@ export class SquareProvider implements PaymentProvider {
 			}
 			return { ok: true, detail: `Connected to ${location.name ?? location.id} (${this.environment}).` };
 		} catch (error) {
-			return { ok: false, detail: error instanceof Error ? error.message : "Could not connect to Square." };
+			return { ok: false, detail: error instanceof PaymentProviderError ? error.diagnosticMessage : error instanceof Error ? error.message : "Could not connect to Square." };
 		}
 	}
 

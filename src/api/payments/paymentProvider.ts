@@ -53,6 +53,7 @@ export class PaymentProviderError extends Error {
 	constructor(
 		message: string,
 		readonly retryable = false,
+		readonly diagnosticMessage = message,
 	) {
 		super(message);
 		this.name = "PaymentProviderError";
