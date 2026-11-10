@@ -8,6 +8,7 @@ export { AuthController } from "./api/auth/authController.js";
 export { OidcClientsController } from "./api/oidc/oidcClientsController.js";
 export { OidcInteractionController } from "./api/oidc/oidcInteractionController.js";
 export { OidcConsentsController } from "./api/oidc/oidcConsentsController.js";
+export { OidcResourceController } from "./api/oidc/oidcResourceController.js";
 export { AvatarController } from "./api/auth/avatarController.js";
 export { PasskeyController } from "./api/auth/passkeyController.js";
 export { UserController } from "./api/user/userController.js";

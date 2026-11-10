@@ -25,3 +25,17 @@ export class UpdateOidcConfigurationRequest {
 	@MaxLength(2048)
 	publicUrl!: string;
 }
+
+/** Subscription status sharing for one application. */
+export class UpdateOidcSubscriptionSharingRequest {
+	@Property()
+	@Required()
+	shareSubscription!: boolean;
+}
+
+/** Resource scopes that a client may request. */
+export class UpdateOidcResourceScopesRequest {
+	@CollectionOf(String)
+	@Required()
+	scopes!: string[];
+}

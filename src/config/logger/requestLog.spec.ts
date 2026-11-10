@@ -56,7 +56,7 @@ describe("logger administration request logs", () => {
 		expect(alterRequestLog("info", { event: "request.end" }, ctx)).toMatchObject({ event: "request.end", url: "/api/other" });
 	});
 
-	it.each(["/api/admin/oidc/clients", "/api/oidc/interaction/example/details"])("does not log OAuth credentials or interaction cookies at %s", (url) => {
+	it.each(["/api/admin/oidc/clients", "/api/oidc/interaction/example/details", "/api/oauth/me/subscriptions"])("does not log OAuth credentials or interaction cookies at %s", (url) => {
 		const ctx = new DIContext({ id: "oauth-test" });
 		ctx.request = {
 			method: "POST", url: `${url}?private-query=value`, headers: { authorization: "private-token", cookie: "private-cookie" },

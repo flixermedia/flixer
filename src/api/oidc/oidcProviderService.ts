@@ -1,13 +1,16 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, ServiceUnavailable } from "@tsed/exceptions";
 import { generateKeyPairSync, hkdfSync } from "node:crypto";
-import Provider, { interactionPolicy, type JWKS } from "oidc-provider";
+import Provider, { errors, interactionPolicy, type JWKS } from "oidc-provider";
 import { DataSource } from "typeorm";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
+import { subscriptionGrantsAccess } from "../payments/paymentTypes.js";
 import { createOidcAdapter } from "./oidcAdapter.js";
 import { decryptOidcSecret, encryptOidcSecret } from "./oidcSecrets.js";
+import { isOidcResourceScope } from "./oidcResourceScopes.js";
 
 /** Provides one configured OpenID Connect issuer for this server. */
 @Injectable()
@@ -68,7 +71,22 @@ export class OidcProviderService {
 			adapter: (kind) => createOidcAdapter(dataSource, kind),
 			jwks: keys,
 			cookies: { keys: [cookieKey], short: { sameSite: "lax", httpOnly: true }, long: { sameSite: "lax", httpOnly: true } },
-			features: { devInteractions: { enabled: false }, revocation: { enabled: true } },
+			features: {
+				devInteractions: { enabled: false },
+				revocation: { enabled: true },
+				resourceIndicators: {
+					enabled: true,
+					async getResourceServerInfo(ctx, resource, client) {
+						if (resource !== `${issuer}/resource`) throw new errors.InvalidTarget("Unknown resource.");
+						const rows: Array<{ resource_scopes: string[] }> = await dataSource.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1`, [client.clientId]);
+						if (!rows.length) throw new errors.InvalidTarget("Unknown client.");
+						const requested = typeof ctx.oidc.params?.scope === "string" ? ctx.oidc.params.scope.split(" ").filter(isOidcResourceScope) : [];
+						const forbidden = requested.filter((scope) => !rows[0].resource_scopes.includes(scope));
+						if (forbidden.length) throw new errors.InvalidScope("Resource permission is not allowed for this application.", forbidden.join(" "));
+						return { scope: rows[0].resource_scopes.join(" "), audience: resource, accessTokenFormat: "opaque", accessTokenTTL: 3600 };
+					},
+				},
+			},
 			renderError(ctx, out) {
 				const code = out.error === "invalid_redirect_uri" ? "invalid_redirect_uri" : "authorization_error";
 				ctx.set("Cache-Control", "no-store");
@@ -78,7 +96,8 @@ export class OidcProviderService {
 			pkce: { required: () => true },
 			async loadExistingGrant(ctx) {
 				const accountId = ctx.oidc.account?.accountId;
-				const clientId = ctx.oidc.client.clientId;
+				const clientId = ctx.oidc.client?.clientId;
+				if (!clientId) return undefined;
 				if (!accountId) return undefined;
 				const submittedId = ctx.oidc.result?.consent?.grantId;
 				if (submittedId) return ctx.oidc.provider.Grant.find(submittedId);
@@ -89,7 +108,8 @@ export class OidcProviderService {
 				const consent = rows[0];
 				if (!consent) return undefined;
 				const grant = new ctx.oidc.provider.Grant({ accountId, clientId });
-				grant.addOIDCScope(consent.scopes);
+				grant.addOIDCScope(consent.scopes.filter((scope) => !isOidcResourceScope(scope)));
+				grant.addResourceScope(`${issuer}/resource`, consent.scopes.filter(isOidcResourceScope));
 				grant.addOIDCClaims(consent.claims);
 				const grantId = await grant.save();
 				return dataSource.transaction(async (manager) => {
@@ -103,21 +123,34 @@ export class OidcProviderService {
 					return undefined;
 				});
 			},
-			ttl: { AuthorizationCode: 300, AccessToken: 3600, IdToken: 600, Interaction: 600, Session: 3600, Grant: 30 * 24 * 60 * 60 },
-			claims: { openid: ["sub"], profile: ["name", "preferred_username"], email: ["email", "email_verified"] },
-			scopes: ["openid", "profile", "email"],
+			ttl: { AuthorizationCode: 300, AccessToken: 3600, RefreshToken: 30 * 24 * 60 * 60, IdToken: 600, Interaction: 600, Session: 3600, Grant: 30 * 24 * 60 * 60 },
+			rotateRefreshToken: true,
+			claims: { openid: ["sub"], profile: ["name", "preferred_username"], email: ["email", "email_verified"], roles: ["roles"], groups: ["groups"], subscription: ["flixer_subscription_active"] },
+			scopes: ["openid", "profile", "email", "offline_access", "roles", "groups", "subscription"],
 			interactions: { policy, url: (_ctx, interaction) => `/api/oidc/interaction/${interaction.uid}` },
-			async findAccount(_ctx, id) {
+			async findAccount(ctx, id) {
 				const user = await dataSource.getRepository(User).findOneBy({ id });
 				if (!user || user.disabledAt) return undefined;
 				return {
 					accountId: user.id,
-					async claims() {
+					async claims(_use, scope) {
+						const scopes = new Set((scope ?? "").split(" "));
+						let subscription: { flixer_subscription_active: boolean } | Record<string, never> = {};
+						if (scopes.has("subscription") && ctx.oidc.client?.clientId) {
+							const clients: Array<{ share_subscription: boolean }> = await dataSource.query(`SELECT "share_subscription" FROM "oidc_clients" WHERE "id" = $1`, [ctx.oidc.client.clientId]);
+							if (clients[0]?.share_subscription) {
+								const subscriptions = await dataSource.getRepository(PaymentSubscription).findBy({ userId: user.id });
+								subscription = { flixer_subscription_active: subscriptions.some((item) => subscriptionGrantsAccess(item, new Date())) };
+							}
+						}
 						return {
 							sub: user.id,
 							name: user.displayName || user.username,
 							preferred_username: user.username,
 							...(user.email ? { email: user.email, email_verified: !!user.emailVerifiedAt } : {}),
+							...(scopes.has("roles") ? { roles: [user.role] } : {}),
+							...(scopes.has("groups") ? { groups: [`flixer:${user.role}`] } : {}),
+							...subscription,
 						};
 					},
 				};

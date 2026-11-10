@@ -5,17 +5,20 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import type { CreateOidcClientRequest } from "./oidcClientRequests.js";
 import { encryptOidcSecret } from "./oidcSecrets.js";
+import { isOidcResourceScope } from "./oidcResourceScopes.js";
 
 interface ClientRow {
 	id: string;
 	name: string;
 	redirect_uris: string[];
 	confidential: boolean;
+	share_subscription: boolean;
+	resource_scopes: string[];
 	created_at: Date;
 }
 
 function publicClient(row: ClientRow) {
-	return { id: row.id, name: row.name, redirectUris: row.redirect_uris, type: row.confidential ? "confidential" : "public", createdAt: row.created_at };
+	return { id: row.id, name: row.name, redirectUris: row.redirect_uris, type: row.confidential ? "confidential" : "public", shareSubscription: row.share_subscription, resourceScopes: row.resource_scopes, createdAt: row.created_at };
 }
 
 /** Exact redirect URI matching is required by the provider; never normalize registered values. */
@@ -44,7 +47,7 @@ export class OidcClientService {
 
 	async list() {
 		const rows: ClientRow[] = await this.dataSource.query(
-			`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`,
+			`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "share_subscription", "resource_scopes", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`,
 		);
 		return rows.map(publicClient);
 	}
@@ -59,10 +62,40 @@ export class OidcClientService {
 		const rows: ClientRow[] = await this.dataSource.query(
 			`INSERT INTO "oidc_clients" ("id", "name", "redirect_uris", "secret_encrypted")
 			 VALUES ($1, $2, $3::jsonb, $4)
-			 RETURNING "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "created_at"`,
+			 RETURNING "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "share_subscription", "resource_scopes", "created_at"`,
 			[id, name, JSON.stringify(request.redirectUris), secret ? encryptOidcSecret(secret) : null],
 		);
 		return { ...publicClient(rows[0]), ...(secret ? { secret } : {}) };
+	}
+
+	async setResourceScopes(id: string, scopes: string[]): Promise<void> {
+		if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== "string" || !isOidcResourceScope(scope)) || new Set(scopes).size !== scopes.length) throw new BadRequest("Invalid resource permissions.");
+		await this.dataSource.transaction(async (manager) => {
+			const rows: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR UPDATE`, [id]);
+			if (!rows.length) throw new NotFound("OAuth client not found.");
+			const removed = rows[0].resource_scopes.filter((scope) => !scopes.includes(scope));
+			await manager.query(`UPDATE "oidc_clients" SET "resource_scopes" = $2::text[] WHERE "id" = $1`, [id, scopes]);
+			if (removed.length) {
+				await manager.query(`UPDATE "oidc_consents" SET "scopes" = ARRAY(SELECT unnest("scopes") EXCEPT SELECT unnest($2::text[])) WHERE "client_id" = $1`, [id, removed]);
+				await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1 OR "payload"->>'grantId' IN (SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant' AND "payload"->>'clientId' = $1)`, [id]);
+			}
+		});
+	}
+
+	async setSubscriptionSharing(id: string, enabled: boolean): Promise<void> {
+		if (typeof enabled !== "boolean") throw new BadRequest("Subscription sharing must be enabled or disabled.");
+		await this.dataSource.transaction(async (manager) => {
+			const rows: Array<{ share_subscription: boolean }> = await manager.query(
+				`SELECT "share_subscription" FROM "oidc_clients" WHERE "id" = $1 FOR UPDATE`, [id],
+			);
+			if (!rows.length) throw new NotFound("OAuth client not found.");
+			if (rows[0].share_subscription === enabled) return;
+			await manager.query(`UPDATE "oidc_clients" SET "share_subscription" = $2 WHERE "id" = $1`, [id, enabled]);
+			if (!enabled) {
+				await manager.query(`UPDATE "oidc_consents" SET "scopes" = array_remove("scopes", 'subscription'), "claims" = array_remove("claims", 'flixer_subscription_active') WHERE "client_id" = $1`, [id]);
+				await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1 OR "payload"->>'grantId' IN (SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant' AND "payload"->>'clientId' = $1)`, [id]);
+			}
+		});
 	}
 
 	async remove(id: string): Promise<void> {

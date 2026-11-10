@@ -7,6 +7,8 @@ interface ClientRow {
 	name: string;
 	redirect_uris: string[];
 	secret_encrypted: string | null;
+	share_subscription: boolean;
+	resource_scopes: string[];
 }
 
 interface ArtifactRow {
@@ -46,7 +48,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 		},
 		async find(id) {
 			if (kind !== "Client") return findArtifact("id", id);
-			const rows: ClientRow[] = await dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" FROM "oidc_clients" WHERE "id" = $1`, [id]);
+			const rows: ClientRow[] = await dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted", "share_subscription", "resource_scopes" FROM "oidc_clients" WHERE "id" = $1`, [id]);
 			const client = rows[0];
 			if (!client) return undefined;
 			return {
@@ -54,7 +56,8 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 				client_name: client.name,
 				redirect_uris: client.redirect_uris,
 				response_types: ["code"],
-				grant_types: ["authorization_code"],
+				grant_types: ["authorization_code", "refresh_token"],
+				scope: `openid profile email offline_access roles groups${client.share_subscription ? " subscription" : ""}`,
 				token_endpoint_auth_method: client.secret_encrypted ? "client_secret_basic" : "none",
 				...(client.secret_encrypted ? { client_secret: decryptOidcSecret(client.secret_encrypted) } : {}),
 			};

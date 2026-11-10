@@ -7,6 +7,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { AuthService } from "../auth/authService.js";
 import { OidcProviderService } from "./oidcProviderService.js";
+import { isOidcResourceScope } from "./oidcResourceScopes.js";
 
 class OidcInteractionDecision {
 
@@ -84,15 +85,27 @@ export class OidcInteractionController {
 			const { missingOIDCScope, missingOIDCClaims } = interaction.prompt.details;
 			if (Array.isArray(missingOIDCScope) && missingOIDCScope.every((item) => typeof item === "string")) grant.addOIDCScope(missingOIDCScope);
 			if (Array.isArray(missingOIDCClaims) && missingOIDCClaims.every((item) => typeof item === "string")) grant.addOIDCClaims(missingOIDCClaims);
+			const resource = `${provider.issuer}/resource`;
+			const missingResources = interaction.prompt.details.missingResourceScopes;
+			const missingResource = typeof missingResources === "object" && missingResources !== null ? Object.entries(missingResources).find(([key]) => key === resource)?.[1] : undefined;
+			if (Array.isArray(missingResource) && missingResource.every((item) => typeof item === "string" && isOidcResourceScope(item))) grant.addResourceScope(resource, missingResource);
 			const grantId = await grant.save();
 			destination = await provider.interactionResult(ctx.request.req, ctx.response.res, { consent: { grantId } }, { mergeWithLastSubmission: true });
-			await this.dataSource.query(
-				`INSERT INTO "oidc_consents" ("account_id", "client_id", "scopes", "claims") VALUES ($1, $2, $3::text[], $4::text[])
-				 ON CONFLICT ("account_id", "client_id") DO UPDATE SET
-				 "scopes" = ARRAY(SELECT DISTINCT unnest("oidc_consents"."scopes" || EXCLUDED."scopes")),
-				 "claims" = ARRAY(SELECT DISTINCT unnest("oidc_consents"."claims" || EXCLUDED."claims"))`,
-				[user.id, clientId, grant.getOIDCScope().split(" ").filter(Boolean), grant.getOIDCClaims()],
-			);
+			await this.dataSource.transaction(async (manager) => {
+				const clients: Array<{ share_subscription: boolean; resource_scopes: string[] }> = await manager.query(
+					`SELECT "share_subscription", "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR SHARE`, [clientId],
+				);
+				if (!clients.length) throw new NotFound("OAuth client not found.");
+				const scopes = [...grant.getOIDCScope().split(" "), ...grant.getResourceScope(resource).split(" ")].filter((scope) => scope && (scope !== "subscription" || clients[0].share_subscription) && (!isOidcResourceScope(scope) || clients[0].resource_scopes.includes(scope)));
+				const claims = grant.getOIDCClaims().filter((claim) => claim !== "flixer_subscription_active" || clients[0].share_subscription);
+				await manager.query(
+					`INSERT INTO "oidc_consents" ("account_id", "client_id", "scopes", "claims") VALUES ($1, $2, $3::text[], $4::text[])
+					 ON CONFLICT ("account_id", "client_id") DO UPDATE SET
+					 "scopes" = ARRAY(SELECT DISTINCT unnest("oidc_consents"."scopes" || EXCLUDED."scopes")),
+					 "claims" = ARRAY(SELECT DISTINCT unnest("oidc_consents"."claims" || EXCLUDED."claims"))`,
+					[user.id, clientId, scopes, claims],
+				);
+			});
 		} else {
 			throw new BadRequest("This action does not match the authorization request.");
 		}

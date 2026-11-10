@@ -3,7 +3,7 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
-import { CreateOidcClientRequest, UpdateOidcConfigurationRequest } from "./oidcClientRequests.js";
+import { CreateOidcClientRequest, UpdateOidcConfigurationRequest, UpdateOidcSubscriptionSharingRequest, UpdateOidcResourceScopesRequest } from "./oidcClientRequests.js";
 import { OidcClientService } from "./oidcClientService.js";
 import { OidcProviderService } from "./oidcProviderService.js";
 
@@ -43,5 +43,19 @@ export class OidcClientsController {
 	async remove(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		await this.auth.requireAdminSession(authorization);
 		await this.clients.remove(id);
+	}
+
+	@Put("/:id/subscription-sharing")
+	async subscriptionSharing(@PathParams("id") id: string, @BodyParams() request: UpdateOidcSubscriptionSharingRequest, @HeaderParams("authorization") authorization?: string) {
+		await this.auth.requireAdminSession(authorization);
+		await this.clients.setSubscriptionSharing(id, request.shareSubscription);
+		return { shareSubscription: request.shareSubscription };
+	}
+
+	@Put("/:id/resource-scopes")
+	async resourceScopes(@PathParams("id") id: string, @BodyParams() request: UpdateOidcResourceScopesRequest, @HeaderParams("authorization") authorization?: string) {
+		await this.auth.requireAdminSession(authorization);
+		await this.clients.setResourceScopes(id, request.scopes);
+		return { scopes: request.scopes };
 	}
 }

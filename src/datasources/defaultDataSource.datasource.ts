@@ -32,6 +32,8 @@ import { CreateThemeVersions1798300000014 } from "../migrations/createThemeVersi
 import { CreateOidcProvider1798300000015 } from "../migrations/createOidcProvider1798300000015.js";
 import { RepairOidcConfiguration1798300000016 } from "../migrations/repairOidcConfiguration1798300000016.js";
 import { CreateOidcConsents1798300000017 } from "../migrations/createOidcConsents1798300000017.js";
+import { AddOidcSubscriptionSharing1798300000018 } from "../migrations/addOidcSubscriptionSharing1798300000018.js";
+import { AddOidcResourceScopes1798300000019 } from "../migrations/addOidcResourceScopes1798300000019.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
@@ -293,6 +295,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateOidcProvider1798300000015,
 				RepairOidcConfiguration1798300000016,
 				CreateOidcConsents1798300000017,
+				AddOidcSubscriptionSharing1798300000018,
+				AddOidcResourceScopes1798300000019,
 			],
 			synchronize: false,
 			migrationsRun: false,

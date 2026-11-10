@@ -7,13 +7,29 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
 import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
+import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
+import { PaymentEntitlement } from "../../entities/paymentEntitlement.entity.js";
+import { PaymentOrder } from "../../entities/paymentOrder.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Favorite } from "../../entities/favorite.entity.js";
+import { Playlist } from "../../entities/playlist.entity.js";
+import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
+import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
 import { CreateOidcProvider1798300000015 } from "../../migrations/createOidcProvider1798300000015.js";
 import { CreateOidcConsents1798300000017 } from "../../migrations/createOidcConsents1798300000017.js";
+import { AddOidcSubscriptionSharing1798300000018 } from "../../migrations/addOidcSubscriptionSharing1798300000018.js";
+import { AddOidcResourceScopes1798300000019 } from "../../migrations/addOidcResourceScopes1798300000019.js";
 import { OidcClientService } from "./oidcClientService.js";
 import { OidcProviderService } from "./oidcProviderService.js";
 import { OidcInteractionController } from "./oidcInteractionController.js";
 import { OidcConsentService } from "./oidcConsentService.js";
 import { OidcConsentsController } from "./oidcConsentsController.js";
+import { OidcResourceController } from "./oidcResourceController.js";
+import type { MediaAccessService } from "../access/mediaAccessService.js";
+import type { EntitlementService } from "../payments/entitlementService.js";
+import { OIDC_RESOURCE_SCOPES } from "./oidcResourceScopes.js";
 import { Unauthorized } from "@tsed/exceptions";
 import type { AuthService } from "../auth/authService.js";
 
@@ -39,7 +55,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		admin = new DataSource({ type: "postgres", url: databaseUrl });
 		await admin.initialize();
 		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: [User, UserPreference], synchronize: true });
+		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: [User, UserPreference, PaymentSubscription, PaymentPlan, PaymentEntitlement, PaymentOrder, MediaItem, Favorite, Playlist, PlaylistItem, WatchProgress, ListeningHistory], synchronize: true });
 		await db.initialize();
 		const runner = db.createQueryRunner();
 		try {
@@ -52,6 +68,8 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 			await insertGrant("expired", { scope: "openid expired", claims: ["expired"] }, {}, "-1 day");
 			await insertGrant("missing-user", { scope: "openid unknown", claims: [] }, {}, "1 day", randomUUID());
 			await new CreateOidcConsents1798300000017().up(runner);
+			await new AddOidcSubscriptionSharing1798300000018().up(runner);
+			await new AddOidcResourceScopes1798300000019().up(runner);
 		} finally {
 			await runner.release();
 		}
@@ -62,6 +80,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		await app.register(middie);
 		let interactionController: OidcInteractionController;
 		let consentsController: OidcConsentsController;
+		let resourceController: OidcResourceController;
 		app.use("/api/oidc", (req, res, next) => {
 			if (/^\/interaction(?:\/|$)/.test(req.url || "")) return next();
 			void service
@@ -89,6 +108,14 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 			await consentsController.revoke(req.params.id, req.headers.authorization);
 			reply.code(204).send();
 		});
+		app.get("/api/oauth/me/subscriptions", async (req, reply) => {
+			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as PlatformContext;
+			return resourceController.subscriptions(req.headers.authorization, undefined, undefined, ctx);
+		});
+		app.get("/api/oauth/me/preferences", async (req, reply) => {
+			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as PlatformContext;
+			return resourceController.preferences(req.headers.authorization, ctx);
+		});
 		await app.listen({ port: 0, host: "127.0.0.1" });
 		const address = app.server.address();
 		if (!address || typeof address === "string") throw new Error("Missing test server address");
@@ -103,6 +130,15 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		} } as AuthService;
 		interactionController = new OidcInteractionController(auth, service, db);
 		consentsController = new OidcConsentsController(auth, new OidcConsentService(db));
+		resourceController = new OidcResourceController(db, service, {
+			forUser: async () => ({ enforced: false }),
+			visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids),
+			blockReason: async () => null,
+			restrictionSql: () => ({ sql: "TRUE", params: {} }),
+		} as unknown as MediaAccessService, {
+			contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }),
+			lockState: async () => ({ locked: false }),
+		} as EntitlementService);
 	}, 30_000);
 
 	afterAll(async () => {
@@ -116,6 +152,99 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		else process.env.JWT_SECRET = previousSecret;
 	});
 
+	it("requires an audience-bound token, current client permission and user approval for resource access", async () => {
+		const client = await clients.create({ name: "Resource client", type: "public", redirectUris: ["https://client.example/callback"] });
+		const agent = request.agent(app.server);
+		const verifier = randomBytes(32).toString("base64url");
+		const resource = `${issuer}/resource`;
+		const query = { client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback", scope: "openid offline_access subscriptions:read", resource, prompt: "consent", code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") };
+		const denied = await agent.get("/api/oidc/auth").query(query).expect(303);
+		expect(new URL(denied.headers.location, issuer).searchParams.get("error")).toBe("invalid_scope");
+		await clients.setResourceScopes(client.id, ["subscriptions:read"]);
+		const authorization = await agent.get("/api/oidc/auth").query(query).expect(303);
+		const login = await agent.post(new URL(authorization.headers.location, issuer).pathname).send({ action: "login" }).expect(200);
+		let resume = new URL(login.body.redirect);
+		const consent = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		const consentPath = new URL(consent.headers.location, issuer).pathname;
+		expect((await agent.get(`${consentPath}/details`).expect(200)).body.scope).toContain("subscriptions:read");
+		const approval = await agent.post(consentPath).send({ action: "approve" }).expect(200);
+		resume = new URL(approval.body.redirect);
+		const callback = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		const code = new URL(callback.headers.location).searchParams.get("code");
+		const token = await agent.post("/api/oidc/token").type("form").send({ grant_type: "authorization_code", client_id: client.id, code, redirect_uri: query.redirect_uri, code_verifier: verifier, resource }).expect(200);
+		const bearer = { Authorization: `Bearer ${token.body.access_token}` };
+		expect((await agent.get("/api/oauth/me/subscriptions").set(bearer).expect(200)).body).toEqual({ items: [], nextOffset: null });
+		await agent.get("/api/oauth/me/preferences").set(bearer).expect(403);
+		await agent.get("/api/oidc/me").set(bearer).expect(403);
+		const refreshed = await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token, resource }).expect(200);
+		expect(refreshed.body.refresh_token).not.toBe(token.body.refresh_token);
+		await agent.get("/api/oauth/me/subscriptions").set("Authorization", `Bearer ${refreshed.body.access_token}`).expect(200);
+		expect((await new OidcConsentService(db).list(userId)).find((item) => item.id === client.id)?.scopes).toContain("subscriptions:read");
+		await clients.setResourceScopes(client.id, []);
+		await agent.get("/api/oauth/me/subscriptions").set(bearer).expect(401);
+		await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: refreshed.body.refresh_token, resource }).expect(400);
+		await clients.remove(client.id);
+	}, 15_000);
+
+	it("returns paginated, scoped account data without exposing another account", async () => {
+		const client = await clients.create({ name: "All resources", type: "public", redirectUris: ["https://client.example/callback"] });
+		await clients.setResourceScopes(client.id, [...OIDC_RESOURCE_SCOPES]);
+		const provider = await service.getProvider();
+		const resource = `${issuer}/resource`;
+		const grant = new provider.Grant({ accountId: userId, clientId: client.id });
+		grant.addResourceScope(resource, [...OIDC_RESOURCE_SCOPES]);
+		const grantId = await grant.save();
+		await db.query(`INSERT INTO oidc_consents (account_id, client_id, scopes, claims) VALUES ($1, $2, $3::text[], ARRAY[]::text[])`, [userId, client.id, [...OIDC_RESOURCE_SCOPES]]);
+		const providerClient = await provider.Client.find(client.id);
+		if (!providerClient) throw new Error("Missing test client");
+		const token = new provider.AccessToken({ client: providerClient, accountId: userId, grantId, gty: "authorization_code", aud: resource, scope: OIDC_RESOURCE_SCOPES.join(" ") });
+		const bearer = `Bearer ${await token.save()}`;
+		const wrongAudience = new provider.AccessToken({ client: providerClient, accountId: userId, grantId, gty: "authorization_code", scope: OIDC_RESOURCE_SCOPES.join(" ") });
+		const ctx = { response: { setHeader: vi.fn() } } as unknown as PlatformContext;
+		const blockReason = vi.fn(async (): Promise<"rating" | null> => null);
+		const lockState = vi.fn(async () => ({ locked: false }));
+		const access = { forUser: async () => ({ enforced: false }), visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids), blockReason, restrictionSql: () => ({ sql: "TRUE", params: {} }) } as unknown as MediaAccessService;
+		const entitlement = { contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }), lockState } as EntitlementService;
+		const controller = new OidcResourceController(db, service, access, entitlement);
+		const item = randomUUID(), library = randomUUID(), playlist = randomUUID(), plan = randomUUID();
+		await db.getRepository(MediaItem).save({ id: item, libraryId: library, title: "Test title", type: "movie", path: "/private/path", externalKey: "test" });
+		await db.getRepository(PaymentPlan).save({ id: plan, name: "Plan", interval: "month", scopes: [{ type: "all", ref: null }] });
+		await db.getRepository(PaymentSubscription).save({ id: randomUUID(), userId, planId: plan, status: "active", currency: "USD", amountMinor: 100, periodEnd: new Date(Date.now() + 60_000) });
+		await db.getRepository(PaymentEntitlement).save({ id: randomUUID(), userId, source: "purchase", scope: { type: "item", ref: item } });
+		await db.getRepository(PaymentOrder).save({ id: randomUUID(), userId, kind: "purchase", description: "Test order", currency: "USD", subtotalMinor: 100, totalMinor: 100, status: "paid" });
+		await db.getRepository(PaymentOrder).save({ id: randomUUID(), userId: otherUserId, kind: "purchase", description: "Other user's order", currency: "USD", subtotalMinor: 100, totalMinor: 100, status: "paid" });
+		await db.getRepository(Favorite).save({ userId, itemId: item });
+		await db.getRepository(Playlist).save({ id: playlist, userId, name: "My list" });
+		await db.getRepository(PlaylistItem).save({ playlistId: playlist, itemId: item, position: 0 });
+		await db.getRepository(WatchProgress).save({ userId, itemId: item, positionSeconds: 30 });
+		await db.getRepository(ListeningHistory).save({ userId, itemId: item });
+		await db.getRepository(UserPreference).save({ userId, data: { language: "en", secret: "not-shared" } });
+		expect((await controller.subscriptions(bearer, "1", "0", ctx)).items).toMatchObject([{ planName: "Plan", active: true }]);
+		expect((await controller.grants(bearer, undefined, undefined, ctx)).items).toEqual(expect.arrayContaining([expect.objectContaining({ source: "purchase" }), expect.objectContaining({ source: "subscription" })]));
+		expect((await controller.purchases(bearer, undefined, undefined, ctx)).items).toMatchObject([{ description: "Test order" }]);
+		expect((await controller.purchases(bearer, undefined, undefined, ctx)).items).toHaveLength(1);
+		expect(await controller.check(item, bearer, ctx)).toEqual({ allowed: true });
+		blockReason.mockResolvedValueOnce("rating");
+		expect(await controller.check(item, bearer, ctx)).toEqual({ allowed: false });
+		expect(lockState).toHaveBeenCalledTimes(1);
+		expect((await controller.library(bearer, undefined, undefined, ctx)).items).toMatchObject([{ id: item, title: "Test title" }]);
+		expect((await controller.favorites(bearer, undefined, undefined, ctx)).items).toMatchObject([{ itemId: item }]);
+		expect((await controller.playlists(bearer, undefined, undefined, ctx)).items).toMatchObject([{ id: playlist }]);
+		expect((await controller.playlistItems(playlist, bearer, undefined, undefined, ctx)).items).toMatchObject([{ itemId: item }]);
+		expect((await controller.progress(bearer, undefined, undefined, ctx)).items).toMatchObject([{ itemId: item, positionSeconds: 30 }]);
+		expect((await controller.history(bearer, undefined, undefined, ctx)).items).toMatchObject([{ itemId: item }]);
+		expect(await controller.preferences(bearer, ctx)).toEqual({ language: "en" });
+		await expect(controller.preferences(`Bearer ${await wrongAudience.save()}`, ctx)).rejects.toThrow("Invalid OAuth access token");
+		await expect(controller.purchases(bearer, "101", undefined, ctx)).rejects.toThrow("Invalid pagination");
+		await db.getRepository(User).update(userId, { disabledAt: new Date() });
+		await expect(controller.preferences(bearer, ctx)).rejects.toThrow("The account is unavailable");
+		await db.getRepository(User).update(userId, { disabledAt: null });
+		await new OidcConsentService(db).revoke(userId, client.id);
+		await expect(controller.preferences(bearer, ctx)).rejects.toThrow("Invalid OAuth access token");
+		await db.getRepository(PaymentSubscription).delete({ userId });
+		await clients.remove(client.id);
+	}, 15_000);
+
 	it("imports valid existing approvals, excluding expired and rejected permissions", async () => {
 		const rows: Array<{ scopes: string[]; claims: string[] }> = await db.query(`SELECT scopes, claims FROM oidc_consents WHERE account_id = $1 AND client_id = 'imported-client'`, [importedUserId]);
 		expect(rows).toHaveLength(1);
@@ -123,6 +252,101 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		expect(rows[0].claims.sort()).toEqual(["email", "name"]);
 		expect(await db.query(`SELECT account_id FROM oidc_consents WHERE account_id <> $1`, [importedUserId])).toEqual([]);
 	});
+
+	it.each(["public", "confidential"] as const)("issues rotating refresh tokens and consented claims for a %s client", async (type) => {
+		const client = await clients.create({ name: `Claims ${type}`, type, redirectUris: ["https://client.example/callback"] });
+		const agent = request.agent(app.server);
+		const verifier = randomBytes(32).toString("base64url");
+		const challenge = createHash("sha256").update(verifier).digest("base64url");
+		const query = { client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback", scope: "openid offline_access roles groups subscription", prompt: "consent", code_challenge_method: "S256", code_challenge: challenge };
+		const denied = await agent.get("/api/oidc/auth").query(query).expect(303);
+		expect(new URL(denied.headers.location).searchParams.get("error")).toBe("invalid_scope");
+		await clients.setSubscriptionSharing(client.id, true);
+		const authorization = await agent.get("/api/oidc/auth").query(query).expect(303);
+		let path = new URL(authorization.headers.location, issuer).pathname;
+		const login = await agent.post(path).send({ action: "login" }).expect(200);
+		let resume = new URL(login.body.redirect);
+		const consentRedirect = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		path = new URL(consentRedirect.headers.location, issuer).pathname;
+		expect((await agent.get(`${path}/details`).expect(200)).body).toMatchObject({ prompt: "consent", scope: query.scope });
+		const consent = await agent.post(path).send({ action: "approve" }).expect(200);
+		resume = new URL(consent.body.redirect);
+		const result = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		const code = new URL(result.headers.location).searchParams.get("code");
+		const tokenRequest = () => {
+			const req = agent.post("/api/oidc/token").type("form");
+			return client.secret ? req.auth(client.id, client.secret) : req;
+		};
+		const token = await tokenRequest().send({ grant_type: "authorization_code", client_id: client.id, redirect_uri: query.redirect_uri, code, code_verifier: verifier }).expect(200);
+		expect(token.body.refresh_token).toBeTruthy();
+		const info = () => agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`);
+		expect((await info().expect(200)).body).toMatchObject({ roles: ["user"], groups: ["flixer:user"], flixer_subscription_active: false });
+		const repo = db.getRepository(PaymentSubscription);
+		const subscription = await repo.save({ id: randomUUID(), userId, planId: randomUUID(), status: "active", currency: "USD", amountMinor: 100, periodEnd: new Date(Date.now() + 60_000) });
+		expect((await info().expect(200)).body.flixer_subscription_active).toBe(true);
+		await repo.update(subscription.id, { periodEnd: new Date(Date.now() - 60_000) });
+		expect((await info().expect(200)).body.flixer_subscription_active).toBe(false);
+		await repo.update(subscription.id, { status: "past_due", graceUntil: new Date(Date.now() + 60_000) });
+		expect((await info().expect(200)).body.flixer_subscription_active).toBe(true);
+		await repo.delete(subscription.id);
+		await db.getRepository(User).update(userId, { disabledAt: new Date() });
+		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+		await db.getRepository(User).update(userId, { disabledAt: null });
+		const refreshed = await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(200);
+		expect(refreshed.body.refresh_token).toBeTruthy();
+		expect(refreshed.body.refresh_token).not.toBe(token.body.refresh_token);
+		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: refreshed.body.refresh_token }).expect(400);
+		await clients.remove(client.id);
+	}, 15_000);
+
+	it("removes subscription approvals and revokes tokens when sharing is disabled", async () => {
+		const client = await clients.create({ name: "Subscription app", type: "public", redirectUris: ["https://client.example/callback"] });
+		expect(client.shareSubscription).toBe(false);
+		const agent = request.agent(app.server);
+		const verifier = randomBytes(32).toString("base64url");
+		const query = { client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback", scope: "openid offline_access subscription", prompt: "consent", code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") };
+		const directAgent = request.agent(app.server);
+		const directClaim = await directAgent.get("/api/oidc/auth").query({ ...query, scope: "openid", claims: JSON.stringify({ userinfo: { flixer_subscription_active: null } }) }).expect(303);
+		const directLogin = await directAgent.post(new URL(directClaim.headers.location, issuer).pathname).send({ action: "login" }).expect(200);
+		const directResume = new URL(directLogin.body.redirect);
+		const directConsent = await directAgent.get(`${directResume.pathname}${directResume.search}`).expect(303);
+		const directApproval = await directAgent.post(new URL(directConsent.headers.location, issuer).pathname).send({ action: "approve" }).expect(200);
+		const directApprovalResume = new URL(directApproval.body.redirect);
+		const directResult = await directAgent.get(`${directApprovalResume.pathname}${directApprovalResume.search}`).expect(303);
+		const directCode = new URL(directResult.headers.location).searchParams.get("code");
+		const directToken = await directAgent.post("/api/oidc/token").type("form").send({ grant_type: "authorization_code", client_id: client.id, redirect_uri: query.redirect_uri, code: directCode, code_verifier: verifier }).expect(200);
+		const directInfo = await directAgent.get("/api/oidc/me").set("Authorization", `Bearer ${directToken.body.access_token}`).expect(200);
+		expect(directInfo.body).not.toHaveProperty("flixer_subscription_active");
+		await clients.setSubscriptionSharing(client.id, true);
+		const authorization = await agent.get("/api/oidc/auth").query(query).expect(303);
+		let path = new URL(authorization.headers.location, issuer).pathname;
+		const login = await agent.post(path).send({ action: "login" }).expect(200);
+		let resume = new URL(login.body.redirect);
+		const consentRedirect = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		path = new URL(consentRedirect.headers.location, issuer).pathname;
+		const consent = await agent.post(path).send({ action: "approve" }).expect(200);
+		resume = new URL(consent.body.redirect);
+		const result = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+		const code = new URL(result.headers.location).searchParams.get("code");
+		const token = await agent.post("/api/oidc/token").type("form").send({ grant_type: "authorization_code", client_id: client.id, redirect_uri: query.redirect_uri, code, code_verifier: verifier }).expect(200);
+		const info = await agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`).expect(200);
+		expect(info.body).toMatchObject({ flixer_subscription_active: false });
+		expect(info.body).not.toHaveProperty("roles");
+		expect(info.body).not.toHaveProperty("groups");
+		await clients.setSubscriptionSharing(client.id, false);
+		expect((await new OidcConsentService(db).list(userId)).find((item) => item.id === client.id)?.scopes).not.toContain("subscription");
+		await agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`).expect(401);
+		await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+		await clients.setSubscriptionSharing(client.id, true);
+		await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+		const upgrade = await agent.get("/api/oidc/auth").query({ ...query, prompt: undefined }).expect(303);
+		const upgradeLogin = await agent.post(new URL(upgrade.headers.location, issuer).pathname).send({ action: "login" }).expect(200);
+		const upgradeResume = new URL(upgradeLogin.body.redirect);
+		const upgradeConsent = await agent.get(`${upgradeResume.pathname}${upgradeResume.search}`).expect(303);
+		expect((await agent.get(`${new URL(upgradeConsent.headers.location, issuer).pathname}/details`).expect(200)).body.prompt).toBe("consent");
+		await clients.remove(client.id);
+	}, 15_000);
 
 	it("persists admin configuration and reloads the provider when the public URL changes", async () => {
 		const secondInstance = new OidcProviderService(db);
@@ -166,7 +390,8 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 				client_id: client.id,
 				response_type: "code",
 				redirect_uri: "https://client.example/callback",
-				scope: "openid profile email",
+				scope: "openid profile email offline_access",
+				prompt: "consent",
 				state: "test-state",
 				nonce: "test-nonce",
 				code_challenge_method: "S256",
@@ -188,7 +413,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		const consentRedirect = await agent.get(`${resumed.pathname}${resumed.search}`).expect(303);
 		interactionPath = new URL(consentRedirect.headers.location, issuer).pathname;
 		const consentDetails = await agent.get(`${interactionPath}/details`).expect(200);
-		expect(consentDetails.body).toMatchObject({ prompt: "consent", scope: "openid profile email" });
+		expect(consentDetails.body).toMatchObject({ prompt: "consent", scope: "openid profile email offline_access" });
 		const consent = await agent.post(interactionPath).send({ action: "approve" }).expect(200);
 		const consentResume = new URL(consent.body.redirect);
 		const result = await agent.get(`${consentResume.pathname}${consentResume.search}`).expect(303);
@@ -199,6 +424,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		expect(code).toBeTruthy();
 		const exchange = { grant_type: "authorization_code", client_id: client.id, redirect_uri: "https://client.example/callback", code, code_verifier: verifier };
 		const token = await agent.post("/api/oidc/token").type("form").send(exchange).expect(200);
+		expect(token.body.refresh_token).toBeTruthy();
 		const [header, payload, signature] = token.body.id_token.split(".");
 		const discovery = await agent.get("/api/oidc/jwks").expect(200);
 		const signingKey = discovery.body.keys.find((item: { kid: string }) => item.kid === JSON.parse(Buffer.from(header, "base64url").toString()).kid);
@@ -254,6 +480,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		await request(app.server).delete(`/api/account/oidc-apps/${client.id}`).set("Authorization", "Bearer test").expect(204);
 		await agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`).expect(401);
 		await agent.post("/api/oidc/token").type("form").send({ ...exchange, code: pendingCode }).expect(400);
+		await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
 		expect((await request(app.server).get("/api/account/oidc-apps").set("Authorization", "Bearer test").expect(200)).body).toEqual([]);
 		activeUserId = otherUserId;
 		expect((await request(app.server).get("/api/account/oidc-apps").set("Authorization", "Bearer test").expect(200)).body).toHaveLength(1);

@@ -35,7 +35,8 @@ export function isLoggerManagementPath(url: string): boolean {
 function isOidcSensitivePath(url: string): boolean {
 	const path = url.split("?")[0];
 	return path === "/api/admin/oidc" || path.startsWith("/api/admin/oidc/") ||
-		path === "/api/oidc" || path.startsWith("/api/oidc/");
+		path === "/api/oidc" || path.startsWith("/api/oidc/") ||
+		path === "/api/oauth/me" || path.startsWith("/api/oauth/me/");
 }
 
 function requestTraceId(header: unknown): string | undefined {
