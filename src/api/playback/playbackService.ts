@@ -123,7 +123,7 @@ export class PlaybackService {
 	async createItemPlaybackInfo(
 		itemId: string,
 		authorization?: string,
-	): Promise<PlaybackInfo & { title: string; nextEpisode: NextEpisode | null; advertisements: { id: string; name: string; targetUrl: string; atSeconds: number; skipAfterSeconds: number | null; streamUrl: string }[] } & ItemSegments> {
+	): Promise<PlaybackInfo & { title: string; itemType: MediaItemType; nextEpisode: NextEpisode | null; advertisements: { id: string; name: string; targetUrl: string; atSeconds: number; skipAfterSeconds: number | null; streamUrl: string }[] } & ItemSegments> {
 		const policy = await this.access.resolve(authorization);
 		const user = { id: policy.userId };
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
@@ -158,6 +158,7 @@ export class PlaybackService {
 		return {
 			...info,
 			title: item.title,
+			itemType: item.type,
 			nextEpisode: await this.visibleNext(policy, await this.findNextEpisode(item)),
 			advertisements: ads.map(({ ad, atSeconds }) => ({
 				id: ad.id, name: ad.name, targetUrl: ad.targetUrl, atSeconds, skipAfterSeconds: ad.skipAfterSeconds,

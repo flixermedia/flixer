@@ -19,6 +19,7 @@ export interface Preferences {
 	adminDashboardGrid?: DashboardGridItem[];
 	browseColumns?: number;
 	autoSkipIntroCredits: boolean;
+	themeId?: string;
 }
 
 const LANGUAGE_PATTERN = /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/;
@@ -56,6 +57,8 @@ export const isBrowseColumns = (value: unknown): value is number => isIntIn(valu
 
 export const isAutoSkipIntroCredits = (value: unknown): value is boolean => typeof value === "boolean";
 
+export const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
+
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	language: (value) => typeof value === "string" && value.length <= 35 && LANGUAGE_PATTERN.test(value),
@@ -63,6 +66,7 @@ const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	adminDashboardGrid: isDashboardGrid,
 	browseColumns: isBrowseColumns,
 	autoSkipIntroCredits: isAutoSkipIntroCredits,
+	themeId: isThemeId,
 };
 
 export function publicPreferences(data: Record<string, unknown>): Preferences {
@@ -80,6 +84,9 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 	}
 	if (isBrowseColumns(data.browseColumns)) {
 		preferences.browseColumns = data.browseColumns;
+	}
+	if (isThemeId(data.themeId)) {
+		preferences.themeId = data.themeId;
 	}
 	return preferences;
 }

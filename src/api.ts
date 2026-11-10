@@ -48,6 +48,7 @@ export { ChatController } from "./chat/chatController.js";
 export { IssueReportsController, AdminIssueReportsController } from "./api/issues/issueReportsController.js";
 export { ProfilesController } from "./api/social/profilesController.js";
 export { FriendsController } from "./api/social/friendsController.js";
+export { AppearanceController, AdminAppearanceController } from "./api/appearance/appearanceController.js";
 export { ThemesController } from "./api/themes/themesController.js";
 export { AdminUpdatesController } from "./api/updates/updatesController.js";
 export { AdminBackupsController, BackupDownloadController } from "./api/backups/backupsController.js";

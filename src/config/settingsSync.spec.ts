@@ -75,6 +75,9 @@ describe("synchronizeSettings", () => {
 			value: false,
 			isPublic: true,
 		});
+		for (const key of ["player_crop_trailers", "player_crop_movies", "player_crop_tv"]) {
+			expect(settingsToSave.find((setting) => setting.key === key)).toMatchObject({ value: true, isPublic: true });
+		}
 		expect(settingsToSave.find(({ key }) => key === "widevine_license_server_url")).toMatchObject({
 			value: "",
 			isPublic: true,

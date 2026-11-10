@@ -31,7 +31,7 @@ if (isProduction) {
 }
 
 export default <DILoggerOptions>{
-	disableRoutesSummary: isProduction,
+	disableRoutesSummary: true,
 	alterLog: alterRequestLog,
 	onLogResponse: logRequestResponse,
 };

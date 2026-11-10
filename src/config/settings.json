@@ -277,6 +277,9 @@
 	{ "key": "calls_turn_secret", "defaultValue": "", "isPublic": false },
 	{ "key": "calls_turn_username", "defaultValue": "", "isPublic": false },
 	{ "key": "calls_relay_only", "defaultValue": false, "isPublic": false },
+	{ "key": "player_crop_trailers", "defaultValue": true, "isPublic": true },
+	{ "key": "player_crop_movies", "defaultValue": true, "isPublic": true },
+	{ "key": "player_crop_tv", "defaultValue": true, "isPublic": true },
 	{ "key": "widevine_drm_enabled", "defaultValue": false, "isPublic": true },
 	{ "key": "widevine_license_server_url", "defaultValue": "", "isPublic": true }
 ]

@@ -13,6 +13,8 @@ Flixer also relies on `flixer-updater` for the update and restore flow.
 
 Movie and series pages preview TMDB-listed YouTube trailers through the streamer. Administrators can enable on-demand trailer caching in the dashboard, provided they have permission to store and serve them. The first viewer streams the remote trailer while Flixer downloads a copy in the background; later viewers stream the cached copy from `DATA_DIR/cache/trailers`. Caching is off by default. Trailer resolution and downloads require `yt-dlp`, its `yt-dlp-ejs` challenge solver and Node.js; downloads also require `ffmpeg` (all included in the API Docker image). Trailers are limited to 20 minutes and cached files to 250 MiB. Remote playback requires a combined H.264/AAC MP4 format; availability depends on YouTube, the uploader and region. Standalone installations must make the same cache directory visible to both the API and streamer at the same path.
 
+Under **Video Player > Player Settings**, administrators can enable automatic removal of embedded black bars separately for trailers, movies and TV episodes (all enabled by default). Viewers can switch cropping off in the web player. Detection requires access to decoded frames and does not apply to the native player, picture-in-picture, or protected and cross-origin streams that block canvas access. It can crop subtitles burned into the bars; disable it for those titles. The setting does not remove bars caused by a mismatch between the display and the video's aspect ratio.
+
 ---
 
 ## flixer (API)

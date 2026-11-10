@@ -33,6 +33,7 @@ describe("Widevine settings", () => {
 			widevine_drm_enabled: false,
 			widevine_license_server_url: "",
 		});
+
 		await expect(service.update("widevine_drm_enabled", { value: true })).rejects.toThrow(/configure.*URL/i);
 		await expect(service.update("widevine_license_server_url", { value: "https://license.example/widevine" }))
 			.resolves.toMatchObject({ value: "https://license.example/widevine", isPublic: true });
@@ -56,5 +57,14 @@ describe("Widevine settings", () => {
 		const { service, repository } = createService();
 		await expect(service.update("widevine_drm_enabled", { value: "true" })).rejects.toThrow(/must be a boolean/i);
 		expect(repository.findOneBy).not.toHaveBeenCalled();
+	});
+});
+
+describe("player crop settings", () => {
+	it.each(["player_crop_trailers", "player_crop_movies", "player_crop_tv"])("validates and saves %s", async (key) => {
+		const { service, repository } = createService({ [key]: true });
+		await expect(service.update(key, { value: "false" })).rejects.toThrow(/must be a boolean/i);
+		expect(repository.save).not.toHaveBeenCalled();
+		await expect(service.update(key, { value: false })).resolves.toMatchObject({ value: false, isPublic: true });
 	});
 });

@@ -50,5 +50,9 @@ export class UpdatePreferencesRequest {
 	@Nullable(Boolean)
 	autoSkipIntroCredits?: boolean | null;
 
+	@Property()
+	@Nullable(String)
+	themeId?: string | null;
+
 	[key: string]: unknown;
 }

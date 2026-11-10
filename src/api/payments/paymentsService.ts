@@ -642,12 +642,12 @@ export class PaymentsService {
 		if (order.kind === "purchase" || order.kind === "rental") {
 			const product = await manager.getRepository(PaymentProduct).findOneBy({ id: order.productId ?? "" });
 			if (!product) {
-				return;
+				throw new Error("Cannot fulfil this order because its product no longer exists.");
 			}
 			await this.entitlements.grant(order.userId, product.scope, order.kind === "rental" ? "rental" : "purchase", order.id, order.kind === "rental" && product.rentalHours ? { hours: product.rentalHours, startOnPlay: product.rentalStart === "first_play", claimDays: FIRST_PLAY_CLAIM_DAYS } : undefined, manager);
 			return;
 		}
-		if (order.kind === "registration" && config.registration.mode === "one_time") {
+		if (order.kind === "registration" && !order.planId && config.registration.mode === "one_time") {
 			const scopes: ContentScope[] = config.registration.unlocks === "all" ? [{ type: "all", ref: null }] : config.registration.unlocks === "scopes" ? config.registration.scopes : [];
 			for (const scope of scopes) {
 				await this.entitlements.grant(order.userId, scope, "registration", order.id, undefined, manager);
@@ -657,7 +657,7 @@ export class PaymentsService {
 		if (order.planId) {
 			const plan = await manager.getRepository(PaymentPlan).findOneBy({ id: order.planId });
 			if (!plan) {
-				return;
+				throw new Error("Cannot fulfil this order because its subscription plan no longer exists.");
 			}
 			const price = pickPrice(plan.prices, order.currency, config.currency);
 			const trialDays = await this.trialDaysFor(order.userId, plan);
@@ -679,7 +679,9 @@ export class PaymentsService {
 				}),
 			);
 			await manager.getRepository(PaymentOrder).update({ id: order.id }, { subscriptionId: sub.id });
+			return;
 		}
+		throw new Error("Cannot fulfil this order because its required product or subscription plan is missing.");
 	}
 
 	// ---- Subscriptions ------------------------------------------------------------------------------------
@@ -1123,7 +1125,12 @@ export class PaymentsService {
 		if (order) {
 			await this.syncOrder(order);
 		}
-		await events.save({ id: randomUUID(), provider: providerId, eventId }).catch(() => undefined);
+		await this.dataSource.query(
+			`INSERT INTO "payment_events" ("id", "provider", "event_id")
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT ("provider", "event_id") DO NOTHING`,
+			[randomUUID(), providerId, eventId],
+		);
 		return { handled: Boolean(order) };
 	}
 

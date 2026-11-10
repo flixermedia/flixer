@@ -432,6 +432,7 @@ export class MediaHomeService {
 		const metadata = item.metadata ?? {};
 		return {
 			id: item.id,
+			libraryId: item.libraryId,
 			watched: watchedIds.has(item.id),
 			type: item.type,
 			title: item.title,

@@ -40,6 +40,7 @@ describe("advertisements in item playback", () => {
 	it("issues signed viewer-specific ad URLs for eligible pre-roll and mid-roll", async () => {
 		const { service } = setup();
 		const result = await service.createItemPlaybackInfo("movie");
+		expect(result.itemType).toBe("movie");
 		expect(result.advertisements.map((ad) => ad.atSeconds)).toEqual([0, 300]);
 		const [header, payload, signature] = result.advertisements[0].streamUrl.split("/").at(-1)!.split(".");
 		expect(signature).toBe(createHmac("sha256", secret).update(`${header}.${payload}`).digest("base64url"));

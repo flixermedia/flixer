@@ -27,6 +27,8 @@ import { CreateUserWebhooks1798300000009 } from "../migrations/createUserWebhook
 import { DefaultUserWebhookUrlRules1798300000010 } from "../migrations/defaultUserWebhookUrlRules1798300000010.js";
 import { CreateMediaSourceGroups1798300000011 } from "../migrations/createMediaSourceGroups1798300000011.js";
 import { CreateQuickConnectRequests1798300000012 } from "../migrations/createQuickConnectRequests1798300000012.js";
+import { CreateThemes1798300000013 } from "../migrations/createThemes1798300000013.js";
+import { CreateThemeVersions1798300000014 } from "../migrations/createThemeVersions1798300000014.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
 import { PaymentConfigRow } from "../entities/paymentConfig.entity.js";
@@ -118,6 +120,8 @@ import { appConfig } from "../config/store/appConfig.js";
 import { cleanupExpiredUserSessions } from "../jobs/sessionCleanupJob.js";
 import { AiRecommendationCache } from "../entities/aiRecommendationCache.entity.js";
 import { QuickConnectRequest } from "../entities/quickConnectRequest.entity.js";
+import { Theme } from "../entities/theme.entity.js";
+import { ThemeVersion } from "../entities/themeVersion.entity.js";
 import { CreateAiRecommendationCaches1796600000000 } from "../migrations/createAiRecommendationCaches1796600000000.js";
 import { AddAiRecommendationCacheScopes1796700000000 } from "../migrations/addAiRecommendationCacheScopes1796700000000.js";
 import { AddRequestWebhookToken1796800000000 } from "../migrations/addRequestWebhookToken1796800000000.js";
@@ -200,6 +204,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				GuideProgramme,
 				AiRecommendationCache,
 				QuickConnectRequest,
+				Theme,
+				ThemeVersion,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -278,6 +284,8 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				DefaultUserWebhookUrlRules1798300000010,
 				CreateMediaSourceGroups1798300000011,
 				CreateQuickConnectRequests1798300000012,
+				CreateThemes1798300000013,
+				CreateThemeVersions1798300000014,
 			],
 			synchronize: false,
 			migrationsRun: false,

@@ -13,6 +13,7 @@ import { SECRET_MASK } from "./secretMask.js";
 import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
+import { APPEARANCE_SETTING_KEYS } from "../appearance/appearanceService.js";
 import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.js";
 
 export { SECRET_MASK };
@@ -97,6 +98,9 @@ export class SettingsService {
 		if (!SETTING_KEY_PATTERN.test(key)) {
 			throw new BadRequest("Setting key has an invalid format.");
 		}
+		if (APPEARANCE_SETTING_KEYS.includes(key)) {
+			throw new BadRequest("Theme settings are managed from the appearance page.");
+		}
 		if (key === "chat_e2ee_enabled") {
 			if (typeof request.value !== "boolean") {
 				throw new BadRequest("The chat_e2ee_enabled setting must be a boolean.");
@@ -124,6 +128,9 @@ export class SettingsService {
 		}
 		if (key === "widevine_drm_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The widevine_drm_enabled setting must be a boolean.");
+		}
+		if (["player_crop_trailers", "player_crop_movies", "player_crop_tv"].includes(key) && typeof request.value !== "boolean") {
+			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
 		if (key === "widevine_license_server_url") {
 			if (typeof request.value !== "string" || request.value.length > 2048) {
