@@ -35,6 +35,7 @@ export interface IndexerPluginStatus {
 	id: string;
 	state: "registered" | "error" | string;
 	error?: string;
+	targets?: Record<string, { state: string; error?: string }>;
 }
 
 /** Signed HTTP client for flixer-indexer's internal API. */

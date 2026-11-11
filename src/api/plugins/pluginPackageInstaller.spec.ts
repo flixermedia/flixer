@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import tar from "tar-stream";
-import { installPluginPackageAtomically } from "./pluginPackageInstaller.js";
+import { inspectPluginPackage, installPluginPackageAtomically } from "./pluginPackageInstaller.js";
 import type { PluginManifest } from "./pluginManifest.js";
 
 const manifest: PluginManifest = {
@@ -40,6 +40,16 @@ async function makeArchive(packageManifest: PluginManifest): Promise<Buffer> {
 }
 
 describe("installPluginPackageAtomically", () => {
+	it("inspects a package manifest through the safe archive extractor", async () => {
+		const root = await mkdtemp(join(tmpdir(), "flixer-plugin-inspect-"));
+		try {
+			await expect(inspectPluginPackage(root, await makeArchive(manifest))).resolves.toEqual(manifest);
+			await expect(inspectPluginPackage(root, gzipSync(Buffer.from("not a tar archive")))).rejects.toThrow();
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	it("installs a verified package and keeps plugin data separate", async () => {
 		const root = await mkdtemp(join(tmpdir(), "flixer-plugin-install-"));
 		try {

@@ -99,6 +99,7 @@ services:
                 condition: service_healthy
         environment:
             PORT: 8081
+            FLIXER_PLUGIN_LOCAL_IMPORTS: ${FLIXER_PLUGIN_LOCAL_IMPORTS:-false}
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
             FLIXER_LOGGER_CONTROL_SOCKET: /run/flixer-secrets/logger-control.sock
             FLIXER_LOGGER_LOCAL_OWNER_FILE: /run/flixer-secrets/logger/owner

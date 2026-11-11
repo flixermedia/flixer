@@ -1,4 +1,5 @@
 import { BadRequest } from "@tsed/exceptions";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
@@ -6,6 +7,28 @@ import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
 
 describe("AiRecommendationCacheService", () => {
+	it("selects the exact persisted home cache and keeps movie and music scopes separate", async () => {
+		const types = ["movie", "series", "video"];
+		const key = createHash("sha256").update(JSON.stringify({ limit: 20, filters: { types } })).digest("hex");
+		const fallbackKey = "a".repeat(64);
+		const musicKey = "b".repeat(64);
+		const state = {
+			entries: { [key]: { items: [] }, [fallbackKey]: { items: [{ id: "movie", score: 0.8 }] }, [musicKey]: { items: [{ id: "album", score: 0.9 }] } },
+			entryScopes: { [key]: "movies", [fallbackKey]: "movies", [musicKey]: "music" },
+			refreshTimes: {}, lastRefreshAt: null,
+		};
+		const dataSource = { getRepository: vi.fn(() => ({ findOneBy: vi.fn().mockResolvedValue(state) })) } as unknown as DataSource;
+		const service = new AiRecommendationCacheService(dataSource);
+
+		await expect(service.forHome("user", "movies", types)).resolves.toEqual({ items: [] });
+		await expect(service.forHome("user", "music", ["album"])).resolves.toEqual(state.entries[musicKey]);
+		await expect(service.forHome("user", "music", ["album", "track"])).resolves.toEqual(state.entries[musicKey]);
+	});
+
+	it("returns no cache when the requested scope has never been generated", async () => {
+		const dataSource = { getRepository: vi.fn(() => ({ findOneBy: vi.fn().mockResolvedValue(null) })) } as unknown as DataSource;
+		await expect(new AiRecommendationCacheService(dataSource).forHome("user", "music", ["album"])).resolves.toBeNull();
+	});
 	it("persists per-user entries and refresh time", async () => {
 		const repository = {
 			findOneBy: vi.fn(async () => ({

@@ -33,6 +33,15 @@ describe("parsePluginRepositoryManifest", () => {
 		expect(parsePluginRepositoryManifest(validCatalog)).toEqual(validCatalog);
 	});
 
+	it("accepts repository-relative plugin images and rejects unsafe image paths", () => {
+		const plugin = validCatalog.plugins[0]!;
+		const withImages = { ...validCatalog, plugins: [{ ...plugin, icon: "plugins/example/icon.PNG", banner: "plugins/example/banner.webp" }] };
+		expect(parsePluginRepositoryManifest(withImages).plugins[0]).toMatchObject({ icon: "plugins/example/icon.PNG", banner: "plugins/example/banner.webp" });
+		for (const icon of ["../icon.png", "/icon.png", "https://example.com/icon.png", "icons/icon.svg"]) {
+			expect(() => parsePluginRepositoryManifest({ ...validCatalog, plugins: [{ ...plugin, icon }] })).toThrow("Invalid plugin repository manifest");
+		}
+	});
+
 	it("rejects unsafe artifact paths and invalid digests", () => {
 		expect(() =>
 			parsePluginRepositoryManifest({

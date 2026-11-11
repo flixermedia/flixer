@@ -21,17 +21,19 @@ function setup(
 		targetStatus: { flixer: "requested" },
 	};
 	const save = vi.fn(async (value: typeof installation) => value);
+	const update = vi.fn(async () => ({ affected: 1 }));
 	const findOneBy = vi.fn(async () => installation);
 	const indexerRequest = vi.fn(async () => response);
 	const storageLoad = vi.fn(async () => ({}));
 	const storageSave = vi.fn(async () => undefined);
 	const dataSource = {
-		getRepository: () => ({ findOneBy, save }),
+		getRepository: () => ({ findOneBy, save, update }),
 	} as unknown as DataSource;
 	const indexer = { request: indexerRequest } as unknown as IndexerClient;
 	return {
 		installation,
 		findOneBy,
+		update,
 		indexerRequest,
 		storageLoad,
 		storageSave,
@@ -44,7 +46,7 @@ function setup(
 
 describe("PluginWasiRuntime", () => {
 	it("dispatches an authenticated, bounded backend operation through the signed indexer client", async () => {
-		const { installation, indexerRequest, runtime } = setup();
+		const { installation, indexerRequest, runtime, update } = setup();
 
 		await expect(
 			runtime.invoke("flixer.example", "request", { id: "user-1", role: "user" }, { title: "Example" }),
@@ -65,6 +67,7 @@ describe("PluginWasiRuntime", () => {
 		});
 		expect(installation.status).toBe("running");
 		expect(installation.targetStatus.flixer).toBe("running");
+		expect(update).toHaveBeenCalledWith({ pluginId: "flixer.example", enabled: true }, expect.not.objectContaining({ enabled: true }));
 	});
 
 	it("does not dispatch disabled plugins or plugins without backend route capability", async () => {
@@ -143,6 +146,23 @@ describe("PluginWasiRuntime", () => {
 
 describe("PluginWasiRuntime host calls", () => {
 	const user = { id: "user-1", role: "user" };
+
+	it("limits configured OAuth profiles to their exact approved endpoints", async () => {
+		const permissions = ["auth.identity.verify", "network.http.configured"];
+		const { installation, runtime, indexerRequest } = setup(undefined, true, ["auth.oauth", "auth.oauth.profiles"], permissions);
+		indexerRequest.mockResolvedValueOnce({ hostCalls: [
+			{ id: "token", op: "http.request", method: "POST", url: "https://login.example.com/token", body: "code=x" },
+			{ id: "other", op: "http.request", method: "POST", url: "https://login.example.com/other", body: "secret=x" },
+			{ id: "remote", op: "http.request", method: "GET", url: "https://evil.example.com/user" },
+		] }).mockResolvedValueOnce({ result: { ok: true } });
+		const http = vi.fn(async () => ({ status: 200, body: "{}" }));
+		runtime.httpGet = http;
+		const profile = { settings: { clientId: "client" }, tokenUrl: "https://login.example.com/token", userInfoUrl: "https://api.example.com/user" };
+		await runtime.execute(installation as never, "auth-complete", user, {}, "flixer", "authentication", profile);
+		expect(http).toHaveBeenCalledTimes(1);
+		const second = (indexerRequest.mock.calls[1] as unknown[])[2] as { body: { input: { hostResults: Array<{ ok: boolean }> } } };
+		expect(second.body.input.hostResults.map((result) => result.ok)).toEqual([true, false, false]);
+	});
 
 	it("runs permitted http.get host calls and resumes the plugin with results and its continuation", async () => {
 		const { runtime, indexerRequest } = setup(

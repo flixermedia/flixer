@@ -1,7 +1,20 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import schema from "./plugin-manifest.schema.json" with { type: "json" };
+import type { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 
 export type PluginTargetName = "flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web";
+
+export function updatePluginTargetHealth(
+	installation: Pick<PluginInstallation, "targetStatus" | "status" | "lastError">,
+	target: PluginTargetName,
+	state: "running" | "error" | "missing",
+	error?: string,
+): void {
+	installation.targetStatus = { ...installation.targetStatus, [target]: state };
+	const failed = Object.values(installation.targetStatus).some((value) => value === "error" || value === "missing");
+	installation.status = failed ? "error" : "running";
+	installation.lastError = failed ? (state === "running" ? "One or more plugin targets are unavailable." : error ?? "Plugin target is unavailable.") : null;
+}
 
 export interface PluginManifest {
 	manifestVersion: 1;
@@ -28,7 +41,7 @@ export interface PluginManifest {
 	settingsSchema?: string;
 	database?: { tables: Record<string, PluginTableDefinition> };
 	schedules?: Array<{ operation: string; intervalSeconds: number }>;
-	ui?: { pages?: PluginUiPage[] };
+	ui?: { pages?: PluginUiPage[]; slots?: PluginUiSlot[] };
 }
 
 export type PluginColumnType = "text" | "integer" | "boolean" | "timestamp" | "json" | "uuid";
@@ -51,6 +64,13 @@ export interface PluginUiPage {
 	id: string;
 	title: string;
 	nav?: "main";
+	adminOnly?: boolean;
+}
+
+export interface PluginUiSlot {
+	id: string;
+	title: string;
+	location: "media.detail" | "player.controls";
 	adminOnly?: boolean;
 }
 

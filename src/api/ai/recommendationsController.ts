@@ -2,9 +2,11 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
+import { $log } from "@tsed/logger";
 import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaHomeService } from "../media/mediaHomeService.js";
+import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
 import { AiRecommendationsService } from "./aiRecommendationsService.js";
 import { RecommendationRequest } from "./recommendationRequests.js";
 
@@ -16,7 +18,10 @@ export class RecommendationsController {
 		private readonly recommendations: AiRecommendationsService,
 		private readonly home: MediaHomeService,
 		private readonly access: MediaAccessService,
+		private readonly cache: AiRecommendationCacheService,
 	) {}
+
+	private readonly pendingHomeRefreshes = new Map<string, Promise<void>>();
 
 	@Get("/home")
 	async homeRecommendations(@HeaderParams("authorization") authorization?: string) {
@@ -36,15 +41,25 @@ export class RecommendationsController {
 			return { enabled: false, items: [] };
 		}
 
-		const result = await this.recommendations.recommend(policy.userId, {
-			limit: 20,
-			filters: { types },
-		});
+		const scope = types.includes("album") ? "music" : "movies";
+		const cached = await this.cache.forHome(policy.userId, scope, types);
+		const refreshKey = `${policy.userId}:${scope}`;
+		if (!this.pendingHomeRefreshes.has(refreshKey)) {
+			const request = {
+				limit: 20,
+				filters: { types },
+			};
+			const refresh = (cached ? this.recommendations.recommend(policy.userId, request) : this.recommendations.refresh(policy.userId, request))
+				.then(() => undefined, () => { $log.warn({ event: "AI_HOME_REFRESH_FAILED", message: "Could not refresh home recommendations." }); })
+				.finally(() => this.pendingHomeRefreshes.delete(refreshKey));
+			this.pendingHomeRefreshes.set(refreshKey, refresh);
+		}
+		const result = cached ?? { items: [] };
 		const cards = await this.home.cardsByIds(result.items.map((item) => item.id), policy);
 		const scores = new Map(result.items.map((item) => [item.id, item.score]));
 		return {
 			enabled: true,
-			items: cards.map((card) => ({ ...card, score: scores.get(card.id) ?? 0 })),
+			items: cards.filter((card) => types.includes(card.type)).slice(0, 20).map((card) => ({ ...card, score: scores.get(card.id) ?? 0 })),
 		};
 	}
 

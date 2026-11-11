@@ -4,12 +4,20 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
-import { executeHostCalls, MAX_HOST_CALL_ROUNDS, type HttpRequest } from "./pluginHostCalls.js";
+import { executeHostCalls, MAX_HOST_CALL_ROUNDS, publicHttpsGet, type HttpRequest } from "./pluginHostCalls.js";
 import { PluginHostService } from "./pluginHostService.js";
 import { PluginSettingsService } from "./pluginSettingsService.js";
+import { updatePluginTargetHealth } from "./pluginManifest.js";
+import { executeDirectoryBind, executeDirectorySearch } from "./pluginDirectoryHost.js";
 import { PluginStorageService } from "./pluginStorageService.js";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
+
+export interface OAuthRuntimeProfile {
+	settings: Record<string, string>;
+	tokenUrl: string;
+	userInfoUrl: string;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -64,16 +72,28 @@ export class PluginWasiRuntime {
 		operation: string,
 		user: { id: string; role: string },
 		request: unknown,
+		target: "flixer" | "flixer-streamer" = "flixer",
+		mode: "standard" | "authentication" = "standard",
+		oauthProfile?: OAuthRuntimeProfile,
 	): Promise<unknown> {
 		const pluginId = installation.pluginId;
+		if (oauthProfile && (mode !== "authentication" || !installation.manifest.capabilities.includes("auth.oauth.profiles") || !installation.manifest.permissions.includes("network.http.configured") || !installation.approvedPermissions.includes("network.http.configured"))) throw new BadRequest("Configured OAuth endpoints are not approved.");
 		const installations = this.dataSource.getRepository(PluginInstallation);
 		const approvedPermissions = new Set(
 			installation.approvedPermissions.filter((permission) =>
-				installation.manifest.permissions.includes(permission),
+				installation.manifest.permissions.includes(permission) && (mode !== "authentication" || permission === "settings.read" || permission === "directory.search" || permission.startsWith("network.ldaps.") || (permission.startsWith("network.http.") && permission !== "network.http.any")),
 			),
 		);
+		if (oauthProfile) {
+			for (const endpoint of [oauthProfile.tokenUrl, oauthProfile.userInfoUrl]) approvedPermissions.add(`network.http.${new URL(endpoint).hostname.toLowerCase()}`);
+		}
 		const storage = await this.storage.load(pluginId, user.id, approvedPermissions);
-		const settings = approvedPermissions.has("settings.read") ? await this.settings.effectiveValues(installation) : null;
+		const settings = oauthProfile?.settings ?? (approvedPermissions.has("settings.read") ? await this.settings.effectiveValues(installation) : null);
+		const httpRequest: HttpRequest | undefined = oauthProfile ? async (url, options) => {
+			const method = options?.method ?? (options?.body === undefined ? "GET" : "POST");
+			if (!((url.toString() === oauthProfile.tokenUrl && method === "POST") || (url.toString() === oauthProfile.userInfoUrl && method === "GET"))) throw new Error("OAuth endpoint is not approved.");
+			return (this.httpGet ?? publicHttpsGet)(url, options);
+		} : this.httpGet;
 		const input = {
 			apiVersion: 1,
 			method: operation,
@@ -89,17 +109,19 @@ export class PluginWasiRuntime {
 		}
 
 		try {
-			let response = await this.call(pluginId, input);
+			let response = await this.call(pluginId, input, target);
 			for (let round = 0; isRecord(response) && Object.hasOwn(response, "hostCalls"); round++) {
 				if (round >= MAX_HOST_CALL_ROUNDS) throw new Error("Plugin exceeded the host call limit.");
-				const hostResults = await executeHostCalls(response.hostCalls, approvedPermissions, this.httpGet, (call) =>
-					this.host.handle(installation, approvedPermissions, call),
-				);
+				const hostResults = await executeHostCalls(response.hostCalls, approvedPermissions, httpRequest, (call) => {
+					if (mode === "authentication" && call.op === "ldap.bind") return executeDirectoryBind(call, approvedPermissions, isRecord(request) ? request.password : undefined);
+					if (mode === "authentication" && call.op === "ldap.search") return executeDirectorySearch(call, approvedPermissions);
+					return this.host.handle(installation, approvedPermissions, call);
+				});
 				response = await this.call(pluginId, {
 					...input,
 					continuation: response.continuation ?? null,
 					hostResults,
-				});
+				}, target);
 			}
 			if (!isRecord(response)) throw new Error("Plugin returned an invalid response.");
 			if (isRecord(response.error)) throw new Error("Plugin reported an execution error.");
@@ -107,27 +129,24 @@ export class PluginWasiRuntime {
 			if (Object.hasOwn(response, "storage")) {
 				await this.storage.save(pluginId, user.id, response.storage, approvedPermissions);
 			}
-			installation.status = "running";
-			installation.lastError = null;
-			installation.targetStatus = { ...installation.targetStatus, flixer: "running" };
-			await installations.save(installation);
+			updatePluginTargetHealth(installation, target, "running");
+			await installations.update({ pluginId, enabled: true }, { status: installation.status, lastError: installation.lastError, targetStatus: installation.targetStatus });
 			return response.result;
 		} catch (error: unknown) {
-			installation.status = "error";
-			installation.lastError = "Plugin invocation failed.";
-			installation.targetStatus = { ...installation.targetStatus, flixer: "error" };
-			await installations.save(installation);
-			logger().error(`Backend plugin ${pluginId} invocation failed.`, error);
+			updatePluginTargetHealth(installation, target, "error", "Plugin invocation failed.");
+			await installations.update({ pluginId, enabled: true }, { status: installation.status, lastError: installation.lastError, targetStatus: installation.targetStatus });
+			if (mode === "authentication") logger().error(`Authentication plugin ${pluginId} invocation failed.`);
+			else logger().error(`Backend plugin ${pluginId} invocation failed.`, error);
 			throw new Exception(502, `Plugin ${pluginId} could not complete this operation.`);
 		}
 	}
 
-	private async call(pluginId: string, input: Record<string, unknown>): Promise<unknown> {
+	private async call(pluginId: string, input: Record<string, unknown>, target: "flixer" | "flixer-streamer"): Promise<unknown> {
 		if (Buffer.byteLength(JSON.stringify(input)) > MAX_REQUEST_BYTES) {
 			throw new Error("Plugin request exceeds the size limit.");
 		}
 		return this.indexer.request("POST", "/internal/plugins/invoke", {
-			body: { pluginId, input },
+			body: { pluginId, input, ...(target === "flixer-streamer" ? { target } : {}) },
 			timeoutMs: 8_000,
 		});
 	}

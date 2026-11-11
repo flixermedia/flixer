@@ -20,6 +20,8 @@ export interface PluginRepositoryManifest {
 		name: string;
 		description: string;
 		author: string;
+		icon?: string;
+		banner?: string;
 		capabilities?: string[];
 		permissions: string[];
 		targets: Array<"flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web">;

@@ -40,6 +40,12 @@ export class AiRecommendationsService {
 		return this.call("/v1/recommend", { ...request, user_id: userId });
 	}
 
+	async refresh(userId: string, request: RecommendationRequest): Promise<RecommendationResponse> {
+		this.validate(request);
+		await this.ensureEnabled();
+		return this.call("/v1/recommend/refresh", { ...request, user_id: userId });
+	}
+
 	async similar(userId: string, itemId: string, request: RecommendationRequest): Promise<RecommendationResponse> {
 		this.validate(request);
 		await this.ensureEnabled();

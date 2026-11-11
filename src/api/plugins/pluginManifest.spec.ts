@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePluginManifest } from "./pluginManifest.js";
+import { parsePluginManifest, updatePluginTargetHealth } from "./pluginManifest.js";
 
 const validManifest = {
 	manifestVersion: 1,
@@ -19,8 +19,22 @@ const validManifest = {
 };
 
 describe("parsePluginManifest", () => {
+	it("keeps a plugin degraded while any target remains unavailable", () => {
+		const installation = { status: "enabled" as const, lastError: null as string | null, targetStatus: { flixer: "requested", "flixer-indexer": "requested" } };
+		updatePluginTargetHealth(installation, "flixer", "error", "Backend failed.");
+		updatePluginTargetHealth(installation, "flixer-indexer", "running");
+		expect(installation).toMatchObject({ status: "error", targetStatus: { flixer: "error", "flixer-indexer": "running" } });
+		updatePluginTargetHealth(installation, "flixer", "running");
+		expect(installation).toMatchObject({ status: "running", lastError: null });
+	});
 	it("accepts a valid multi-target manifest", () => {
 		expect(parsePluginManifest(validManifest)).toEqual(validManifest);
+	});
+
+	it("accepts supported custom UI slots and rejects unknown locations", () => {
+		const slot = { id: "details", title: "Details", location: "media.detail" };
+		expect(parsePluginManifest({ ...validManifest, ui: { slots: [slot] } }).ui?.slots).toEqual([slot]);
+		expect(() => parsePluginManifest({ ...validManifest, ui: { slots: [{ ...slot, location: "unsupported" }] } })).toThrow("Invalid plugin manifest");
 	});
 
 	it.each(["../plugin.wasm", "/plugin.wasm", "backend\\plugin.wasm"])("rejects unsafe entry paths: %s", (entry) => {

@@ -583,15 +583,23 @@ export class AuthService {
 		return this.createAuthResult(user, this.getTokenSecret(), manager);
 	}
 
+	async reauthenticateUser(authorization: string | undefined, password: string): Promise<User> {
+		const { user } = await this.requireAuthenticatedSession(authorization);
+		if (typeof password !== "string" || !(await this.verifyPassword(password, user.passwordHash))) throw new Unauthorized("Your password is incorrect.");
+		return user;
+	}
+
 	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired | PaymentPending> {
-		const tokenSecret = this.getTokenSecret();
 		const normalizedUsername = this.normalizeUsername(username);
 		const user = await this.dataSource.getRepository(User).findOneBy({ username: normalizedUsername });
 
 		if (!user || !(await this.verifyPassword(password, user.passwordHash))) {
 			throw new Unauthorized("Invalid username or password.");
 		}
+		return this.completePrimaryAuthentication(user);
+	}
 
+	async completePrimaryAuthentication(user: User): Promise<AuthResult | PasskeyRequired | PaymentPending> {
 		if (user.disabledAt) {
 			throw new Forbidden("This account has been disabled. Contact your server administrator.");
 		}
@@ -608,7 +616,7 @@ export class AuthService {
 			return { passkeyRequired: true, ticket: this.createPasskeyTicket(user.id) };
 		}
 
-		return this.createAuthResult(user, tokenSecret);
+		return this.issueAuthResult(user);
 	}
 
 	async setPasskeyRequired(authorization: string | undefined, enabled: boolean, password?: string): Promise<PublicUser> {

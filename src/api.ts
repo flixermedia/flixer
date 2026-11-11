@@ -5,6 +5,7 @@ export { AiController } from "./api/ai/aiController.js";
 export { RecommendationsController } from "./api/ai/recommendationsController.js";
 export { AiAdminController } from "./api/ai/aiAdminController.js";
 export { AuthController } from "./api/auth/authController.js";
+export { ExternalAuthController } from "./api/auth/externalAuthController.js";
 export { OidcClientsController } from "./api/oidc/oidcClientsController.js";
 export { OidcInteractionController } from "./api/oidc/oidcInteractionController.js";
 export { OidcConsentsController } from "./api/oidc/oidcConsentsController.js";

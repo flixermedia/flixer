@@ -1,6 +1,7 @@
 import { BadRequest } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource, In } from "typeorm";
+import { createHash } from "node:crypto";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
@@ -155,6 +156,18 @@ export class AiRecommendationCacheService {
 			entryScopes: row?.entryScopes ?? {},
 			refreshTimes: row?.refreshTimes ?? {},
 		};
+	}
+
+	async forHome(userId: string, scope: "movies" | "music", types: string[]): Promise<CachedRecommendationResponse | null> {
+		const state = await this.get(userId);
+		const key = createHash("sha256").update(JSON.stringify({ limit: 20, filters: { types } })).digest("hex");
+		const exact = state.entries[key];
+		if (isCachedRecommendationResponse(exact) && (state.entryScopes[key] ?? "movies") === scope) return exact;
+		const candidates = Object.entries(state.entries)
+			.filter(([entryKey, response]) => (state.entryScopes[entryKey] ?? "movies") === scope && isCachedRecommendationResponse(response))
+			.map(([, response]) => response)
+			.sort((left, right) => right.items.length - left.items.length);
+		return candidates[0] ?? null;
 	}
 
 	async save(userId: string, value: unknown): Promise<void> {

@@ -1,10 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, rename, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { DataSource } from "typeorm";
+import { MediaCredit } from "../../entities/mediaCredit.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaItemsService, mergeIndexerProviderIds, parseItemPayload } from "./mediaItemsService.js";
+
+describe("person photo credits", () => {
+	it("stores an approved fallback when the NFO image is not usable", async () => {
+		const fallback = "https://image.tmdb.org/t/p/original/actor.jpg";
+		const manager = { delete: vi.fn(), create: vi.fn((_entity: unknown, value: unknown) => value), insert: vi.fn() };
+		const service = new MediaItemsService({} as DataSource, {} as never);
+		const sync = service as unknown as { syncCredits: (manager: unknown, item: MediaItem) => Promise<void> };
+		await sync.syncCredits(manager, { id: "item", type: "series", metadata: { cast: [{ name: "Actor", image: "/old/actor.jpg", fallbackImage: fallback }] } } as unknown as MediaItem);
+		expect(manager.insert).toHaveBeenCalledWith(MediaCredit, [expect.objectContaining({ name: "Actor", image: fallback })]);
+	});
+});
 
 describe("conflicting media sources", () => {
 	it("returns only explicitly corrected provider IDs for the exact source", async () => {

@@ -97,6 +97,21 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
+				"slots": {
+					"type": "array",
+					"maxItems": 8,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["id", "title", "location"],
+						"properties": {
+							"id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+							"title": { "type": "string", "minLength": 1, "maxLength": 60 },
+							"location": { "enum": ["media.detail", "player.controls"] },
+							"adminOnly": { "type": "boolean" }
+						}
+					}
+				},
 				"pages": {
 					"type": "array",
 					"maxItems": 8,

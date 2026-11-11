@@ -67,7 +67,7 @@ export interface IndexerSettings {
 	language: string;
 	subtitles: IndexerSubtitleSetting;
 	themes: { enabled: boolean };
-	plugins: Array<{ id: string; version: string; entry: string; backendEntry?: string; capabilities: string[] }>;
+	plugins: Array<{ id: string; version: string; entry: string; backendEntry?: string; streamerEntry?: string; capabilities: string[] }>;
 }
 
 const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
@@ -161,15 +161,18 @@ export class IndexerSettingsService {
 		const plugins = installations.flatMap((installation) => {
 			const indexerTarget = installation.manifest.targets["flixer-indexer"];
 			const backendTarget = installation.manifest.targets.flixer;
-			const entry = indexerTarget?.entry ?? backendTarget?.entry;
+			const streamerTarget = installation.manifest.targets["flixer-streamer"];
+			const entry = indexerTarget?.entry ?? backendTarget?.entry ?? streamerTarget?.entry;
 			if (!entry) return [];
+			const canOverride = installation.manifest.permissions.includes("indexer.provider.override") && installation.approvedPermissions.includes("indexer.provider.override");
 			return [
 				{
 					id: installation.pluginId,
 					version: installation.version,
 					entry,
 					...(backendTarget ? { backendEntry: backendTarget.entry } : {}),
-					capabilities: installation.manifest.capabilities,
+					...(streamerTarget ? { streamerEntry: streamerTarget.entry } : {}),
+					capabilities: installation.manifest.capabilities.filter((capability) => (indexerTarget || !capability.startsWith("indexer.provider.")) && (streamerTarget || !capability.startsWith("streamer.")) && (canOverride || !/^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability))),
 				},
 			];
 		});

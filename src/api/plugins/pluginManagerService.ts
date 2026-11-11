@@ -4,6 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { rename, rm, stat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { dataPath } from "../../config/dataPath.js";
+import { detectAvatarType } from "../auth/avatarStorage.js";
 import { version as flixerVersion } from "../../config/config.js";
 import semver from "semver";
 import { DataSource, In } from "typeorm";
@@ -13,13 +14,14 @@ import { PluginRepository } from "../../entities/pluginRepository.entity.js";
 import { PluginUpdateHistory } from "../../entities/pluginUpdateHistory.entity.js";
 import { IndexerClient, type IndexerPluginStatus } from "../indexer/indexerClient.js";
 import { fetchPluginRepositoryArtifact, fetchPluginRepositoryManifest } from "./pluginRepositoryClient.js";
-import { parsePluginManifest, type PluginManifest } from "./pluginManifest.js";
+import { parsePluginManifest, updatePluginTargetHealth, type PluginManifest } from "./pluginManifest.js";
 import { pluginCatalogMatchesManifest } from "./repositoryManifest.js";
-import { installPluginPackageAtomically } from "./pluginPackageInstaller.js";
+import { inspectPluginPackage, installPluginPackageAtomically } from "./pluginPackageInstaller.js";
 import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.js";
 
 const OFFICIAL_REPOSITORY_URL = "https://raw.githubusercontent.com/flixermedia/flixer-plugins/main/repository.json";
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const MAX_LOCAL_PLUGIN_ARCHIVE_BYTES = 32 * 1024 * 1024;
 const PLUGIN_TARGETS = ["flixer", "flixer-indexer", "flixer-streamer", "flixer-web"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -221,6 +223,16 @@ export class PluginManagerService {
 		});
 	}
 
+	async repositoryImage(repositoryId: string, path: string) {
+		if (!UUID_PATTERN.test(repositoryId) || typeof path !== "string" || path.length > 512 || !/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*\\)[A-Za-z0-9._/-]+\.(?:png|jpe?g|webp|gif)$/i.test(path)) throw new NotFound("Plugin image not found.");
+		const repository = await this.dataSource.getRepository(PluginRepository).findOneBy({ id: repositoryId, enabled: true });
+		if (!repository?.manifest?.plugins.some((plugin) => plugin.icon === path || plugin.banner === path)) throw new NotFound("Plugin image not found.");
+		const data = await fetchPluginRepositoryArtifact(repository.url, path, 5 * 1024 * 1024, "image/png, image/jpeg, image/webp, image/gif");
+		const type = detectAvatarType(data);
+		if (!type) throw new BadRequest("Plugin image is not a supported image format.");
+		return { data, mime: type.mime };
+	}
+
 	async discover(filter: PluginCatalogFilter = {}) {
 		const target = filter.target?.trim();
 		if (target && !(PLUGIN_TARGETS as readonly string[]).includes(target)) {
@@ -276,6 +288,86 @@ export class PluginManagerService {
 				action: existing ? "update" : "install",
 				fromVersion: existing?.version ?? null,
 				toVersion: request.version,
+				outcome: "failed",
+				errorMessage: pluginUpdateErrorMessage(error),
+			});
+			throw error;
+		}
+	}
+
+	localImportEnabled(): boolean {
+		return process.env.FLIXER_PLUGIN_LOCAL_IMPORTS === "true";
+	}
+
+	async inspectLocalPackage(archive: Buffer): Promise<PluginManifest> {
+		if (!this.localImportEnabled()) throw new NotFound("Local plugin import is disabled.");
+		if (!Buffer.isBuffer(archive) || archive.length === 0 || archive.length > MAX_LOCAL_PLUGIN_ARCHIVE_BYTES) {
+			throw new BadRequest("Plugin package must be a non-empty gzip archive up to 32 MiB.");
+		}
+		let manifest: PluginManifest;
+		try {
+			manifest = await inspectPluginPackage(dataPath("plugins"), archive);
+		} catch (error: unknown) {
+			throw new BadRequest(`Plugin package is invalid: ${error instanceof Error ? error.message : "unknown error"}`);
+		}
+		this.requireCompatible(manifest);
+		const activationProblem = this.activationProblem(manifest);
+		if (activationProblem) throw new BadRequest(activationProblem);
+		await this.requireDependencies(manifest);
+		return manifest;
+	}
+
+	async importLocalPackage(archive: Buffer, approvedPermissions: string[]): Promise<PluginInstallation> {
+		const manifest = await this.inspectLocalPackage(archive);
+		if (!Array.isArray(approvedPermissions) || !approvedPermissions.every((permission) => typeof permission === "string")) {
+			throw new BadRequest("Approved permissions must be a list of permission identifiers.");
+		}
+		const approved = new Set(approvedPermissions);
+		if (approved.size !== approvedPermissions.length || approved.size !== manifest.permissions.length || manifest.permissions.some((permission) => !approved.has(permission))) {
+			throw new BadRequest("Explicit approval is required for every declared plugin permission.");
+		}
+		const installations = this.dataSource.getRepository(PluginInstallation);
+		const existing = await installations.findOneBy({ pluginId: manifest.id });
+		if (existing?.enabled) throw new Conflict("Disable this plugin before importing a local package over it.");
+		const action = existing ? "update" : "install";
+		try {
+			const digest = createHash("sha256").update(archive).digest("hex");
+			const installed = await installPluginPackageAtomically(dataPath("plugins"), archive, manifest, digest, async (result) => {
+				await this.dataSource.transaction(async (manager) => {
+					const preservedState = preservePluginInstallationState(existing, result.manifest, approved);
+					const installation = manager.getRepository(PluginInstallation).create({
+						pluginId: result.pluginId,
+						repositoryId: null,
+						version: result.version,
+						packageDigest: result.packageDigest,
+						installPath: result.installPath,
+						manifest: result.manifest,
+						status: "disabled",
+						enabled: false,
+						...preservedState,
+						targetStatus: Object.fromEntries(Object.keys(result.manifest.targets).map((target) => [target, "installed"])),
+						lastError: null,
+					});
+					await manager.getRepository(PluginInstallation).save(installation);
+					await manager.getRepository(PluginUpdateHistory).save({
+						pluginId: manifest.id,
+						action,
+						fromVersion: existing?.version ?? null,
+						toVersion: manifest.version,
+						outcome: "succeeded",
+						errorMessage: null,
+					});
+				});
+			});
+			const persisted = await installations.findOneBy({ pluginId: installed.pluginId });
+			if (!persisted) throw new Error("Plugin package was installed but its metadata record could not be loaded.");
+			return persisted;
+		} catch (error: unknown) {
+			await this.recordUpdateHistorySafely({
+				pluginId: manifest.id,
+				action,
+				fromVersion: existing?.version ?? null,
+				toVersion: manifest.version,
 				outcome: "failed",
 				errorMessage: pluginUpdateErrorMessage(error),
 			});
@@ -422,7 +514,7 @@ export class PluginManagerService {
 		const targets = Object.entries(manifest.targets);
 		const unsupportedTargets = targets
 			.map(([target]) => target)
-			.filter((target) => target !== "flixer" && target !== "flixer-indexer");
+			.filter((target) => target !== "flixer" && target !== "flixer-indexer" && target !== "flixer-web" && target !== "flixer-streamer");
 		if (unsupportedTargets.length > 0) {
 			return `Runtime support is not available for: ${unsupportedTargets.join(", ")}.`;
 		}
@@ -433,18 +525,37 @@ export class PluginManagerService {
 			}
 			if (
 				!manifest.capabilities.some(
-					(capability) => capability === "api.routes" || capability === "backend.routes",
+					(capability) => capability === "api.routes" || capability === "backend.routes" || capability === "auth.directory" || capability === "auth.oidc" || capability === "auth.oauth",
 				)
 			) {
-				return "Backend route plugins must declare api.routes or backend.routes.";
+				return "Backend plugins must declare a supported backend or authentication capability.";
 			}
+			if (manifest.capabilities.some((capability) => ["auth.directory", "auth.oidc", "auth.oauth"].includes(capability)) && !manifest.permissions.includes("auth.identity.verify"))
+				return "Authentication providers require the auth.identity.verify permission.";
+			if (manifest.capabilities.includes("auth.directory") && !manifest.permissions.includes("auth.credentials"))
+				return "Directory authentication requires the auth.credentials permission.";
 		}
 		const indexer = manifest.targets["flixer-indexer"];
 		if (indexer && !indexer.entry.toLowerCase().endsWith(".wasm"))
 			return "Indexer plugins must use a WASI .wasm entry point.";
 		if (indexer && !manifest.capabilities.some((capability) => capability.startsWith("indexer.provider.")))
 			return "Indexer plugins must declare at least one indexer.provider capability.";
-		if (!backend && !indexer) return "Plugin has no supported service target.";
+		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability)) && !manifest.permissions.includes("indexer.provider.override"))
+			return "Indexer provider replacement requires the indexer.provider.override permission.";
+		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability) && !manifest.capabilities.includes(capability.replace(/\.replace$/, ""))))
+			return "Indexer provider replacement requires the corresponding provider capability.";
+		const web = manifest.targets["flixer-web"];
+		if (web && (!web.entry.toLowerCase().endsWith(".js") || !manifest.capabilities.includes("ui.slots") || !manifest.ui?.slots?.length))
+			return "Web slots require a JavaScript entry, the ui.slots capability and at least one slot.";
+		if (web && manifest.ui?.slots?.some((slot) => !manifest.permissions.includes(`ui.slot.${slot.location}`)))
+			return "Web slots require a permission for each declared location.";
+		const streamer = manifest.targets["flixer-streamer"];
+		const streamerCapabilities = ["streamer.playback.authorize", "streamer.manifest", "streamer.processing"];
+		if (streamer && (!streamer.entry.toLowerCase().endsWith(".wasm") || !manifest.capabilities.some((capability) => streamerCapabilities.includes(capability))))
+			return "Streamer plugins require a WASI module and a supported streamer capability.";
+		if (streamer && manifest.capabilities.some((capability) => streamerCapabilities.includes(capability) && !manifest.permissions.includes(capability)))
+			return "Streamer hooks require permission for each declared capability.";
+		if (!backend && !indexer && !web && !streamer) return "Plugin has no supported service target.";
 		return null;
 	}
 
@@ -591,22 +702,31 @@ export class PluginManagerService {
 		const repository = this.dataSource.getRepository(PluginInstallation);
 		const enabled = await repository.find({ where: { enabled: true } });
 		for (const installation of enabled) {
-			if (!installation.manifest.targets["flixer-indexer"]) continue;
 			const target = statusById.get(installation.pluginId);
-			if (!target) {
-				installation.status = "error";
-				installation.lastError = "Indexer did not report this enabled plugin.";
-				installation.targetStatus = { ...installation.targetStatus, "flixer-indexer": "missing" };
-			} else if (target.state === "registered") {
-				installation.status = "running";
-				installation.lastError = null;
-				installation.targetStatus = { ...installation.targetStatus, "flixer-indexer": "running" };
-			} else {
-				installation.status = "error";
-				installation.lastError = (target.error || "Indexer could not load this plugin.").slice(0, 1000);
-				installation.targetStatus = { ...installation.targetStatus, "flixer-indexer": "error" };
+			const streamerTarget = target?.targets?.["flixer-streamer"];
+			if (installation.manifest.targets["flixer-streamer"]) {
+				if (streamerTarget?.state === "registered") updatePluginTargetHealth(installation, "flixer-streamer", "running");
+				else updatePluginTargetHealth(installation, "flixer-streamer", target ? "error" : "missing", (streamerTarget?.error || target?.error || "Streamer module could not be loaded.").slice(0, 1000));
 			}
-			await repository.save(installation);
+			const backendTarget = target?.targets?.flixer;
+			if (installation.manifest.targets.flixer && backendTarget?.state === "error") {
+				updatePluginTargetHealth(installation, "flixer", "error", (backendTarget.error || "Backend module could not be loaded.").slice(0, 1000));
+			} else if (backendTarget?.state === "registered" && (installation.targetStatus.flixer === "requested" || installation.targetStatus.flixer === "missing")) {
+				updatePluginTargetHealth(installation, "flixer", "running");
+			}
+			if (!installation.manifest.targets["flixer-indexer"]) {
+				if (backendTarget || installation.manifest.targets["flixer-streamer"]) await repository.update({ pluginId: installation.pluginId, enabled: true }, { status: installation.status, lastError: installation.lastError, targetStatus: installation.targetStatus });
+				continue;
+			}
+			const indexerTarget = target?.targets?.["flixer-indexer"] ?? target;
+			if (!target) {
+				updatePluginTargetHealth(installation, "flixer-indexer", "missing", "Indexer did not report this enabled plugin.");
+			} else if (indexerTarget?.state === "registered") {
+				updatePluginTargetHealth(installation, "flixer-indexer", "running");
+			} else {
+				updatePluginTargetHealth(installation, "flixer-indexer", "error", (indexerTarget?.error || "Indexer could not load this plugin.").slice(0, 1000));
+			}
+			await repository.update({ pluginId: installation.pluginId, enabled: true }, { status: installation.status, lastError: installation.lastError, targetStatus: installation.targetStatus });
 		}
 	}
 

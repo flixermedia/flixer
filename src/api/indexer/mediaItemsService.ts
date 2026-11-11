@@ -456,9 +456,9 @@ export class MediaItemsService {
 				return;
 			}
 			value.forEach((entry, index) => {
-				const person = entry as { name?: unknown; type?: unknown; role?: unknown; image?: unknown } | null;
+				const person = entry as { name?: unknown; type?: unknown; role?: unknown; image?: unknown; fallbackImage?: unknown } | null;
 				const type = typeof person?.type === "string" && person.type.trim() ? person.type.trim().toLowerCase() : fallbackRole;
-				add(person?.name, type, person?.role, index + 1, person?.image);
+				add(person?.name, type, person?.role, index + 1, allowedPersonImage(person?.image) ?? person?.fallbackImage);
 			});
 		};
 		people(metadata.cast, "actor");

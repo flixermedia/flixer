@@ -11,6 +11,7 @@ import { MediaItemsService, parseItemPayload, type IndexerPathRemoval } from "./
 import { indexerWriteLimiter } from "./workLimiter.js";
 import { MediaSearchService } from "../media/mediaSearchService.js";
 import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { PluginIndexerHostService } from "../plugins/pluginIndexerHostService.js";
 
 const PREFIX = "/api/indexer";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -30,6 +31,7 @@ export class IndexerApiController {
 		private readonly items: MediaItemsService,
 		private readonly introSegments: IndexerIntroSegmentsService,
 		private readonly mediaSearch: MediaSearchService,
+		private readonly pluginHost: PluginIndexerHostService,
 	) {}
 
 	@Get("/libraries")
@@ -54,6 +56,21 @@ export class IndexerApiController {
 			signature,
 		});
 		return this.settings.forIndexer();
+	}
+
+	@Post("/plugins/:pluginId/host-calls")
+	async pluginHostCalls(@PathParams("pluginId") pluginId: string, @RawBodyParams() raw: Buffer | string | undefined, @HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string, @HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string) {
+		const body = Buffer.from(raw ?? "");
+		verifyIndexerRequest({ method: "POST", path: `${PREFIX}/plugins/${pluginId}/host-calls`, body, timestamp, signature });
+		if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(pluginId) || body.length > 1024 * 1024) throw new BadRequest("Invalid plugin host request.");
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new BadRequest("Invalid plugin host request.");
+		return { results: await this.pluginHost.execute(pluginId, (parsed as { calls?: unknown }).calls) };
 	}
 
 	@Post("/media/manual-match")

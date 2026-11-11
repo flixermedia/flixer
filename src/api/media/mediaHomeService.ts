@@ -104,14 +104,14 @@ function peopleOf(value: unknown): Array<{ id: string; name: string; role: strin
 		return [];
 	}
 	return value
-		.map((person) => person as { name?: unknown; role?: unknown; image?: unknown })
+		.map((person) => person as { name?: unknown; role?: unknown; image?: unknown; fallbackImage?: unknown })
 		.filter((person) => typeof person?.name === "string" && person.name.trim().length > 0)
 		.slice(0, 20)
 		.map((person) => ({
 			id: personIdOf(person.name as string),
 			name: person.name as string,
 			role: textOf(person.role),
-			hasImage: allowedPersonImage(person.image) !== null,
+			hasImage: allowedPersonImage(person.image) !== null || allowedPersonImage(person.fallbackImage) !== null,
 		}));
 
 }
@@ -125,7 +125,7 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 	const seen = new Set<string>();
 	const crew: Array<{ id: string; name: string; role: string; hasImage: boolean }> = [];
 	for (const entry of value) {
-		const person = entry as { name?: unknown; type?: unknown; image?: unknown } | null;
+		const person = entry as { name?: unknown; type?: unknown; image?: unknown; fallbackImage?: unknown } | null;
 		if (typeof person?.name !== "string" || !person.name.trim()) {
 			continue;
 		}
@@ -136,7 +136,7 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 				id: personIdOf(person.name),
 				name: person.name.trim(),
 				role,
-				hasImage: allowedPersonImage(person.image) !== null,
+				hasImage: allowedPersonImage(person.image) !== null || allowedPersonImage(person.fallbackImage) !== null,
 			});
 		}
 	}
@@ -430,6 +430,22 @@ export class MediaHomeService {
 		});
 
 		const metadata = item.metadata ?? {};
+		const cast = peopleOf(metadata.cast);
+		const crew = crewOf(metadata.crew);
+		const missingPhotoIds = [...new Set([...cast, ...crew].filter((person) => !person.hasImage).map((person) => person.id))];
+		if (missingPhotoIds.length > 0) {
+			const creditImages = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
+				.innerJoin(MediaItem, "credited_item", "credited_item.id = credit.item_id AND credited_item.is_placeholder = false")
+				.select("DISTINCT credit.person_id", "id")
+				.where("credit.person_id IN (:...ids) AND credit.image IS NOT NULL", { ids: missingPhotoIds });
+			this.access.restrict(creditImages, "credited_item", policy, { content: true });
+			const [creditsWithImages, profiles] = await Promise.all([
+				creditImages.getRawMany<{ id: string }>(),
+				this.dataSource.getRepository(PersonProfile).findBy({ personId: In(missingPhotoIds) }),
+			]);
+			const available = new Set([...creditsWithImages.map((credit) => credit.id), ...profiles.filter((profile) => allowedPersonImage(profile.image)).map((profile) => profile.personId)]);
+			for (const person of [...cast, ...crew]) if (available.has(person.id)) person.hasImage = true;
+		}
 		return {
 			id: item.id,
 			libraryId: item.libraryId,
@@ -445,8 +461,8 @@ export class MediaHomeService {
 			runtimeMinutes: runtimeOf(item),
 			genres: stringsOf(metadata.genres),
 			studios: stringsOf(metadata.studios),
-			cast: peopleOf(metadata.cast),
-			crew: crewOf(metadata.crew),
+			cast,
+			crew,
 			ratings: (metadata.ratings && typeof metadata.ratings === "object" ? metadata.ratings : {}) as Record<string, number>,
 			status: textOf(metadata.status),
 			artist: textOf(metadata.artist ?? metadata.albumArtist),
@@ -645,6 +661,44 @@ export class MediaHomeService {
 		return { total, items: await this.access.shape(policy, items.map((item) => this.toCard(item))) };
 	}
 
+	async browseArtists(sort: string, offset: number, limit: number, policy: AccessPolicy) {
+		const query = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
+			.innerJoin(MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false AND item.type = 'album'")
+			.where("credit.role IN (:...roles)", { roles: ["artist", "albumArtist"] })
+			.select("credit.person_id", "id")
+			.addSelect("MIN(credit.name)", "name")
+			.addSelect("COUNT(DISTINCT item.id)", "albumCount")
+			.addSelect("MAX(item.created_at)", "added")
+			.addSelect("MAX(item.year)", "year")
+			.groupBy("credit.person_id");
+		this.access.restrict(query, "item", policy, { content: true });
+		const count = await query.clone().select("COUNT(DISTINCT credit.person_id)", "total").groupBy().getRawOne<{ total: string }>();
+		if (sort === "title") query.orderBy("MIN(credit.name)", "ASC");
+		else if (sort === "year") query.orderBy("MAX(item.year)", "DESC", "NULLS LAST").addOrderBy("MIN(credit.name)", "ASC");
+		else query.orderBy("MAX(item.created_at)", "DESC").addOrderBy("MIN(credit.name)", "ASC");
+		query.addOrderBy("credit.person_id", "ASC");
+		const rows = await query.offset(offset).limit(limit).getRawMany<{ id: string; name: string; albumCount: string }>();
+		if (rows.length === 0) return { total: Number(count?.total ?? 0), items: [] };
+		const albums = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
+			.innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false AND item.type = 'album'")
+			.where("credit.person_id IN (:...ids)", { ids: rows.map((row) => row.id) })
+			.andWhere("credit.role IN (:...roles)", { roles: ["artist", "albumArtist"] })
+			.orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("item.title", "ASC");
+		this.access.restrict(albums, "item", policy, { content: true });
+		const credits = await albums.getMany();
+		const covers = new Map<string, Array<{ itemId: string; index: number; version: Date }>>();
+		for (const credit of credits) {
+			const item = (credit as MediaCredit & { item: MediaItem }).item;
+			const index = imageIndex(item.images, ["poster", "thumb", "backdrop"]);
+			const images = covers.get(credit.personId) ?? [];
+			if (index !== null && images.length < 4 && !images.some((image) => image.itemId === item.id)) {
+				images.push({ itemId: item.id, index, version: item.updatedAt });
+				covers.set(credit.personId, images);
+			}
+		}
+		return { total: Number(count?.total ?? 0), items: rows.map((row) => ({ id: row.id, name: row.name, albumCount: Number(row.albumCount), covers: covers.get(row.id) ?? [] })) };
+	}
+
 	/** Everything a person is credited on (albums, movies, shows), grouped by role, matched by name ignoring case. */
 	async person(id: string, policy: AccessPolicy): Promise<{
 		id: string;
@@ -727,15 +781,52 @@ export class MediaHomeService {
 			throw new NotFound("Image not found.");
 		}
 		const credits = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").where("credit.person_id = :id AND credit.image IS NOT NULL", { id: id.toLowerCase() }).orderBy("credit.position", "ASC").limit(10).getMany();
-		let url = credits.map((credit) => allowedPersonImage(credit.image)).find((value): value is string => value !== null);
-		if (!url) {
-			const profile = await this.dataSource.getRepository(PersonProfile).findOneBy({ personId: id.toLowerCase() });
-			url = allowedPersonImage(profile?.image) ?? undefined;
+		const tried = new Set<string>();
+		let lastError: unknown;
+		const tryImage = async (value: unknown) => {
+			const url = allowedPersonImage(value);
+			if (!url || tried.has(url)) return null;
+			tried.add(url);
+			try {
+				return await resizeImage(() => this.loadPersonPhoto(id.toLowerCase(), url), `person:${url}`, normalizeWidth(width));
+			} catch (error) {
+				lastError = error;
+				return null;
+			}
+		};
+		for (const credit of credits) {
+			const image = await tryImage(credit.image);
+			if (image) return image;
 		}
-		if (!url) {
-			throw new NotFound("Image not found.");
+		const profile = await this.dataSource.getRepository(PersonProfile).findOneBy({ personId: id.toLowerCase() });
+		const profileImage = await tryImage(profile?.image);
+		if (profileImage) return profileImage;
+		if (tried.size > 0) {
+			const items = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
+				.innerJoin(MediaCredit, "credit", "credit.item_id = item.id")
+				.select(["item.id", "item.metadata"])
+				.where("credit.person_id = :id", { id: id.toLowerCase() }).limit(50).getMany();
+			for (const item of items) {
+				for (const list of [item.metadata?.cast, item.metadata?.crew]) {
+					if (!Array.isArray(list)) continue;
+					for (const entry of list) {
+						const person = entry as { name?: unknown; fallbackImage?: unknown } | null;
+						if (typeof person?.name !== "string" || personIdOf(person.name) !== id.toLowerCase()) continue;
+						const image = await tryImage(person.fallbackImage);
+						if (image) return image;
+					}
+				}
+			}
 		}
-		return resizeImage(() => this.loadPersonPhoto(id.toLowerCase(), url), `person:${url}`, normalizeWidth(width));
+		if (tried.size === 0) {
+			const artist = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").where("credit.person_id = :id AND credit.role IN (:...roles)", { id: id.toLowerCase(), roles: ["artist", "albumArtist"] }).getOne();
+			if (artist) {
+				const image = await tryImage((await this.profileOf(artist.personId, artist.name, "artist"))?.image);
+				if (image) return image;
+			}
+		}
+		if (lastError) throw lastError;
+		throw new NotFound("Image not found.");
 	}
 
 	/** Prefers the indexer's on-disk cache, and goes straight to the provider only when the indexer is unreachable. */

@@ -67,6 +67,20 @@ describe("logger administration request logs", () => {
 		expect(JSON.stringify(result)).not.toContain("private");
 	});
 
+	it.each(["/api/auth/providers/example/login?state=private", "/api/admin/plugins/flixer.oauth/oauth-providers?state=private"])("does not log external-provider credentials or callback parameters at %s", (url) => {
+		const ctx = new DIContext({ id: "external-auth-test" });
+		ctx.request = { method: "POST", url, headers: {}, body: { password: "private-password" }, query: {}, params: {} };
+		const result = alterRequestLog("error", { event: "request.end", status: 401, error_body: "private-error" }, ctx);
+		expect(JSON.stringify(result)).not.toContain("private");
+	});
+
+	it("does not log indexer plugin host-call credentials or settings", () => {
+		const ctx = new DIContext({ id: "plugin-host-test" });
+		ctx.request = { method: "POST", url: "/api/indexer/plugins/plugin.example/host-calls", headers: {}, body: { secret: "private-token" }, query: {}, params: {} };
+		const result = alterRequestLog("error", { event: "request.end", status: 500, response: { apiKey: "private-token" } }, ctx);
+		expect(JSON.stringify(result)).not.toContain("private-token");
+	});
+
 	it("adds valid trace context to request logs", () => {
 		const ctx = new DIContext({ id: "test" });
 		ctx.request = {

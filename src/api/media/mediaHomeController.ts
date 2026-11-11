@@ -2,7 +2,7 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Context, BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
-import { Delete, Get, Nullable, Post, Property, Put, Required, Returns, Security } from "@tsed/schema";
+import { CollectionOf, Delete, Get, Nullable, Post, Property, Put, Required, Returns, Security } from "@tsed/schema";
 import { MediaAccessService } from "../access/mediaAccessService.js";
 import { AuthService } from "../auth/authService.js";
 import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
@@ -27,6 +27,24 @@ class TrailerResponse {
 	@Nullable(TrailerView)
 	@Required()
 	trailer!: TrailerView | null;
+}
+
+class ArtistCover {
+	@Property() @Required() itemId!: string;
+	@Property() @Required() index!: number;
+	@Property() @Required() version!: Date;
+}
+
+class ArtistBrowseItem {
+	@Property() @Required() id!: string;
+	@Property() @Required() name!: string;
+	@Property() @Required() albumCount!: number;
+	@CollectionOf(ArtistCover) @Required() covers!: ArtistCover[];
+}
+
+class ArtistBrowseResponse {
+	@Property() @Required() total!: number;
+	@CollectionOf(ArtistBrowseItem) @Required() items!: ArtistBrowseItem[];
 }
 
 /** What every signed-in user sees of the media library: the home page content and artwork. */
@@ -138,6 +156,20 @@ export class MediaHomeController {
 	@Get("/people/:id")
 	async person(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		return this.home.person(id, await this.access.resolve(authorization));
+	}
+
+	@Get("/browse-artists")
+	@Returns(200, ArtistBrowseResponse)
+	async browseArtists(
+		@QueryParams("sort", String) sort: string | undefined,
+		@QueryParams("offset", Number) offset: number | undefined,
+		@QueryParams("limit", Number) limit: number | undefined,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const policy = await this.access.resolve(authorization);
+		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? (offset as number) : 0;
+		const safeLimit = Number.isInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, 100) : 48;
+		return this.home.browseArtists(typeof sort === "string" ? sort : "added", safeOffset, safeLimit, policy);
 	}
 
 	@Get("/browse/:kind")

@@ -73,6 +73,7 @@ services:
         environment:
             PORT: 8081
             NODE_ENV: development
+            FLIXER_PLUGIN_LOCAL_IMPORTS: ${FLIXER_PLUGIN_LOCAL_IMPORTS:-false}
             APP_SECRET: ${APP_SECRET:-}
             APP_SECRET_FILE: /run/flixer-secrets/app-secret
             DATA_PATH: /data

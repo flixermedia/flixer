@@ -21,6 +21,12 @@
 			"maxLength": 512,
 			"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
 		},
+		"imagePath": {
+			"allOf": [
+				{ "$ref": "#/$defs/packagePath" },
+				{ "type": "string", "pattern": "\\.(?:[pP][nN][gG]|[jJ][pP][eE]?[gG]|[wW][eE][bB][pP]|[gG][iI][fF])$" }
+			]
+		},
 		"plugin": {
 			"type": "object",
 			"additionalProperties": false,
@@ -30,6 +36,8 @@
 				"name": { "type": "string", "minLength": 1, "maxLength": 100 },
 				"description": { "type": "string", "minLength": 1, "maxLength": 1000 },
 				"author": { "type": "string", "minLength": 1, "maxLength": 200 },
+				"icon": { "$ref": "#/$defs/imagePath" },
+				"banner": { "$ref": "#/$defs/imagePath" },
 				"capabilities": {
 					"type": "array",
 					"uniqueItems": true,

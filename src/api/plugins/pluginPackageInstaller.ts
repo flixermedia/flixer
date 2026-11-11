@@ -1,8 +1,31 @@
 import { isDeepStrictEqual } from "node:util";
-import { mkdir, readFile, rename, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, stat } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { parsePluginManifest, type PluginManifest } from "./pluginManifest.js";
 import { extractPluginArchive } from "./safePluginArchive.js";
+
+const MAX_MANIFEST_BYTES = 1_048_576;
+
+export async function inspectPluginPackage(pluginsPath: string, archive: Buffer): Promise<PluginManifest> {
+	const temporaryRoot = join(pluginsPath, "temp");
+	await mkdir(temporaryRoot, { recursive: true, mode: 0o700 });
+	const temporary = await mkdtemp(join(temporaryRoot, "inspect-"));
+	try {
+		const staged = join(temporary, "package");
+		await mkdir(staged, { mode: 0o755 });
+		await extractPluginArchive(archive, staged);
+		const manifestPath = join(staged, "plugin.json");
+		const info = await stat(manifestPath);
+		if (!info.isFile() || info.size > MAX_MANIFEST_BYTES) throw new Error("Plugin package manifest is missing or oversized.");
+		try {
+			return parsePluginManifest(JSON.parse(await readFile(manifestPath, "utf8")) as unknown);
+		} catch (error: unknown) {
+			throw new Error(`Plugin package manifest is missing or invalid: ${error instanceof Error ? error.message : "unknown error"}`);
+		}
+	} finally {
+		await rm(temporary, { recursive: true, force: true });
+	}
+}
 
 export interface PluginPackageInstallResult {
 	pluginId: string;

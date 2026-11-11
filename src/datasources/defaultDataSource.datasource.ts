@@ -3,6 +3,15 @@ import { DataSource } from "typeorm";
 import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../config/logger/requestLog.js";
 import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
+import { ExternalIdentity } from "../entities/externalIdentity.entity.js";
+import { ExternalAuthFlow } from "../entities/externalAuthFlow.entity.js";
+import { ExternalOAuthProvider } from "../entities/externalOAuthProvider.entity.js";
+import { CreateExternalIdentities1798300000021 } from "../migrations/createExternalIdentities1798300000021.js";
+import { CreateExternalAuthFlows1798300000022 } from "../migrations/createExternalAuthFlows1798300000022.js";
+import { LinkExternalAuthToPlugin1798300000023 } from "../migrations/linkExternalAuthToPlugin1798300000023.js";
+import { AddExternalAuthFlowNonce1798300000024 } from "../migrations/addExternalAuthFlowNonce1798300000024.js";
+import { AddExternalAuthFlowRedirectUri1798300000025 } from "../migrations/addExternalAuthFlowRedirectUri1798300000025.js";
+import { CreateExternalOAuthProviders1798300000026 } from "../migrations/createExternalOAuthProviders1798300000026.js";
 import { Setting } from "../entities/setting.entity.js";
 import { UserPreference } from "../entities/userPreference.entity.js";
 import { UserAccessPolicy } from "../entities/userAccessPolicy.entity.js";
@@ -160,6 +169,9 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			entities: [
 				User,
 				UserSession,
+				ExternalIdentity,
+				ExternalAuthFlow,
+				ExternalOAuthProvider,
 				Setting,
 				PasskeyCredential,
 				PasskeyChallenge,
@@ -299,6 +311,12 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddOidcSubscriptionSharing1798300000018,
 				AddOidcResourceScopes1798300000019,
 				RemoveOidcSubscriptionClaim1798300000020,
+				CreateExternalIdentities1798300000021,
+				CreateExternalAuthFlows1798300000022,
+				LinkExternalAuthToPlugin1798300000023,
+				AddExternalAuthFlowNonce1798300000024,
+				AddExternalAuthFlowRedirectUri1798300000025,
+				CreateExternalOAuthProviders1798300000026,
 			],
 			synchronize: false,
 			migrationsRun: false,

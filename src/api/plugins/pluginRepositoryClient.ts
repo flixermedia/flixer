@@ -110,6 +110,7 @@ export async function fetchPluginRepositoryArtifact(
 	repositoryUrl: string,
 	artifactPath: string,
 	maxBytes: number,
+	accept = "application/octet-stream, application/json, application/gzip",
 ): Promise<Buffer> {
 	if (!/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*\\)[A-Za-z0-9._/-]+$/.test(artifactPath)) {
 		throw new Error("Repository artifact path is invalid.");
@@ -125,5 +126,5 @@ export async function fetchPluginRepositoryArtifact(
 		throw new Error("Repository artifact path escapes the repository root.");
 	}
 
-	return fetchPinnedBytes(artifactUrl, maxBytes, "application/octet-stream, application/json, application/gzip");
+	return fetchPinnedBytes(artifactUrl, maxBytes, accept);
 }

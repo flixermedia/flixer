@@ -5,6 +5,7 @@ import { AuthService } from "../auth/authService.js";
 import { PluginSearchService } from "./pluginSearchService.js";
 import { PluginPagesService } from "./pluginPagesService.js";
 import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
+import { PluginSlotService } from "./pluginSlotService.js";
 
 @Controller("/plugins")
 @Security("BearerAuth")
@@ -14,7 +15,20 @@ export class PluginRuntimeController {
 		private readonly runtime: PluginWasiRuntime,
 		private readonly pages: PluginPagesService,
 		private readonly search: PluginSearchService,
+		private readonly slots: PluginSlotService,
 	) {}
+
+	@Get("/slots")
+	async listSlots(@QueryParams("location") location: string, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getUserFromKeyOrSession(authorization);
+		return this.slots.list(user.role, location);
+	}
+
+	@Get("/:pluginId/slots/:slotId/control")
+	async slotControl(@PathParams("pluginId") pluginId: string, @PathParams("slotId") slotId: string, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getUserFromKeyOrSession(authorization);
+		return { allowed: await this.slots.canControl(pluginId, slotId, user.role) };
+	}
 
 	/** Pages that enabled plugins contribute to the web app's main navigation. */
 	@Get("/pages")
