@@ -6,8 +6,6 @@ import { DataSource } from "typeorm";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
-import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
-import { subscriptionGrantsAccess } from "../payments/paymentTypes.js";
 import { createOidcAdapter } from "./oidcAdapter.js";
 import { decryptOidcSecret, encryptOidcSecret } from "./oidcSecrets.js";
 import { isOidcResourceScope } from "./oidcResourceScopes.js";
@@ -125,24 +123,16 @@ export class OidcProviderService {
 			},
 			ttl: { AuthorizationCode: 300, AccessToken: 3600, RefreshToken: 30 * 24 * 60 * 60, IdToken: 600, Interaction: 600, Session: 3600, Grant: 30 * 24 * 60 * 60 },
 			rotateRefreshToken: true,
-			claims: { openid: ["sub"], profile: ["name", "preferred_username"], email: ["email", "email_verified"], roles: ["roles"], groups: ["groups"], subscription: ["flixer_subscription_active"] },
-			scopes: ["openid", "profile", "email", "offline_access", "roles", "groups", "subscription"],
+			claims: { openid: ["sub"], profile: ["name", "preferred_username"], email: ["email", "email_verified"], roles: ["roles"], groups: ["groups"] },
+			scopes: ["openid", "profile", "email", "offline_access", "roles", "groups"],
 			interactions: { policy, url: (_ctx, interaction) => `/api/oidc/interaction/${interaction.uid}` },
-			async findAccount(ctx, id) {
+			async findAccount(_ctx, id) {
 				const user = await dataSource.getRepository(User).findOneBy({ id });
 				if (!user || user.disabledAt) return undefined;
 				return {
 					accountId: user.id,
 					async claims(_use, scope) {
 						const scopes = new Set((scope ?? "").split(" "));
-						let subscription: { flixer_subscription_active: boolean } | Record<string, never> = {};
-						if (scopes.has("subscription") && ctx.oidc.client?.clientId) {
-							const clients: Array<{ share_subscription: boolean }> = await dataSource.query(`SELECT "share_subscription" FROM "oidc_clients" WHERE "id" = $1`, [ctx.oidc.client.clientId]);
-							if (clients[0]?.share_subscription) {
-								const subscriptions = await dataSource.getRepository(PaymentSubscription).findBy({ userId: user.id });
-								subscription = { flixer_subscription_active: subscriptions.some((item) => subscriptionGrantsAccess(item, new Date())) };
-							}
-						}
 						return {
 							sub: user.id,
 							name: user.displayName || user.username,
@@ -150,7 +140,6 @@ export class OidcProviderService {
 							...(user.email ? { email: user.email, email_verified: !!user.emailVerifiedAt } : {}),
 							...(scopes.has("roles") ? { roles: [user.role] } : {}),
 							...(scopes.has("groups") ? { groups: [`flixer:${user.role}`] } : {}),
-							...subscription,
 						};
 					},
 				};

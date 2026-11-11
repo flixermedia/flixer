@@ -34,6 +34,7 @@ import { RepairOidcConfiguration1798300000016 } from "../migrations/repairOidcCo
 import { CreateOidcConsents1798300000017 } from "../migrations/createOidcConsents1798300000017.js";
 import { AddOidcSubscriptionSharing1798300000018 } from "../migrations/addOidcSubscriptionSharing1798300000018.js";
 import { AddOidcResourceScopes1798300000019 } from "../migrations/addOidcResourceScopes1798300000019.js";
+import { RemoveOidcSubscriptionClaim1798300000020 } from "../migrations/removeOidcSubscriptionClaim1798300000020.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { Advertisement } from "../entities/advertisement.entity.js";
 import { AdvertisementSettings } from "../entities/advertisementSettings.entity.js";
@@ -297,6 +298,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				CreateOidcConsents1798300000017,
 				AddOidcSubscriptionSharing1798300000018,
 				AddOidcResourceScopes1798300000019,
+				RemoveOidcSubscriptionClaim1798300000020,
 			],
 			synchronize: false,
 			migrationsRun: false,

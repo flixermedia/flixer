@@ -40,6 +40,9 @@
 		},
 		{
 			"path": "../flixer-logger"
+		},
+		{
+			"path": "../jellyfin-plugin-flixer"
 		}
 	],
 	"settings": {

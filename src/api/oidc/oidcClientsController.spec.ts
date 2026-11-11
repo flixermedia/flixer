@@ -28,7 +28,7 @@ describe("OAuth admin configuration", () => {
 		getConfiguration: vi.fn(async () => ({ publicUrl: "", issuer: "" })),
 		setPublicUrl: vi.fn(async (publicUrl: string) => ({ publicUrl, issuer: `${publicUrl}/api/oidc` })),
 	};
-	const clients = { setSubscriptionSharing: vi.fn(async () => {}), setResourceScopes: vi.fn(async () => {}) };
+	const clients = { setResourceScopes: vi.fn(async () => {}) };
 	let platform: Awaited<ReturnType<typeof PlatformFastify.bootstrap>>;
 
 	beforeAll(async () => {
@@ -49,19 +49,6 @@ describe("OAuth admin configuration", () => {
 
 	afterAll(async () => {
 		await platform?.stop();
-	});
-
-	it("restricts subscription sharing updates to administrators and validates the setting", async () => {
-		const app = platform.adapter.app.getApp();
-		const url = "/api/admin/oidc/clients/client-id/subscription-sharing";
-		expect((await app.inject({ method: "PUT", url, payload: { shareSubscription: true } })).statusCode).toBe(403);
-		expect(clients.setSubscriptionSharing).not.toHaveBeenCalled();
-		expect((await app.inject({ method: "PUT", url, headers, payload: {} })).statusCode).toBe(400);
-		expect((await app.inject({ method: "PUT", url, headers, payload: { shareSubscription: "yes" } })).statusCode).toBe(400);
-		const saved = await app.inject({ method: "PUT", url, headers, payload: { shareSubscription: true } });
-		expect(saved.statusCode).toBe(200);
-		expect(saved.json()).toEqual({ shareSubscription: true });
-		expect(clients.setSubscriptionSharing).toHaveBeenCalledWith("client-id", true);
 	});
 
 	it("allows only administrators to configure resource permissions", async () => {
