@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { appConfig, type AppConfig } from "./appConfig.js";
@@ -16,7 +16,10 @@ export function publishAppSecret(config: AppConfig = appConfig(), file = (proces
 		return false;
 	}
 	try {
-		if (readFileSync(file, "utf8") === secret) {
+		const fileContent = readFileSync(file, "utf8");
+		const actual = createHash('sha256').update(fileContent).digest();
+		const expected = createHash('sha256').update(secret).digest();
+		if (timingSafeEqual(actual, expected)) {
 			return true;
 		}
 	} catch {
