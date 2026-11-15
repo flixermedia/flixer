@@ -77,6 +77,24 @@ can turn it off during setup or use the installer's `--no-ai` option on macOS
 and Linux, or `-NoAi` on Windows. Existing configuration is preserved when
 updating.
 
+### Managed network storage (Linux)
+
+For NFS, WebDAV, or S3-compatible storage, start the stack with
+`docker-compose.network-storage.yml` as an overlay. This grants the API
+container mount capabilities and `/dev/fuse`; remote roots are mounted
+read-only and shared with the streamer and indexer. WebDAV and S3/MinIO mounts
+use `rclone`.
+
+### Media organization writes
+
+Organization plans are previews by default. The Libraries admin page has
+separate per-library switches for organization writes and automatic NFO
+corrections on metadata save; both default off and are stored in Flixer. To
+permit writes to local `MEDIA_PATH`, additionally apply
+`docker-compose.media-organization.yml` after reviewing host permissions and
+backups. Managed network roots remain read-only. NFO write failures are
+reported separately; the database edit is retained.
+
 ## Flixer ecosystem
 
 The standard self-hosted stack includes the API, web app, streamer, indexer,
@@ -235,6 +253,11 @@ docker compose up -d
 root. Set `HTTP_PORT` if needed. Only the reverse proxy should be published to
 the host. See [`.env.example`](.env.example) and the [installer source](install.sh)
 for more options.
+
+Login attempts are limited per client IP and username by default. Configure
+login protection and trusted proxy IPs or CIDRs in the Users administration
+page. Only trust proxies you control; without trusted proxies, clients behind
+the same proxy share an IP limit. Limits are per API process and reset on restart.
 
 For manual operations:
 
