@@ -26,6 +26,7 @@ interface ItemRow {
 	completed?: boolean;
 	updated_at?: Date | string;
 	created_at?: Date | string;
+	feedback?: "dismiss" | "more_like_this" | "less_like_this";
 }
 
 function arrayValue(value: unknown): unknown[] {
@@ -92,7 +93,7 @@ export class AiDataService {
 	}
 
 	async recommendationContext(userId: string) {
-		const [library, history, favorites] = await Promise.all([
+		const [library, history, favorites, feedback] = await Promise.all([
 			this.libraryContext(),
 			this.dataSource.query(
 				`SELECT i.id, i.type, i.title, i.year,
@@ -132,6 +133,21 @@ export class AiDataService {
 				LIMIT $2`,
 				[userId, FAVORITE_LIMIT],
 			) as Promise<ItemRow[]>,
+			this.dataSource.query(
+				`SELECT f.feedback, i.id, i.type, i.title, i.year,
+					i.metadata ->> 'overview' AS overview,
+					i.metadata ->> 'tagline' AS tagline,
+					i.metadata -> 'genres' AS genres,
+					i.metadata -> 'studios' AS studios,
+					i.metadata -> 'cast' AS cast,
+					i.metadata -> 'crew' AS crew,
+					COALESCE(i.metadata ->> 'artist', i.metadata ->> 'albumArtist') AS artist
+				FROM recommendation_feedback f
+				JOIN media_items i ON i.id = f.item_id
+				WHERE f.user_id = $1 AND i.is_placeholder = false
+				ORDER BY f.updated_at DESC`,
+				[userId],
+			) as Promise<ItemRow[]>,
 		]);
 
 		return {
@@ -147,6 +163,7 @@ export class AiDataService {
 				...mapItem(row),
 				created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
 			})),
+			feedback: feedback.map((row) => ({ ...mapItem(row), feedback: row.feedback })),
 		};
 	}
 

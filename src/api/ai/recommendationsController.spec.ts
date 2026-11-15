@@ -14,7 +14,8 @@ describe("RecommendationsController", () => {
 		const policy = { userId: "user-id" };
 		const access = { resolve: vi.fn().mockResolvedValue(policy) };
 		const cache = { forHome: vi.fn().mockResolvedValue({ items: [{ id: "album-id", score: 0.9 }] }) };
-		const controller = new RecommendationsController(authService as never, recommendations as never, home as never, access as never, cache as never);
+		const userMedia = { dismissedRecommendations: vi.fn().mockResolvedValue([]) };
+		const controller = new RecommendationsController(authService as never, recommendations as never, home as never, access as never, cache as never, userMedia as never);
 
 		await expect(controller.musicRecommendations("Bearer token")).resolves.toEqual({
 			enabled: true,
@@ -35,7 +36,8 @@ describe("RecommendationsController", () => {
 		const home = { cardsByIds: vi.fn().mockResolvedValue([]) };
 		const access = { resolve: vi.fn().mockResolvedValue(policy) };
 		const cache = { forHome: vi.fn().mockResolvedValue(null) };
-		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never);
+		const userMedia = { dismissedRecommendations: vi.fn().mockResolvedValue([]) };
+		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never, userMedia as never);
 
 		await expect(controller.homeRecommendations()).resolves.toEqual({ enabled: true, items: [] });
 		await expect(controller.homeRecommendations()).resolves.toEqual({ enabled: true, items: [] });
@@ -48,9 +50,23 @@ describe("RecommendationsController", () => {
 		const home = { cardsByIds: vi.fn().mockResolvedValue([{ id: "movie-id", type: "movie", title: "Movie" }]) };
 		const access = { resolve: vi.fn().mockResolvedValue(policy) };
 		const cache = { forHome: vi.fn().mockResolvedValue({ items: [{ id: "movie-id", score: 0.8 }] }) };
-		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never);
+		const userMedia = { dismissedRecommendations: vi.fn().mockResolvedValue([]) };
+		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never, userMedia as never);
 
 		await expect(controller.homeRecommendations()).resolves.toEqual({ enabled: true, items: [{ id: "movie-id", type: "movie", title: "Movie", score: 0.8 }] });
 		expect(recommendations.recommend).toHaveBeenCalledOnce();
+	});
+
+	it("filters dismissed items from cached recommendations", async () => {
+		const policy = { userId: "user-id" };
+		const recommendations = { configuration: vi.fn().mockResolvedValue({ enabled: true }), recommend: vi.fn().mockResolvedValue({ items: [] }) };
+		const home = { cardsByIds: vi.fn().mockResolvedValue([{ id: "keep", type: "movie", title: "Keep" }]) };
+		const access = { resolve: vi.fn().mockResolvedValue(policy) };
+		const cache = { forHome: vi.fn().mockResolvedValue({ items: [{ id: "keep", score: 0.8 }, { id: "hide", score: 0.7 }] }) };
+		const userMedia = { dismissedRecommendations: vi.fn().mockResolvedValue(["hide"]) };
+		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never, userMedia as never);
+
+		await expect(controller.homeRecommendations()).resolves.toMatchObject({ items: [{ id: "keep" }] });
+		expect(home.cardsByIds).toHaveBeenCalledWith(["keep"], policy);
 	});
 });
