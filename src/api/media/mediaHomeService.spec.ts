@@ -6,7 +6,19 @@ import { PersonProfile } from "../../entities/personProfile.entity.js";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { AccessPolicy, MediaAccessService } from "../access/mediaAccessService.js";
 import type { MediaSearchService } from "./mediaSearchService.js";
-import { MediaHomeService } from "./mediaHomeService.js";
+import { applyBrowseFilters, MediaHomeService } from "./mediaHomeService.js";
+
+describe("media browse filters", () => {
+	it("parameterizes cast, studio, runtime, HDR, resolution, and language", () => {
+		const query = { andWhere: vi.fn().mockReturnThis() };
+		applyBrowseFilters(query as never, { cast: "A%_", studio: "Studio", runtimeFrom: 60, runtimeTo: 120, hdr: "hdr10", resolution: 1080, audioLanguage: "eng" });
+		expect(query.andWhere).toHaveBeenCalledTimes(7);
+		expect(query.andWhere.mock.calls[0][1]).toEqual({ cast: "%A\\%\\_%" });
+		expect(query.andWhere.mock.calls[1][1]).toEqual({ studio: "%Studio%" });
+		expect(query.andWhere.mock.calls[5][1]).toEqual({ resolution: 1080 });
+		expect(query.andWhere.mock.calls[6][1]).toEqual({ audioLanguage: "eng" });
+	});
+});
 
 describe("MediaHomeService person images", () => {
 	it("marks a cast photo available when an accessible credit has one", async () => {

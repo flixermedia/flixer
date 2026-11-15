@@ -122,6 +122,13 @@ export class MediaHomeController {
 		@QueryParams("includeChildren", Boolean) includeChildren: boolean | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
+		@QueryParams("cast", String) cast?: string,
+		@QueryParams("studio", String) studio?: string,
+		@QueryParams("runtimeFrom", Number) runtimeFrom?: number,
+		@QueryParams("runtimeTo", Number) runtimeTo?: number,
+		@QueryParams("hdr", String) hdr?: string,
+		@QueryParams("resolution", Number) resolution?: number,
+		@QueryParams("audioLanguage", String) audioLanguage?: string,
 	) {
 		const policy = await this.access.resolve(authorization);
 		const result = await this.home.search(policy.userId, typeof q === "string" ? q : "", {
@@ -132,6 +139,7 @@ export class MediaHomeController {
 			sort: typeof sort === "string" ? sort : undefined,
 			unwatched: unwatched === "true",
 			includeChildren: includeChildren === true,
+			cast, studio, runtimeFrom, runtimeTo, hdr, resolution, audioLanguage,
 		}, policy);
 		ctx.response.setHeader("X-Flixer-Search-Engine", result.engine);
 		return result.items;
@@ -179,11 +187,24 @@ export class MediaHomeController {
 		@QueryParams("offset", Number) offset: number | undefined,
 		@QueryParams("limit", Number) limit: number | undefined,
 		@HeaderParams("authorization") authorization?: string,
+		@QueryParams("genre", String) genre?: string,
+		@QueryParams("yearFrom", Number) yearFrom?: number,
+		@QueryParams("yearTo", Number) yearTo?: number,
+		@QueryParams("unwatched", String) unwatched?: string,
+		@QueryParams("cast", String) cast?: string,
+		@QueryParams("studio", String) studio?: string,
+		@QueryParams("runtimeFrom", Number) runtimeFrom?: number,
+		@QueryParams("runtimeTo", Number) runtimeTo?: number,
+		@QueryParams("hdr", String) hdr?: string,
+		@QueryParams("resolution", Number) resolution?: number,
+		@QueryParams("audioLanguage", String) audioLanguage?: string,
 	) {
 		const policy = await this.access.resolve(authorization);
 		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? (offset as number) : 0;
 		const safeLimit = Number.isInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, 100) : 48;
-		return this.home.browse(kind, typeof sort === "string" ? sort : "added", safeOffset, safeLimit, policy);
+		return this.home.browse(kind, typeof sort === "string" ? sort : "added", safeOffset, safeLimit, policy, {
+			genre, yearFrom, yearTo, unwatched: unwatched === "true", cast, studio, runtimeFrom, runtimeTo, hdr, resolution, audioLanguage,
+		});
 	}
 
 	@Get("/items/:id")

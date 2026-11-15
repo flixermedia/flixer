@@ -1,7 +1,7 @@
 import { parseMediaChapters } from "./segmentLogic.js";
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
-import { DataSource, In } from "typeorm";
+import { DataSource, In, type SelectQueryBuilder } from "typeorm";
 import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
@@ -52,6 +52,36 @@ export interface SearchFilters {
 	sort?: string;
 	unwatched?: boolean;
 	includeChildren?: boolean;
+	cast?: string;
+	studio?: string;
+	runtimeFrom?: number;
+	runtimeTo?: number;
+	hdr?: string;
+	resolution?: number;
+	audioLanguage?: string;
+}
+
+export function applyBrowseFilters(query: SelectQueryBuilder<MediaItem>, filters: SearchFilters): void {
+	const cast = filters.cast?.trim().slice(0, 100);
+	const studio = filters.studio?.trim().slice(0, 100);
+	if (cast) {
+		const pattern = `%${cast.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(item.metadata -> 'cast') = 'array' THEN item.metadata -> 'cast' ELSE '[]'::jsonb END) person WHERE person ->> 'name' ILIKE :cast)`, { cast: pattern });
+	}
+	if (studio) {
+		const pattern = `%${studio.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'studios') = 'array' THEN item.metadata -> 'studios' ELSE '[]'::jsonb END) studio WHERE studio ILIKE :studio)`, { studio: pattern });
+	}
+	const runtime = `COALESCE(CASE WHEN item.metadata ->> 'runtime' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.metadata ->> 'runtime')::numeric END, CASE WHEN item.technical ->> 'duration' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.technical ->> 'duration')::numeric / 60 END)`;
+	if (Number.isFinite(filters.runtimeFrom) && (filters.runtimeFrom as number) >= 0) query.andWhere(`${runtime} >= :runtimeFrom`, { runtimeFrom: filters.runtimeFrom });
+	if (Number.isFinite(filters.runtimeTo) && (filters.runtimeTo as number) >= 0) query.andWhere(`${runtime} <= :runtimeTo`, { runtimeTo: filters.runtimeTo });
+	if (filters.hdr?.trim()) query.andWhere("lower(item.technical ->> 'hdr') = lower(:hdr)", { hdr: filters.hdr.trim().slice(0, 30) });
+	if (Number.isInteger(filters.resolution) && (filters.resolution as number) > 0) {
+		query.andWhere(`CASE WHEN item.technical ->> 'height' ~ '^[0-9]+$' THEN (item.technical ->> 'height')::integer >= :resolution ELSE false END`, { resolution: filters.resolution });
+	}
+	if (filters.audioLanguage?.trim()) {
+		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.technical -> 'audioLanguages') = 'array' THEN item.technical -> 'audioLanguages' ELSE '[]'::jsonb END) language WHERE lower(language) = lower(:audioLanguage))`, { audioLanguage: filters.audioLanguage.trim().slice(0, 30) });
+	}
 }
 const BROWSE_KINDS: Record<string, MediaItemType[]> = {
 	movies: ["movie", "video"],
@@ -505,14 +535,15 @@ export class MediaHomeService {
 	async search(userId: string, query: string, filters: SearchFilters = {}, policy?: AccessPolicy): Promise<{ items: HomeCard[]; engine: MediaSearchEngine }> {
 		const term = query.trim().slice(0, 100);
 		const genre = filters.genre?.trim().slice(0, 60) || undefined;
-		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched);
+		const extendedFilters = Boolean(filters.cast || filters.studio || filters.runtimeFrom !== undefined || filters.runtimeTo !== undefined || filters.hdr || filters.resolution || filters.audioLanguage);
+		const hasFilter = Boolean(filters.type || genre || filters.yearFrom || filters.yearTo || filters.unwatched || extendedFilters);
 		if (term.length < 2 && !(term.length === 0 && hasFilter)) {
 			return { items: [], engine: "none" };
 		}
 		const includeChildren = filters.includeChildren === true;
 		const searchableTypes = includeChildren ? [...TOP_LEVEL_TYPES, ...NESTED_SEARCH_TYPES] : TOP_LEVEL_TYPES;
 		const types = filters.type && searchableTypes.includes(filters.type as MediaItemType) ? (includeChildren ? (SEARCH_TYPE_FAMILIES[filters.type as MediaItemType] ?? [filters.type as MediaItemType]) : [filters.type as MediaItemType]) : searchableTypes;
-		const searchIds = await this.mediaSearch.searchIds(term, {
+		const searchIds = extendedFilters ? null : await this.mediaSearch.searchIds(term, {
 			type: types,
 			genre,
 			yearFrom: filters.yearFrom,
@@ -523,6 +554,7 @@ export class MediaHomeService {
 		const query_ = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.parentId", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 
 		if (policy) this.access.restrict(query_, "item", policy);
+		applyBrowseFilters(query_, filters);
 		if (searchIds) {
 			query_.andWhere("item.id IN (:...searchIds)", { searchIds });
 		} else if (term) {
@@ -643,13 +675,18 @@ export class MediaHomeService {
 	}
 
 	/** A paged, sorted listing of one section (movies, tv or music). */
-	async browse(kind: string, sort: string, offset: number, limit: number, policy: AccessPolicy) {
+	async browse(kind: string, sort: string, offset: number, limit: number, policy: AccessPolicy, filters: SearchFilters = {}) {
 		const types = BROWSE_KINDS[kind];
 		if (!types) {
 			throw new NotFound("Unknown section.");
 		}
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 		this.access.restrict(query, "item", policy);
+		applyBrowseFilters(query, filters);
+		if (filters.genre?.trim()) query.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre: filters.genre.trim().slice(0, 60) });
+		if (Number.isInteger(filters.yearFrom)) query.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
+		if (Number.isInteger(filters.yearTo)) query.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
+		if (filters.unwatched) query.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId: policy.userId });
 		if (sort === "title") {
 			query.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
 		} else if (sort === "year") {
