@@ -93,24 +93,7 @@ export class FriendsService {
 
 	async createInvite(viewerId: string, username: string, options: CreateFriendInviteRequest) {
 		const target = await this.findUser(username);
-		if (!target) throw new NotFound("Person not found.");
-		if (target.id !== viewerId) {
-			const rows = (await this.dataSource.query(
-				`SELECT COALESCE(up.profile_visibility, 'public') AS visibility,
-					EXISTS (
-						SELECT 1 FROM social_friendships sf
-						WHERE sf.accepted_at IS NOT NULL
-						AND ((sf.user_low_id = $2 AND sf.user_high_id = u.id) OR (sf.user_high_id = $2 AND sf.user_low_id = u.id))
-					) AS is_friend
-				FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-				WHERE u.id = $1 AND u.disabled_at IS NULL`,
-				[target.id, viewerId],
-			)) as Array<{ visibility: "public" | "hidden" | "friends"; is_friend: boolean }>;
-			const visibility = rows[0]?.visibility ?? "public";
-			if (visibility === "hidden" || (visibility === "friends" && !rows[0]?.is_friend)) {
-				throw new NotFound("Person not found.");
-			}
-		}
+		if (!target || target.id !== viewerId) throw new NotFound("Person not found.");
 
 		const expiresInHours = options.expiresInHours;
 		if (
@@ -131,7 +114,7 @@ export class FriendsService {
 			`INSERT INTO social_friend_invites (token, owner_id, max_uses, expires_at)
 			VALUES ($1, $2, $3, $4)
 			RETURNING token, expires_at`,
-			[randomUUID(), target.id, maxUses, expiresAt],
+			[randomUUID(), viewerId, maxUses, expiresAt],
 		)) as Array<{ token: string; expires_at: Date | null }>;
 		if (!rows[0]) throw new NotFound("Person not found.");
 		return { token: rows[0].token, expiresAt: rows[0].expires_at };

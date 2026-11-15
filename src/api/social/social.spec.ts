@@ -6,11 +6,99 @@ import { FavoritesService } from "./favoritesService.js";
 import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { ProfilesService, isFresh, likePattern, PRESENCE_MS } from "./profilesService.js";
+import { UserMediaController } from "./userMediaController.js";
+import { UserMediaService } from "./userMediaService.js";
 import { artistOf, durationOf, imageIndexOf } from "./socialItems.js";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 const TRACK = "33333333-3333-4333-8333-333333333333";
+
+describe("personal media", () => {
+	it("bounds history pages and filters inaccessible items", async () => {
+		const entries = [{ kind: "video", item: { id: TRACK }, sourceItemIds: [TRACK] }, { kind: "live", item: null, sourceItemIds: [] }, { kind: "video", item: { id: OTHER }, sourceItemIds: [OTHER] }];
+		const userMedia = { history: vi.fn().mockResolvedValue(entries) };
+		const access = { resolve: vi.fn().mockResolvedValue({ userId: USER }), visibleIds: vi.fn().mockResolvedValue(new Set()) };
+		const controller = new UserMediaController({} as never, userMedia as never, access as never);
+		await expect(controller.history("token", 10, 2)).resolves.toEqual({ entries: [{ kind: "live", item: null }], hasMore: true });
+		expect(userMedia.history).toHaveBeenCalledWith(USER, 10, 3);
+	});
+
+	it("does not reveal a series group when any underlying episode is restricted", async () => {
+		const entry = { kind: "video", item: { id: TRACK }, sourceItemIds: [OTHER] };
+		const userMedia = { history: vi.fn().mockResolvedValue([entry]) };
+		const access = { resolve: vi.fn().mockResolvedValue({ userId: USER }), visibleIds: vi.fn().mockResolvedValue(new Set([TRACK])) };
+		const controller = new UserMediaController({} as never, userMedia as never, access as never);
+		await expect(controller.history("token")).resolves.toEqual({ entries: [], hasMore: false });
+		expect(access.visibleIds).toHaveBeenCalledWith({ userId: USER }, [TRACK, OTHER]);
+	});
+
+	it("returns a visible parent group without exposing underlying item IDs", async () => {
+		const entry = { kind: "music", item: { id: TRACK }, sourceItemIds: [OTHER] };
+		const userMedia = { history: vi.fn().mockResolvedValue([entry]) };
+		const access = { resolve: vi.fn().mockResolvedValue({ userId: USER }), visibleIds: vi.fn().mockResolvedValue(new Set([TRACK, OTHER])) };
+		const controller = new UserMediaController({} as never, userMedia as never, access as never);
+		await expect(controller.history("token")).resolves.toEqual({ entries: [{ kind: "music", item: { id: TRACK } }], hasMore: false });
+	});
+
+	it("only adds media visible to the authenticated user", async () => {
+		const userMedia = { addWatchLater: vi.fn() };
+		const access = { resolve: vi.fn().mockResolvedValue({ userId: USER }), isVisible: vi.fn().mockResolvedValue(false) };
+		const controller = new UserMediaController({} as never, userMedia as never, access as never);
+		await expect(controller.addWatchLater(TRACK, "token")).rejects.toThrow(/not found/i);
+		expect(userMedia.addWatchLater).not.toHaveBeenCalled();
+		access.isVisible.mockResolvedValue(true);
+		await controller.addWatchLater(TRACK, "token");
+		expect(userMedia.addWatchLater).toHaveBeenCalledWith(USER, TRACK);
+	});
+
+	it("keeps history deletion scoped to the authenticated user and suppresses late reports", async () => {
+		const { source, query } = dataSource();
+		const service = new UserMediaService(source, {} as never);
+		await service.removeHistory(USER, TRACK);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("playback_history_hidden_sessions"), [USER, TRACK]);
+		expect(query.mock.calls[0][0]).toContain("WHERE history.user_id = $1");
+		expect(query.mock.calls[0][0]).toContain("SELECT group_number FROM grouped_history WHERE id = $2");
+	});
+
+	it("rejects music from the video watch-later list", async () => {
+		const { source } = dataSource({ item: { id: TRACK, type: "track" } });
+		await expect(new UserMediaService(source, {} as never).addWatchLater(USER, TRACK)).rejects.toThrow(/video items/i);
+	});
+
+	it("rejects non-playable series from the queue", async () => {
+		const { source } = dataSource({ item: { id: TRACK, type: "series" } });
+		await expect(new UserMediaService(source, {} as never).addToQueue(USER, TRACK)).rejects.toThrow(/video items/i);
+	});
+
+	it("hides private or profile-hidden collections from other users", async () => {
+		const { source, query } = dataSource();
+		const collection = { id: TRACK, user_id: OTHER, name: "Private", description: null, is_public: false, item_count: 0 };
+		query.mockResolvedValueOnce([collection]);
+		await expect(new UserMediaService(source, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
+		query.mockResolvedValueOnce([{ ...collection, is_public: true }]).mockResolvedValueOnce([{ visibility: "hidden" }]);
+		await expect(new UserMediaService(source, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
+	});
+
+	it("removes a queue item only for its owner", async () => {
+		const { source, query } = dataSource();
+		source.transaction = vi.fn(async (callback) => callback({ query } as never)) as never;
+		await new UserMediaService(source, {} as never).removeFromQueue(USER, TRACK);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE user_id = $1 AND item_id = $2"), [USER, TRACK]);
+	});
+
+	it("rejects duplicate or incomplete queue orders and locks the owner row", async () => {
+		const manager = { query: vi.fn(async (sql: string) => sql.includes("SELECT item_id") ? [{ item_id: TRACK }] : []) };
+		const source = { transaction: vi.fn(async (callback) => callback(manager)) } as unknown as DataSource;
+		const service = new UserMediaService(source, {} as never);
+		await expect(service.reorderQueue(USER, [TRACK, TRACK])).rejects.toThrow(/invalid queue order/i);
+		expect(source.transaction).not.toHaveBeenCalled();
+		await expect(service.reorderQueue(USER, [])).rejects.toThrow(/every queued item/i);
+		await service.reorderQueue(USER, [TRACK]);
+		expect(manager.query).toHaveBeenCalledWith(expect.stringContaining("FOR UPDATE"), [USER]);
+		expect(manager.query).toHaveBeenCalledWith(expect.stringContaining("WITH ORDINALITY"), [USER, [TRACK]]);
+	});
+});
 
 function dataSource(options: { item?: Partial<MediaItem> | null; queries?: Array<unknown[]> } = {}) {
 	const query = vi.fn(async (sql: string): Promise<unknown[]> => {

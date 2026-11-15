@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
+import { FriendsController } from "./friendsController.js";
 import { FriendsService } from "./friendsService.js";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -68,6 +69,7 @@ describe("FriendsService", () => {
 		expect(await service.createInvite(USER, "alex", { mode: "once" })).toEqual({ token, expiresAt: null });
 		expect(query).toHaveBeenCalledTimes(2);
 		expect(query.mock.calls[1][0]).toContain("social_friend_invites");
+		expect(query.mock.calls[1][1]?.[1]).toBe(USER);
 		expect(query.mock.calls[1][1]?.[2]).toBe(1);
 	});
 
@@ -118,18 +120,45 @@ describe("FriendsService", () => {
 		expect(query).toHaveBeenCalledTimes(1);
 	});
 
-	it("does not create an invite for a hidden profile the viewer cannot access", async () => {
+	it.each([
+		{ visibility: "public", is_friend: false },
+		{ visibility: "friends", is_friend: true },
+		{ visibility: "hidden", is_friend: false },
+	])("does not create an invite for another user with $visibility visibility", async ({ visibility, is_friend }) => {
 		const query = vi.fn(async (sql: string) => {
 			if (sql.includes("lower(u.username)")) {
 				return [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }];
 			}
-			if (sql.includes("profile_visibility")) return [{ visibility: "hidden", is_friend: false }];
+			if (sql.includes("profile_visibility")) return [{ visibility, is_friend }];
+			if (sql.includes("INSERT INTO social_friend_invites")) return [{ token: "forged", expires_at: null }];
 			return [];
 		});
 		const service = new FriendsService({ query } as unknown as DataSource, {} as never);
 
-		await expect(service.createInvite(USER, "sam")).rejects.toThrow(/not found/i);
-		expect(query).toHaveBeenCalledTimes(2);
+		await expect(service.createInvite(USER, "sam", { mode: "once" })).rejects.toThrow(/not found/i);
+		expect(query).toHaveBeenCalledTimes(1);
+	});
+
+	it("binds the invite owner to the authenticated controller user", async () => {
+		const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+		const query = vi.fn(async (sql: string, values: unknown[] = []) => {
+			if (sql.includes("lower(u.username)")) {
+				return values[0] === "sam"
+					? [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }]
+					: [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
+			}
+			if (sql.includes("INSERT INTO social_friend_invites")) return [{ token, expires_at: null }];
+			return [];
+		});
+		const auth = { getAuthenticatedUser: vi.fn(async () => ({ id: USER })) };
+		const service = new FriendsService({ query } as unknown as DataSource, {} as never);
+		const controller = new FriendsController(auth as never, service);
+
+		await expect(controller.createInvite("sam", { mode: "once" }, "Bearer attacker")).rejects.toThrow(/not found/i);
+		expect(query).toHaveBeenCalledTimes(1);
+		expect(await controller.createInvite("alex", { mode: "once" }, "Bearer attacker")).toEqual({ token, expiresAt: null });
+		expect(auth.getAuthenticatedUser).toHaveBeenCalledWith("Bearer attacker");
+		expect(query.mock.calls[2][1]?.[1]).toBe(USER);
 	});
 
 	it("automatically accepts a valid friend invite", async () => {
