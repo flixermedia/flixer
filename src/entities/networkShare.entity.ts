@@ -1,10 +1,10 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
-export const NETWORK_SHARE_PROTOCOLS = ["smb"] as const;
+export const NETWORK_SHARE_PROTOCOLS = ["smb", "nfs", "webdav", "s3"] as const;
 export type NetworkShareProtocol = (typeof NETWORK_SHARE_PROTOCOLS)[number];
 
 /**
- * A network share (SMB) the server connects to. Once connected it is offered as a media root, so
+ * A network share the server connects to. Once connected it is offered as a media root, so
  * libraries pick folders from it exactly like they do from a local folder.
  */
 @Entity("network_shares")
@@ -31,6 +31,9 @@ export class NetworkShare {
 
 	@Column({ type: "varchar", length: 64, nullable: true })
 	domain!: string | null;
+
+	@Column({ type: "varchar", length: 64, nullable: true })
+	region!: string | null;
 
 	/** AES-256-GCM, see shareSecrets.ts. Never returned by the API. */
 	@Column({ name: "password_encrypted", type: "text", nullable: true })

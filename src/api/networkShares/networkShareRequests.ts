@@ -21,8 +21,8 @@ export class CreateNetworkShareRequest {
 	share!: string;
 
 	@Property()
-	@Enum("smb")
-	protocol?: "smb";
+	@Enum("smb", "nfs", "webdav", "s3")
+	protocol?: "smb" | "nfs" | "webdav" | "s3";
 
 	@Property()
 	@MaxLength(255)
@@ -33,6 +33,10 @@ export class CreateNetworkShareRequest {
 	domain?: string;
 
 	@Property()
+	@MaxLength(64)
+	region?: string;
+
+	@Property()
 	@MaxLength(512)
 	password?: string;
 
@@ -41,6 +45,10 @@ export class CreateNetworkShareRequest {
 }
 
 export class UpdateNetworkShareRequest {
+
+	@Property()
+	@Enum("smb", "nfs", "webdav", "s3")
+	protocol?: "smb" | "nfs" | "webdav" | "s3";
 
 	@Property()
 	@MinLength(1)
@@ -64,6 +72,10 @@ export class UpdateNetworkShareRequest {
 	@Property()
 	@MaxLength(64)
 	domain?: string;
+
+	@Property()
+	@MaxLength(64)
+	region?: string;
 
 	/** Omit to keep the saved password; send an empty string to remove it. */
 	@Property()

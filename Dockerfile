@@ -17,7 +17,9 @@ LABEL org.opencontainers.image.version=$APP_VERSION
 ENV WORKDIR /opt
 WORKDIR $WORKDIR
 
-RUN apk update && apk add build-base git curl cifs-utils postgresql17-client yt-dlp ffmpeg && npm install -g pm2
+RUN apk update && apk add build-base git curl cifs-utils nfs-utils rclone fuse3 postgresql17-client yt-dlp ffmpeg \
+	&& if ! grep -qxF user_allow_other /etc/fuse.conf; then echo user_allow_other >> /etc/fuse.conf; fi \
+	&& npm install -g pm2
 
 
 COPY --from=build /opt .

@@ -1,0 +1,39 @@
+# Managed NFS, WebDAV, and S3/MinIO mounts. Linux hosts only.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.network-storage.yml up -d
+#
+# The API needs mount privileges and /dev/fuse for rclone-backed WebDAV/S3 mounts. Mount propagation
+# makes the read-only filesystems visible to the scanner and streamer containers.
+services:
+    api:
+        user: root
+        cap_add:
+            - SYS_ADMIN
+            - DAC_READ_SEARCH
+        security_opt:
+            - apparmor:unconfined
+        devices:
+            - /dev/fuse:/dev/fuse
+        volumes:
+            - type: bind
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
+              target: /data/mounts
+              bind:
+                  propagation: rshared
+
+    streamer:
+        volumes:
+            - type: bind
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
+              target: /data/mounts
+              read_only: true
+              bind:
+                  propagation: rslave
+
+    indexer:
+        volumes:
+            - type: bind
+              source: ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts
+              target: /data/mounts
+              bind:
+                  propagation: rslave
