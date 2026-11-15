@@ -4,9 +4,9 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { createHash, randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
-import { DataSource, EntityManager } from "typeorm";
+import { DataSource, EntityManager, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MATCH_CONFIDENCES, MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.js";
 import { allowedPersonImage } from "../media/personImages.js";
 import { normalizeChapterField } from "../media/chapterTitles.js";
@@ -29,6 +29,9 @@ export interface IndexerItemPayload {
 	episodeNumber?: number;
 	episodeEndNumber?: number;
 	providerIds: Record<string, string>;
+	matchConfidence?: string;
+	matchEvidence?: string;
+	contentHash?: string;
 	metadata: Record<string, unknown>;
 	images: unknown[];
 	updateFields?: IndexerUpdateField[];
@@ -42,6 +45,13 @@ export interface IndexerItemPayload {
 export interface IndexerPathRemoval {
 	path: string;
 	recursive: boolean;
+}
+
+export interface IndexerScanState {
+	id: string;
+	path: string;
+	sizeBytes: number | null;
+	modifiedAt: Date | null;
 }
 
 function parseUpdateFields(value: unknown): IndexerUpdateField[] | undefined {
@@ -76,11 +86,12 @@ const PARENT_TYPES: Partial<Record<MediaItemType, MediaItemType>> = {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const MAX_KEY_LENGTH = 2048;
 const PATH_KEY_PREFIX = "path:";
 const CLOCK_SKEW_MS = 60_000;
-type IndexerUpdateField = "images" | "descriptions" | "fileData" | "lyrics";
-const INDEXER_UPDATE_FIELDS: ReadonlySet<string> = new Set(["images", "descriptions", "fileData", "lyrics"]);
+type IndexerUpdateField = "images" | "descriptions" | "fileData" | "lyrics" | "hashes";
+const INDEXER_UPDATE_FIELDS: ReadonlySet<string> = new Set(["images", "descriptions", "fileData", "lyrics", "hashes"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -161,6 +172,12 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 	if (body.technical !== undefined && body.technical !== null && !isRecord(body.technical)) {
 		throw new BadRequest("technical must be an object.");
 	}
+	if (body.contentHash !== undefined && body.contentHash !== null && (typeof body.contentHash !== "string" || !SHA256_PATTERN.test(body.contentHash))) {
+		throw new BadRequest("contentHash must be a SHA-256 hex digest.");
+	}
+	if (body.matchConfidence !== undefined && (typeof body.matchConfidence !== "string" || !(MATCH_CONFIDENCES as readonly string[]).includes(body.matchConfidence))) {
+		throw new BadRequest("matchConfidence is invalid.");
+	}
 	let modifiedAt: Date | undefined;
 	if (typeof body.modifiedAt === "string" && body.modifiedAt) {
 		modifiedAt = new Date(body.modifiedAt);
@@ -184,6 +201,9 @@ export function parseItemPayload(body: unknown): IndexerItemPayload {
 		episodeNumber: optionalInt(body.episodeNumber, "episodeNumber"),
 		episodeEndNumber: optionalInt(body.episodeEndNumber, "episodeEndNumber"),
 		providerIds: stringMap(body.providerIds, "providerIds"),
+		matchConfidence: body.matchConfidence as string | undefined,
+		matchEvidence: optionalText(body.matchEvidence, "matchEvidence", 64),
+		contentHash: typeof body.contentHash === "string" ? body.contentHash.toLowerCase() : undefined,
 		metadata: (body.metadata as Record<string, unknown> | null | undefined) ?? {},
 		images: (body.images as unknown[] | null | undefined) ?? [],
 		updateFields,
@@ -343,6 +363,13 @@ export class MediaItemsService {
 			item.episodeNumber = keep("episodeNumber", item.episodeNumber);
 			item.episodeEndNumber = keep("episodeEndNumber", item.episodeEndNumber);
 			item.providerIds = mergeIndexerProviderIds(payload.providerIds, item.providerIds ?? {}, [...edited]);
+			const fileStatsChanged = item.sizeBytes !== (payload.sizeBytes ?? null) || item.modifiedAt?.getTime() !== (payload.modifiedAt?.getTime() ?? undefined);
+			if (fileStatsChanged) item.contentHash = null;
+			if (payload.contentHash !== undefined) item.contentHash = payload.contentHash;
+			if (payload.matchConfidence !== undefined) {
+				item.matchConfidence = payload.matchConfidence as MediaItem["matchConfidence"];
+				item.matchEvidence = payload.matchEvidence ?? "unspecified";
+			}
 			item.metadata = {
 				...metadata,
 				...(edited.has("overview") ? { overview: keptOverview } : {}),
@@ -412,12 +439,16 @@ export class MediaItemsService {
 			await this.syncCredits(manager, item);
 		}
 		if (fields.has("fileData")) {
+			const fileStatsChanged = (payload.sizeBytes !== undefined && item.sizeBytes !== payload.sizeBytes) ||
+				(payload.modifiedAt !== undefined && item.modifiedAt?.getTime() !== payload.modifiedAt.getTime());
+			if (fileStatsChanged) item.contentHash = null;
 			if (payload.rootId !== undefined) item.rootId = payload.rootId;
 			if (payload.relativePath !== undefined) item.relativePath = payload.relativePath;
 			if (payload.technical !== undefined) item.technical = normalizeChapterField(payload.technical, "chapters");
 			if (payload.sizeBytes !== undefined) item.sizeBytes = payload.sizeBytes;
 			if (payload.modifiedAt !== undefined) item.modifiedAt = payload.modifiedAt;
 		}
+		if (fields.has("hashes")) item.contentHash = payload.contentHash ?? null;
 		await manager.save(item);
 	}
 
@@ -515,6 +546,22 @@ export class MediaItemsService {
 			const orphanCount = Array.isArray(orphans) ? Number(orphans[1] ?? 0) : 0;
 			return { removed: (stale.affected ?? 0) + orphanCount };
 		});
+	}
+
+	async scanState(libraryId: string, afterId: string | undefined, limit: number): Promise<IndexerScanState[]> {
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
+			.select(["item.id", "item.path", "item.sizeBytes", "item.modifiedAt", "item.nfoPresent", "item.localImagesUsed", "item.matchConfidence"])
+			.where("item.libraryId = :libraryId", { libraryId })
+			.andWhere("item.isPlaceholder = false")
+			.orderBy("item.id", "ASC")
+			.take(limit);
+		if (afterId) query.andWhere("item.id > :afterId", { afterId });
+		return query.getMany();
+	}
+
+	async markScanItemsSeen(libraryId: string, itemIds: string[]): Promise<void> {
+		if (itemIds.length === 0) return;
+		await this.dataSource.getRepository(MediaItem).update({ libraryId, id: In(itemIds) }, { lastSeenAt: new Date() });
 	}
 
 	/** Removes indexed items at changed filesystem paths without scanning or pruning the rest of the library. */

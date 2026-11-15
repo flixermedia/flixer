@@ -51,7 +51,7 @@ export class AdminIndexerController {
 			throw new NotFound("Media library not found.");
 		}
 		const jobs = request?.jobs ?? [];
-		const supportedJobs = ["images", "descriptions", "fileData", "lyrics"];
+		const supportedJobs = ["images", "descriptions", "fileData", "lyrics", "hashes"];
 		if (
 			!Array.isArray(jobs) ||
 			jobs.some((job) => !supportedJobs.includes(job)) ||

@@ -2,6 +2,8 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColum
 
 export const MEDIA_ITEM_TYPES = ["movie", "series", "season", "episode", "album", "track", "video"] as const;
 export type MediaItemType = (typeof MEDIA_ITEM_TYPES)[number];
+export const MATCH_CONFIDENCES = ["unknown", "high", "medium", "low", "unidentified"] as const;
+export type MatchConfidence = (typeof MATCH_CONFIDENCES)[number];
 
 /**
  * An item found by flixer-indexer. Shows, seasons and episodes (and albums and tracks) form a tree through
@@ -58,6 +60,15 @@ export class MediaItem {
 
 	@Column({ name: "provider_ids", type: "jsonb", default: () => "'{}'" })
 	providerIds!: Record<string, string>;
+
+	@Column({ name: "match_confidence", type: "varchar", length: 16, default: "unknown" })
+	matchConfidence!: MatchConfidence;
+
+	@Column({ name: "match_evidence", type: "varchar", length: 64, default: "legacy_unscored" })
+	matchEvidence!: string;
+
+	@Column({ name: "content_hash", type: "char", length: 64, nullable: true })
+	contentHash!: string | null;
 
 	@Column({ type: "jsonb", default: () => "'{}'" })
 	metadata!: Record<string, unknown>;

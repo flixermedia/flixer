@@ -172,7 +172,19 @@ describe("mergeIndexerProviderIds", () => {
 		};
 
 		it("accepts unique targeted update fields", () => {
-			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData", "lyrics"] }).updateFields).toEqual(["images", "fileData", "lyrics"]);
+			expect(parseItemPayload({ ...base, updateFields: ["images", "fileData", "lyrics", "hashes"] }).updateFields).toEqual(["images", "fileData", "lyrics", "hashes"]);
+		});
+
+		it("accepts only SHA-256 content hashes", () => {
+			expect(parseItemPayload({ ...base, contentHash: "A".repeat(64) }).contentHash).toBe("a".repeat(64));
+			expect(() => parseItemPayload({ ...base, contentHash: "not-a-hash" })).toThrow("contentHash must be a SHA-256 hex digest.");
+		});
+
+		it("accepts known confidence evidence and rejects unknown confidence values", () => {
+			expect(parseItemPayload({ ...base, matchConfidence: "low", matchEvidence: "year_conflict" })).toMatchObject({
+				matchConfidence: "low", matchEvidence: "year_conflict",
+			});
+			expect(() => parseItemPayload({ ...base, matchConfidence: "certain" })).toThrow("matchConfidence is invalid.");
 		});
 
 		describe("MediaItemsService partial updates", () => {
@@ -231,6 +243,24 @@ describe("mergeIndexerProviderIds", () => {
 					{ type: "backdrop", path: "/backdrop.jpg", provider: "tmdb" },
 					{ type: "logo", path: "/manual.png", provider: "manual" },
 				]);
+			});
+
+			it("stores content hashes without changing unrelated item data", async () => {
+				const { service, current } = setup({
+					libraryId: "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2",
+					type: "movie", path: "/movies/example.mkv", externalKey: "tmdb:123",
+					title: "Keep title", metadata: { overview: "Keep overview" }, images: [], contentHash: null,
+				});
+				const contentHash = "b".repeat(64);
+
+				await service.upsert(parseItemPayload({
+					libraryId: current.libraryId, type: current.type, path: current.path, externalKey: current.externalKey,
+					metadata: {}, images: [], contentHash, updateFields: ["hashes"],
+				}));
+
+				expect(current.contentHash).toBe(contentHash);
+				expect(current.title).toBe("Keep title");
+				expect(current.metadata).toEqual({ overview: "Keep overview" });
 			});
 
 			it("updates descriptions without clearing missing metadata or technical details", async () => {
@@ -369,5 +399,25 @@ describe("mergeIndexerProviderIds", () => {
 
 	it("lets rescans replace IDs after their manual override is cleared", () => {
 		expect(mergeIndexerProviderIds({ tmdb: "discovered" }, {}, [])).toEqual({ tmdb: "discovered" });
+	});
+});
+
+describe("MediaItemsService incremental scan state", () => {
+	it("pages persisted file stats and updates last-seen timestamps in batches", async () => {
+		const rows = [{ id: "item-id", path: "/movies/a.mkv", sizeBytes: 42, modifiedAt: new Date("2026-01-01T00:00:00Z"), matchConfidence: "high" }] as MediaItem[];
+		const query = {
+			select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(), take: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue(rows),
+		};
+		const update = vi.fn().mockResolvedValue({ affected: 1 });
+		const repository = { createQueryBuilder: vi.fn(() => query), update };
+		const service = new MediaItemsService({ getRepository: () => repository } as unknown as DataSource, {} as never);
+
+		await expect(service.scanState("library-id", "after-id", 500)).resolves.toEqual(rows);
+		expect(query.select).toHaveBeenCalledWith(expect.arrayContaining(["item.matchConfidence"]));
+		expect(query.andWhere).toHaveBeenCalledWith("item.id > :afterId", { afterId: "after-id" });
+		expect(query.take).toHaveBeenCalledWith(500);
+		await service.markScanItemsSeen("library-id", ["item-id"]);
+		expect(update).toHaveBeenCalledWith(expect.objectContaining({ libraryId: "library-id" }), { lastSeenAt: expect.any(Date) });
 	});
 });
