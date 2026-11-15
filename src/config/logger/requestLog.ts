@@ -1,5 +1,5 @@
 import type { DIContext } from "@tsed/di";
-import { defaultAlterLog, defaultLogResponse } from "@tsed/platform-log-request";
+import { defaultLogResponse } from "@tsed/platform-log-request";
 
 export const LOG_SUCCESSFUL_API_REQUESTS_SETTING = "log_successful_api_requests";
 
@@ -32,22 +32,6 @@ export function isLoggerManagementPath(url: string): boolean {
 		path === "/api/internal/logger" || path.startsWith("/api/internal/logger/");
 }
 
-function isOidcSensitivePath(url: string): boolean {
-	const path = url.split("?")[0];
-	return path === "/api/admin/oidc" || path.startsWith("/api/admin/oidc/") ||
-		path === "/api/oidc" || path.startsWith("/api/oidc/") ||
-		path === "/api/oauth/me" || path.startsWith("/api/oauth/me/");
-}
-
-function isExternalAuthPath(url: string): boolean {
-	const path = url.split("?")[0];
-	return path === "/api/auth/providers" || path.startsWith("/api/auth/providers/") || /^\/api\/admin\/plugins\/[^/]+\/oauth-providers(?:\/|$)/.test(path);
-}
-
-function isIndexerPluginHostPath(url: string): boolean {
-	return /^\/api\/indexer\/plugins\/[^/]+\/host-calls$/.test(url.split("?")[0] ?? "");
-}
-
 function requestTraceId(header: unknown): string | undefined {
 	if (typeof header !== "string") return undefined;
 	const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/.exec(header);
@@ -55,18 +39,16 @@ function requestTraceId(header: unknown): string | undefined {
 	return match[1];
 }
 
-export function alterRequestLog(level: string, value: Record<string, unknown>, ctx: DIContext) {
-	const requestUrl = typeof ctx.request.url === "string" ? ctx.request.url.split("?")[0] : "";
+export function alterRequestLog(_level: string, value: Record<string, unknown>, ctx: DIContext) {
+	const requestRoute = typeof ctx.request.route === "string" && ctx.request.route ? ctx.request.route.split("?")[0] : "[unmatched]";
 	const traceId = requestTraceId(ctx.request.headers?.traceparent);
-	if (isLoggerManagementPath(requestUrl) || isOidcSensitivePath(requestUrl) || isExternalAuthPath(requestUrl) || isIndexerPluginHostPath(requestUrl)) {
-		return {
-			method: ctx.request.method,
-			url: requestUrl,
-			event: value.event,
-			status: value.status,
-			state: value.state,
-			...(traceId ? { trace_id: traceId } : {}),
-		};
-	}
-	return { ...defaultAlterLog(level, value, ctx), ...(traceId ? { trace_id: traceId } : {}) };
+	return {
+		method: ctx.request.method,
+		url: requestRoute,
+		event: value.event,
+		status: value.status,
+		state: value.state,
+		...(typeof value.duration === "number" && Number.isFinite(value.duration) ? { duration: value.duration } : {}),
+		...(traceId ? { trace_id: traceId } : {}),
+	};
 }

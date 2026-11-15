@@ -16,14 +16,18 @@ const MAX_SIGNAL_PAYLOAD_CHARS = 24_000;
 const SIGNAL_WINDOW_MS = 10_000;
 const MAX_SIGNALS_PER_WINDOW = 60;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
+const MAX_PENDING_EVENTS = 256;
 
 export type ChatAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	authenticated: boolean;
 	userId?: string;
+	token?: string;
 	alive: boolean;
 	signals: number[];
+	delivery: Promise<void>;
+	pendingEvents: number;
 }
 
 /**
@@ -74,9 +78,40 @@ export class ChatSocketServer {
 		const targets = new Set(userIds);
 		for (const [ws, connection] of this.connections) {
 			if (connection.userId && targets.has(connection.userId)) {
-				this.send(ws, event);
+				if (connection.pendingEvents >= MAX_PENDING_EVENTS) {
+					ws.close(1013, "Client is too slow");
+					continue;
+				}
+				connection.pendingEvents++;
+				connection.delivery = connection.delivery
+					.then(() => this.sendAuthenticated(ws, connection, event))
+					.finally(() => connection.pendingEvents--);
 			}
 		}
+	}
+
+	private async sendAuthenticated(ws: WebSocket, connection: Connection, event: unknown): Promise<void> {
+		if (await this.revalidate(ws, connection)) {
+			this.send(ws, event);
+		}
+	}
+
+	private async revalidate(ws: WebSocket, connection: Connection): Promise<boolean> {
+		if (!connection.token || !connection.userId || ws.readyState !== WebSocket.OPEN) {
+			return false;
+		}
+		let userId: string;
+		try {
+			userId = await this.authenticate(connection.token);
+		} catch {
+			ws.close(CLOSE_UNAUTHORIZED, "Sign in to receive messages");
+			return false;
+		}
+		if (userId === connection.userId && ws.readyState === WebSocket.OPEN) {
+			return true;
+		}
+		ws.close(CLOSE_UNAUTHORIZED, "Sign in to receive messages");
+		return false;
 	}
 
 	private handleUpgrade(request: IncomingMessage, socket: Duplex, head: Buffer): void {
@@ -92,7 +127,13 @@ export class ChatSocketServer {
 	}
 
 	private onConnection(ws: WebSocket): void {
-		const connection: Connection = { authenticated: false, alive: true, signals: [] };
+		const connection: Connection = {
+			authenticated: false,
+			alive: true,
+			signals: [],
+			delivery: Promise.resolve(),
+			pendingEvents: 0,
+		};
 		this.connections.set(ws, connection);
 		const authTimer = setTimeout(() => {
 			if (!connection.userId) {
@@ -119,7 +160,7 @@ export class ChatSocketServer {
 			return;
 		}
 		if (connection.authenticated) {
-			if (message.type === "call-signal" && connection.userId) {
+			if (message.type === "call-signal" && connection.userId && await this.revalidate(ws, connection)) {
 				await this.relaySignal(ws, connection.userId, connection, message as Record<string, unknown>);
 			}
 			return;
@@ -132,6 +173,7 @@ export class ChatSocketServer {
 		connection.authenticated = true;
 		try {
 			connection.userId = await this.authenticate(message.token);
+			connection.token = message.token;
 		} catch {
 			connection.authenticated = false;
 			ws.close(CLOSE_UNAUTHORIZED, "Sign in to receive messages");
@@ -175,6 +217,9 @@ export class ChatSocketServer {
 			this.send(ws, { type: "call-error", callId, reason: "unavailable" });
 			return;
 		}
+		if (!(await this.revalidate(ws, connection))) {
+			return;
+		}
 		const targets = to === undefined ? recipients : recipients.filter((id) => id === to);
 		this.dispatch(targets, {
 			type: "call-signal",
@@ -204,6 +249,9 @@ export class ChatSocketServer {
 			}
 			connection.alive = false;
 			ws.ping();
+			if (connection.userId) {
+				void this.revalidate(ws, connection);
+			}
 		}
 	}
 }
