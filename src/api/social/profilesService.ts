@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
+import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
@@ -161,9 +162,13 @@ export class ProfilesService {
 						INSERT INTO listening_history (user_id, item_id, played_at, play_count) VALUES ($1, $2, now(), 1)
 						ON CONFLICT (user_id, item_id) DO UPDATE SET played_at = now(), play_count = listening_history.play_count + 1
 						RETURNING user_id, item_id
+					), event AS (
+						INSERT INTO listening_events (user_id, item_id) SELECT user_id, item_id FROM recorded
+						RETURNING user_id, item_id
 					)
-					INSERT INTO listening_events (user_id, item_id) SELECT user_id, item_id FROM recorded`,
-					[userId, itemId],
+					INSERT INTO playback_history (id, user_id, kind, item_id, watched_seconds)
+					SELECT $3, user_id, 'music', item_id, $4 FROM event`,
+					[userId, itemId, randomUUID(), Math.max(0, positionSeconds)],
 				);
 			} catch (error) {
 				if (this.listening.get(userId) === current) {
