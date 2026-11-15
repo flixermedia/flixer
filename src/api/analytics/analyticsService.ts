@@ -115,6 +115,7 @@ export class AnalyticsService {
 			throw new BadRequest("Invalid viewing target.");
 		}
 		const result = await this.dataSource.query(`
+			WITH recorded AS (
 			INSERT INTO viewing_sessions (id, user_id, item_id, channel_id, channel_name, watched_seconds)
 			SELECT $1::uuid, $2::uuid, m.id, NULL::text, NULL::text, $4::float8
 			FROM media_items m WHERE $3::uuid IS NOT NULL AND m.id = $3 AND m.type IN ('movie', 'episode', 'video')
@@ -127,7 +128,23 @@ export class AnalyticsService {
 			WHERE viewing_sessions.user_id = EXCLUDED.user_id
 				AND viewing_sessions.item_id IS NOT DISTINCT FROM EXCLUDED.item_id
 				AND viewing_sessions.channel_id IS NOT DISTINCT FROM EXCLUDED.channel_id
-			RETURNING id
+			RETURNING id, user_id, item_id, channel_id, channel_name, watched_seconds
+			), history AS (
+				INSERT INTO playback_history (id, user_id, kind, item_id, channel_id, channel_name, watched_seconds)
+				SELECT id, user_id, CASE WHEN item_id IS NULL THEN 'live' ELSE 'video' END, item_id, channel_id, channel_name, watched_seconds
+				FROM recorded WHERE NOT EXISTS (
+					SELECT 1 FROM playback_history_hidden_sessions hidden
+					WHERE hidden.user_id = recorded.user_id AND hidden.id = recorded.id
+				)
+				ON CONFLICT (id) DO UPDATE SET
+					watched_seconds = GREATEST(playback_history.watched_seconds, EXCLUDED.watched_seconds),
+					updated_at = now()
+				WHERE playback_history.user_id = EXCLUDED.user_id
+					AND playback_history.item_id IS NOT DISTINCT FROM EXCLUDED.item_id
+					AND playback_history.channel_id IS NOT DISTINCT FROM EXCLUDED.channel_id
+				RETURNING id
+			)
+			SELECT id FROM recorded
 		`, [report.id, userId, video ? report.itemId : null, report.watchedSeconds, video ? null : report.channelId, video ? null : report.channelName]) as Array<{ id: string }>;
 		if (!result.length) throw new NotFound("Viewing session not found.");
 	}
