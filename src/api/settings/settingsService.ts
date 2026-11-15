@@ -15,6 +15,8 @@ import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcod
 import { SettingRequest } from "./settingRequest.js";
 import { APPEARANCE_SETTING_KEYS } from "../appearance/appearanceService.js";
 import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.js";
+import { setLoginSecurity, validateLoginSecurity } from "../auth/loginSecurity.js";
+import { setTrustedProxyConfig, validateTrustedProxyConfig } from "../../config/trustedProxies.js";
 
 export { SECRET_MASK };
 
@@ -93,7 +95,11 @@ export class SettingsService {
 	}
 
 	async update(key: string, request: SettingRequest, authorization?: string): Promise<PublicSetting> {
-		await this.authService.requireAdmin(authorization);
+		if (key === "login_security" || key === "trusted_proxies") {
+			await this.authService.requireAdminSession(authorization);
+		} else {
+			await this.authService.requireAdmin(authorization);
+		}
 
 		if (!SETTING_KEY_PATTERN.test(key)) {
 			throw new BadRequest("Setting key has an invalid format.");
@@ -114,6 +120,13 @@ export class SettingsService {
 		}
 		if (key === "quick_connect_enabled" && typeof request.value !== "boolean") {
 			throw new BadRequest("The quick_connect_enabled setting must be a boolean.");
+		}
+		if (key === "login_security" || key === "trusted_proxies") {
+			try {
+				request.value = key === "login_security" ? validateLoginSecurity(request.value) : validateTrustedProxyConfig(request.value);
+			} catch (error) {
+				throw new BadRequest(error instanceof Error ? error.message : "Invalid security settings.");
+			}
 		}
 		if (key === "calls_turn_username" && (typeof request.value !== "string" || request.value.length > 256)) {
 			throw new BadRequest("The calls_turn_username setting must be text of at most 256 characters.");
@@ -292,6 +305,8 @@ export class SettingsService {
 			? this.indexerSettings.validate(key, request.value, setting.value)
 			: request.value;
 		const saved = await settings.save(setting);
+		if (key === "login_security") setLoginSecurity(validateLoginSecurity(saved.value));
+		if (key === "trusted_proxies") setTrustedProxyConfig(validateTrustedProxyConfig(saved.value));
 		if (key === LOG_SUCCESSFUL_API_REQUESTS_SETTING) {
 			setLogSuccessfulApiRequests(request.value === true);
 		}

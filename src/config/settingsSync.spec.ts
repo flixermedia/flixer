@@ -71,6 +71,8 @@ describe("synchronizeSettings", () => {
 			value: false,
 			isPublic: false,
 		});
+		expect(settingsToSave.find(({ key }) => key === "login_security")).toMatchObject({ value: { timingEnabled: true, throttleEnabled: true }, isPublic: false });
+		expect(settingsToSave.find(({ key }) => key === "trusted_proxies")).toMatchObject({ value: { enabled: false, addresses: [] }, isPublic: false });
 		expect(settingsToSave.find(({ key }) => key === "widevine_drm_enabled")).toMatchObject({
 			value: false,
 			isPublic: true,

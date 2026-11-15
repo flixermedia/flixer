@@ -15,6 +15,16 @@
 		"isPublic": true
 	},
 	{
+		"key": "login_security",
+		"defaultValue": { "timingEnabled": true, "minimumMs": 400, "jitterMs": 40, "throttleEnabled": true, "ipLimit": 20, "usernameLimit": 10, "windowSeconds": 60 },
+		"isPublic": false
+	},
+	{
+		"key": "trusted_proxies",
+		"defaultValue": { "enabled": false, "addresses": [] },
+		"isPublic": false
+	},
+	{
 		"key": "original_quality_access",
 		"defaultValue": "admins",
 		"isPublic": false

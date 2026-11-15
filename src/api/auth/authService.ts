@@ -2,7 +2,8 @@ import { BadRequest, Conflict, Forbidden, NotFound, PaymentRequired, TooManyRequ
 import { Inject, Injectable } from "@tsed/di";
 import { getContext } from "@tsed/di";
 import { tryCatch } from "@dschz/try-catch";
-import { createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { DataSource, EntityManager, MoreThan, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
@@ -15,11 +16,16 @@ import { ApiKeyService } from "../apiKeys/apiKeyService.js";
 import { deleteAvatarFile } from "./avatarStorage.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { EmailVerificationService } from "./emailVerificationService.js";
+import { LoginThrottle } from "./loginThrottle.js";
+import { getLoginSecurity } from "./loginSecurity.js";
 import { PaymentsService, type SignupAction, type SignupPayment } from "../payments/paymentsService.js";
 
 const PASSWORD_KEY_LENGTH = 64;
 const PASSWORD_SALT_LENGTH = 16;
 const PASSWORD_SCRYPT_COST = 1 << 14;
+const DUMMY_PASSWORD_SALT = Buffer.alloc(PASSWORD_SALT_LENGTH);
+const DUMMY_PASSWORD_KEY = Buffer.alloc(PASSWORD_KEY_LENGTH);
+const DUMMY_PASSWORD_HASH = `scrypt$${DUMMY_PASSWORD_SALT.toString("base64url")}$${DUMMY_PASSWORD_KEY.toString("base64url")}`;
 const ACCESS_TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const RESEND_COOLDOWN_MS = 60_000;
 const PASSKEY_TICKET_LIFETIME_SECONDS = 5 * 60;
@@ -144,6 +150,8 @@ export class AuthService {
 	) {}
 
 	private readonly resendCooldowns = new Map<string, number>();
+	private readonly loginThrottle = new LoginThrottle();
+	private loginSecurityRevision = -1;
 
 	static isUuid(value: string): boolean {
 		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -360,10 +368,7 @@ export class AuthService {
 	}
 
 	async resendVerification(username: string, password: string): Promise<{ sent: true }> {
-		const user = await this.dataSource.getRepository(User).findOneBy({ username: this.normalizeUsername(username) });
-		if (!user || !(await this.verifyPassword(password, user.passwordHash))) {
-			throw new Unauthorized("Invalid username or password.");
-		}
+		const user = await this.verifyCredentials(username, password);
 		if (user.emailVerifiedAt) {
 			return { sent: true };
 		}
@@ -590,13 +595,42 @@ export class AuthService {
 	}
 
 	async login(username: string, password: string): Promise<AuthResult | PasskeyRequired | PaymentPending> {
+		const started = performance.now();
+		const { config, revision } = getLoginSecurity();
+		if (this.loginSecurityRevision !== revision) {
+			this.loginThrottle.clear();
+			this.loginSecurityRevision = revision;
+		}
+		const minimum = config.timingEnabled ? config.minimumMs + randomInt(config.jitterMs + 1) : 0;
 		const normalizedUsername = this.normalizeUsername(username);
-		const user = await this.dataSource.getRepository(User).findOneBy({ username: normalizedUsername });
+		const address = getContext<RequestContextLike>()?.request?.raw?.ip || "unknown";
+		try {
+			const reservation = config.throttleEnabled ? this.loginThrottle.reserve(address, normalizedUsername, Date.now(), config) : () => {};
+			if (typeof reservation === "number") {
+				const error = new TooManyRequests("Too many sign-in attempts. Try again later.");
+				error.setHeader("Retry-After", String(reservation));
+				throw error;
+			}
+			const user = await this.verifyCredentials(normalizedUsername, password);
+			const result = await this.completePrimaryAuthentication(user);
+			reservation();
+			return result;
+		} catch (error) {
+			if (error instanceof Unauthorized || error instanceof Forbidden || error instanceof PaymentRequired || error instanceof TooManyRequests) {
+				const remaining = minimum - (performance.now() - started);
+				if (remaining > 0) await delay(Math.ceil(remaining));
+			}
+			throw error;
+		}
+	}
 
-		if (!user || !(await this.verifyPassword(password, user.passwordHash))) {
+	private async verifyCredentials(username: string, password: string): Promise<User> {
+		const user = await this.dataSource.getRepository(User).findOneBy({ username: this.normalizeUsername(username) });
+		const matches = await this.verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+		if (!user || !matches) {
 			throw new Unauthorized("Invalid username or password.");
 		}
-		return this.completePrimaryAuthentication(user);
+		return user;
 	}
 
 	async completePrimaryAuthentication(user: User): Promise<AuthResult | PasskeyRequired | PaymentPending> {
@@ -692,18 +726,11 @@ export class AuthService {
 
 	private async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
 		const [algorithm, saltValue, keyValue] = passwordHash.split("$");
-		if (algorithm !== "scrypt" || !saltValue || !keyValue) {
-			return false;
-		}
-
-		const salt = Buffer.from(saltValue, "base64url");
-		const expectedKey = Buffer.from(keyValue, "base64url");
-		if (salt.length !== PASSWORD_SALT_LENGTH || expectedKey.length !== PASSWORD_KEY_LENGTH) {
-			return false;
-		}
-
-		const actualKey = await derivePasswordKey(password, salt);
-		return timingSafeEqual(actualKey, expectedKey);
+		const salt = Buffer.from(saltValue ?? "", "base64url");
+		const expectedKey = Buffer.from(keyValue ?? "", "base64url");
+		const validHash = algorithm === "scrypt" && salt.length === PASSWORD_SALT_LENGTH && expectedKey.length === PASSWORD_KEY_LENGTH;
+		const actualKey = await derivePasswordKey(password, validHash ? salt : DUMMY_PASSWORD_SALT);
+		return timingSafeEqual(actualKey, validHash ? expectedKey : DUMMY_PASSWORD_KEY) && validHash;
 	}
 
 	private async createAuthResult(user: User, secret: string, manager: EntityManager = this.dataSource.manager): Promise<AuthResult> {
