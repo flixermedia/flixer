@@ -14,6 +14,7 @@ import "@tsed/platform-multer";
 import "@tsed/scalar";
 import * as api from "./api.js";
 import { config } from "./config/config.js";
+import { isTrustedProxy } from "./config/trustedProxies.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
@@ -26,7 +27,9 @@ import { MailInboundService } from "./api/mail/mailInboundService.js";
 import { PartyGateway } from "./party/partyGateway.js";
 import { ChatGateway } from "./chat/chatGateway.js";
 import { NotificationGateway } from "./api/notifications/notificationGateway.js";
+import { PlaybackRemoteService } from "./playbackRemote/playbackRemoteService.js";
 import "./sentry/sentryErrorFilter.js";
+import "./api/auth/loginExceptionFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 import { CORS_METHODS, CORS_ORIGINS } from "./cors.js";
 import { OidcProviderService } from "./api/oidc/oidcProviderService.js";
@@ -68,12 +71,14 @@ const fastifyPlugins = [
 		PartyGateway,
 		ChatGateway,
 		NotificationGateway,
+		PlaybackRemoteService,
 	],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
 	fastify: {
 		bodyLimit: 32 * 1024 * 1024,
+		trustProxy: isTrustedProxy,
 	},
 	mount: {
 		"/api": Object.values(api),

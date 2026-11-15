@@ -1,6 +1,7 @@
 import { injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../config/logger/requestLog.js";
+import { loadSecuritySettings } from "../config/loadSecuritySettings.js";
 import { User } from "../entities/user.entity.js";
 import { UserSession } from "../entities/userSession.entity.js";
 import { ExternalIdentity } from "../entities/externalIdentity.entity.js";
@@ -12,6 +13,15 @@ import { LinkExternalAuthToPlugin1798300000023 } from "../migrations/linkExterna
 import { AddExternalAuthFlowNonce1798300000024 } from "../migrations/addExternalAuthFlowNonce1798300000024.js";
 import { AddExternalAuthFlowRedirectUri1798300000025 } from "../migrations/addExternalAuthFlowRedirectUri1798300000025.js";
 import { CreateExternalOAuthProviders1798300000026 } from "../migrations/createExternalOAuthProviders1798300000026.js";
+import { CreatePlaybackHistory1798300000027 } from "../migrations/createPlaybackHistory1798300000027.js";
+import { CreateUserMediaFeatures1798300000028 } from "../migrations/createUserMediaFeatures1798300000028.js";
+import { RepairPlaybackHistory1798300000029 } from "../migrations/repairPlaybackHistory1798300000029.js";
+import { AddMediaMatchConfidence1798300000030 } from "../migrations/addMediaMatchConfidence1798300000030.js";
+import { AddNetworkShareRegion1798300000031 } from "../migrations/addNetworkShareRegion1798300000031.js";
+import { MediaOrganizationPlan, MediaOrganizationPlanAudit, MediaOrganizationSettings } from "../entities/mediaOrganization.entity.js";
+import { CreateMediaOrganization1798300000032 } from "../migrations/createMediaOrganization1798300000032.js";
+import { AddMediaItemContentHash1798300000033 } from "../migrations/addMediaItemContentHash1798300000033.js";
+import { AddMediaLibraryWritePermissions1798300000034 } from "../migrations/addMediaLibraryWritePermissions1798300000034.js";
 import { Setting } from "../entities/setting.entity.js";
 import { UserPreference } from "../entities/userPreference.entity.js";
 import { UserAccessPolicy } from "../entities/userAccessPolicy.entity.js";
@@ -138,6 +148,7 @@ import { AiRecommendationCache } from "../entities/aiRecommendationCache.entity.
 import { QuickConnectRequest } from "../entities/quickConnectRequest.entity.js";
 import { Theme } from "../entities/theme.entity.js";
 import { ThemeVersion } from "../entities/themeVersion.entity.js";
+import { PlaybackHistory } from "../entities/playbackHistory.entity.js";
 import { CreateAiRecommendationCaches1796600000000 } from "../migrations/createAiRecommendationCaches1796600000000.js";
 import { AddAiRecommendationCacheScopes1796700000000 } from "../migrations/addAiRecommendationCacheScopes1796700000000.js";
 import { AddRequestWebhookToken1796800000000 } from "../migrations/addRequestWebhookToken1796800000000.js";
@@ -225,6 +236,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				QuickConnectRequest,
 				Theme,
 				ThemeVersion,
+				PlaybackHistory,
+				MediaOrganizationSettings,
+				MediaOrganizationPlan,
+				MediaOrganizationPlanAudit,
 			],
 			migrations: [
 				CreateUsersTable1792186500000,
@@ -317,6 +332,14 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 				AddExternalAuthFlowNonce1798300000024,
 				AddExternalAuthFlowRedirectUri1798300000025,
 				CreateExternalOAuthProviders1798300000026,
+				CreatePlaybackHistory1798300000027,
+				CreateUserMediaFeatures1798300000028,
+				RepairPlaybackHistory1798300000029,
+				AddMediaMatchConfidence1798300000030,
+				AddNetworkShareRegion1798300000031,
+				CreateMediaOrganization1798300000032,
+				AddMediaItemContentHash1798300000033,
+				AddMediaLibraryWritePermissions1798300000034,
 			],
 			synchronize: false,
 			migrationsRun: false,
@@ -327,6 +350,7 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 		await synchronizeSettings(dataSource);
 		const requestLoggingSetting = await dataSource.getRepository(Setting).findOneBy({ key: LOG_SUCCESSFUL_API_REQUESTS_SETTING });
 		setLogSuccessfulApiRequests(requestLoggingSetting?.value === true);
+		await loadSecuritySettings(dataSource, (message) => logger().warn(message));
 		await cleanupExpiredUserSessions(dataSource);
 		await cleanupExpiredOidcArtifacts(dataSource);
 		logger().info("Connected to PostgreSQL.");
