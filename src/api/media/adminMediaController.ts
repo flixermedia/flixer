@@ -95,6 +95,7 @@ export class AdminMediaController {
 		@QueryParams("type", String) type?: string,
 		@QueryParams("parentId", String) parentId?: string,
 		@QueryParams("search", String) search?: string,
+		@QueryParams("review", Boolean) review?: boolean,
 		@QueryParams("page", Number) page?: number,
 		@QueryParams("size", Number) size?: number,
 		@HeaderParams("authorization") authorization?: string,
@@ -108,6 +109,7 @@ export class AdminMediaController {
 			type,
 			parentId: parentId?.toLowerCase(),
 			search,
+			reviewOnly: review === true,
 			page,
 			size,
 		});

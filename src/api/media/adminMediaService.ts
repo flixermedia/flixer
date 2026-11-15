@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
 import { normalizeChapterTitle } from "./chapterTitles.js";
@@ -83,6 +84,7 @@ export interface MediaItemQuery {
 	type?: string;
 	parentId?: string;
 	search?: string;
+	reviewOnly?: boolean;
 	page?: number;
 	size?: number;
 }
@@ -90,6 +92,18 @@ export interface MediaItemQuery {
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
 const POPULAR_ITEMS_PER_SECTION = 13;
+const REVIEW_QUEUE_PREDICATE = `(item.match_confidence IN ('low', 'unidentified', 'unknown')
+	OR EXISTS (
+		SELECT 1 FROM media_items child
+		WHERE child.parent_id = item.id AND child.is_placeholder = false
+			AND child.match_confidence IN ('low', 'unidentified', 'unknown')
+	)
+	OR EXISTS (
+		SELECT 1 FROM media_items branch
+		JOIN media_items leaf ON leaf.parent_id = branch.id
+		WHERE branch.parent_id = item.id AND branch.is_placeholder = false AND leaf.is_placeholder = false
+			AND leaf.match_confidence IN ('low', 'unidentified', 'unknown')
+	))`;
 const MEDIA_CATEGORIES = {
 	movies: ["movie", "video"],
 	tvShows: ["series"],
@@ -97,7 +111,7 @@ const MEDIA_CATEGORIES = {
 } as const satisfies Record<string, readonly MediaItemType[]>;
 type MediaCategory = keyof typeof MEDIA_CATEGORIES;
 type MediaCategoryCounts = Record<MediaCategory, number>;
-type MediaItemListFields = Pick<MediaItem, "id" | "libraryId" | "parentId" | "type" | "title" | "year" | "seasonNumber" | "episodeNumber" | "path" | "providerIds" | "sizeBytes" | "editedFields" | "images" | "updatedAt">;
+type MediaItemListFields = Pick<MediaItem, "id" | "libraryId" | "parentId" | "type" | "title" | "year" | "seasonNumber" | "episodeNumber" | "path" | "providerIds" | "matchConfidence" | "matchEvidence" | "sizeBytes" | "editedFields" | "images" | "updatedAt">;
 /** Which request field maps to which item field, for tracking admin edits. */
 const EDITABLE = ["title", "sortTitle", "year", "seasonNumber", "episodeNumber", "episodeEndNumber"] as const;
 
@@ -114,11 +128,17 @@ export class AdminMediaService {
 		const page = Math.max(1, Math.floor(query.page ?? 1));
 		const size = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(query.size ?? DEFAULT_PAGE_SIZE)));
 		const search = query.search?.trim();
-		if (!query.libraryId && !query.type && !query.parentId && !search) {
+		if (!query.libraryId && !query.type && !query.parentId && !search && !query.reviewOnly) {
 			return this.popularOverview();
 		}
 
-		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").leftJoin("media_items", "parent", "parent.id = item.parent_id").addSelect("parent.title", "parentTitle").where("item.is_placeholder = false");
+		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
+			.leftJoin("media_items", "parent", "parent.id = item.parent_id")
+			.addSelect("parent.title", "parentTitle")
+			.where("item.is_placeholder = false");
+		if (query.reviewOnly) {
+			builder.andWhere(REVIEW_QUEUE_PREDICATE);
+		}
 
 		if (query.libraryId) {
 			builder.andWhere("item.library_id = :libraryId", { libraryId: query.libraryId });
@@ -157,21 +177,23 @@ export class AdminMediaService {
 			...this.toListItem(item),
 			parentTitle: (raw[index]?.parentTitle as string | null) ?? null,
 		}));
-		const categoryCounts = search ? await this.searchCategoryCounts(query, search) : await this.globalCategoryCounts();
+		const categoryCounts = search ? await this.searchCategoryCounts(query, search) : await this.globalCategoryCounts(query.reviewOnly);
 		return { items, total, page, size, categoryCounts };
 	}
 
-	private async globalCategoryCounts(): Promise<MediaCategoryCounts> {
+	private async globalCategoryCounts(reviewOnly = false): Promise<MediaCategoryCounts> {
 		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
+		const scope = reviewOnly
+			? `item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album') AND ${REVIEW_QUEUE_PREDICATE}`
+			: "item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album')";
 		const rows = await this.dataSource.query<Array<{ category: MediaCategory; count: string | number }>>(`
 			SELECT CASE
-				WHEN type IN ('movie', 'video') THEN 'movies'
-				WHEN type = 'series' THEN 'tvShows'
+				WHEN item.type IN ('movie', 'video') THEN 'movies'
+				WHEN item.type = 'series' THEN 'tvShows'
 				ELSE 'music'
 			END AS category, COUNT(*)::int AS count
-			FROM media_items
-			WHERE is_placeholder = false AND parent_id IS NULL
-				AND type IN ('movie', 'video', 'series', 'album')
+			FROM media_items item
+			WHERE ${scope}
 			GROUP BY category
 		`);
 		for (const row of rows) counts[row.category] = Number(row.count);
@@ -189,6 +211,7 @@ export class AdminMediaService {
 			}
 		}
 		if (query.parentId) builder.andWhere("item.parent_id = :parentId", { parentId: query.parentId });
+		if (query.reviewOnly) builder.andWhere(REVIEW_QUEUE_PREDICATE);
 		const escaped = search.replace(/[\\%_]/g, "\\$&");
 		builder.andWhere("(item.title ILIKE :search OR item.path ILIKE :search)", { search: `%${escaped}%` });
 
@@ -211,6 +234,8 @@ export class AdminMediaService {
 				episodeNumber: number | null;
 				path: string;
 				providerIds: Record<string, string>;
+				matchConfidence: MediaItem["matchConfidence"];
+				matchEvidence: string;
 				sizeBytes: string | number | null;
 				editedFields: string[];
 				images: unknown[];
@@ -265,6 +290,8 @@ export class AdminMediaService {
 				item.episode_number AS "episodeNumber",
 				item.path,
 				item.provider_ids AS "providerIds",
+				item.match_confidence AS "matchConfidence",
+				item.match_evidence AS "matchEvidence",
 				item.size_bytes AS "sizeBytes",
 				item.edited_fields AS "editedFields",
 				item.images,
@@ -400,6 +427,7 @@ export class AdminMediaService {
 	async update(id: string, request: UpdateMediaItemRequest) {
 		const repository = this.dataSource.getRepository(MediaItem);
 		const item = await this.find(id);
+		const previousProviderIds = { ...(item.providerIds ?? {}) };
 		const edited = new Set(item.editedFields ?? []);
 
 		if (request.title !== undefined) {
@@ -473,7 +501,47 @@ export class AdminMediaService {
 
 		item.editedFields = [...edited];
 		await repository.save(item);
-		return this.get(id);
+		let nfoWriteFailed = false;
+		const nfoRelevantChange = request.title !== undefined || request.sortTitle !== undefined || request.year !== undefined ||
+			request.seasonNumber !== undefined || request.episodeNumber !== undefined || request.episodeEndNumber !== undefined ||
+			request.overview !== undefined || request.providerIds !== undefined;
+		if (nfoRelevantChange && !item.isPlaceholder && item.path && ["movie", "video", "series", "season", "episode", "album"].includes(item.type)) {
+			try {
+				const writeSettings = await this.dataSource.getRepository(MediaOrganizationSettings).findOneBy({ libraryId: item.libraryId });
+				if (writeSettings?.nfoWritesEnabled) {
+					const metadata = item.metadata ?? {};
+					const text = (value: unknown) => typeof value === "string" ? value : "";
+					const fields: Record<string, string> = {
+						title: item.title,
+						originaltitle: text(metadata.originalTitle),
+						sorttitle: item.sortTitle ?? "",
+						year: item.year ? String(item.year) : "",
+						plot: text(metadata.overview),
+						premiered: text(metadata.premiereDate),
+					};
+					if (item.seasonNumber !== null && item.seasonNumber !== undefined) fields.season = String(item.seasonNumber);
+					if (item.episodeNumber !== null && item.episodeNumber !== undefined) fields.episode = String(item.episodeNumber);
+					await this.indexer.request("POST", "/internal/nfo/write", {
+						body: {
+							libraryId: item.libraryId,
+							itemType: item.type,
+							path: item.path,
+							fields,
+							providerIds: item.providerIds ?? {},
+							clearProviderIds: Object.keys(previousProviderIds).filter((provider) => !Object.hasOwn(item.providerIds ?? {}, provider)),
+						},
+					});
+				if (!item.nfoPresent) {
+					item.nfoPresent = true;
+					await repository.save(item);
+				}
+				}
+			} catch {
+				nfoWriteFailed = true;
+			}
+		}
+		const updated = await this.get(id);
+		return nfoWriteFailed ? { ...updated, nfoWriteFailed: true } : updated;
 	}
 
 	/** Queues a forced re-index of the item; a series, season or album also re-indexes everything beneath it. */
@@ -540,6 +608,8 @@ export class AdminMediaService {
 			episodeNumber: item.episodeNumber,
 			path: item.path,
 			providerIds: item.providerIds,
+			matchConfidence: item.matchConfidence,
+			matchEvidence: item.matchEvidence,
 			sizeBytes: item.sizeBytes,
 			edited: (item.editedFields ?? []).length > 0,
 			poster: item.type === "track" ? manualPosterIndex(item.images) : item.type === "episode" ? episodeArtworkIndex(item.images) : posterIndex(item.images),

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
 import { AdminMediaService } from "./adminMediaService.js";
 
 describe("AdminMediaService", () => {
@@ -69,6 +70,35 @@ describe("AdminMediaService", () => {
 		});
 	});
 
+	it("filters and counts only low-confidence or unidentified items in review mode", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null, type: "series", title: "My Series", year: 2001, seasonNumber: null, episodeNumber: null,
+			path: "/tv/series", providerIds: { tmdb: "42" }, matchConfidence: "high", matchEvidence: "title_year_match",
+			sizeBytes: 42, editedFields: [], images: [], updatedAt: new Date("2026-01-01T00:00:00Z"),
+		} as MediaItem;
+		const builder = {
+			leftJoin: vi.fn().mockReturnThis(), addSelect: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(),
+			andWhere: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(),
+			offset: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getCount: vi.fn().mockResolvedValue(1),
+			getRawAndEntities: vi.fn().mockResolvedValue({
+				entities: [item],
+				raw: [{ parentTitle: null }],
+			}),
+		};
+		const query = vi.fn().mockResolvedValue([]);
+		const dataSource = { getRepository: () => ({ createQueryBuilder: () => builder }), query } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, {} as IndexerClient);
+
+		const result = await service.list({ reviewOnly: true });
+
+		expect(builder.andWhere).toHaveBeenCalledWith(expect.stringContaining("EXISTS ("));
+		expect(builder.andWhere).toHaveBeenCalledWith("item.parent_id IS NULL");
+		expect(query.mock.calls[0]?.[0]).toContain("parent_id IS NULL");
+		expect(query.mock.calls[0]?.[0]).toContain("match_confidence IN ('low', 'unidentified', 'unknown')");
+		expect(result.items[0]).toMatchObject({ id: item.id, title: "My Series", matchConfidence: "high" });
+	});
+
 	it("updates provider IDs and tracks which IDs are manually controlled", async () => {
 		const item = {
 			id: "00000000-0000-4000-8000-000000000001",
@@ -95,6 +125,73 @@ describe("AdminMediaService", () => {
 		expect(item.providerIds).toEqual({ tmdb: "42", custom: "custom-id" });
 		expect(item.editedFields).toEqual(expect.arrayContaining(["providerId:tmdb", "providerId:custom"]));
 		expect(item.editedFields).not.toContain("providerId:imdb");
+	});
+
+	it("writes saved episode metadata and provider IDs to NFO when enabled for the library", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: "season-id", type: "episode", path: "/shows/Series/Season 2/Series S02E03.mkv",
+			title: "Episode", sortTitle: null, year: 2019, seasonNumber: 2, episodeNumber: 3, episodeEndNumber: null,
+			providerIds: { imdb: "tt-old", tvdb: "old-tvdb" }, editedFields: [],
+			metadata: { overview: "Plot", premiereDate: "2019-10-24" }, images: [], isPlaceholder: false,
+		} as MediaItem;
+		const itemRepository = {
+			findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item),
+		};
+		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: true }) };
+		const request = vi.fn().mockResolvedValue({ written: true });
+		const dataSource = {
+			getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository,
+		} as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
+
+		await service.update(item.id, { providerIds: { imdb: "tt-fixed", tvdb: null } });
+
+		expect(request).toHaveBeenCalledWith("POST", "/internal/nfo/write", {
+			body: expect.objectContaining({
+				libraryId: item.libraryId,
+				itemType: "episode",
+				path: item.path,
+				fields: expect.objectContaining({ title: "Episode", year: "2019", season: "2", episode: "3", plot: "Plot" }),
+				providerIds: { imdb: "tt-fixed" },
+				clearProviderIds: ["tvdb"],
+			}),
+		});
+	});
+
+	it("does not write NFO when the library permission is disabled", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
+			type: "movie", path: "/movies/Movie.mkv", title: "Movie", providerIds: { tmdb: "1" }, editedFields: [],
+			metadata: {}, images: [], isPlaceholder: false,
+		} as MediaItem;
+		const itemRepository = { findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item) };
+		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: false }) };
+		const request = vi.fn();
+		const dataSource = { getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
+
+		await service.update(item.id, { title: "Corrected movie" });
+
+		expect(request).not.toHaveBeenCalled();
+	});
+
+	it("keeps database edits when an enabled NFO write fails and reports the failure", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
+		type: "movie", path: "/movies/Movie.mkv", title: "Movie", providerIds: {}, editedFields: [],
+			metadata: {}, images: [], isPlaceholder: false,
+		} as MediaItem;
+		const itemRepository = { findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item) };
+		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: true }) };
+		const request = vi.fn().mockRejectedValue(new Error("read-only mount"));
+		const dataSource = { getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
+
+		const result = await service.update(item.id, { title: "Corrected movie" });
+
+		expect(item.title).toBe("Corrected movie");
+		expect(result).toMatchObject({ nfoWriteFailed: true });
 	});
 
 	it("saves sorted chapter edits as a persistent manual override", async () => {
