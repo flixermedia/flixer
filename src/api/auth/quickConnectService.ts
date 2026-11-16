@@ -2,6 +2,7 @@ import { BadRequest, Forbidden, NotFound, TooManyRequests, Unauthorized } from "
 import { getContext, Inject, Injectable } from "@tsed/di";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DataSource, EntityManager, LessThan, MoreThan } from "typeorm";
+import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { QuickConnectRequest, type QuickConnectStatus } from "../../entities/quickConnectRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
@@ -53,7 +54,7 @@ export class QuickConnectService {
 		return { enabled: await this.isEnabled() };
 	}
 
-	async start(): Promise<{ requestId: string; userCode: string; pollToken: string; expiresAt: Date }> {
+	async start(): Promise<{ requestId: string; userCode: string; pollToken: string; expiresAt: Date; appUrl?: string }> {
 		await this.requireEnabled();
 		this.assertRateLimit("start", MAX_STARTS_PER_WINDOW);
 
@@ -82,6 +83,7 @@ export class QuickConnectService {
 					userCode,
 					pollToken,
 					expiresAt,
+					appUrl: appConfig().get("appUrl") || appConfig().get("publicUrl") || undefined,
 				};
 			} catch (error) {
 				if (attempt === 2 || !this.isUniqueViolation(error)) throw error;

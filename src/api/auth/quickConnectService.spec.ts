@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, EntityManager } from "typeorm";
 import type { AuthService } from "./authService.js";
 import { QuickConnectService } from "./quickConnectService.js";
 import { QuickConnectRequest } from "../../entities/quickConnectRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
 
 const REQUEST_ID = "1b2f6d7e-9813-4f90-bd7d-9457af0ec0a1";
 const POLL_TOKEN = "Y".repeat(43);
@@ -65,6 +66,8 @@ function setup(enabled = true) {
 }
 
 describe("QuickConnectService", () => {
+	afterEach(() => vi.restoreAllMocks());
+
 	it("reports disabled status and refuses to start when the server setting is off", async () => {
 		const { service, requests } = setup(false);
 
@@ -90,6 +93,15 @@ describe("QuickConnectService", () => {
 		expect(stored.userCodeHash).not.toContain(result.userCode);
 		expect(stored.expiresAt.getTime()).toBeGreaterThan(Date.now());
 		expect(stored.expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 5 * 60_000);
+	});
+
+	it("returns the configured web app address for the phone handoff", async () => {
+		const get = vi.spyOn(appConfig(), "get");
+		get.mockImplementation((name) => name === "appUrl" ? "https://app.flixer.example" : name === "publicUrl" ? "https://api.flixer.example" : undefined);
+		const { service } = setup();
+		await expect(service.start()).resolves.toMatchObject({ appUrl: "https://app.flixer.example" });
+		get.mockImplementation((name) => name === "publicUrl" ? "https://api.flixer.example" : undefined);
+		await expect(service.start()).resolves.toMatchObject({ appUrl: "https://api.flixer.example" });
 	});
 
 	it("consumes an approved request once and issues the normal session in its transaction", async () => {
