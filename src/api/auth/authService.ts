@@ -19,6 +19,8 @@ import { EmailVerificationService } from "./emailVerificationService.js";
 import { LoginThrottle } from "./loginThrottle.js";
 import { getLoginSecurity } from "./loginSecurity.js";
 import { PaymentsService, type SignupAction, type SignupPayment } from "../payments/paymentsService.js";
+import { validateRegistrationFields, type RegistrationFieldValue } from "./registrationFields.js";
+import type { BuilderPage } from "../appearance/pageBuilderSchema.js";
 
 const PASSWORD_KEY_LENGTH = 64;
 const PASSWORD_SALT_LENGTH = 16;
@@ -292,7 +294,7 @@ export class AuthService {
 		return { deleted: true };
 	}
 
-	async register(username: string, password: string, email: string, displayName: string | undefined, authorization?: string): Promise<AuthResult | VerificationPending | PaymentPending> {
+	async register(username: string, password: string, email: string, displayName: string | undefined, authorization?: string, customFields?: Record<string, string>): Promise<AuthResult | VerificationPending | PaymentPending> {
 		const tokenSecret = this.getTokenSecret();
 		const cardRequired = await this.payments.cardRequiredForSignup();
 		const createdByAdmin = cardRequired && !!authorization && !(await tryCatch(() => this.requireAdmin(authorization)))[0];
@@ -328,7 +330,10 @@ export class AuthService {
 				}
 
 				user.role = userCount === 0 ? "admin" : "user";
+				const loginPage = customFields === undefined ? undefined : await manager.getRepository(Setting).findOneBy({ key: "page-builder:login" });
+				const registrationFields = validateRegistrationFields(customFields, (loginPage?.value as BuilderPage | undefined)?.published);
 				await users.save(user);
+				if (registrationFields.length) await manager.getRepository(UserPreference).save({ userId: user.id, data: { registrationFields } });
 			}),
 		);
 		if (saveError) {
@@ -350,6 +355,13 @@ export class AuthService {
 		}
 
 		return this.createAuthResult(user, tokenSecret);
+	}
+
+	async getRegistrationFields(authorization?: string): Promise<RegistrationFieldValue[]> {
+		const user = await this.getAuthenticatedUser(authorization);
+		const preference = await this.dataSource.getRepository(UserPreference).findOneBy({ userId: user.id });
+		const fields = preference?.data?.registrationFields;
+		return Array.isArray(fields) ? fields as RegistrationFieldValue[] : [];
 	}
 
 	/** Finishes a registration that is waiting for payment, then signs the account in (or asks for email verification). */

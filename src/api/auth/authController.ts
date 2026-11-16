@@ -22,7 +22,13 @@ export class AuthController {
 
 	@Post("/register")
 	register(@BodyParams() request: RegisterRequest, @HeaderParams("authorization") authorization?: string) {
-		return this.authService.register(request.username, request.password, request.email, request.displayName, authorization);
+		return this.authService.register(request.username, request.password, request.email, request.displayName, authorization, request.customFields);
+	}
+
+	@Get("/me/registration-fields")
+	@Security("BearerAuth")
+	registrationFields(@HeaderParams("authorization") authorization?: string) {
+		return this.authService.getRegistrationFields(authorization);
 	}
 
 	@Get("/me")

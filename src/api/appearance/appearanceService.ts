@@ -30,10 +30,14 @@ export const USER_SELECTION_SETTING = "theme_user_selection_enabled";
 export const SELECTABLE_THEMES_SETTING = "theme_user_selectable_ids";
 export const SCHEDULES_SETTING = "theme_schedules";
 export const LIBRARY_ACCENTS_SETTING = "theme_library_accents";
-export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING, USER_SELECTION_SETTING, SELECTABLE_THEMES_SETTING, SCHEDULES_SETTING, LIBRARY_ACCENTS_SETTING];
+export const LOGIN_LAYOUT_SETTING = "login_layout";
+export const LOGIN_LAYOUTS = ["classic", "spotlight", "centered", "studio", "cinema", "custom"] as const;
+export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING, USER_SELECTION_SETTING, SELECTABLE_THEMES_SETTING, SCHEDULES_SETTING, LIBRARY_ACCENTS_SETTING, LOGIN_LAYOUT_SETTING];
 
 const MAX_CUSTOM_THEMES = 50;
 const MAX_VERSIONS = 20;
+
+export type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
 
 export interface ThemeView {
 	id: string;
@@ -62,6 +66,7 @@ export interface AppearanceState {
 	selectableThemeIds: string[];
 	schedules: ThemeSchedule[];
 	libraryAccents: Record<string, string>;
+	loginLayout: LoginLayout;
 	themes: ThemeView[];
 }
 
@@ -69,6 +74,7 @@ export interface PublicAppearance {
 	activeThemeId: string;
 	userSelectionEnabled: boolean;
 	libraryAccents: Record<string, string>;
+	loginLayout: LoginLayout;
 	themes: ThemeView[];
 }
 
@@ -113,17 +119,19 @@ export class AppearanceService {
 		};
 	}
 
-	private async readSettings(): Promise<{ activeThemeId: string; userSelectionEnabled: boolean; selectableThemeIds: string[]; schedules: ThemeSchedule[]; libraryAccents: Record<string, string> }> {
+	private async readSettings(): Promise<{ activeThemeId: string; userSelectionEnabled: boolean; selectableThemeIds: string[]; schedules: ThemeSchedule[]; libraryAccents: Record<string, string>; loginLayout: LoginLayout }> {
 		const rows = await this.dataSource.getRepository(Setting).findBy({ key: In([...APPEARANCE_SETTING_KEYS]) });
 		const value = (key: string) => rows.find((row) => row.key === key)?.value;
 		const active = value(ACTIVE_THEME_SETTING);
 		const selectable = value(SELECTABLE_THEMES_SETTING);
+		const loginLayout = value(LOGIN_LAYOUT_SETTING);
 		return {
 			activeThemeId: typeof active === "string" ? active : DEFAULT_THEME_ID,
 			userSelectionEnabled: value(USER_SELECTION_SETTING) === true,
 			selectableThemeIds: Array.isArray(selectable) ? selectable.filter((id): id is string => typeof id === "string") : [],
 			schedules: this.storedSchedules(value(SCHEDULES_SETTING)),
 			libraryAccents: this.storedAccents(value(LIBRARY_ACCENTS_SETTING)),
+			loginLayout: LOGIN_LAYOUTS.includes(loginLayout as LoginLayout) ? loginLayout as LoginLayout : "classic",
 		};
 	}
 
@@ -143,7 +151,7 @@ export class AppearanceService {
 		}
 	}
 
-	private async writeSetting(key: string, value: unknown): Promise<void> {
+	private async writeSetting(key: string, value: string | boolean | string[] | ThemeSchedule[] | Record<string, string>): Promise<void> {
 		await this.dataSource.getRepository(Setting).upsert({ key, value, isPublic: false }, ["key"]);
 	}
 
@@ -166,7 +174,7 @@ export class AppearanceService {
 			const fallback = await repository.findOneBy({ id: DEFAULT_THEME_ID });
 			themes = fallback ? [...themes, fallback] : themes;
 		}
-		return { activeThemeId, userSelectionEnabled: settings.userSelectionEnabled, libraryAccents: settings.libraryAccents, themes: themes.map((theme) => this.view(theme)) };
+		return { activeThemeId, userSelectionEnabled: settings.userSelectionEnabled, libraryAccents: settings.libraryAccents, loginLayout: settings.loginLayout, themes: themes.map((theme) => this.view(theme)) };
 	}
 
 	async adminState(authorization?: string): Promise<AppearanceState> {
@@ -224,6 +232,12 @@ export class AppearanceService {
 		}
 		if (request.libraryAccents !== undefined) {
 			await this.writeSetting(LIBRARY_ACCENTS_SETTING, sanitizeLibraryAccents(request.libraryAccents));
+		}
+		if (request.loginLayout !== undefined) {
+			if (typeof request.loginLayout !== "string" || !LOGIN_LAYOUTS.includes(request.loginLayout as LoginLayout)) {
+				throw new BadRequest("Choose a valid login layout.");
+			}
+			await this.writeSetting(LOGIN_LAYOUT_SETTING, request.loginLayout);
 		}
 		return this.adminState(authorization);
 	}

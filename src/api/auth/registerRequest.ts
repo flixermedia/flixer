@@ -25,4 +25,7 @@ export class RegisterRequest {
 	@MinLength(8)
 	@MaxLength(128)
 	password!: string;
+
+	@Property()
+	customFields?: Record<string, string>;
 }

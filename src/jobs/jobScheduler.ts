@@ -24,9 +24,11 @@ import {
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
+import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
 const ANALYTICS_RETENTION_JOB = "analytics-retention";
+const PAGE_PUBLICATION_JOB = "page-publication";
 
 const SESSION_CLEANUP_CRON = "0 * * * *";
 const PG_BOSS_CONNECTION_POOL_SIZE = 2;
@@ -70,6 +72,7 @@ export class JobScheduler {
 		private readonly indexer: IndexerClient,
 		private readonly guide: GuideService,
 		private readonly payments: PaymentsService,
+		private readonly pageBuilder: PageBuilderService,
 	) {}
 
 	async $onInit(): Promise<void> {
@@ -89,6 +92,9 @@ export class JobScheduler {
 
 		await boss.start();
 		const [setupError] = await tryCatch(async () => {
+			await boss.createQueue(PAGE_PUBLICATION_JOB);
+			await boss.work(PAGE_PUBLICATION_JOB, async () => { await this.pageBuilder.publishDue(); });
+			await boss.schedule(PAGE_PUBLICATION_JOB, "* * * * *");
 			await boss.createQueue(SESSION_CLEANUP_JOB);
 			await boss.work(SESSION_CLEANUP_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
