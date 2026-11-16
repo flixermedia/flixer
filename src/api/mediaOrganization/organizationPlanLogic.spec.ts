@@ -15,7 +15,10 @@ describe("media organization plan logic", () => {
 	});
 
 	it("rejects duplicate destinations case-insensitively", () => {
-		expect(() => rejectTargetCollisions(["Movies/Film.mkv", "movies/film.mkv"])).toThrow();
-		expect(() => rejectTargetCollisions(["Movies/One.mkv", "Movies/Two.mkv"])).not.toThrow();
+		const first = { rootId: "root", sourceRelativePath: "A/Film.mkv", targetRelativePath: "Movies/Film.mkv" };
+		const second = { rootId: "root", sourceRelativePath: "B/Film.mkv", targetRelativePath: "movies/film.mkv" };
+		expect(() => rejectTargetCollisions([first, second])).toThrow('"A/Film.mkv" and "B/Film.mkv" both map to "movies/film.mkv"');
+		expect(() => rejectTargetCollisions([first, { ...second, targetRelativePath: "Movies/Two.mkv" }])).not.toThrow();
+		expect(() => rejectTargetCollisions([first, { ...second, rootId: "other" }])).not.toThrow();
 	});
 });

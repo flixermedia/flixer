@@ -342,7 +342,7 @@ export class MediaOrganizationService {
 			totalBytes += Number(sourceInfo.size);
 		}
 		if (moves.length === 0) throw new BadRequest("No media files need organization.");
-		rejectTargetCollisions(moves.map((move) => `${move.rootId}/${move.targetRelativePath}`));
+		rejectTargetCollisions(moves);
 		for (const move of moves) {
 			const root = await realpath(this.roots.get(move.rootId).path);
 			const base = move.libraryFolder ? await inspectPath(root, move.libraryFolder) : root;

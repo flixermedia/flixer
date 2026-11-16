@@ -73,13 +73,14 @@ export function renderOrganizationTemplate(template: string, values: Record<stri
 	});
 }
 
-export function rejectTargetCollisions(targetPaths: readonly string[]): void {
-	const seen = new Set<string>();
-	for (const target of targetPaths) {
-		const key = target.normalize("NFC").toLocaleLowerCase("en-US");
-		if (seen.has(key)) {
-			throw new Conflict("The plan contains multiple items with the same destination.");
+export function rejectTargetCollisions(moves: readonly { rootId: string; sourceRelativePath: string; targetRelativePath: string }[]): void {
+	const seen = new Map<string, (typeof moves)[number]>();
+	for (const move of moves) {
+		const key = `${move.rootId}/${move.targetRelativePath}`.normalize("NFC").toLocaleLowerCase("en-US");
+		const previous = seen.get(key);
+		if (previous) {
+			throw new Conflict(`The plan contains multiple items with the same destination: "${previous.sourceRelativePath}" and "${move.sourceRelativePath}" both map to "${move.targetRelativePath}" (root ${move.rootId}).`);
 		}
-		seen.add(key);
+		seen.set(key, move);
 	}
 }
