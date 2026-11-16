@@ -825,7 +825,7 @@ export class MediaHomeService {
 			if (!url || tried.has(url)) return null;
 			tried.add(url);
 			try {
-				return await resizeImage(() => this.loadPersonPhoto(id.toLowerCase(), url), `person:${url}`, normalizeWidth(width));
+				return await resizeImage(() => this.loadPersonPhoto(id.toLowerCase(), url), `person:${url}:${Math.floor(Date.now() / 86_400_000)}`, normalizeWidth(width));
 			} catch (error) {
 				lastError = error;
 				return null;

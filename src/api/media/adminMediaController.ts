@@ -16,6 +16,7 @@ import { AdminMediaService } from "./adminMediaService.js";
 import { MediaSegmentsService } from "./mediaSegmentsService.js";
 import { SubtitleService } from "./subtitleService.js";
 import { MAX_MEDIA_IMAGE_BYTES } from "./mediaImageStorage.js";
+import { imageCacheResponse } from "./imageCacheResponse.js";
 
 /** View and edit everything flixer-indexer has saved, for the admin dashboard. */
 @Controller("/admin/media")
@@ -163,17 +164,15 @@ export class AdminMediaController {
 		@QueryParams("w", Number) width: number | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
+		@HeaderParams("x-flixer-app-image-cache") appCache?: string,
+		@HeaderParams("if-none-match") validator?: string,
 	) {
 		await this.authService.requireAdmin(authorization);
 		if (!Number.isInteger(index) || index < 0) {
 			throw new NotFound("Image not found.");
 		}
-		const { data, mime } = await this.media.image(this.requireId(id), index, width);
-		ctx.response.setHeader("Content-Type", mime);
-		ctx.response.setHeader("Cache-Control", "private, no-store");
-		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
-		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
-		return data;
+		const image = await this.media.image(this.requireId(id), index, width);
+		return imageCacheResponse(ctx, image, "private, no-store", appCache, validator);
 	}
 
 	@Post("/items/:id/images")

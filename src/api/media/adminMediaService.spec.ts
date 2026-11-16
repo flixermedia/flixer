@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import type { DataSource } from "typeorm";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
@@ -6,6 +7,24 @@ import { MediaOrganizationSettings } from "../../entities/mediaOrganization.enti
 import { AdminMediaService } from "./adminMediaService.js";
 
 describe("AdminMediaService", () => {
+	it("refreshes resized artwork when the item changes but the image path stays the same", async () => {
+		const item = {
+			id: "00000000-0000-4000-8000-000000000001",
+			images: [{ path: "/stable-poster.png" }],
+			updatedAt: new Date("2026-01-01T00:00:00Z"),
+		} as MediaItem;
+		const image = async (red: number) => sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } }).png().toBuffer();
+		const fetchImage = vi.fn().mockResolvedValueOnce({ data: await image(0), contentType: "image/png" })
+			.mockResolvedValueOnce({ data: await image(255), contentType: "image/png" });
+		const dataSource = { getRepository: () => ({ findOneBy: vi.fn().mockResolvedValue(item) }) } as unknown as DataSource;
+		const service = new AdminMediaService(dataSource, { fetchImage } as unknown as IndexerClient);
+		const first = await service.image(item.id, 0, 64);
+		item.updatedAt = new Date("2026-01-02T00:00:00Z");
+		const second = await service.image(item.id, 0, 64);
+		expect(fetchImage).toHaveBeenCalledTimes(2);
+		expect(second.data.equals(first.data)).toBe(false);
+	});
+
 	it("finds matching source conflicts only within the item's library and type", async () => {
 		const item = {
 			id: "00000000-0000-4000-8000-000000000001",

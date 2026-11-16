@@ -9,6 +9,7 @@ import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
 import { AdminMediaService } from "./adminMediaService.js";
 import { MediaHomeService } from "./mediaHomeService.js";
 import { MediaTrailerService } from "./mediaTrailerService.js";
+import { imageCacheResponse } from "./imageCacheResponse.js";
 
 class TrailerView {
 	@Nullable(String)
@@ -151,14 +152,12 @@ export class MediaHomeController {
 		@QueryParams("w", Number) width: number | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
+		@HeaderParams("x-flixer-app-image-cache") appCache?: string,
+		@HeaderParams("if-none-match") validator?: string,
 	) {
 		await this.authService.getAuthenticatedUser(authorization);
-		const { data, mime } = await this.home.personImage(id, width);
-		ctx.response.setHeader("Content-Type", mime);
-		ctx.response.setHeader("Cache-Control", "private, max-age=86400");
-		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
-		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
-		return data;
+		const image = await this.home.personImage(id, width);
+		return imageCacheResponse(ctx, image, "private, max-age=86400", appCache, validator);
 	}
 
 	@Get("/people/:id")
@@ -247,6 +246,8 @@ export class MediaHomeController {
 		@QueryParams("w", Number) width: number | undefined,
 		@Context() ctx: PlatformContext,
 		@HeaderParams("authorization") authorization?: string,
+		@HeaderParams("x-flixer-app-image-cache") appCache?: string,
+		@HeaderParams("if-none-match") validator?: string,
 	) {
 		const policy = await this.access.resolve(authorization);
 		if (!AuthService.isUuid(id) || !Number.isInteger(index) || index < 0) {
@@ -256,12 +257,8 @@ export class MediaHomeController {
 		if (blocked && (blocked === "library" || policy.displayMode === "hidden")) {
 			throw new NotFound("Image not found.");
 		}
-		const { data, mime } = await this.media.image(id.toLowerCase(), index, width);
-		ctx.response.setHeader("Content-Type", mime);
-		ctx.response.setHeader("Cache-Control", "private, no-store");
-		ctx.response.setHeader("X-Content-Type-Options", "nosniff");
-		ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
-		return data;
+		const image = await this.media.image(id.toLowerCase(), index, width);
+		return imageCacheResponse(ctx, image, "private, no-store", appCache, validator);
 	}
 
 	/** Hides blocked items from watch-state routes the same way the item endpoints do. */

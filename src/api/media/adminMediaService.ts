@@ -364,7 +364,7 @@ export class AdminMediaService {
 			throw new NotFound("Image not found.");
 		}
 		const path = stored.path;
-		return resizeImage(() => this.readImage(path), `${id}:${index}:${path}`, normalizeWidth(width));
+		return resizeImage(() => this.readImage(path), `${id}:${index}:${path}:${item.updatedAt.getTime()}`, normalizeWidth(width));
 	}
 
 	private async readImage(path: string): Promise<{ data: Buffer; mime: string }> {

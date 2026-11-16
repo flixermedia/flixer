@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
@@ -21,6 +22,26 @@ describe("media browse filters", () => {
 });
 
 describe("MediaHomeService person images", () => {
+	afterEach(() => vi.useRealTimers());
+
+	it("refreshes resized person photos after the existing one-day cache lifetime", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+		const id = "594da9b3-83da-0000-67b5-6dbe9f8c012c";
+		const url = "https://image.tmdb.org/t/p/original/cache-freshness-test.png";
+		const image = async (red: number) => sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } }).png().toBuffer();
+		const fetchPersonImage = vi.fn().mockResolvedValueOnce({ data: await image(0), mime: "image/png" })
+			.mockResolvedValueOnce({ data: await image(255), mime: "image/png" });
+		const query = { where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([{ image: url }]) };
+		const dataSource = { getRepository: () => ({ createQueryBuilder: () => query }) } as unknown as DataSource;
+		const service = new MediaHomeService(dataSource, { fetchPersonImage } as unknown as IndexerClient, {} as MediaSearchService);
+		const first = await service.personImage(id, 64);
+		vi.advanceTimersByTime(86_400_000);
+		const second = await service.personImage(id, 64);
+		expect(fetchPersonImage).toHaveBeenCalledTimes(2);
+		expect(second.data.equals(first.data)).toBe(false);
+	});
+
 	it("marks a cast photo available when an accessible credit has one", async () => {
 		const name = "Known Actor";
 		const id = personIdOf(name);
