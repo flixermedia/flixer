@@ -60,6 +60,9 @@ import { PlaybackHistory } from "../entities/playbackHistory.entity.js";
 import { IssueReport, IssueReportUpdate } from "../entities/issueReport.entity.js";
 import { ChatConversation } from "../entities/chatConversation.entity.js";
 import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../entities/oidc.entity.js";
+import { SocialFriendInvite, SocialFriendship } from "../entities/social.entity.js";
+import { VideoCollection, VideoCollectionItem } from "../entities/videoCollection.entity.js";
+import { RecommendationFeedback, UpNextQueueItem, WatchLaterItem } from "../entities/userMediaQueue.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -131,4 +134,11 @@ export const ENTITIES = [
 	OidcArtifact,
 	OidcConfig,
 	OidcConsent,
+	SocialFriendship,
+	SocialFriendInvite,
+	VideoCollection,
+	VideoCollectionItem,
+	UpNextQueueItem,
+	WatchLaterItem,
+	RecommendationFeedback,
 ];
