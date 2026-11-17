@@ -37,13 +37,6 @@ function createService(
 		display_name: user.displayName,
 	};
 	const query = vi.fn(async (sql: string, params?: unknown[]): Promise<unknown[]> => {
-		if (sql.includes("SELECT key, value FROM settings")) {
-			return [
-				{ key: "issue_reports_enabled", value: config.enabled },
-				{ key: "issue_reports_categories", value: config.categories },
-				{ key: "issue_reports_chat_enabled", value: config.chatEnabled },
-			];
-		}
 		if (sql.includes("SELECT count(*)::int AS count")) return [{ count: 0 }];
 		if (sql.includes("FROM issue_reports r")) return [row];
 		if (sql.includes("FROM issue_report_updates")) {
@@ -52,7 +45,9 @@ function createService(
 		if (sql.includes("SELECT user_id FROM issue_reports")) return [{ user_id: USER_ID }];
 		return [];
 	});
+	const notificationDelete = vi.fn(async () => ({ affected: 1 }));
 	const manager = {
+		getRepository: vi.fn(() => ({ delete: notificationDelete })),
 		query: vi.fn(async (sql: string, params: unknown[] = []) => {
 			if (sql.includes("SELECT status, conversation_id FROM issue_reports")) {
 				return [{ status: reportStatus, conversation_id: "33333333-3333-4333-8333-333333333333" }];
@@ -62,7 +57,13 @@ function createService(
 		}),
 	};
 	const transaction = vi.fn(async (work: (manager: typeof manager) => Promise<unknown>) => work(manager));
-	const dataSource = { query, transaction } as unknown as DataSource;
+	const settings = [
+		{ key: "issue_reports_enabled", value: config.enabled },
+		{ key: "issue_reports_categories", value: config.categories },
+		{ key: "issue_reports_chat_enabled", value: config.chatEnabled },
+	];
+	const getRepository = vi.fn((entity: { name: string }) => (entity.name === "Setting" ? { find: vi.fn(async () => settings) } : { findOne: vi.fn(async () => null) }));
+	const dataSource = { query, transaction, getRepository } as unknown as DataSource;
 	const auth = {
 		getAuthenticatedUser: vi.fn(async () => user),
 		requireAdmin: vi.fn(async () => undefined),
@@ -73,7 +74,7 @@ function createService(
 		supportChatChanged: vi.fn(),
 		ensureSupportRequester: vi.fn(),
 	} as unknown as ChatService;
-	return { service: new IssueReportsService(dataSource, auth, chat), query, transaction, manager, auth, chat };
+	return { service: new IssueReportsService(dataSource, auth, chat), query, transaction, manager, notificationDelete, auth, chat };
 
 }
 
@@ -143,11 +144,12 @@ describe("IssueReportsService", () => {
 	});
 
 	it("allows admins to delete closed reports and their unshared support chats", async () => {
-		const { service, manager, transaction } = createService(undefined, "closed");
+		const { service, manager, transaction, notificationDelete } = createService(undefined, "closed");
 		await service.deleteClosed(REPORT_ID, "Bearer admin");
 
 		expect(transaction).toHaveBeenCalledOnce();
-		expect(manager.query.mock.calls.map(([sql]) => sql)).toEqual([expect.stringContaining("FOR UPDATE"), expect.stringContaining("DELETE FROM issue_reports"), expect.stringContaining("DELETE FROM chat_conversations"), expect.stringContaining("DELETE FROM notifications")]);
+		expect(manager.query.mock.calls.map(([sql]) => sql)).toEqual([expect.stringContaining("FOR UPDATE"), expect.stringContaining("DELETE FROM issue_reports"), expect.stringContaining("DELETE FROM chat_conversations")]);
+		expect(notificationDelete).toHaveBeenCalledWith({ kind: "message", url: "/chat/33333333-3333-4333-8333-333333333333" });
 	});
 
 	it("does not delete reports that are not closed", async () => {

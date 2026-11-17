@@ -1,8 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Notification } from "../../entities/notification.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
 import { AuthService, type PublicUser } from "../auth/authService.js";
 import { ChatService } from "../../chat/chatService.js";
 
@@ -66,6 +69,7 @@ interface UpdateRow {
 	display_name: string | null;
 }
 
+// RAW SQL: no entity for issue_reports; join with users and media_items
 const REPORT_SELECT = `SELECT r.id, r.title, r.category, r.description, r.status, r.media_item_id, COALESCE(r.media_title, mi.title) AS media_title,
 	r.chat_open, r.conversation_id, r.created_at, r.updated_at, r.resolved_at,
 	u.username, u.display_name
@@ -101,7 +105,7 @@ export class IssueReportsService {
 	) {}
 
 	async configuration(): Promise<{ enabled: boolean; categories: string[]; chatEnabled: boolean }> {
-		const rows = (await this.dataSource.query(`SELECT key, value FROM settings WHERE key = ANY($1::text[])`, [[ISSUE_REPORT_SETTINGS.enabled, ISSUE_REPORT_SETTINGS.categories, ISSUE_REPORT_SETTINGS.chatEnabled]])) as Array<{ key: string; value: unknown }>;
+		const rows = await this.dataSource.getRepository(Setting).find({ select: { key: true, value: true }, where: { key: In([ISSUE_REPORT_SETTINGS.enabled, ISSUE_REPORT_SETTINGS.categories, ISSUE_REPORT_SETTINGS.chatEnabled]) } });
 		const values = new Map(rows.map(({ key, value }) => [key, value]));
 		const categories = values.get(ISSUE_REPORT_SETTINGS.categories);
 		const enabled = values.get(ISSUE_REPORT_SETTINGS.enabled);
@@ -139,13 +143,14 @@ export class IssueReportsService {
 			if (!AuthService.isUuid(mediaItemId)) {
 				throw new BadRequest("The linked media item id is invalid.");
 			}
-			const [media] = (await this.dataSource.query(`SELECT title FROM media_items WHERE id = $1`, [mediaItemId])) as Array<{ title: string }>;
+			const media = await this.dataSource.getRepository(MediaItem).findOne({ select: { title: true }, where: { id: mediaItemId } });
 			if (!media) {
 				throw new NotFound("The linked media item could not be found.");
 			}
 			mediaTitle = media.title;
 		}
 
+		// RAW SQL: no entity for issue_reports; count with DB-side now() and interval
 		const recent = (await this.dataSource.query(`SELECT count(*)::int AS count FROM issue_reports WHERE user_id = $1 AND created_at > now() - interval '24 hours'`, [user.id])) as Array<{ count: number }>;
 		if ((recent[0]?.count ?? 0) >= 5) {
 			throw new TooManyRequests("You can submit up to five issue reports per day.");
@@ -153,11 +158,13 @@ export class IssueReportsService {
 
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for issue_reports
 			await manager.query(
 				`INSERT INTO issue_reports (id, user_id, media_item_id, media_title, title, category, description)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 				[id, user.id, mediaItemId, mediaTitle, title, category, description],
 			);
+			// RAW SQL: no entity for issue_report_updates
 			await manager.query(`INSERT INTO issue_report_updates (id, report_id, body) VALUES ($1, $2, 'Issue report submitted.')`, [randomUUID(), id]);
 		});
 		return this.userDetail(id, user);
@@ -165,6 +172,7 @@ export class IssueReportsService {
 
 	async mine(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
+		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.user_id = $1 ORDER BY r.updated_at DESC`, [user.id])) as IssueReportRow[];
 		return { reports: rows.map(reportOf) };
 	}
@@ -174,6 +182,7 @@ export class IssueReportsService {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
+		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1 AND r.user_id = $2`, [id, actor.id])) as IssueReportRow[];
 		if (!rows[0]) {
 			throw new NotFound("Issue report not found.");
@@ -188,6 +197,7 @@ export class IssueReportsService {
 
 	async adminList(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		await this.authService.requireAdmin(authorization);
+		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} ORDER BY r.updated_at DESC`)) as IssueReportRow[];
 		return { reports: rows.map(reportOf) };
 	}
@@ -205,6 +215,7 @@ export class IssueReportsService {
 			throw new NotFound("Issue report not found.");
 		}
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for issue_reports; row lock (FOR UPDATE)
 			const rows = (await manager.query(`SELECT status, conversation_id FROM issue_reports WHERE id = $1 FOR UPDATE`, [id])) as Array<{ status: IssueReportStatus; conversation_id: string | null }>;
 			const report = rows[0];
 			if (!report) {
@@ -213,8 +224,10 @@ export class IssueReportsService {
 			if (report.status !== "closed") {
 				throw new BadRequest("Only closed issue reports can be deleted.");
 			}
+			// RAW SQL: no entity for issue_reports
 			await manager.query(`DELETE FROM issue_reports WHERE id = $1`, [id]);
 			if (report.conversation_id) {
+				// RAW SQL: no entity for chat_conversations; DELETE ... NOT EXISTS with RETURNING
 				const deletedConversations = (await manager.query(
 					`DELETE FROM chat_conversations WHERE id = $1 AND NOT EXISTS (
 						SELECT 1 FROM issue_reports WHERE conversation_id = $1
@@ -222,7 +235,7 @@ export class IssueReportsService {
 					[report.conversation_id],
 				)) as Array<{ id: string }>;
 				if (deletedConversations.length > 0) {
-					await manager.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1`, [`/chat/${report.conversation_id}`]);
+					await manager.getRepository(Notification).delete({ kind: "message", url: `/chat/${report.conversation_id}` });
 				}
 			}
 		});
@@ -236,7 +249,9 @@ export class IssueReportsService {
 		const report = await this.find(id);
 		if (report.status !== status) {
 			await this.dataSource.transaction(async (manager) => {
+				// RAW SQL: no entity for issue_reports; CASE and DB-side now()
 				await manager.query(`UPDATE issue_reports SET status = $2, resolved_at = CASE WHEN $3 THEN now() ELSE NULL END, updated_at = now() WHERE id = $1`, [id, status, status === "resolved" || status === "closed"]);
+				// RAW SQL: no entity for issue_report_updates
 				await manager.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body) VALUES ($1, $2, $3, $4)`, [randomUUID(), id, user.id, `Status changed to ${status.replace("_", " ")}.`]);
 			});
 		}
@@ -248,7 +263,9 @@ export class IssueReportsService {
 		const text = this.cleanText(body, 2000, "Write an update first.");
 		const isInternal = internal === true;
 		await this.find(id);
+		// RAW SQL: no entity for issue_report_updates
 		await this.dataSource.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body, is_internal) VALUES ($1, $2, $3, $4, $5)`, [randomUUID(), id, user.id, text, isInternal]);
+		// RAW SQL: no entity for issue_reports; DB-side now()
 		await this.dataSource.query(`UPDATE issue_reports SET updated_at = now() WHERE id = $1`, [id]);
 		return this.adminDetail(id, authorization);
 	}
@@ -265,6 +282,7 @@ export class IssueReportsService {
 		let report = await this.find(id);
 		if (open && !report.chatConversationId) {
 			const conversation = await this.chat.createSupportGroup(user.id, await this.requesterId(id), `Issue: ${report.title}`.slice(0, 60));
+			// RAW SQL: no entity for issue_reports; conditional claim (conversation_id IS NULL)
 			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = $2 WHERE id = $1 AND conversation_id IS NULL`, [id, conversation.id]);
 			report = await this.find(id);
 		}
@@ -275,7 +293,9 @@ export class IssueReportsService {
 			return this.adminDetail(id, authorization);
 		}
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for issue_reports; DB-side now()
 			await manager.query(`UPDATE issue_reports SET chat_open = $2, updated_at = now() WHERE id = $1`, [id, open]);
+			// RAW SQL: no entity for issue_report_updates
 			await manager.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body) VALUES ($1, $2, $3, $4)`, [randomUUID(), id, user.id, open ? "Live chat is now open for this issue." : "Live chat has been closed for this issue."]);
 		});
 		if (report.chatConversationId) {
@@ -285,6 +305,7 @@ export class IssueReportsService {
 	}
 
 	private async requesterId(id: string): Promise<string> {
+		// RAW SQL: no entity for issue_reports
 		const rows = (await this.dataSource.query(`SELECT user_id FROM issue_reports WHERE id = $1`, [id])) as Array<{ user_id: string }>;
 		if (!rows[0]) {
 			throw new NotFound("Issue report not found.");
@@ -296,6 +317,7 @@ export class IssueReportsService {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
+		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1`, [id])) as IssueReportRow[];
 		if (!rows[0]) {
 			throw new NotFound("Issue report not found.");
@@ -304,6 +326,7 @@ export class IssueReportsService {
 	}
 
 	private async updates(id: string, includeInternal: boolean): Promise<IssueReportUpdate[]> {
+		// RAW SQL: no entity for issue_report_updates; join with users
 		const rows = (await this.dataSource.query(
 			`SELECT i.id, i.body, i.is_internal, i.created_at, u.username, u.display_name
 			FROM issue_report_updates i LEFT JOIN users u ON u.id = i.actor_id
