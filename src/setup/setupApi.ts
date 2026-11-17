@@ -6,7 +6,7 @@ import { $log } from "@tsed/logger";
 import { checkRecoveryCode, logRecoveryKey, needsRecovery } from "./recovery.js";
 import { defaultProbes, findStep, SETUP_STEPS, SetupError, type Probes, type StepContext } from "./setupSteps.js";
 
-export interface SetupResponse {
+interface SetupResponse {
 	status: number;
 	body: unknown;
 }
@@ -134,7 +134,7 @@ async function progress(context: SetupRequestContext) {
 }
 
 /** What is still missing before setup can be marked complete. */
-export async function completionBlockers(context: Pick<SetupRequestContext, "adminExists">): Promise<string[]> {
+async function completionBlockers(context: Pick<SetupRequestContext, "adminExists">): Promise<string[]> {
 	const config = appConfig();
 	const blockers: string[] = [];
 	if (!config.get("databaseUrl") || runtimeState().database !== "ok" || runtimeState().mode !== "ready") {

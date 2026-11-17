@@ -1,13 +1,13 @@
 import { validateHttpUrl } from "../config/store/configSchema.js";
 
-export interface UrlInput {
+interface UrlInput {
 	publicUrl: string;
 	appUrl?: string;
 	passkeyRpId?: string;
 	passkeyOrigins?: string;
 }
 
-export interface UrlSettings {
+interface UrlSettings {
 	publicUrl: string;
 	appUrl: string;
 	passkeyRpId: string;

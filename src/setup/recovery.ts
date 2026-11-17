@@ -31,7 +31,7 @@ export function recoveryCode(): string {
 	return code;
 }
 
-export type RecoveryCheck = "ok" | "invalid" | "throttled";
+type RecoveryCheck = "ok" | "invalid" | "throttled";
 
 export function checkRecoveryCode(candidate: string | undefined, now = Date.now()): RecoveryCheck {
 	failures = failures.filter((at) => now - at < FAILURE_WINDOW_MS);
