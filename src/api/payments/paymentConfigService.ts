@@ -14,7 +14,7 @@ import { DEFAULT_PAYMENT_CONFIG, PAYMENT_PROVIDERS, isUuid, normalizeCurrency, p
 const CACHE_MS = 5_000;
 const MAX_GRACE_DAYS = 30;
 
-interface AdminPaymentConfig extends PaymentConfig {
+export interface AdminPaymentConfig extends PaymentConfig {
 	stripe: PaymentConfig["stripe"] & { secretKey: string; webhookSecret: string };
 	square: PaymentConfig["square"] & { accessToken: string; signatureKey: string };
 }

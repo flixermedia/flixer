@@ -55,7 +55,7 @@ export interface SignupPayment extends CardSetupInput {
 	currency?: string;
 }
 
-interface Quote {
+export interface Quote {
 	kind: PaymentOrderKind;
 	description: string;
 	currency: string;
@@ -74,7 +74,7 @@ export interface SignupAction {
 	clientSecret: string;
 }
 
-interface CheckoutResult {
+export interface CheckoutResult {
 	status: "paid" | "requires_action" | "failed";
 	orderId: string;
 	clientSecret?: string;

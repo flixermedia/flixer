@@ -26,7 +26,7 @@ export type PlanInterval = "month" | "year";
 type RegistrationMode = "one_time" | "subscription";
 type RegistrationUnlocks = "all" | "scopes" | "none";
 
-interface TaxRate {
+export interface TaxRate {
 	name: string;
 	percent: number;
 }

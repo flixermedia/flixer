@@ -1,4 +1,4 @@
-interface CurrencyInfo {
+export interface CurrencyInfo {
 	code: string;
 	name: string;
 	/** Digits after the decimal point; prices are stored as whole minor units (10^-digits). */

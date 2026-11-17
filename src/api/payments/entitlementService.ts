@@ -21,7 +21,7 @@ interface AccessSubject {
 	createdAt: Date;
 }
 
-interface LockState {
+export interface LockState {
 	locked: boolean;
 	/** Set when access comes from a rental, so the UI can show when it ends. */
 	rentalEndsAt?: string | null;
