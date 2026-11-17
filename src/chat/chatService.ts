@@ -2,6 +2,7 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { createPublicKey, randomUUID, verify } from "node:crypto";
 import { DataSource, EntityManager } from "typeorm";
+import { Setting } from "../entities/setting.entity.js";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { NotificationService } from "../api/notifications/notificationService.js";
 
@@ -183,6 +184,7 @@ export class ChatService {
 	}
 
 	private async memberIds(id: string): Promise<string[]> {
+		// RAW SQL: no entity for chat_* tables
 		const rows = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [id])) as Array<{ user_id: string }>;
 		return rows.map((row) => row.user_id);
 	}
@@ -194,6 +196,7 @@ export class ChatService {
 	}
 
 	private async defaultEncryptionMode(manager: EntityManager): Promise<"encrypted" | "plaintext"> {
+		// RAW SQL: FOR SHARE row lock on chat_conversations in transaction; no entity for chat_conversations
 		const rows = (await manager.query(`SELECT value FROM settings WHERE key = $1 FOR SHARE`, ["chat_e2ee_enabled"])) as Array<{
 			value: unknown;
 		}>;
@@ -221,6 +224,7 @@ export class ChatService {
 
 	private async setEncryptionMode(userId: string, id: string, encryptionMode: "encrypted" | "plaintext"): Promise<boolean> {
 		return this.dataSource.transaction(async (manager) => {
+			// RAW SQL: FOR SHARE row lock on chat_conversations in transaction; no entity for chat_conversations
 			const rows = (await manager.query(
 				`SELECT c.encryption_mode${encryptionMode === "plaintext" ? ", s.value AS downgrade_enabled" : ""}
 				FROM chat_conversations c
@@ -236,19 +240,23 @@ export class ChatService {
 				throw new Forbidden("Your server administrator has not enabled plaintext chat switching.");
 			}
 			if (conversation.encryption_mode === encryptionMode) return false;
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`UPDATE chat_conversations SET encryption_mode = $2 WHERE id = $1`, [id, encryptionMode]);
 			const notice = encryptionMode === "plaintext" ? "Switched this conversation to plaintext. Future messages are readable by the server." : "Switched this conversation to end-to-end encryption. Earlier plaintext messages remain readable by the server.";
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(
 				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted)
 				VALUES ($1, $2, $3, 'system', $4, false)`,
 				[randomUUID(), id, userId, notice],
 			);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [id]);
 			return true;
 		});
 	}
 
 	async conversations(userId: string): Promise<{ conversations: ChatConversation[]; unread: number }> {
+		// RAW SQL: no entity for chat_* tables
 		const ids = (await this.dataSource.query(
 			`SELECT c.id FROM chat_conversations c JOIN chat_members m ON m.conversation_id = c.id
 			WHERE m.user_id = $1 ORDER BY c.last_message_at DESC LIMIT 200`,
@@ -280,7 +288,9 @@ export class ChatService {
 		}
 
 		return this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for chat tables
 			await manager.query(`SELECT id FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+			// RAW SQL: no entity for chat_mls_* tables
 			const existing = (await manager.query(`SELECT user_id, status, pairing_public_key, approval_challenge FROM chat_mls_devices WHERE id = $1 FOR UPDATE`, [deviceId])) as Array<{ user_id: string; status: string; pairing_public_key: string; approval_challenge: string | null }>;
 			if (existing[0] && existing[0].user_id !== userId) {
 				throw new Conflict("That chat device is already registered to another account.");
@@ -294,18 +304,22 @@ export class ChatService {
 
 			const status = "active";
 			if (existing[0]) {
+				// RAW SQL: no entity for chat_mls_* tables
 				await manager.query(`UPDATE chat_mls_devices SET name = $2, status = 'active', approval_challenge = NULL, approved_at = COALESCE(approved_at, now()), pairing_public_key = COALESCE(pairing_public_key, $3) WHERE id = $1`, [deviceId, label, pairingPublicKey]);
 			} else {
 				const approvalChallenge = null;
+				// RAW SQL: no entity for chat_mls_* tables
 				await manager.query(
 					`INSERT INTO chat_mls_devices (id, user_id, name, status, pairing_public_key, approval_challenge, approved_at)
 					VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7::boolean THEN now() ELSE NULL END)`,
 					[deviceId, userId, label, status, pairingPublicKey, approvalChallenge, status === "active"],
 				);
 			}
+			// RAW SQL: no entity for chat_mls_* tables
 			const existingPackage = (await manager.query(`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`, [deviceId, serializedKeyPackage])) as Array<{ id: string }>;
 			const keyPackageId = existingPackage[0]?.id ?? randomUUID();
 			if (!existingPackage[0]) {
+				// RAW SQL: no entity for chat_mls_* tables
 				await manager.query(`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`, [keyPackageId, deviceId, serializedKeyPackage]);
 			}
 			return { deviceId, keyPackageId, status, approvalChallenge: null };
@@ -313,6 +327,7 @@ export class ChatService {
 	}
 
 	async listMlsDevices(userId: string): Promise<ChatMlsDeviceSummary[]> {
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await this.dataSource.query(
 			`SELECT id, name, status, created_at, approved_at, approval_challenge
 			FROM chat_mls_devices WHERE user_id = $1 ORDER BY created_at`,
@@ -329,6 +344,7 @@ export class ChatService {
 	}
 
 	async chatHistoryBackup(userId: string): Promise<string | null> {
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await this.dataSource.query(`SELECT backup FROM chat_mls_history_backups WHERE user_id = $1`, [userId])) as Array<{ backup: string }>;
 		return rows[0]?.backup ?? null;
 	}
@@ -337,6 +353,7 @@ export class ChatService {
 		if (typeof backup !== "string" || backup.length === 0 || backup.length > MAX_MLS_HISTORY_BACKUP_LENGTH) {
 			throw new BadRequest("The encrypted chat history backup is invalid or too large.");
 		}
+		// RAW SQL: INSERT ... ON CONFLICT DO NOTHING; no entity for chat_members
 		await this.dataSource.query(
 			`INSERT INTO chat_mls_history_backups (user_id, backup)
 			VALUES ($1, $2)
@@ -347,6 +364,7 @@ export class ChatService {
 
 	async revokeMlsDevice(userId: string, deviceId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for chat_mls_* tables
 			const rows = (await manager.query(
 				`UPDATE chat_mls_devices SET status = 'revoked', revoked_at = now()
 				WHERE id = $1 AND user_id = $2 AND status <> 'revoked'
@@ -354,10 +372,12 @@ export class ChatService {
 				[deviceId, userId],
 			)) as Array<{ id: string }>;
 			if (!rows.length) {
+				// RAW SQL: no entity for chat_mls_* tables
 				const existing = (await manager.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2`, [deviceId, userId])) as Array<{ id: string }>;
 				if (!existing.length) throw new NotFound("Chat device not found.");
 				return;
 			}
+			// RAW SQL: no entity for chat_mls_* tables
 			await manager.query(`UPDATE chat_mls_key_packages SET used_at = COALESCE(used_at, now()) WHERE device_id = $1`, [deviceId]);
 		});
 	}
@@ -367,6 +387,7 @@ export class ChatService {
 			throw new BadRequest("The device approval signature is invalid.");
 		}
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for chat_mls_* tables
 			const rows = (await manager.query(
 				`SELECT target.approval_challenge, approver.pairing_public_key
 				FROM chat_mls_devices target
@@ -386,22 +407,27 @@ export class ChatService {
 				throw new BadRequest("The device approval signature could not be verified.");
 			}
 			if (!valid) throw new Forbidden("Approval must be signed by a trusted device on this account.");
+			// RAW SQL: no entity for chat_mls_* tables
 			await manager.query(`UPDATE chat_mls_devices SET status = 'active', approved_at = now(), approval_challenge = NULL WHERE id = $1`, [targetDeviceId]);
 		});
 	}
 
 	async addMlsKeyPackage(userId: string, deviceId: string, keyPackage: unknown): Promise<{ keyPackageId: string }> {
 		const serializedKeyPackage = cleanMlsPayload(keyPackage, "The MLS key package");
+		// RAW SQL: no entity for chat_mls_* tables
 		const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 		if (!device[0]) throw new NotFound("Active chat device not found.");
+		// RAW SQL: no entity for chat_mls_* tables
 		const duplicate = (await this.dataSource.query(`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`, [deviceId, serializedKeyPackage])) as Array<{ id: string }>;
 		if (duplicate[0]) return { keyPackageId: duplicate[0].id };
 		const keyPackageId = randomUUID();
+		// RAW SQL: no entity for chat_mls_* tables
 		await this.dataSource.query(`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`, [keyPackageId, deviceId, serializedKeyPackage]);
 		return { keyPackageId };
 	}
 
 	async deviceMlsKeyPackages(userId: string, deviceId: string): Promise<Array<{ keyPackageId: string; keyPackage: string; available: boolean }>> {
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await this.dataSource.query(
 			`SELECT k.id, k.key_package, (k.used_at IS NULL) AS available
 			FROM chat_mls_devices d JOIN chat_mls_key_packages k ON k.device_id = d.id
@@ -410,6 +436,7 @@ export class ChatService {
 			[deviceId, userId],
 		)) as Array<{ id: string; key_package: string; available: boolean }>;
 		if (!rows.length) {
+			// RAW SQL: no entity for chat_mls_* tables
 			const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 			if (!device[0]) throw new NotFound("Active chat device not found.");
 		}
@@ -419,13 +446,15 @@ export class ChatService {
 	async conversationMlsKeyPackages(userId: string, conversationId: string, lenient = false): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
 		const member = await this.assertMember(userId, conversationId);
 		if (member.kind === "group") {
+			// RAW SQL: no entity for issue_reports
 			const support = (await this.dataSource.query(`SELECT user_id FROM issue_reports WHERE conversation_id = $1`, [conversationId])) as Array<{ user_id: string }>;
 			if (support[0]) await this.ensureSupportRequester(conversationId, support[0].user_id);
 		}
 		// Joiners only need the identity directory, so they skip the "everyone has a spare key package" check.
 		const unready = lenient
 			? []
-			: ((await this.dataSource.query(
+			: // RAW SQL: no entity for chat_mls_* tables
+				((await this.dataSource.query(
 					`SELECT m.user_id
 			FROM chat_members m
 			LEFT JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
@@ -440,22 +469,25 @@ export class ChatService {
 			throw new Conflict("Every active chat device needs an unused MLS key package. Ask each member to open Flixer and try again.");
 		}
 		return (
-			(await this.dataSource.query(
-				`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
+			// RAW SQL: no entity for chat_mls_* tables
+			(
+				(await this.dataSource.query(
+					`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
 			FROM chat_members m
 			JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
 			JOIN chat_mls_key_packages k ON k.device_id = d.id
 			WHERE m.conversation_id = $1
 			ORDER BY d.user_id, d.created_at, k.created_at`,
-				[conversationId],
-			)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>
-		).map((row) => ({
-			userId: row.user_id,
-			deviceId: row.device_id,
-			keyPackageId: row.key_package_id,
-			keyPackage: row.key_package,
-			available: row.available,
-		}));
+					[conversationId],
+				)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>
+			).map((row) => ({
+				userId: row.user_id,
+				deviceId: row.device_id,
+				keyPackageId: row.key_package_id,
+				keyPackage: row.key_package,
+				available: row.available,
+			}))
+		);
 	}
 
 	async claimMlsKeyPackage(
@@ -471,6 +503,7 @@ export class ChatService {
 	}> {
 		await this.assertMember(userId, conversationId);
 		return this.dataSource.transaction(async (manager) => {
+			// RAW SQL: UPDATE ... FROM join with RETURNING; no entity for chat_mls_*
 			const rows = (await manager.query(
 				`UPDATE chat_mls_key_packages k SET used_at = now()
 				FROM chat_mls_devices d, chat_members m
@@ -501,11 +534,13 @@ export class ChatService {
 		if (uniqueRecipients.size !== recipients.length || recipients.some(({ deviceId, keyPackageId }) => !UUID_PATTERN.test(deviceId) || !UUID_PATTERN.test(keyPackageId))) {
 			throw new BadRequest("The MLS Welcome recipients are invalid.");
 		}
+		// RAW SQL: no entity for chat_* tables
 		const message = (await manager.query(`SELECT id FROM chat_messages WHERE id = $1 AND conversation_id = $2 AND user_id = $3 AND kind = 'text'`, [messageId, conversationId, userId])) as Array<{ id: string }>;
 		if (!message[0]) throw new NotFound("The encrypted chat message was not found.");
 		const packageIds = recipients.map(({ keyPackageId }) => keyPackageId);
 		const deviceIds = recipients.map(({ deviceId }) => deviceId);
 		const welcomeIds = recipients.map(() => randomUUID());
+		// RAW SQL: no entity for chat_mls_* tables
 		const valid = (await manager.query(
 			`SELECT d.id AS device_id, k.id AS key_package_id
 				FROM unnest($1::uuid[], $2::uuid[]) AS r(device_id, key_package_id)
@@ -517,6 +552,7 @@ export class ChatService {
 		if (valid.length !== recipients.length) {
 			throw new BadRequest("Every MLS Welcome recipient must be an active device with a claimed key package in this conversation.");
 		}
+		// RAW SQL: INSERT ... SELECT unnest ... ON CONFLICT DO NOTHING; no entity for chat_mls_welcomes
 		await manager.query(
 			`INSERT INTO chat_mls_welcomes (id, conversation_id, device_id, key_package_id, message_id, welcome, ratchet_tree)
 				SELECT r.id, $1, r.device_id, r.key_package_id, $2, $6, $7
@@ -524,6 +560,7 @@ export class ChatService {
 				ON CONFLICT (conversation_id, key_package_id) DO NOTHING`,
 			[conversationId, messageId, deviceIds, packageIds, welcomeIds, serializedWelcome, serializedTree],
 		);
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await manager.query(
 			`SELECT message_id, welcome, ratchet_tree FROM chat_mls_welcomes
 				WHERE conversation_id = $1 AND key_package_id = ANY($2::uuid[])`,
@@ -536,8 +573,10 @@ export class ChatService {
 
 	async pendingMlsWelcomes(userId: string, conversationId: string, deviceId: string): Promise<Array<{ id: string; messageId: string; keyPackageId: string; welcome: string; ratchetTree: string; createdAt: string }>> {
 		await this.assertMember(userId, conversationId);
+		// RAW SQL: no entity for chat_mls_* tables
 		const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 		if (!device[0]) throw new NotFound("Chat device not found.");
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await this.dataSource.query(
 			`SELECT id, message_id, key_package_id, welcome, ratchet_tree, created_at FROM chat_mls_welcomes
 			WHERE conversation_id = $1 AND device_id = $2 AND consumed_at IS NULL AND message_id IS NOT NULL
@@ -556,6 +595,7 @@ export class ChatService {
 
 	async acknowledgeMlsWelcome(userId: string, conversationId: string, deviceId: string, welcomeId: string): Promise<void> {
 		await this.assertMember(userId, conversationId);
+		// RAW SQL: UPDATE ... FROM join with RETURNING; no entity for chat_mls_*
 		const rows = (await this.dataSource.query(
 			`UPDATE chat_mls_welcomes w SET consumed_at = now()
 			FROM chat_mls_devices d
@@ -573,6 +613,7 @@ export class ChatService {
 			throw new BadRequest("You can't message yourself.");
 		}
 		const key = directKey(userId, other.id);
+		// RAW SQL: no entity for chat_* tables
 		const existing = (await this.dataSource.query(`SELECT id FROM chat_conversations WHERE direct_key = $1`, [key])) as Array<{ id: string }>;
 		if (existing[0]) {
 			return this.conversation(userId, existing[0].id);
@@ -580,11 +621,13 @@ export class ChatService {
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(
 				`INSERT INTO chat_conversations (id, kind, direct_key, created_by, encryption_mode)
 				VALUES ($1, 'direct', $2, $3, $4)`,
 				[id, key, userId, encryptionMode],
 			);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member'), ($1, $3, 'member')`, [id, userId, other.id]);
 		});
 		await this.changed(id);
@@ -603,13 +646,16 @@ export class ChatService {
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(
 				`INSERT INTO chat_conversations (id, kind, name, created_by, encryption_mode)
 				VALUES ($1, 'group', $2, $3, $4)`,
 				[id, title, userId, encryptionMode],
 			);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'owner')`, [id, userId]);
 			for (const person of others) {
+				// RAW SQL: no entity for chat_* tables
 				await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member')`, [id, person.id]);
 			}
 		});
@@ -624,13 +670,16 @@ export class ChatService {
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(
 				`INSERT INTO chat_conversations (id, kind, name, created_by, encryption_mode)
 				VALUES ($1, 'group', $2, $3, $4)`,
 				[id, title, adminId, encryptionMode],
 			);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'owner')`, [id, adminId]);
 			if (requesterId !== adminId) {
+				// RAW SQL: no entity for chat_* tables
 				await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member')`, [id, requesterId]);
 			}
 		});
@@ -641,6 +690,7 @@ export class ChatService {
 
 	/** Re-adds the issue requester without changing the existing conversation or its message history. */
 	async ensureSupportRequester(conversationId: string, requesterId: string): Promise<void> {
+		// RAW SQL: INSERT ... ON CONFLICT DO NOTHING; no entity for chat_members
 		const rows = (await this.dataSource.query(
 			`INSERT INTO chat_members (conversation_id, user_id, role, last_read_at)
 			SELECT c.id, $2, CASE WHEN c.created_by = $2 THEN 'owner' ELSE 'member' END,
@@ -660,6 +710,7 @@ export class ChatService {
 			throw new BadRequest("Only groups can be renamed.");
 		}
 		const title = cleanName(name);
+		// RAW SQL: no entity for chat_* tables
 		await this.dataSource.query(`UPDATE chat_conversations SET name = $2 WHERE id = $1`, [id, title]);
 		await this.system(id, userId, `renamed the group to "${title}"`);
 		await this.changed(id);
@@ -672,6 +723,7 @@ export class ChatService {
 			throw new BadRequest("People can only be added to groups.");
 		}
 		const people = await this.resolve(usernames, userId);
+		// RAW SQL: no entity for chat_* tables
 		const current = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [id])) as Array<{ user_id: string }>;
 		const have = new Set(current.map((row) => row.user_id));
 		const fresh = people.filter((person) => !have.has(person.id));
@@ -679,6 +731,7 @@ export class ChatService {
 			throw new BadRequest(`Groups can have up to ${MAX_GROUP_MEMBERS} people.`);
 		}
 		for (const person of fresh) {
+			// RAW SQL: INSERT ... ON CONFLICT DO NOTHING; no entity for chat_members
 			await this.dataSource.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`, [id, person.id]);
 			await this.system(id, userId, `added ${person.display_name || person.username}`);
 		}
@@ -694,6 +747,7 @@ export class ChatService {
 		if (member.kind !== "group") {
 			throw new BadRequest("You can't leave a direct conversation.");
 		}
+		// RAW SQL: join of chat_members with users/user_preferences; no entity for chat_members
 		const target = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, m.role FROM chat_members m JOIN users u ON u.id = m.user_id
 			WHERE m.conversation_id = $1 AND lower(u.username) = lower($2)`,
@@ -707,15 +761,20 @@ export class ChatService {
 			throw new Forbidden("Only the group owner can remove people.");
 		}
 		const before = await this.memberIds(id);
+		// RAW SQL: no entity for chat_* tables
 		await this.dataSource.query(`DELETE FROM chat_members WHERE conversation_id = $1 AND user_id = $2`, [id, target[0].id]);
+		// RAW SQL: no entity for chat_* tables
 		const remaining = (await this.dataSource.query(`SELECT user_id, role FROM chat_members WHERE conversation_id = $1 ORDER BY joined_at ASC`, [id])) as Array<{ user_id: string; role: string }>;
 		if (remaining.length === 0) {
+			// RAW SQL: no entity for issue_reports
 			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = NULL, chat_open = false, updated_at = now() WHERE conversation_id = $1`, [id]);
+			// RAW SQL: no entity for chat_* tables
 			await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
 			this.publish(before, { type: "changed", conversationId: id });
 			return;
 		}
 		if (!remaining.some((row) => row.role === "owner")) {
+			// RAW SQL: no entity for chat_* tables
 			await this.dataSource.query(`UPDATE chat_members SET role = 'owner' WHERE conversation_id = $1 AND user_id = $2`, [id, remaining[0].user_id]);
 		}
 		const name = target[0].display_name || target[0].username;
@@ -746,6 +805,7 @@ export class ChatService {
 			params.push(after);
 			where += ` AND m.created_at > $${params.length}`;
 		}
+		// RAW SQL: dynamic message SELECT with joins over chat_messages; no entity for chat_messages
 		const rows = (await this.dataSource.query(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.sequence ${after || afterSequence ? "ASC" : "DESC"} LIMIT ${PAGE_SIZE + 1}`, params)) as MessageRow[];
 		const hasMore = rows.length > PAGE_SIZE;
 		const page = rows.slice(0, PAGE_SIZE).map(messageOf);
@@ -756,21 +816,27 @@ export class ChatService {
 	/** Deletes a conversation for everyone: any direct-chat member, a group owner, or a support-chat member. */
 	async deleteConversation(userId: string, id: string): Promise<void> {
 		const member = await this.assertMember(userId, id);
+		// RAW SQL: no entity for issue_reports
 		const supportThread = (await this.dataSource.query(`SELECT id FROM issue_reports WHERE conversation_id = $1`, [id])) as Array<{ id: string }>;
 		if (member.kind === "group" && member.role !== "owner" && supportThread.length === 0) {
 			throw new Forbidden("Only the group owner can delete it.");
 		}
 		const members = await this.memberIds(id);
 		if (supportThread.length > 0) {
+			// RAW SQL: no entity for issue_reports
 			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = NULL, chat_open = false, updated_at = now() WHERE conversation_id = $1`, [id]);
 		}
+		// RAW SQL: no entity for chat_* tables
 		await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
+		// RAW SQL: bulk DELETE of message notifications by url (ANY uuid[]), errors swallowed by .catch; kept raw to keep exact statement
 		await this.dataSource.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1`, [`/chat/${id}`]).catch(() => undefined);
 		this.publish(members, { type: "changed", conversationId: id });
 	}
 
 	async markRead(userId: string, id: string, announce = true): Promise<void> {
+		// RAW SQL: no entity for chat_* tables
 		await this.dataSource.query(`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`, [id, userId]);
+		// RAW SQL: bulk DELETE of message notifications by url (ANY uuid[]), errors swallowed by .catch; kept raw to keep exact statement
 		await this.dataSource.query(`DELETE FROM notifications WHERE user_id = $1 AND kind = 'message' AND url = $2`, [userId, `/chat/${id}`]).catch(() => undefined);
 		if (announce) {
 			this.publish([userId], { type: "changed", conversationId: id });
@@ -795,6 +861,7 @@ export class ChatService {
 			throw new BadRequest("Encrypted chat messages must include the sending device ID.");
 		}
 		const member = await this.assertMember(userId, id);
+		// RAW SQL: join of issue_reports with settings jsonb cast; no entity for issue_reports
 		const supportThread = (await this.dataSource.query(
 			`SELECT r.id, r.user_id, r.chat_open,
 				COALESCE((s.value #>> '{}')::boolean, false) AS chat_enabled
@@ -813,6 +880,7 @@ export class ChatService {
 		this.throttle(userId);
 		const messageId = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: FOR SHARE row lock on chat_conversations in transaction; no entity for chat_conversations
 			const rows = (await manager.query(`SELECT encryption_mode FROM chat_conversations WHERE id = $1 FOR SHARE`, [id])) as Array<{
 				encryption_mode: "encrypted" | "plaintext";
 			}>;
@@ -821,20 +889,24 @@ export class ChatService {
 				throw new BadRequest(rows[0].encryption_mode === "encrypted" ? "This conversation requires end-to-end encrypted messages." : "This conversation has been switched to plaintext messages.");
 			}
 			if (encrypted) {
+				// RAW SQL: no entity for chat_mls_* tables
 				const device = (await manager.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [mlsDeviceId, userId])) as Array<{ id: string }>;
 				if (!device[0]) throw new Forbidden("This chat device is not active.");
 			}
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted) VALUES ($1, $2, $3, 'text', $4, $5)`, [messageId, id, userId, body, encrypted]);
 			if (mlsWelcome) {
 				await this.storeMlsWelcomeRows(manager, userId, id, messageId, mlsWelcome.recipients, mlsWelcome.welcome, mlsWelcome.ratchetTree);
 			}
 			if (encrypted) {
+				// RAW SQL: no entity for chat_mls_* tables
 				const activeDevices = (await manager.query(
 					`SELECT d.id AS device_id FROM chat_members m
 					JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
 					WHERE m.conversation_id = $1 AND d.id <> $2`,
 					[id, mlsDeviceId],
 				)) as Array<{ device_id: string }>;
+				// RAW SQL: no entity for chat_mls_* tables
 				const deliveries = (await manager.query(`SELECT device_id FROM chat_mls_welcomes WHERE message_id = $1`, [messageId])) as Array<{ device_id: string }>;
 				const expectedDevices = new Set(activeDevices.map(({ device_id }) => device_id));
 				const deliveredDevices = new Set(deliveries.map(({ device_id }) => device_id));
@@ -842,10 +914,14 @@ export class ChatService {
 					throw new Conflict("Encrypted chat messages must include a Welcome for every other active chat device.");
 				}
 			}
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [id]);
+			// RAW SQL: no entity for issue_reports
 			await manager.query(`UPDATE issue_reports SET updated_at = now() WHERE conversation_id = $1`, [id]);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`, [id, userId]);
 		});
+		// RAW SQL: dynamic message SELECT with joins over chat_messages; no entity for chat_messages
 		const row = (await this.dataSource.query(`${MESSAGE_SELECT} WHERE m.id = $1`, [messageId])) as MessageRow[];
 		const message = messageOf(row[0]);
 		await this.notify(id, userId, message).catch((error: unknown) => logger().warn("Could not notify chat members.", error));
@@ -855,6 +931,7 @@ export class ChatService {
 
 	/** Unread messages across every conversation, for the navbar badge. */
 	async unreadCount(userId: string): Promise<number> {
+		// RAW SQL: aggregate count over chat_messages joined to chat_members; no entity for chat_*
 		const rows = (await this.dataSource.query(
 			`SELECT count(*)::int AS n FROM chat_messages msg JOIN chat_members m ON m.conversation_id = msg.conversation_id
 			WHERE m.user_id = $1 AND msg.kind = 'text' AND msg.created_at > m.last_read_at AND msg.user_id IS DISTINCT FROM $1`,
@@ -864,6 +941,7 @@ export class ChatService {
 	}
 
 	async encryptionStatus(): Promise<{ enabled: boolean; supported: boolean; allowUserDowngrade: boolean }> {
+		// RAW SQL: scalar subselects over settings in one query; keeps single round trip with jsonb values
 		const rows = (await this.dataSource.query(
 			`SELECT
 				(SELECT value FROM settings WHERE key = 'chat_e2ee_enabled') AS enabled,
@@ -876,6 +954,7 @@ export class ChatService {
 	}
 
 	private async notify(id: string, senderId: string, message: ChatMessage): Promise<void> {
+		// RAW SQL: join of chat_members with users/user_preferences; no entity for chat_members
 		const recipients = (await this.dataSource.query(
 			`SELECT m.user_id FROM chat_members m JOIN users u ON u.id = m.user_id
 			WHERE m.conversation_id = $1 AND m.user_id <> $2 AND u.disabled_at IS NULL
@@ -885,6 +964,7 @@ export class ChatService {
 		if (recipients.length === 0) {
 			return;
 		}
+		// RAW SQL: no entity for chat_* tables
 		const info = (await this.dataSource.query(`SELECT kind, name FROM chat_conversations WHERE id = $1`, [id])) as Array<{ kind: string; name: string | null }>;
 		const sender = message.sender?.displayName ?? "Someone";
 		const title = info[0]?.kind === "group" ? `${info[0].name}` : sender;
@@ -892,6 +972,7 @@ export class ChatService {
 		const ids = recipients.map((row) => row.user_id);
 		const url = `/chat/${id}`;
 		// One inbox entry per conversation: a newer message replaces the unread one instead of piling up.
+		// RAW SQL: bulk DELETE of message notifications by url (ANY uuid[]), errors swallowed by .catch; kept raw to keep exact statement
 		await this.dataSource.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1 AND read_at IS NULL AND user_id = ANY($2::uuid[])`, [url, ids]);
 		await this.notifications.send({ kind: "message", title, body: body.slice(0, 500), url }, ids);
 	}
@@ -927,17 +1008,20 @@ export class ChatService {
 
 	private async system(conversationId: string, userId: string | null, body: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(`SELECT value FROM settings WHERE key = $1 FOR SHARE`, ["chat_e2ee_enabled"])) as Array<{ value: unknown }>;
-			if (!rows[0] || typeof rows[0].value !== "boolean") {
+			const setting = await manager.findOne(Setting, { where: { key: "chat_e2ee_enabled" }, lock: { mode: "pessimistic_read" } });
+			if (!setting || typeof setting.value !== "boolean") {
 				throw new Error("The chat_e2ee_enabled setting is missing or invalid.");
 			}
-			if (rows[0].value) return;
+			if (setting.value) return;
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body) VALUES ($1, $2, $3, 'system', $4)`, [randomUUID(), conversationId, userId, body.slice(0, MAX_MESSAGE_LENGTH)]);
+			// RAW SQL: no entity for chat_* tables
 			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [conversationId]);
 		});
 	}
 
 	private async assertMember(userId: string, id: string): Promise<{ kind: "direct" | "group"; role: string }> {
+		// RAW SQL: no entity for chat_* tables
 		const rows = (await this.dataSource.query(
 			`SELECT c.kind, m.role FROM chat_conversations c JOIN chat_members m ON m.conversation_id = c.id
 			WHERE c.id = $1 AND m.user_id = $2`,
@@ -955,6 +1039,7 @@ export class ChatService {
 		if (names.length === 0) {
 			throw new BadRequest("Pick at least one person.");
 		}
+		// RAW SQL: join of chat_members with users/user_preferences; no entity for chat_members
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
 			WHERE lower(u.username) = ANY($1::text[]) AND u.disabled_at IS NULL AND (
@@ -978,19 +1063,23 @@ export class ChatService {
 			return [];
 		}
 		const [conversations, members, lastMessages, unread] = await Promise.all([
+			// RAW SQL: no entity for chat_* tables
 			this.dataSource.query(
 				`SELECT c.id, c.kind, c.name, c.encryption_mode, c.last_message_at,
 					(SELECT r.chat_open FROM issue_reports r WHERE r.conversation_id = c.id LIMIT 1) AS support_chat_open
 				FROM chat_conversations c WHERE c.id = ANY($1::uuid[])`,
 				[ids],
 			),
+			// RAW SQL: join of chat_members with users/user_preferences; no entity for chat_members
 			this.dataSource.query(
 				`SELECT m.conversation_id, m.role, u.id, u.username, u.display_name, up.avatar_file
 				FROM chat_members m JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id
 				WHERE m.conversation_id = ANY($1::uuid[]) ORDER BY m.joined_at ASC`,
 				[ids],
 			),
+			// RAW SQL: dynamic message SELECT with joins over chat_messages; no entity for chat_messages
 			this.dataSource.query(`${MESSAGE_SELECT.replace("SELECT", "SELECT DISTINCT ON (m.conversation_id)")} WHERE m.conversation_id = ANY($1::uuid[]) ORDER BY m.conversation_id, m.sequence DESC`, [ids]),
+			// RAW SQL: aggregate count over chat_messages joined to chat_members; no entity for chat_*
 			this.dataSource.query(
 				`SELECT msg.conversation_id, count(*)::int AS n FROM chat_messages msg
 				JOIN chat_members m ON m.conversation_id = msg.conversation_id AND m.user_id = $1

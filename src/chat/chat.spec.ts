@@ -14,7 +14,7 @@ type MockQuery = (sql: string, parameters?: unknown[]) => Promise<unknown[]>;
 function mockDataSource(query: MockQuery): DataSource {
 	return {
 		query,
-		transaction: async <T>(work: (manager: { query: MockQuery }) => Promise<T>) => work({ query }),
+		transaction: async <T>(work: (manager: { query: MockQuery; findOne: () => Promise<unknown> }) => Promise<T>) => work({ query, findOne: async () => (await query("SELECT value FROM settings"))[0] ?? null }),
 	} as unknown as DataSource;
 }
 
@@ -442,6 +442,7 @@ describe("ChatService", () => {
 				if (sql.includes("SELECT value FROM settings")) return [{ value: false }];
 				return [];
 			}),
+			findOne: async () => ({ value: false }),
 		};
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
 			if (sql.includes("SELECT user_id FROM chat_members")) return [{ user_id: A }];

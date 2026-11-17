@@ -6,6 +6,7 @@ import { CallService, derivedTurnSecret } from "./callService.js";
 function serviceWith(settings: Record<string, unknown>, members: string[] = []) {
 
 	const dataSource = {
+		getRepository: () => ({ findOne: async ({ where }: { where: { key: string } }) => (where.key in settings ? { value: settings[where.key] } : null) }),
 		query: async (sql: string, params: string[]) => (sql.includes("chat_members") ? members.map((user_id) => ({ user_id })) : params[0] in settings ? [{ value: settings[params[0]] }] : []),
 	};
 	return new CallService(dataSource as never);

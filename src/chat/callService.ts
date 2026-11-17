@@ -4,6 +4,7 @@ import { Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { appConfig } from "../config/store/appConfig.js";
 import { PartiesService } from "../party/partiesService.js";
+import { Setting } from "../entities/setting.entity.js";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 
 const CREDENTIAL_TTL_SECONDS = 6 * 60 * 60;
@@ -56,6 +57,7 @@ export class CallService {
 		if (!(await this.isEnabled())) {
 			throw new Forbidden("Calls are disabled on this server.");
 		}
+		// RAW SQL: no entity for chat_* tables
 		const rows = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [conversationId])) as Array<{ user_id: string }>;
 		const ids = rows.map((row) => row.user_id);
 		if (!ids.includes(userId)) {
@@ -67,6 +69,7 @@ export class CallService {
 	/** Key packages of the caller's and one peer's active devices, for starting an encrypted voice link inside a party. */
 	async partyKeyPackages(userId: string, partyId: string, peerId: string, lenient = false): Promise<PartyKeyPackage[]> {
 		await this.assertPartyMembers(partyId, [userId, peerId]);
+		// RAW SQL: no entity for chat_mls_* tables
 		const rows = (await this.dataSource.query(
 			`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
 			FROM chat_mls_devices d JOIN chat_mls_key_packages k ON k.device_id = d.id
@@ -92,11 +95,13 @@ export class CallService {
 	}
 
 	async claimPartyKeyPackage(userId: string, partyId: string, keyPackageId: string): Promise<PartyKeyPackage & { available: false }> {
+		// RAW SQL: no entity for chat_mls_* tables
 		const owner = (await this.dataSource.query(`SELECT d.user_id FROM chat_mls_key_packages k JOIN chat_mls_devices d ON d.id = k.device_id WHERE k.id = $1`, [keyPackageId])) as Array<{ user_id: string }>;
 		if (!owner[0]) {
 			throw new Conflict("That MLS key package was already used or is no longer available.");
 		}
 		await this.assertPartyMembers(partyId, [userId, owner[0].user_id]);
+		// RAW SQL: UPDATE ... FROM join with RETURNING; no entity for chat_mls_*
 		const rows = (await this.dataSource.query(
 			`UPDATE chat_mls_key_packages k SET used_at = now()
 			FROM chat_mls_devices d
@@ -169,9 +174,6 @@ export class CallService {
 	}
 
 	private async setting(key: string): Promise<unknown> {
-		const rows = (await this.dataSource.query(`SELECT value FROM settings WHERE key = $1`, [key])) as Array<{
-			value: unknown;
-		}>;
-		return rows[0]?.value;
+		return (await this.dataSource.getRepository(Setting).findOne({ where: { key } }))?.value;
 	}
 }
