@@ -19,11 +19,11 @@ const SIGNAL_WINDOW_MS = 10_000;
 const MAX_SIGNALS_PER_WINDOW = 120;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
-export type PartyAuthenticator = (token: string) => Promise<PartyPerson>;
+type PartyAuthenticator = (token: string) => Promise<PartyPerson>;
 /** Resolves whether the signed-in user's viewing limits allow this media item. */
-export type PartyItemGuard = (token: string, itemId: string) => Promise<boolean>;
+type PartyItemGuard = (token: string, itemId: string) => Promise<boolean>;
 /** Whether voice calls are switched on by the admin. */
-export interface PartyCallPolicy {
+interface PartyCallPolicy {
 	isEnabled(): Promise<boolean>;
 }
 

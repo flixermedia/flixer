@@ -16,8 +16,8 @@ const CONTROL_SCRIPT = `${partyJsonScript}\n${controlScript}`;
 const PRESENCE_SCRIPT = `${partyJsonScript}\n${presenceScript}`;
 const END_SCRIPT = `${partyJsonScript}\n${endScript}`;
 
-export const PARTY_TYPES = ["movie", "episode", "video", "track"] as const;
-export const MAX_PARTY_MEMBERS = 50;
+const PARTY_TYPES = ["movie", "episode", "video", "track"] as const;
+const MAX_PARTY_MEMBERS = 50;
 /** How long a party survives without its host before it is ended. */
 export const HOST_GRACE_MS = 90_000;
 const PARTY_TTL_SECONDS = 24 * 60 * 60;
@@ -64,7 +64,7 @@ export interface PartyChatMessage {
 	at: number;
 }
 
-export const MAX_CHAT_LENGTH = 500;
+const MAX_CHAT_LENGTH = 500;
 const CHAT_HISTORY = 50;
 
 export type PartyMessage =
@@ -75,7 +75,7 @@ export type PartyMessage =
 	/** Ephemeral, MLS-encrypted voice signalling between members. Never stored. */
 	| { type: "call-signal"; callId: string; from: string; to?: string; payload: string };
 
-export type PartyCommand =
+type PartyCommand =
 	| { action: "play" | "pause"; commandId: string; itemId?: string }
 	| { action: "seek"; commandId: string; itemId?: string; position: number }
 	| { action: "change-item"; commandId: string; itemId: string };
