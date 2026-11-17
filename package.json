@@ -15,7 +15,7 @@
 		"insomnia:update": "node scripts/update-insomnia.mjs",
 		"format": "node scripts/format.mjs --write",
 		"format:check": "node scripts/format.mjs --check",
-		"test:lint": "tsc --noEmit -p tsconfig.json && npm run format:check",
+		"test:lint": "tsc --noEmit -p tsconfig.json && node scripts/check-raw-sql.mjs && npm run format:check",
 		"test:unit": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"test:node": "node --test deploy/docker/installer.test.mjs deploy/coder/stack-logs.test.mjs deploy/proxy/nginx-config-init.test.mjs && npm test --prefix packages/flixer-api-client",
