@@ -6,6 +6,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
 const MAX_PLAYLISTS = 200;
@@ -141,27 +142,32 @@ export class PlaylistsService {
 		}
 		return this.dataSource.transaction(async (manager) => {
 			// Serialises concurrent adds so positions stay unique and the size cap holds.
-			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
-			const trackIds = item.type === "track" ? [itemId] : ((await manager.query(`SELECT id FROM media_items WHERE parent_id = $1 AND type = 'track' AND is_placeholder = false ORDER BY season_number NULLS FIRST, episode_number NULLS LAST, sort_title NULLS LAST, title`, [itemId])) as Array<{ id: string }>).map((row) => row.id);
+			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
+			const trackIds =
+				item.type === "track"
+					? [itemId]
+					: (
+							await manager.find(MediaItem, {
+								select: { id: true },
+								where: { parentId: itemId, type: "track", isPlaceholder: false },
+								order: { seasonNumber: { direction: "ASC", nulls: "FIRST" }, episodeNumber: { direction: "ASC", nulls: "LAST" }, sortTitle: { direction: "ASC", nulls: "LAST" }, title: "ASC" },
+							})
+						).map((row) => row.id);
 			if (!trackIds.length) {
 				throw new BadRequest("This album has no songs to add.");
 			}
+			// RAW SQL: aggregate with COUNT/MAX and int casts over playlist_items
 			const [{ count, next }] = (await manager.query(`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ count: number; next: number }>;
-			const existing = new Set(
-				(
-					(await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{
-						item_id: string;
-					}>
-				).map((row) => row.item_id),
-			);
+			const existing = new Set((await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } })).map((row) => row.itemId));
 			const fresh = trackIds.filter((trackId) => !existing.has(trackId));
 			if (count + fresh.length > MAX_TRACKS) {
 				throw new BadRequest(`A playlist can hold up to ${MAX_TRACKS} songs.`);
 			}
 			if (fresh.length) {
+				// RAW SQL: INSERT ... SELECT from unnest WITH ORDINALITY with ON CONFLICT DO NOTHING
 				await manager.query(`INSERT INTO playlist_items (playlist_id, item_id, position) SELECT $1, v.item_id, $3 + v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) ON CONFLICT DO NOTHING`, [id, fresh, next]);
 			}
-			await manager.query(`UPDATE playlists SET updated_at = now() WHERE id = $1`, [id]);
+			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 			return { added: fresh.length };
 		});
 	}
@@ -176,19 +182,21 @@ export class PlaylistsService {
 	async reorder(userId: string, id: string, itemIds: string[]): Promise<void> {
 		await this.requireOwned(userId, id);
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
-			const current = (await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ item_id: string }>;
+			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
+			const current = await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } });
 			const wanted = new Set(itemIds);
-			if (wanted.size !== itemIds.length || wanted.size !== current.length || current.some((row) => !wanted.has(row.item_id))) {
+			if (wanted.size !== itemIds.length || wanted.size !== current.length || current.some((row) => !wanted.has(row.itemId))) {
 				throw new BadRequest("The order must list every song in the playlist exactly once.");
 			}
+			// RAW SQL: UPDATE ... FROM unnest WITH ORDINALITY
 			await manager.query(`UPDATE playlist_items p SET position = v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) WHERE p.playlist_id = $1 AND p.item_id = v.item_id`, [id, itemIds]);
-			await manager.query(`UPDATE playlists SET updated_at = now() WHERE id = $1`, [id]);
+			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 		});
 	}
 
 	/** The user's own playlists that already hold the song. */
 	async containing(userId: string, itemId: string): Promise<string[]> {
+		// RAW SQL: join of playlists and playlist_items
 		const rows = (await this.dataSource.query(`SELECT p.id FROM playlists p JOIN playlist_items pi ON pi.playlist_id = p.id WHERE p.user_id = $1 AND pi.item_id = $2`, [userId, itemId])) as Array<{ id: string }>;
 		return rows.map((row) => row.id);
 	}
@@ -210,10 +218,11 @@ export class PlaylistsService {
 	}
 
 	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
-		const rows = (await this.dataSource.query(`SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1`, [ownerId])) as Array<{ visibility: "public" | "hidden" | "friends" }>;
-		const visibility = rows[0]?.visibility ?? "public";
+		const preferences = await this.dataSource.getRepository(UserPreference).findOne({ select: { profileVisibility: true }, where: { userId: ownerId } });
+		const visibility = preferences?.profileVisibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;
+		// RAW SQL: no entity for social_friendships
 		const friendship = (await this.dataSource.query(
 			`SELECT 1 FROM social_friendships WHERE accepted_at IS NOT NULL
 			AND ((user_low_id = $1 AND user_high_id = $2) OR (user_low_id = $2 AND user_high_id = $1))`,
@@ -231,6 +240,7 @@ export class PlaylistsService {
 		const ownerIds = [...new Set(playlists.map((playlist) => playlist.userId))];
 
 		const [stats, firsts, owners] = await Promise.all([
+			// RAW SQL: aggregate with jsonb ->> duration parsing and regex over playlist_items
 			this.dataSource.query(
 				`SELECT pi.playlist_id, COUNT(*)::int AS n,
 					COALESCE(SUM(CASE WHEN (m.technical->>'duration') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (m.technical->>'duration')::numeric ELSE 0 END), 0)::float AS dur
@@ -238,7 +248,9 @@ export class PlaylistsService {
 				WHERE pi.playlist_id = ANY($1::uuid[]) GROUP BY pi.playlist_id`,
 				[ids],
 			) as Promise<Array<{ playlist_id: string; n: number; dur: number }>>,
+			// RAW SQL: DISTINCT ON (playlist_id) first-item pick
 			this.dataSource.query(`SELECT DISTINCT ON (playlist_id) playlist_id, item_id FROM playlist_items WHERE playlist_id = ANY($1::uuid[]) ORDER BY playlist_id, position ASC`, [ids]) as Promise<Array<{ playlist_id: string; item_id: string }>>,
+			// RAW SQL: join of users and user_preferences returning snake_case rows
 			this.dataSource.query(`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE u.id = ANY($1::uuid[])`, [ownerIds]) as Promise<OwnerRow[]>,
 		]);
 

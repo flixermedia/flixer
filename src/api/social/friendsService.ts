@@ -41,6 +41,7 @@ export class FriendsService {
 	) {}
 
 	async list(userId: string) {
+		// RAW SQL: no entity for social_friendships; joins users and user_preferences with CASE join condition
 		const rows = (await this.dataSource.query(
 			`SELECT f.user_low_id, f.user_high_id, f.requested_by, f.accepted_at,
 				u.id, u.username, u.display_name, up.avatar_file
@@ -66,6 +67,7 @@ export class FriendsService {
 	async status(viewerId: string, otherId: string): Promise<FriendshipStatus> {
 		if (viewerId === otherId) return "self";
 		const [low, high] = pair(viewerId, otherId);
+		// RAW SQL: no entity for social_friendships
 		const rows = (await this.dataSource.query(`SELECT requested_by, accepted_at FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`, [low, high])) as Array<Pick<FriendshipRow, "requested_by" | "accepted_at">>;
 		const row = rows[0];
 		if (!row) return "none";
@@ -76,6 +78,7 @@ export class FriendsService {
 	async areFriends(firstId: string, secondId: string): Promise<boolean> {
 		if (firstId === secondId) return true;
 		const [low, high] = pair(firstId, secondId);
+		// RAW SQL: no entity for social_friendships
 		const rows = (await this.dataSource.query(`SELECT 1 FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2 AND accepted_at IS NOT NULL`, [low, high])) as unknown[];
 		return rows.length > 0;
 	}
@@ -96,6 +99,7 @@ export class FriendsService {
 		}
 		const expiresAt = options.mode === "expires" && expiresInHours ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000) : null;
 		const maxUses = options.mode === "once" ? 1 : null;
+		// RAW SQL: no entity for social_friend_invites; INSERT ... RETURNING
 		const rows = (await this.dataSource.query(
 			`INSERT INTO social_friend_invites (token, owner_id, max_uses, expires_at)
 			VALUES ($1, $2, $3, $4)
@@ -122,6 +126,7 @@ export class FriendsService {
 			throw new NotFound("Friend invite not found.");
 		}
 		return this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for social_friend_invites; row lock (FOR UPDATE OF)
 			const rows = (await manager.query(
 				`SELECT invite.owner_id, invite.max_uses, invite.use_count, invite.expires_at
 				FROM social_friend_invites invite
@@ -136,6 +141,7 @@ export class FriendsService {
 			if (!invite) throw new NotFound("Friend invite not found.");
 			if (invite.owner_id === userId) throw new BadRequest("You cannot add yourself as a friend.");
 			const [low, high] = pair(userId, invite.owner_id);
+			// RAW SQL: no entity for social_friendships; ON CONFLICT DO UPDATE with DB-side now()
 			await manager.query(
 				`INSERT INTO social_friendships (user_low_id, user_high_id, requested_by, accepted_at)
 				VALUES ($1, $2, $3, now())
@@ -143,6 +149,7 @@ export class FriendsService {
 					SET accepted_at = COALESCE(social_friendships.accepted_at, now())`,
 				[low, high, userId],
 			);
+			// RAW SQL: no entity for social_friend_invites; atomic counter increment
 			await manager.query(`UPDATE social_friend_invites SET use_count = use_count + 1 WHERE token = $1`, [token.toLowerCase()]);
 			return { status: "friends" as const };
 		});
@@ -153,6 +160,7 @@ export class FriendsService {
 		const previousStatus = await this.status(userId, target.id);
 		const requester = previousStatus === "none" ? await this.findUserById(userId) : undefined;
 		const [low, high] = pair(userId, target.id);
+		// RAW SQL: no entity for social_friendships; ON CONFLICT DO UPDATE with CASE and RETURNING
 		const rows = (await this.dataSource.query(
 			`INSERT INTO social_friendships (user_low_id, user_high_id, requested_by)
 			VALUES ($1, $2, $3)
@@ -189,6 +197,7 @@ export class FriendsService {
 		const target = await this.findUser(username);
 		if (!target) throw new NotFound("Person not found.");
 		const [low, high] = pair(userId, target.id);
+		// RAW SQL: no entity for social_friendships; conditional UPDATE ... RETURNING with DB-side now()
 		const rows = (await this.dataSource.query(
 			`UPDATE social_friendships SET accepted_at = now()
 			WHERE user_low_id = $1 AND user_high_id = $2 AND accepted_at IS NULL AND requested_by <> $3
@@ -206,10 +215,12 @@ export class FriendsService {
 		const target = await this.findUser(username);
 		if (!target) throw new NotFound("Person not found.");
 		const [low, high] = pair(userId, target.id);
+		// RAW SQL: no entity for social_friendships
 		await this.dataSource.query(`DELETE FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`, [low, high]);
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
+		// RAW SQL: case-insensitive lower() username lookup joining user_preferences
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, up.avatar_file
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
@@ -220,6 +231,7 @@ export class FriendsService {
 	}
 
 	private async findUserById(id: string): Promise<UserRow | undefined> {
+		// RAW SQL: join of users and user_preferences returning snake_case row
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, up.avatar_file
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
@@ -231,6 +243,7 @@ export class FriendsService {
 
 	private async findUserByInviteToken(token: string): Promise<UserRow | undefined> {
 		if (!/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(token)) return undefined;
+		// RAW SQL: no entity for social_friend_invites; join with DB-side now() expiry check
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, up.avatar_file
 			FROM social_friend_invites invite

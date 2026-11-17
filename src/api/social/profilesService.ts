@@ -3,6 +3,7 @@ import { NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { FavoritesService } from "./favoritesService.js";
@@ -59,6 +60,7 @@ export class ProfilesService {
 
 	async directory(viewerId: string, query?: string) {
 		const term = query?.trim().slice(0, 64);
+		// RAW SQL: correlated count subqueries, friendship EXISTS and ILIKE ESCAPE search
 		const rows = (await this.dataSource.query(
 			`SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file,
 				(SELECT count(*) FROM favorites f WHERE f.user_id = u.id)::int AS favorite_count,
@@ -124,6 +126,7 @@ export class ProfilesService {
 	}
 
 	async ownProfile(viewerId: string) {
+		// RAW SQL: shared userSql join of users and user_preferences
 		const rows = (await this.dataSource.query(this.userSql(`u.id = $1`), [viewerId])) as UserRow[];
 		if (!rows[0]) {
 			throw new NotFound("Profile not found.");
@@ -149,6 +152,7 @@ export class ProfilesService {
 		this.listening.set(userId, current);
 		if (!continuing) {
 			try {
+				// RAW SQL: data-modifying CTEs with ON CONFLICT DO UPDATE across listening_history, listening_events and playback_history
 				await this.dataSource.query(
 					`WITH recorded AS (
 						INSERT INTO listening_history (user_id, item_id, played_at, play_count) VALUES ($1, $2, now(), 1)
@@ -178,6 +182,7 @@ export class ProfilesService {
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
+		// RAW SQL: shared userSql join with case-insensitive lower() username match
 		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [username.slice(0, 64)])) as UserRow[];
 		return rows[0];
 	}
@@ -209,6 +214,7 @@ export class ProfilesService {
 		}
 		const fresh = song && isFresh(song.at) ? song : undefined;
 
+		// RAW SQL: DB-side now() minus interval cast from a text parameter
 		const [progress] = (await this.dataSource.query(
 			`SELECT item_id, position_seconds, duration_seconds, updated_at FROM watch_progress
 			WHERE user_id = $1 AND completed = false AND updated_at > now() - ($2 || ' milliseconds')::interval ORDER BY updated_at DESC LIMIT 1`,
@@ -240,6 +246,7 @@ export class ProfilesService {
 	}
 
 	private async recentlyWatched(userId: string): Promise<SocialItem[]> {
+		// RAW SQL: join of watch_progress and media_items
 		const rows = (await this.dataSource.query(
 			`SELECT w.item_id, w.updated_at FROM watch_progress w JOIN media_items m ON m.id = w.item_id
 			WHERE w.user_id = $1 AND m.type IN ('movie', 'episode', 'video') ORDER BY w.updated_at DESC LIMIT $2`,
@@ -254,14 +261,11 @@ export class ProfilesService {
 	}
 
 	private async recentlyListened(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(`SELECT item_id, played_at FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC LIMIT $2`, [userId, RECENT_LIMIT])) as Array<{
-			item_id: string;
-			played_at: Date;
-		}>;
+		const rows = await this.dataSource.getRepository(ListeningHistory).find({ select: { itemId: true, playedAt: true }, where: { userId }, order: { playedAt: "DESC" }, take: RECENT_LIMIT });
 		const cards = await loadSocialItems(
 			this.dataSource,
-			rows.map((row) => row.item_id),
-			new Map(rows.map((row) => [row.item_id, row.played_at])),
+			rows.map((row) => row.itemId),
+			new Map(rows.map((row) => [row.itemId, row.playedAt])),
 		);
 		return cards.map(toSocialItem);
 	}

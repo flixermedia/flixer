@@ -1,9 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource } from "typeorm";
+import { DataSource, type EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
 import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
@@ -73,6 +75,7 @@ export class UserMediaService {
 	) {}
 
 	async history(userId: string, offset = 0, limit = MAX_HISTORY_PAGE_SIZE + 1) {
+		// RAW SQL: window functions and CTEs with array_agg grouping over playback_history
 		const rows = (await this.dataSource.query(
 			`${HISTORY_GROUPS_SQL}
 			SELECT (array_agg(id ORDER BY started_at DESC, id DESC))[1] AS id, kind, group_item_id AS item_id,
@@ -99,6 +102,7 @@ export class UserMediaService {
 	}
 
 	async clearHistory(userId: string): Promise<void> {
+		// RAW SQL: data-modifying CTE moving playback_history into hidden sessions
 		await this.dataSource.query(
 			`
 			WITH hidden AS (
@@ -111,6 +115,7 @@ export class UserMediaService {
 	}
 
 	async removeHistory(userId: string, id: string): Promise<void> {
+		// RAW SQL: window-function CTEs with data-modifying CTE over playback_history
 		await this.dataSource.query(
 			`
 			${HISTORY_GROUPS_SQL}, target_group AS (
@@ -127,6 +132,7 @@ export class UserMediaService {
 	}
 
 	async watchLater(userId: string): Promise<SocialItem[]> {
+		// RAW SQL: no entity for watch_later_items
 		const rows = (await this.dataSource.query("SELECT item_id, added_at FROM watch_later_items WHERE user_id = $1 ORDER BY added_at DESC LIMIT 500", [userId])) as Array<{ item_id: string; added_at: Date }>;
 		const at = new Map(rows.map((row) => [row.item_id, row.added_at]));
 		return (
@@ -139,21 +145,25 @@ export class UserMediaService {
 	}
 
 	async watchLaterIds(userId: string): Promise<string[]> {
+		// RAW SQL: no entity for watch_later_items
 		const rows = (await this.dataSource.query("SELECT item_id FROM watch_later_items WHERE user_id = $1", [userId])) as Array<{ item_id: string }>;
 		return rows.map((row) => row.item_id);
 	}
 
 	async addWatchLater(userId: string, itemId: string): Promise<void> {
 		await this.requireVideoItem(itemId);
+		// RAW SQL: no entity for watch_later_items; ON CONFLICT DO NOTHING
 		await this.dataSource.query("INSERT INTO watch_later_items (user_id, item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [userId, itemId]);
 	}
 
 	async removeWatchLater(userId: string, itemId: string): Promise<void> {
+		// RAW SQL: no entity for watch_later_items
 		await this.dataSource.query("DELETE FROM watch_later_items WHERE user_id = $1 AND item_id = $2", [userId, itemId]);
 	}
 
 	async collections(userId: string, policy: AccessPolicy) {
 		const collections = this.collectionRows(
+			// RAW SQL: no entity for video_collections; join with count aggregate
 			(await this.dataSource.query(
 				`SELECT c.*, count(ci.item_id)::int AS item_count
 				FROM video_collections c LEFT JOIN video_collection_items ci ON ci.collection_id = c.id
@@ -162,6 +172,7 @@ export class UserMediaService {
 			)) as Array<CollectionRow & { item_count: number }>,
 		);
 		if (!collections.length) return collections;
+		// RAW SQL: query builder joining no-entity video_collections tables with array_agg slice and count cast
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").innerJoin("video_collection_items", "entry", "entry.item_id = item.id").innerJoin("video_collections", "collection", "collection.id = entry.collection_id").where("collection.user_id = :userId", { userId }).andWhere("item.is_placeholder = false").select("entry.collection_id", "collectionId").addSelect("count(*)::int", "visibleItemCount").addSelect("(array_agg(item.id ORDER BY entry.position ASC))[1:8]", "itemIds").groupBy("entry.collection_id");
 		this.access.restrict(query, "item", policy, { content: true });
 		const previews = await query.getRawMany<{ collectionId: string; itemIds: string[]; visibleItemCount: number }>();
@@ -181,8 +192,10 @@ export class UserMediaService {
 	async createCollection(userId: string, input: { name: string; description?: string | null; isPublic?: boolean }) {
 		const name = input.name?.trim();
 		if (!name || name.length > 100) throw new BadRequest("Collection name must be 1 to 100 characters.");
+		// RAW SQL: no entity for video_collections; count aggregate
 		const count = (await this.dataSource.query("SELECT count(*)::int AS count FROM video_collections WHERE user_id = $1", [userId])) as Array<{ count: number }>;
 		if (count[0].count >= MAX_COLLECTIONS) throw new BadRequest(`You can have up to ${MAX_COLLECTIONS} video collections.`);
+		// RAW SQL: no entity for video_collections; INSERT ... RETURNING with extra column
 		const rows = (await this.dataSource.query(
 			`INSERT INTO video_collections (id, user_id, name, description, is_public)
 			VALUES ($1, $2, $3, $4, $5) RETURNING *, 0::int AS item_count`,
@@ -200,6 +213,7 @@ export class UserMediaService {
 		}
 		if (changes.description !== undefined) collection.description = this.cleanDescription(changes.description);
 		if (typeof changes.isPublic === "boolean") collection.is_public = changes.isPublic;
+		// RAW SQL: no entity for video_collections; UPDATE ... RETURNING with count subselect and DB-side now()
 		const rows = (await this.dataSource.query(
 			`UPDATE video_collections SET name = $3, description = $4, is_public = $5, updated_at = now()
 			WHERE id = $1 AND user_id = $2 RETURNING *, (SELECT count(*)::int FROM video_collection_items WHERE collection_id = $1) AS item_count`,
@@ -209,10 +223,12 @@ export class UserMediaService {
 	}
 
 	async deleteCollection(userId: string, id: string): Promise<void> {
+		// RAW SQL: no entity for video_collections
 		await this.dataSource.query("DELETE FROM video_collections WHERE id = $1 AND user_id = $2", [id, userId]);
 	}
 
 	async collection(viewerId: string, id: string) {
+		// RAW SQL: no entity for video_collections; join with count aggregate
 		const rows = (await this.dataSource.query(
 			`SELECT c.*, count(ci.item_id)::int AS item_count
 			FROM video_collections c LEFT JOIN video_collection_items ci ON ci.collection_id = c.id
@@ -223,6 +239,7 @@ export class UserMediaService {
 		if (!collection) throw new NotFound("Collection not found.");
 		const isOwner = collection.user_id === viewerId;
 		if (!isOwner && (!collection.is_public || !(await this.ownerVisible(viewerId, collection.user_id)))) throw new NotFound("Collection not found.");
+		// RAW SQL: no entity for video_collection_items
 		const entries = (await this.dataSource.query("SELECT item_id, added_at FROM video_collection_items WHERE collection_id = $1 ORDER BY position ASC", [id])) as Array<{ item_id: string; added_at: Date }>;
 		const cards = await loadSocialItems(
 			this.dataSource,
@@ -236,20 +253,27 @@ export class UserMediaService {
 		await this.ownedCollection(userId, id);
 		await this.requireVideoItem(itemId);
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for video_collections; row lock (FOR UPDATE)
 			const owned = await manager.query("SELECT id FROM video_collections WHERE id = $1 AND user_id = $2 FOR UPDATE", [id, userId]);
 			if (!owned.length) throw new NotFound("Collection not found.");
+			// RAW SQL: no entity for video_collection_items; count/max aggregate
 			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM video_collection_items WHERE collection_id = $1", [id])) as Array<{ count: number; next: number }>;
 			if (rows[0].count >= MAX_COLLECTION_ITEMS) throw new BadRequest(`A collection can hold up to ${MAX_COLLECTION_ITEMS} items.`);
+			// RAW SQL: no entity for video_collection_items; ON CONFLICT DO NOTHING
 			await manager.query("INSERT INTO video_collection_items (collection_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", [id, itemId, rows[0].next]);
+			// RAW SQL: no entity for video_collections; DB-side now()
 			await manager.query("UPDATE video_collections SET updated_at = now() WHERE id = $1", [id]);
 		});
 	}
 
 	async removeCollectionItem(userId: string, id: string, itemId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for video_collections; row lock (FOR UPDATE)
 			const owned = await manager.query("SELECT id FROM video_collections WHERE id = $1 AND user_id = $2 FOR UPDATE", [id, userId]);
 			if (!owned.length) throw new NotFound("Collection not found.");
+			// RAW SQL: no entity for video_collection_items
 			await manager.query("DELETE FROM video_collection_items WHERE collection_id = $1 AND item_id = $2", [id, itemId]);
+			// RAW SQL: no entity for video_collections; DB-side now()
 			await manager.query("UPDATE video_collections SET updated_at = now() WHERE id = $1", [id]);
 		});
 	}
@@ -257,17 +281,23 @@ export class UserMediaService {
 	async reorderCollection(userId: string, id: string, itemIds: string[]): Promise<void> {
 		if (itemIds.length > MAX_COLLECTION_ITEMS || new Set(itemIds).size !== itemIds.length) throw new BadRequest("Invalid collection order.");
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for video_collections; row lock (FOR UPDATE)
 			const owned = await manager.query("SELECT id FROM video_collections WHERE id = $1 AND user_id = $2 FOR UPDATE", [id, userId]);
 			if (!owned.length) throw new NotFound("Collection not found.");
+			// RAW SQL: no entity for video_collection_items
 			const rows = (await manager.query("SELECT item_id FROM video_collection_items WHERE collection_id = $1", [id])) as Array<{ item_id: string }>;
 			if (rows.length !== itemIds.length || rows.some((row) => !itemIds.includes(row.item_id))) throw new BadRequest("Order must contain every collection item exactly once.");
+			// RAW SQL: no entity for video_collection_items; UPDATE with MAX subselect
 			await manager.query("UPDATE video_collection_items SET position = position + (SELECT COALESCE(MAX(position), 0) + 1 FROM video_collection_items WHERE collection_id = $1) WHERE collection_id = $1", [id]);
+			// RAW SQL: no entity for video_collection_items; UPDATE ... FROM unnest WITH ORDINALITY
 			await manager.query("UPDATE video_collection_items entry SET position = ordered.ordinality - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS ordered(item_id, ordinality) WHERE entry.collection_id = $1 AND entry.item_id = ordered.item_id", [id, itemIds]);
+			// RAW SQL: no entity for video_collections; DB-side now()
 			await manager.query("UPDATE video_collections SET updated_at = now() WHERE id = $1", [id]);
 		});
 	}
 
 	async queue(userId: string): Promise<SocialItem[]> {
+		// RAW SQL: no entity for up_next_queue_items
 		const rows = (await this.dataSource.query("SELECT item_id, added_at FROM up_next_queue_items WHERE user_id = $1 ORDER BY position ASC", [userId])) as Array<{ item_id: string; added_at: Date }>;
 		return (
 			await loadSocialItems(
@@ -281,23 +311,27 @@ export class UserMediaService {
 	async addToQueue(userId: string, itemId: string): Promise<void> {
 		await this.requireVideoItem(itemId, PLAYABLE_VIDEO_TYPES);
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
+			await this.lockUser(manager, userId);
+			// RAW SQL: no entity for up_next_queue_items; count/max aggregate
 			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM up_next_queue_items WHERE user_id = $1", [userId])) as Array<{ count: number; next: number }>;
 			if (rows[0].count >= MAX_QUEUE_ITEMS) throw new BadRequest(`Up Next can hold up to ${MAX_QUEUE_ITEMS} items.`);
+			// RAW SQL: no entity for up_next_queue_items; ON CONFLICT DO NOTHING
 			await manager.query("INSERT INTO up_next_queue_items (user_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", [userId, itemId, rows[0].next]);
 		});
 	}
 
 	async removeFromQueue(userId: string, itemId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
+			await this.lockUser(manager, userId);
+			// RAW SQL: no entity for up_next_queue_items
 			await manager.query("DELETE FROM up_next_queue_items WHERE user_id = $1 AND item_id = $2", [userId, itemId]);
 		});
 	}
 
 	async clearQueue(userId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
+			await this.lockUser(manager, userId);
+			// RAW SQL: no entity for up_next_queue_items
 			await manager.query("DELETE FROM up_next_queue_items WHERE user_id = $1", [userId]);
 		});
 	}
@@ -305,10 +339,13 @@ export class UserMediaService {
 	async reorderQueue(userId: string, itemIds: string[]): Promise<void> {
 		if (itemIds.length > MAX_QUEUE_ITEMS || new Set(itemIds).size !== itemIds.length) throw new BadRequest("Invalid queue order.");
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
+			await this.lockUser(manager, userId);
+			// RAW SQL: no entity for up_next_queue_items
 			const rows = (await manager.query("SELECT item_id FROM up_next_queue_items WHERE user_id = $1", [userId])) as Array<{ item_id: string }>;
 			if (rows.length !== itemIds.length || rows.some((row) => !itemIds.includes(row.item_id))) throw new BadRequest("Order must contain every queued item exactly once.");
+			// RAW SQL: no entity for up_next_queue_items; UPDATE with MAX subselect
 			await manager.query("UPDATE up_next_queue_items SET position = position + (SELECT COALESCE(MAX(position), 0) + 1 FROM up_next_queue_items WHERE user_id = $1) WHERE user_id = $1", [userId]);
+			// RAW SQL: no entity for up_next_queue_items; UPDATE ... FROM unnest WITH ORDINALITY
 			await manager.query("UPDATE up_next_queue_items entry SET position = ordered.ordinality - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS ordered(item_id, ordinality) WHERE entry.user_id = $1 AND entry.item_id = ordered.item_id", [userId, itemIds]);
 		});
 	}
@@ -319,6 +356,7 @@ export class UserMediaService {
 			select: { id: true, type: true },
 		});
 		if (!item || !["movie", "series", "album", "video"].includes(item.type)) throw new NotFound("Recommendation item not found.");
+		// RAW SQL: no entity for recommendation_feedback; ON CONFLICT DO UPDATE with DB-side now()
 		await this.dataSource.query(
 			`INSERT INTO recommendation_feedback (user_id, item_id, feedback) VALUES ($1, $2, $3)
 			ON CONFLICT (user_id, item_id) DO UPDATE SET feedback = EXCLUDED.feedback, updated_at = now()`,
@@ -327,15 +365,18 @@ export class UserMediaService {
 	}
 
 	async clearRecommendationFeedback(userId: string, itemId: string): Promise<void> {
+		// RAW SQL: no entity for recommendation_feedback
 		await this.dataSource.query("DELETE FROM recommendation_feedback WHERE user_id = $1 AND item_id = $2", [userId, itemId]);
 	}
 
 	async dismissedRecommendations(userId: string): Promise<string[]> {
+		// RAW SQL: no entity for recommendation_feedback
 		const rows = (await this.dataSource.query("SELECT item_id FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss'", [userId])) as Array<{ item_id: string }>;
 		return rows.map((row) => row.item_id);
 	}
 
 	async dismissedRecommendationItems(userId: string): Promise<SocialItem[]> {
+		// RAW SQL: no entity for recommendation_feedback
 		const rows = (await this.dataSource.query("SELECT item_id, updated_at FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss' ORDER BY updated_at DESC", [userId])) as Array<{ item_id: string; updated_at: Date }>;
 		return (
 			await loadSocialItems(
@@ -356,16 +397,23 @@ export class UserMediaService {
 	}
 
 	private async ownedCollection(userId: string, id: string): Promise<CollectionRow> {
+		// RAW SQL: no entity for video_collections
 		const rows = (await this.dataSource.query("SELECT * FROM video_collections WHERE id = $1 AND user_id = $2", [id, userId])) as CollectionRow[];
 		if (!rows[0]) throw new NotFound("Collection not found.");
 		return rows[0];
 	}
 
+	/** Row lock on the user serialises concurrent queue changes; the query builder avoids the eager preferences join, which cannot be locked. */
+	private async lockUser(manager: EntityManager, userId: string): Promise<void> {
+		await manager.createQueryBuilder(User, "user").select("user.id").setLock("pessimistic_write").where("user.id = :userId", { userId }).getOne();
+	}
+
 	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
-		const rows = (await this.dataSource.query("SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1", [ownerId])) as Array<{ visibility: "public" | "hidden" | "friends" }>;
-		const visibility = rows[0]?.visibility ?? "public";
+		const preferences = await this.dataSource.getRepository(UserPreference).findOne({ select: { profileVisibility: true }, where: { userId: ownerId } });
+		const visibility = preferences?.profileVisibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;
+		// RAW SQL: no entity for social_friendships
 		const friendship = (await this.dataSource.query(
 			`SELECT 1 FROM social_friendships WHERE accepted_at IS NOT NULL
 			AND ((user_low_id = $1 AND user_high_id = $2) OR (user_low_id = $2 AND user_high_id = $1))`,
