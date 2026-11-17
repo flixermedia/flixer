@@ -17,10 +17,12 @@ export interface ActivityRow {
 	updated_at: Date;
 }
 
+// RAW SQL: SQL fragment: COALESCE and joined season/parent columns for activity rows
 export const ACTIVITY_SELECT = `COALESCE(u.display_name, u.username) AS user_name, i.title, i.type, parent.title AS parent_title,
 	COALESCE(i.season_number, season.season_number) AS season_number, i.episode_number,
 	w.position_seconds, w.duration_seconds, w.completed, w.updated_at`;
 
+// RAW SQL: SQL fragment: multi-join over watch_progress/media_items shared by activity queries
 export const ACTIVITY_FROM = `FROM watch_progress w
 	JOIN users u ON u.id = w.user_id
 	JOIN media_items i ON i.id = w.item_id
@@ -56,6 +58,7 @@ interface ActivityQuery {
 
 const TYPES = ["movie", "episode", "track", "video"];
 const STATUSES = ["finished", "in_progress"];
+// RAW SQL: SQL ORDER BY fragments keyed by allowed sort names
 const SORTS: Record<string, string> = {
 	recent: "w.updated_at DESC",
 	oldest: "w.updated_at ASC",
@@ -123,7 +126,14 @@ export class ActivityService {
 		const page = Math.max(1, Number.parseInt(query.page ?? "", 10) || 1);
 		const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
-		const [summary, rows, users] = await Promise.all([this.dataSource.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE w.completed)::int AS finished, COUNT(DISTINCT w.user_id)::int AS users ${ACTIVITY_FROM} ${clause}`, params) as Promise<Array<{ total: number; finished: number; users: number }>>, this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ${clause} ORDER BY ${SORTS[sort]} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, (page - 1) * pageSize]) as Promise<ActivityRow[]>, this.dataSource.query(`SELECT id, COALESCE(display_name, username) AS name FROM users ORDER BY name ASC`) as Promise<Array<{ id: string; name: string }>>]);
+		const [summary, rows, users] = await Promise.all([
+			// RAW SQL: FILTER aggregate and DISTINCT count over shared dynamic filter clause
+			this.dataSource.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE w.completed)::int AS finished, COUNT(DISTINCT w.user_id)::int AS users ${ACTIVITY_FROM} ${clause}`, params) as Promise<Array<{ total: number; finished: number; users: number }>>,
+			// RAW SQL: dynamic filters and ORDER BY expressions shared with the overview activity query
+			this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ${clause} ORDER BY ${SORTS[sort]} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, (page - 1) * pageSize]) as Promise<ActivityRow[]>,
+			// RAW SQL: COALESCE alias ordered by alias; kept for identical row shape
+			this.dataSource.query(`SELECT id, COALESCE(display_name, username) AS name FROM users ORDER BY name ASC`) as Promise<Array<{ id: string; name: string }>>,
+		]);
 
 		const { total, finished, users: activeUsers } = summary[0] ?? { total: 0, finished: 0, users: 0 };
 		return {

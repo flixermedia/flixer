@@ -60,6 +60,7 @@ export class OverviewService {
 	}
 
 	private async counts() {
+		// RAW SQL: grouped COUNT with ::text cast to keep bigint results as strings
 		const rows: CountRow[] = await this.dataSource.query(`SELECT type, COUNT(*)::text AS count FROM media_items WHERE is_placeholder = false GROUP BY type`);
 		const byType = new Map(rows.map((row) => [row.type, Number(row.count)]));
 		return {
@@ -72,7 +73,11 @@ export class OverviewService {
 	}
 
 	private async libraries() {
-		const [entities, rows] = await Promise.all([this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } }), this.dataSource.query(`SELECT library_id, COUNT(*)::text AS items, SUM(size_bytes)::text AS size FROM media_items WHERE is_placeholder = false AND type = ANY($1) GROUP BY library_id`, [FILE_TYPES]) as Promise<LibraryRow[]>]);
+		const [entities, rows] = await Promise.all([
+			this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } }),
+			// RAW SQL: grouped COUNT/SUM with ::text casts to keep bigint results as strings
+			this.dataSource.query(`SELECT library_id, COUNT(*)::text AS items, SUM(size_bytes)::text AS size FROM media_items WHERE is_placeholder = false AND type = ANY($1) GROUP BY library_id`, [FILE_TYPES]) as Promise<LibraryRow[]>,
+		]);
 		const byLibrary = new Map(rows.map((row) => [row.library_id, row]));
 		return entities.map((library) => {
 			const row = byLibrary.get(library.id);
@@ -81,6 +86,7 @@ export class OverviewService {
 	}
 
 	private async activity() {
+		// RAW SQL: multi-join activity query built from shared SQL fragments
 		const rows: ActivityRow[] = await this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ORDER BY w.updated_at DESC LIMIT $1`, [ACTIVITY_LIMIT]);
 		return rows.map(mapActivityRow);
 	}
