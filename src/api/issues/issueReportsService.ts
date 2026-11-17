@@ -26,7 +26,7 @@ interface IssueReportUpdate {
 	author: { username: string; displayName: string } | null;
 }
 
-interface IssueReport {
+export interface IssueReport {
 	id: string;
 	title: string;
 	category: string;

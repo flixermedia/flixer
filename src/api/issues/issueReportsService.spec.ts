@@ -56,7 +56,7 @@ function createService(
 			return [];
 		}),
 	};
-	const transaction = vi.fn(async (work: (manager: typeof manager) => Promise<unknown>) => work(manager));
+	const transaction = vi.fn(async (work: (transactionManager: typeof manager) => Promise<unknown>) => work(manager));
 	const settings = [
 		{ key: "issue_reports_enabled", value: config.enabled },
 		{ key: "issue_reports_categories", value: config.categories },
