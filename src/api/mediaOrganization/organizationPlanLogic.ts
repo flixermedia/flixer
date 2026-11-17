@@ -1,7 +1,7 @@
 import { BadRequest, Conflict } from "@tsed/exceptions";
 
-export const ORGANIZATION_TEMPLATE_FIELDS = ["movie", "series", "episode", "music"] as const;
-export type OrganizationTemplateField = (typeof ORGANIZATION_TEMPLATE_FIELDS)[number];
+const ORGANIZATION_TEMPLATE_FIELDS = ["movie", "series", "episode", "music"] as const;
+type OrganizationTemplateField = (typeof ORGANIZATION_TEMPLATE_FIELDS)[number];
 export type OrganizationTemplates = Record<OrganizationTemplateField, string>;
 
 export const DEFAULT_ORGANIZATION_TEMPLATES: OrganizationTemplates = {
