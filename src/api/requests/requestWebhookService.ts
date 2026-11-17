@@ -16,7 +16,7 @@ const REQUEST_WEBHOOK_USERNAME = "flixer";
 const COMPLETION_EVENTS = new Set(["download", "import", "importcomplete"]);
 const MAX_REFRESH_TARGETS = 100;
 
-interface RequestWebhookCredentials {
+export interface RequestWebhookCredentials {
 	username: string;
 	password: string;
 }
