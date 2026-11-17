@@ -2,12 +2,9 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { liveLogHub, type LiveLogHub } from "./liveLogHub.ts";
+import { CLOSE_UNAUTHORIZED, closeCodeFor } from "../utils/socketCloseCodes.ts";
 
 export const LIVE_LOG_PATH = "/api/logs/stream";
-
-/** Close codes sent to clients. 4401/4403 mean "do not reconnect with the same credentials". */
-export const CLOSE_UNAUTHORIZED = 4401;
-export const CLOSE_FORBIDDEN = 4403;
 
 const AUTH_TIMEOUT_MS = 5_000;
 const REVALIDATE_INTERVAL_MS = 60_000;
@@ -184,7 +181,3 @@ function parseAuthMessage(raw: RawData): string | null {
 	}
 }
 
-function closeCodeFor(error: unknown): number {
-	const status = (error as { status?: number } | null)?.status;
-	return status === 403 ? CLOSE_FORBIDDEN : CLOSE_UNAUTHORIZED;
-}

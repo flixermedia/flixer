@@ -1,5 +1,5 @@
 /** The data streams admins can subscribe to over the live socket. */
-export const LIVE_TOPICS = ["overview", "streams", "devices", "indexer", "shares"] as const;
+const LIVE_TOPICS = ["overview", "streams", "devices", "indexer", "shares"] as const;
 export type LiveTopic = (typeof LIVE_TOPICS)[number];
 
 export function isLiveTopic(value: unknown): value is LiveTopic {
@@ -7,11 +7,11 @@ export function isLiveTopic(value: unknown): value is LiveTopic {
 }
 
 /** Who a subscription belongs to; loaders can tailor their data to it (the devices list marks the caller's own session). */
-export interface LiveContext {
+interface LiveContext {
 	sessionId: string;
 }
 
-export interface LiveTopicDefinition {
+interface LiveTopicDefinition {
 	/** How often the data is re-read while someone is subscribed. Mutations can also call invalidate() for an instant push. */
 	intervalMs: number;
 	/** Gives every session its own copy of the data instead of sharing one. */
@@ -19,7 +19,7 @@ export interface LiveTopicDefinition {
 	load: (context: LiveContext) => Promise<unknown>;
 }
 
-export type LiveListener = (topic: LiveTopic, data: unknown) => void;
+type LiveListener = (topic: LiveTopic, data: unknown) => void;
 
 interface Subscriber {
 	context: LiveContext;

@@ -2,7 +2,7 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { Forbidden } from "@tsed/exceptions";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.ts";
+import { CLOSE_UNAUTHORIZED } from "../utils/socketCloseCodes.ts";
 import { AuthService } from "../api/auth/authService.ts";
 import type { PartiesService, PartyMessage, PartyPerson } from "./partiesService.ts";
 

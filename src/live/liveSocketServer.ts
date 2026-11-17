@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_FORBIDDEN, CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.ts";
+import { CLOSE_UNAUTHORIZED, closeCodeFor } from "../utils/socketCloseCodes.ts";
 import { isLiveTopic, type LiveHub, type LiveTopic } from "./liveHub.ts";
 
 export const LIVE_PATH = "/api/live";
@@ -14,7 +14,7 @@ const MAX_CLIENT_MESSAGE_BYTES = 4_096;
 const MAX_BUFFERED_BYTES = 4 * 1_024 * 1_024;
 
 /** Resolves with the caller's session when the token belongs to an administrator, and rejects (optionally with `status`) otherwise. */
-export type LiveAuthenticator = (token: string) => Promise<{ sessionId: string }>;
+type LiveAuthenticator = (token: string) => Promise<{ sessionId: string }>;
 
 interface Connection {
 	authenticated: boolean;
@@ -204,7 +204,3 @@ function parseMessage(raw: RawData): (ClientMessage & { type: string }) | null {
 	}
 }
 
-function closeCodeFor(error: unknown): number {
-	const status = (error as { status?: number } | null)?.status;
-	return status === 403 ? CLOSE_FORBIDDEN : CLOSE_UNAUTHORIZED;
-}
