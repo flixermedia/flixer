@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 /** How a configuration value is checked before it is saved. Format checks only; live connectivity tests belong to the setup steps. */
-export type ConfigValidator = (value: string) => string | null;
+type ConfigValidator = (value: string) => string | null;
 
 export interface ConfigKeyDefinition {
 	/** Key in the SQLite store. */

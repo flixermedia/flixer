@@ -5,10 +5,10 @@ import { CONFIG_KEYS, type ConfigKeyDefinition, type ConfigName } from "./config
 import { SecretBox } from "./secretBox.ts";
 
 /** not_started: nothing saved yet. in_progress: the wizard has begun. completed: never reset by an outage. recovery_required: needs an administrator. */
-export const SETUP_STATES = ["not_started", "in_progress", "completed", "recovery_required"] as const;
+const SETUP_STATES = ["not_started", "in_progress", "completed", "recovery_required"] as const;
 export type SetupState = (typeof SETUP_STATES)[number];
 
-export interface WizardProgress {
+interface WizardProgress {
 	flow: "quick" | "advanced";
 	completedSteps: string[];
 	/** The wizard was pointed at a database that already has accounts, so setup continues without creating an administrator. */

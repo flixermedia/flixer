@@ -1,6 +1,6 @@
 import ipaddr from "ipaddr.js";
 
-export interface TrustedProxyConfig {
+interface TrustedProxyConfig {
 	enabled: boolean;
 	addresses: string[];
 }
