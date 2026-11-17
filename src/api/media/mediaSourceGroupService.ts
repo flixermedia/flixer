@@ -10,7 +10,7 @@ interface SourceRow {
 	is_placeholder: boolean;
 }
 
-export interface MediaSourceGroup {
+interface MediaSourceGroup {
 	primaryId: string;
 	sourceIds: string[];
 }

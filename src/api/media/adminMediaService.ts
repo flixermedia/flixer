@@ -10,7 +10,7 @@ import { normalizeChapterTitle } from "./chapterTitles.ts";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.ts";
 import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.ts";
 
-export const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
+const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
 const MAX_IMAGES_PER_ITEM = 60;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
 const MAX_PROVIDER_ID_LENGTH = 256;
@@ -25,7 +25,7 @@ interface StoredImage {
 	language?: unknown;
 }
 
-export interface MediaItemImage {
+interface MediaItemImage {
 	index: number;
 	type: string;
 	provider: string;
@@ -79,7 +79,7 @@ function episodeArtworkIndex(images: unknown[] | null | undefined): number | nul
 
 }
 
-export interface MediaItemQuery {
+interface MediaItemQuery {
 	libraryId?: string;
 	type?: string;
 	parentId?: string;

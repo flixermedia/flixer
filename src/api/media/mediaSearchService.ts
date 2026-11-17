@@ -23,7 +23,7 @@ const POLL_INTERVAL_MS = 3_000;
 const INITIAL_INDEX_CHECK_INTERVAL_MS = 60_000;
 const SEARCH_TIMEOUT_MS = 2_000;
 
-export interface MediaSearchFilters {
+interface MediaSearchFilters {
 	type?: string | string[];
 	genre?: string;
 	yearFrom?: number;
@@ -84,7 +84,7 @@ interface MeilisearchTasksResponse {
 	results?: MeilisearchTaskSummary[];
 }
 
-export interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
+interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
 	details: Record<string, unknown> | null;
 	error: {
 		message?: string;
@@ -94,7 +94,7 @@ export interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
 	} | null;
 }
 
-export interface MediaSearchAdminStatus {
+interface MediaSearchAdminStatus {
 	enabled: boolean;
 	url: string;
 	customUrl: string;

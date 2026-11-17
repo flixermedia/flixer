@@ -1,7 +1,7 @@
 import sharp from "sharp";
 
 /** Widths a client may ask for. Anything else is rounded up to the next one, which keeps the cache small. */
-export const IMAGE_WIDTHS = [64, 128, 256, 384, 512, 768, 1024, 1536, 2048] as const;
+const IMAGE_WIDTHS = [64, 128, 256, 384, 512, 768, 1024, 1536, 2048] as const;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 100_000_000;
 

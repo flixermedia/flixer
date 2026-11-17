@@ -19,7 +19,7 @@ const PROFILE_REFRESH_MS = 180 * 24 * 60 * 60 * 1000;
 const PROFILE_RETRY_MS = 14 * 24 * 60 * 60 * 1000;
 const PROFILE_LINK_PREFIXES = ["https://en.wikipedia.org/", "https://www.discogs.com/"];
 
-export interface PersonProfileView {
+interface PersonProfileView {
 	description: string | null;
 	biography: string | null;
 	source: string | null;
@@ -42,9 +42,9 @@ const SEARCH_TYPE_FAMILIES: Partial<Record<MediaItemType, MediaItemType[]>> = {
 	album: ["album", "track"],
 };
 const SEARCH_LIMIT = 60;
-export type MediaSearchEngine = "meilisearch" | "postgresql" | "none";
+type MediaSearchEngine = "meilisearch" | "postgresql" | "none";
 
-export interface SearchFilters {
+interface SearchFilters {
 	type?: string;
 	genre?: string;
 	yearFrom?: number;
@@ -174,7 +174,7 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 
 }
 
-export interface HomeCard {
+interface HomeCard {
 	id: string;
 	type: MediaItemType;
 	title: string;
@@ -189,14 +189,14 @@ export interface HomeCard {
 	lockReason?: "library" | "rating" | "unrated" | "tags";
 }
 
-export interface HomeFeatured extends HomeCard {
+interface HomeFeatured extends HomeCard {
 	tagline: string | null;
 	overview: string | null;
 	rating: string | null;
 	runtimeMinutes: number | null;
 }
 
-export interface HomeLibrary {
+interface HomeLibrary {
 	id: string;
 	name: string;
 	type: string;
@@ -205,7 +205,7 @@ export interface HomeLibrary {
 	cover: { itemId: string; index: number; updatedAt: Date } | null;
 }
 
-export interface ContinueCard {
+interface ContinueCard {
 	id: string;
 	type: MediaItemType;
 	title: string;
