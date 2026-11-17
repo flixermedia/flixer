@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -15,7 +15,7 @@ import { validatePostgresUrl } from "../../config/store/configSchema.ts";
 
 type TransferState = "idle" | "running" | "failed" | "interrupted" | "completed";
 
-export interface DatabaseTransferStatus {
+interface DatabaseTransferStatus {
 	state: TransferState;
 	phase: string;
 	message: string;
