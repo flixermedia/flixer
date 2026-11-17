@@ -1,7 +1,7 @@
 import { BadRequest } from "@tsed/exceptions";
 
-export const TRANSCODE_HW_ACCEL = ["none", "nvenc", "qsv", "vaapi", "amf"] as const;
-export const TRANSCODE_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"] as const;
+const TRANSCODE_HW_ACCEL = ["none", "nvenc", "qsv", "vaapi", "amf"] as const;
+const TRANSCODE_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"] as const;
 
 export const TRANSCODING_SETTING_KEYS = [
 	"transcode_hw_accel",
