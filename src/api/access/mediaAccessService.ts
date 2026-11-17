@@ -43,7 +43,7 @@ export interface AccessPolicy {
 	enforced: boolean;
 }
 
-interface AccessPolicyDto {
+export interface AccessPolicyDto {
 	libraryMode: LibraryAccessMode;
 	libraryIds: string[];
 	maxAge: number | null;
