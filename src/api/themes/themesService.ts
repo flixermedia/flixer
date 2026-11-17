@@ -7,7 +7,7 @@ import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
 import { Setting } from "../../entities/setting.entity.ts";
 import { IndexerClient, type IndexerThemeTask } from "../indexer/indexerClient.ts";
 
-export const THEMES_ENABLED_KEY = "themes_enabled";
+const THEMES_ENABLED_KEY = "themes_enabled";
 const BATCH_SIZE = 200;
 const TMDB_KEY = /^tmdb:(\d+)$/;
 
