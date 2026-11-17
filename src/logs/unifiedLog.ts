@@ -16,7 +16,7 @@ export interface UnifiedLogRecord {
 	[field: string]: unknown;
 }
 
-export const APP_NAME = "flixer";
+const APP_NAME = "flixer";
 
 const MAX_MESSAGE_LENGTH = 4_000;
 // eslint-disable-next-line no-control-regex
@@ -48,7 +48,7 @@ function formatItem(item: unknown): string {
 }
 
 /** Joins log arguments into one plain-text line (no colours, bounded length). */
-export function formatLogMessage(data: unknown[]): string {
+function formatLogMessage(data: unknown[]): string {
 	const message = data.map(formatItem).join(" ").replace(ANSI_PATTERN, "").trim();
 	return message.length > MAX_MESSAGE_LENGTH ? `${message.slice(0, MAX_MESSAGE_LENGTH)}…` : message;
 }

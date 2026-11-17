@@ -14,7 +14,7 @@ const MAX_CLIENT_MESSAGE_BYTES = 4_096;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
 /** Resolves when the token belongs to an administrator and rejects (optionally with `status`) otherwise. */
-export type AdminAuthenticator = (token: string) => Promise<void>;
+type AdminAuthenticator = (token: string) => Promise<void>;
 
 interface Connection {
 	authenticated: boolean;
