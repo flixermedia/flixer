@@ -6,6 +6,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { PasskeyCredential } from "../../entities/passkeyCredential.entity.ts";
 import { User, type OriginalAccess, type UserRole } from "../../entities/user.entity.ts";
 import { UserSession } from "../../entities/userSession.entity.ts";
+import { isUniqueViolation } from "../../utils/isUniqueViolation.ts";
 import { AuthService } from "../auth/authService.ts";
 import { AvatarService } from "../auth/avatar/avatarService.ts";
 import { deleteAvatarFile } from "../auth/avatar/avatarStorage.ts";
@@ -33,11 +34,6 @@ interface UserStats {
 	activeSessions: number;
 	lastActiveAt: Date | null;
 	currentUserId: string;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-	const driverError = typeof error === "object" && error !== null && "driverError" in error ? error.driverError : undefined;
-	return typeof driverError === "object" && driverError !== null && "code" in driverError && driverError.code === "23505";
 }
 
 /** User management for the admin dashboard. */

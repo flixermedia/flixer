@@ -7,6 +7,7 @@ import { DefaultDataSource } from "../../../datasources/defaultDataSource.dataso
 import { QuickConnectRequest, type QuickConnectStatus } from "../../../entities/quickConnectRequest.entity.ts";
 import { Setting } from "../../../entities/setting.entity.ts";
 import { User } from "../../../entities/user.entity.ts";
+import { isUniqueViolation } from "../../../utils/isUniqueViolation.ts";
 import { RateLimitService } from "../login/rateLimitService.ts";
 import { AuthService, type AuthResult } from "../authService.ts";
 
@@ -64,7 +65,7 @@ export class QuickConnectService {
 					appUrl: appConfig().get("appUrl") || appConfig().get("publicUrl") || undefined,
 				};
 			} catch (error) {
-				if (attempt === 2 || !this.isUniqueViolation(error)) throw error;
+				if (attempt === 2 || !isUniqueViolation(error)) throw error;
 			}
 		}
 
@@ -156,11 +157,5 @@ export class QuickConnectService {
 	private createUserCode(): string {
 		const bytes = randomBytes(8);
 		return [...bytes].map((byte) => USER_CODE_ALPHABET[byte & 31]).join("");
-	}
-
-	private isUniqueViolation(error: unknown): boolean {
-		if (typeof error !== "object" || error === null || !("driverError" in error)) return false;
-		const driverError = error.driverError;
-		return typeof driverError === "object" && driverError !== null && "code" in driverError && driverError.code === "23505";
 	}
 }

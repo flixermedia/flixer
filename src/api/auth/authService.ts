@@ -11,6 +11,7 @@ import { PasskeyCredential } from "../../entities/passkeyCredential.entity.ts";
 import { User, type UserRole } from "../../entities/user.entity.ts";
 import { UserPreference } from "../../entities/userPreference.entity.ts";
 import { UserSession } from "../../entities/userSession.entity.ts";
+import { isUniqueViolation } from "../../utils/isUniqueViolation.ts";
 import { AccountEmailService } from "./accountEmailService.ts";
 import { ApiKeyService } from "../apiKeys/apiKeyService.ts";
 import { deleteAvatarFile } from "./avatar/avatarStorage.ts";
@@ -124,20 +125,6 @@ function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer> {
 			},
 		);
 	});
-}
-
-function isUniqueViolation(error: unknown): boolean {
-
-	if (typeof error !== "object" || error === null || !("driverError" in error)) {
-		return false;
-	}
-
-	const driverError = error.driverError;
-
-	return (
-		typeof driverError === "object" && driverError !== null && "code" in driverError && driverError.code === "23505"
-	);
-
 }
 
 @Injectable()
