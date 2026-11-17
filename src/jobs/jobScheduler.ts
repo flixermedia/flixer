@@ -105,10 +105,12 @@ export class JobScheduler {
 			await boss.createQueue(ANALYTICS_RETENTION_JOB);
 			await boss.work(ANALYTICS_RETENTION_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
+					// RAW SQL: no entity for viewing_sessions; DB-side date_trunc retention cutoff
 					await this.dataSource.query(`
 						DELETE FROM viewing_sessions
 						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
 					`);
+					// RAW SQL: no entity for listening_events; DB-side date_trunc retention cutoff
 					await this.dataSource.query(`
 						DELETE FROM listening_events
 						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
@@ -522,10 +524,12 @@ export class JobScheduler {
 		const runner = this.dataSource.createQueryRunner();
 		await runner.connect();
 		try {
+			// RAW SQL: pg_backend_pid() has no TypeORM equivalent
 			const [row] = await runner.query("SELECT pg_backend_pid() AS pid");
 			const pid = Number(row?.pid);
 			if (!Number.isInteger(pid)) throw new Error("Could not identify the PostgreSQL optimization connection.");
 			const cancelQuery = () => {
+				// RAW SQL: pg_cancel_backend() has no TypeORM equivalent
 				void this.dataSource.query("SELECT pg_cancel_backend($1)", [pid]).catch((error: unknown) => {
 					logger().warn("Could not cancel PostgreSQL optimization query.", error);
 				});
@@ -533,6 +537,7 @@ export class JobScheduler {
 			signal.addEventListener("abort", cancelQuery, { once: true });
 			try {
 				if (signal.aborted) cancelQuery();
+				// RAW SQL: VACUUM is DDL-like maintenance
 				await runner.query("VACUUM (ANALYZE)");
 			} finally {
 				signal.removeEventListener("abort", cancelQuery);
