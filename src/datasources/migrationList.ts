@@ -12,6 +12,7 @@ import { AddNetworkShareRegion1798300000031 } from "../migrations/addNetworkShar
 import { CreateMediaOrganization1798300000032 } from "../migrations/createMediaOrganization1798300000032.js";
 import { AddMediaItemContentHash1798300000033 } from "../migrations/addMediaItemContentHash1798300000033.js";
 import { AddMediaLibraryWritePermissions1798300000034 } from "../migrations/addMediaLibraryWritePermissions1798300000034.js";
+import { AlignOidcResourceScopesDefault1798300000035 } from "../migrations/alignOidcResourceScopesDefault1798300000035.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
@@ -196,4 +197,5 @@ export const MIGRATIONS = [
 	CreateMediaOrganization1798300000032,
 	AddMediaItemContentHash1798300000033,
 	AddMediaLibraryWritePermissions1798300000034,
+	AlignOidcResourceScopesDefault1798300000035,
 ];

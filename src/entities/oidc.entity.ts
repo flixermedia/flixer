@@ -22,7 +22,7 @@ export class OidcClient {
 	@Column({ name: "created_at", type: "timestamptz", default: () => "now()" })
 	createdAt!: Date;
 
-	@Column({ name: "resource_scopes", type: "text", array: true, default: () => "ARRAY[]::text[]" })
+	@Column({ name: "resource_scopes", type: "text", array: true, default: [] })
 	resourceScopes!: string[];
 }
 
