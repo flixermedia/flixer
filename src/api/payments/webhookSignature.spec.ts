@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { verifySquareSignature, verifyStripeSignature } from "./webhookSignature.ts";
+import { verifySquareSignature, verifyStripeSignature } from "./webhookSignature.js";
 
 describe("verifyStripeSignature", () => {
 	const secret = "whsec_test";

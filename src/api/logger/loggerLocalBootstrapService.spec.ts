@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LoggerLocalBootstrapService } from "./loggerLocalBootstrapService.ts";
-import { LoggerService } from "./loggerService.ts";
+import { LoggerLocalBootstrapService } from "./loggerLocalBootstrapService.js";
+import { LoggerService } from "./loggerService.js";
 
 describe("local logger bootstrap lifecycle", () => {
 	afterEach(() => {

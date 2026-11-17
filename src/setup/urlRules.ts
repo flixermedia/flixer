@@ -1,4 +1,4 @@
-import { validateHttpUrl } from "../config/store/configSchema.ts";
+import { validateHttpUrl } from "../config/store/configSchema.js";
 
 export interface UrlInput {
 	publicUrl: string;

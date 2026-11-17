@@ -4,10 +4,10 @@ import { join, relative, sep } from "node:path";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { dataPath } from "../../config/dataPath.ts";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { updatePluginTargetHealth } from "./pluginManifest.ts";
+import { dataPath } from "../../config/dataPath.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { updatePluginTargetHealth } from "./pluginManifest.js";
 
 const MAX_SOURCE_BYTES = 256 * 1024;
 const LOCATIONS = ["media.detail", "player.controls"] as const;

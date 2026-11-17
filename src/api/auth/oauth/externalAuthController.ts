@@ -3,8 +3,8 @@ import { TooManyRequests } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, MaxLength, Post, Property, Required, Security } from "@tsed/schema";
-import { ExternalAuthService } from "./externalAuthService.ts";
-import { ExternalOAuthService } from "./externalOAuthService.ts";
+import { ExternalAuthService } from "./externalAuthService.js";
+import { ExternalOAuthService } from "./externalOAuthService.js";
 
 class ExternalCredentials {
 	@Property() @Required() @MaxLength(254) username!: string;

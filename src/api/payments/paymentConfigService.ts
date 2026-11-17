@@ -1,15 +1,15 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PaymentConfigRow } from "../../entities/paymentConfig.entity.ts";
-import { SECRET_MASK } from "../settings/secretMask.ts";
-import { CURRENCIES, currenciesFor } from "./currencies.ts";
-import type { PaymentProvider } from "./paymentProvider.ts";
-import { decryptPaymentSecret, encryptPaymentSecret } from "./paymentSecrets.ts";
-import { SquareProvider } from "./squareProvider.ts";
-import { StripeProvider } from "./stripeProvider.ts";
-import { DEFAULT_PAYMENT_CONFIG, PAYMENT_PROVIDERS, isUuid, normalizeCurrency, parsePrices, parseScopes, type PaymentConfig, type PaymentProviderId, type PaymentSecrets } from "./paymentTypes.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PaymentConfigRow } from "../../entities/paymentConfig.entity.js";
+import { SECRET_MASK } from "../settings/secretMask.js";
+import { CURRENCIES, currenciesFor } from "./currencies.js";
+import type { PaymentProvider } from "./paymentProvider.js";
+import { decryptPaymentSecret, encryptPaymentSecret } from "./paymentSecrets.js";
+import { SquareProvider } from "./squareProvider.js";
+import { StripeProvider } from "./stripeProvider.js";
+import { DEFAULT_PAYMENT_CONFIG, PAYMENT_PROVIDERS, isUuid, normalizeCurrency, parsePrices, parseScopes, type PaymentConfig, type PaymentProviderId, type PaymentSecrets } from "./paymentTypes.js";
 
 const CACHE_MS = 5_000;
 const MAX_GRACE_DAYS = 30;

@@ -2,9 +2,9 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { AuthService, type PublicUser } from "../auth/authService.ts";
-import { ChatService } from "../../chat/chatService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { AuthService, type PublicUser } from "../auth/authService.js";
+import { ChatService } from "../../chat/chatService.js";
 
 const ISSUE_REPORT_SETTINGS = {
 	enabled: "issue_reports_enabled",

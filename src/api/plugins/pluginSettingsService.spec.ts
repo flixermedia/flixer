@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DataSource, Repository } from "typeorm";
 import { afterEach, describe, expect, it } from "vitest";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { SECRET_MASK } from "../settings/secretMask.ts";
-import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.ts";
-import { PluginSettingsService } from "./pluginSettingsService.ts";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { SECRET_MASK } from "../settings/secretMask.js";
+import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.js";
+import { PluginSettingsService } from "./pluginSettingsService.js";
 
 const previousSecret = process.env.APP_SECRET;
 

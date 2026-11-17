@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LoginThrottle } from "./loginThrottle.ts";
-import { DEFAULT_LOGIN_SECURITY } from "./loginSecurity.ts";
+import { LoginThrottle } from "./loginThrottle.js";
+import { DEFAULT_LOGIN_SECURITY } from "./loginSecurity.js";
 
 describe("LoginThrottle", () => {
 	it("limits each normalized username across different addresses and expires its window", () => {

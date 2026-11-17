@@ -3,16 +3,16 @@ import { BadRequest, NotFound, TooManyRequests } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams, RawBodyParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { AdminMediaService } from "../media/adminMediaService.ts";
-import { currenciesFor } from "./currencies.ts";
-import { EntitlementService } from "./entitlementService.ts";
-import { PaymentCatalogService } from "./paymentCatalogService.ts";
-import { PaymentConfigService } from "./paymentConfigService.ts";
-import { PaymentsService, type CheckoutRequest } from "./paymentsService.ts";
-import { CompleteSignupRequest, SignupPaymentTokenRequest } from "./signupPaymentRequest.ts";
-import { verifyReceiptArt } from "./paymentSecrets.ts";
-import { isUuid, parseScope } from "./paymentTypes.ts";
+import { AuthService } from "../auth/authService.js";
+import { AdminMediaService } from "../media/adminMediaService.js";
+import { currenciesFor } from "./currencies.js";
+import { EntitlementService } from "./entitlementService.js";
+import { PaymentCatalogService } from "./paymentCatalogService.js";
+import { PaymentConfigService } from "./paymentConfigService.js";
+import { PaymentsService, type CheckoutRequest } from "./paymentsService.js";
+import { CompleteSignupRequest, SignupPaymentTokenRequest } from "./signupPaymentRequest.js";
+import { verifyReceiptArt } from "./paymentSecrets.js";
+import { isUuid, parseScope } from "./paymentTypes.js";
 
 type Body = Record<string, unknown>;
 

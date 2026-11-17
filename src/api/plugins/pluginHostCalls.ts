@@ -1,6 +1,6 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
-import { isPublicRepositoryAddress } from "./pluginRepositoryClient.ts";
+import { isPublicRepositoryAddress } from "./pluginRepositoryClient.js";
 
 const MAX_HOST_CALLS_PER_ROUND = 8;
 export const MAX_HOST_CALL_ROUNDS = 4;

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { generateKeyPairSync, sign as signBytes } from "node:crypto";
 import type { DataSource } from "typeorm";
-import type { NotificationService } from "../api/notifications/notificationService.ts";
-import { SendMessageRequest } from "./chatRequests.ts";
-import { ChatService, cleanMessage, cleanName, directKey, MAX_MESSAGE_LENGTH } from "./chatService.ts";
+import type { NotificationService } from "../api/notifications/notificationService.js";
+import { SendMessageRequest } from "./chatRequests.js";
+import { ChatService, cleanMessage, cleanName, directKey, MAX_MESSAGE_LENGTH } from "./chatService.js";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";

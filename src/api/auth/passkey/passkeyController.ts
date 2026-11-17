@@ -1,11 +1,11 @@
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Controller } from "@tsed/di";
 import { Get, Post, Security } from "@tsed/schema";
-import { DeleteAccountRequest } from "../deleteAccountRequest.ts";
-import { PasskeySecondFactorRequest } from "./passkeySecondFactorRequest.ts";
-import { PasskeyService } from "./passkeyService.ts";
-import { PasskeyVerifyRequest } from "./passkeyVerifyRequest.ts";
-import { NativePasskeyHandoffExchangeRequest, NativePasskeyHandoffIdRequest, NativePasskeyHandoffStartRequest, NativePasskeyHandoffVerifyRequest } from "./nativePasskeyHandoffRequests.ts";
+import { DeleteAccountRequest } from "../deleteAccountRequest.js";
+import { PasskeySecondFactorRequest } from "./passkeySecondFactorRequest.js";
+import { PasskeyService } from "./passkeyService.js";
+import { PasskeyVerifyRequest } from "./passkeyVerifyRequest.js";
+import { NativePasskeyHandoffExchangeRequest, NativePasskeyHandoffIdRequest, NativePasskeyHandoffStartRequest, NativePasskeyHandoffVerifyRequest } from "./nativePasskeyHandoffRequests.js";
 
 @Controller("/auth/passkeys")
 export class PasskeyController {

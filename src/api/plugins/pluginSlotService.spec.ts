@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { PluginSlotService } from "./pluginSlotService.ts";
+import { PluginSlotService } from "./pluginSlotService.js";
 
 describe("PluginSlotService", () => {
 	afterEach(() => vi.unstubAllEnvs());

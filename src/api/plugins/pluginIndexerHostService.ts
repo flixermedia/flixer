@@ -1,10 +1,10 @@
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { executeHostCalls, type HttpRequest } from "./pluginHostCalls.ts";
-import { PluginSettingsService } from "./pluginSettingsService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { executeHostCalls, type HttpRequest } from "./pluginHostCalls.js";
+import { PluginSettingsService } from "./pluginSettingsService.js";
 
 @Injectable()
 export class PluginIndexerHostService {

@@ -3,10 +3,10 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { ConfigStore } from "../../config/store/configStore.ts";
-import { loggerExporter } from "../../logs/loggerExporter.ts";
-import { LoggerService } from "./loggerService.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { ConfigStore } from "../../config/store/configStore.js";
+import { loggerExporter } from "../../logs/loggerExporter.js";
+import { LoggerService } from "./loggerService.js";
 
 describe("logger pairing control plane", () => {
 	let directory: string;

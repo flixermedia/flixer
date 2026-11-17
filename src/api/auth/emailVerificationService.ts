@@ -3,11 +3,11 @@ import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { tryCatch } from "@dschz/try-catch";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { User } from "../../entities/user.entity.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { appConfig } from "../../config/store/appConfig.ts";
-import { MailService } from "./mailService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { User } from "../../entities/user.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
+import { MailService } from "./mailService.js";
 
 const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
 const TOKEN_PURPOSE = "verify-email";

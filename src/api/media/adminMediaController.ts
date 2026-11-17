@@ -4,19 +4,19 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/platform-multer";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
+import { AuthService } from "../auth/authService.js";
 import {
 	RefreshMediaItemRequest,
 	SetSegmentRequest,
 	SubtitleDownloadRequest,
 	SubtitleSearchRequest,
 	UpdateMediaItemRequest,
-} from "./adminMediaRequests.ts";
-import { AdminMediaService } from "./adminMediaService.ts";
-import { MediaSegmentsService } from "./mediaSegmentsService.ts";
-import { SubtitleService } from "./subtitleService.ts";
-import { MAX_MEDIA_IMAGE_BYTES } from "./mediaImageStorage.ts";
-import { imageCacheResponse } from "./imageCacheResponse.ts";
+} from "./adminMediaRequests.js";
+import { AdminMediaService } from "./adminMediaService.js";
+import { MediaSegmentsService } from "./mediaSegmentsService.js";
+import { SubtitleService } from "./subtitleService.js";
+import { MAX_MEDIA_IMAGE_BYTES } from "./mediaImageStorage.js";
+import { imageCacheResponse } from "./imageCacheResponse.js";
 
 /** View and edit everything flixer-indexer has saved, for the admin dashboard. */
 @Controller("/admin/media")

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { Setting } from "../../entities/setting.entity.ts";
-import { AppearanceService, LOGIN_LAYOUT_SETTING, LOGIN_LAYOUTS } from "./appearanceService.ts";
+import { Setting } from "../../entities/setting.entity.js";
+import { AppearanceService, LOGIN_LAYOUT_SETTING, LOGIN_LAYOUTS } from "./appearanceService.js";
 
 function setup(initial?: unknown) {
 	const values = new Map<string, unknown>();

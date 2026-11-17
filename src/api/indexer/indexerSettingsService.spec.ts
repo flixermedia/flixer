@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { Setting } from "../../entities/setting.entity.ts";
-import { IndexerSettingsService, INDEXER_PROVIDERS_KEY } from "./indexerSettingsService.ts";
+import { Setting } from "../../entities/setting.entity.js";
+import { IndexerSettingsService, INDEXER_PROVIDERS_KEY } from "./indexerSettingsService.js";
 
 describe("IndexerSettingsService", () => {
 	it("forwards provider replacement only when declared and approved", async () => {

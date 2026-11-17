@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { User } from "./user.entity.ts";
+import { User } from "./user.entity.js";
 
 /**
  * Per-user settings. `data` holds free-form frontend preferences (language, UI options, ...).

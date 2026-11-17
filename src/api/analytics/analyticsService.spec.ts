@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { AnalyticsController, AnalyticsReportController } from "./analyticsController.ts";
-import { AnalyticsService } from "./analyticsService.ts";
+import { AnalyticsController, AnalyticsReportController } from "./analyticsController.js";
+import { AnalyticsService } from "./analyticsService.js";
 
 describe("admin analytics", () => {
 	it("requires an admin before querying analytics", async () => {

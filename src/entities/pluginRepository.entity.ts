@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import type { PluginRepositoryManifest } from "../api/plugins/repositoryManifest.ts";
+import type { PluginRepositoryManifest } from "../api/plugins/repositoryManifest.js";
 
 @Entity("plugin_repositories")
 @Index("uq_plugin_repositories_url", ["url"], { unique: true })

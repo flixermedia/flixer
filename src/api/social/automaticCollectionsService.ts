@@ -2,10 +2,10 @@ import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.ts";
-import { loadSocialItems, toSocialItem } from "./socialItems.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
+import { loadSocialItems, toSocialItem } from "./socialItems.js";
 
 const COLLECTION_NAME = "btrim(item.metadata ->> 'collection')";
 const COLLECTION_KEY = `lower(${COLLECTION_NAME})`;

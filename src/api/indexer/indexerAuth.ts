@@ -1,6 +1,6 @@
 import { Unauthorized } from "@tsed/exceptions";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { appConfig } from "../../config/store/appConfig.ts";
+import { appConfig } from "../../config/store/appConfig.js";
 
 export const INDEXER_TIMESTAMP_HEADER = "x-indexer-timestamp";
 export const INDEXER_SIGNATURE_HEADER = "x-indexer-signature";

@@ -9,8 +9,8 @@ import {
 	Property,
 	Required,
 } from "@tsed/schema";
-import type { RequestMediaType } from "../../entities/mediaRequest.entity.ts";
-import type { RequestServiceKind } from "../../entities/requestService.entity.ts";
+import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
+import type { RequestServiceKind } from "../../entities/requestService.entity.js";
 
 export class CreateMediaRequest {
 

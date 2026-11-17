@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { UserPreference } from "../../entities/userPreference.entity.ts";
-import { AuthService } from "../auth/authService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
+import { AuthService } from "../auth/authService.js";
 
 interface DashboardGridItem {
 	id: string;

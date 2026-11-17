@@ -3,9 +3,9 @@ import { mkdtemp, mkdir, rename, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { DataSource } from "typeorm";
-import { MediaCredit } from "../../entities/mediaCredit.entity.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaItemsService, mergeIndexerProviderIds, parseItemPayload } from "./mediaItemsService.ts";
+import { MediaCredit } from "../../entities/mediaCredit.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaItemsService, mergeIndexerProviderIds, parseItemPayload } from "./mediaItemsService.js";
 
 describe("person photo credits", () => {
 	it("stores an approved fallback when the NFO image is not usable", async () => {

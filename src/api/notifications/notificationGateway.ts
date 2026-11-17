@@ -1,9 +1,9 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { AuthService } from "../auth/authService.ts";
-import { NOTIFICATION_PATH, NotificationSocketServer } from "./notificationSocketServer.ts";
-import { NotificationService } from "./notificationService.ts";
+import { AuthService } from "../auth/authService.js";
+import { NOTIFICATION_PATH, NotificationSocketServer } from "./notificationSocketServer.js";
+import { NotificationService } from "./notificationService.js";
 
 @Injectable()
 export class NotificationGateway {

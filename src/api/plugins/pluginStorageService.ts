@@ -1,13 +1,13 @@
-import { isRecord } from "../../utils/isRecord.ts";
+import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import {
 	PluginStorageEntry,
 	type PluginStorageJsonValue,
 	type PluginStorageScope,
-} from "../../entities/pluginStorageEntry.entity.ts";
+} from "../../entities/pluginStorageEntry.entity.js";
 
 const MAX_STORAGE_BYTES = 256 * 1024;
 const MAX_STORAGE_KEYS = 1024;

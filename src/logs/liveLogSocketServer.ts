@@ -1,8 +1,8 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { liveLogHub, type LiveLogHub } from "./liveLogHub.ts";
-import { CLOSE_UNAUTHORIZED, closeCodeFor } from "../utils/socketCloseCodes.ts";
+import { liveLogHub, type LiveLogHub } from "./liveLogHub.js";
+import { CLOSE_UNAUTHORIZED, closeCodeFor } from "../utils/socketCloseCodes.js";
 
 export const LIVE_LOG_PATH = "/api/logs/stream";
 

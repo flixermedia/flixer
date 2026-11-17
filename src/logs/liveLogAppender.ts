@@ -1,6 +1,6 @@
 import { appender, BaseAppender, type LogEvent } from "@tsed/logger";
-import { liveLogHub } from "./liveLogHub.ts";
-import { toUnifiedRecord } from "./unifiedLog.ts";
+import { liveLogHub } from "./liveLogHub.js";
+import { toUnifiedRecord } from "./unifiedLog.js";
 
 /** Logger appender that mirrors every log event into the live log hub. */
 export class LiveLogAppender extends BaseAppender {

@@ -3,9 +3,9 @@ import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join, relative, sep } from "node:path";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaLibrary, type MediaImageStorage, type MediaLibraryFolder, type MediaLibraryType } from "../../entities/mediaLibrary.entity.ts";
-import { MediaRootsService, parseRelativePath, type MediaRoot } from "./mediaRootsService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaLibrary, type MediaImageStorage, type MediaLibraryFolder, type MediaLibraryType } from "../../entities/mediaLibrary.entity.js";
+import { MediaRootsService, parseRelativePath, type MediaRoot } from "./mediaRootsService.js";
 
 interface PublicMediaLibraryFolder extends MediaLibraryFolder {
 	rootName: string;

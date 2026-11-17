@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, EntityManager } from "typeorm";
-import type { AuthService } from "../authService.ts";
-import { QuickConnectService } from "./quickConnectService.ts";
-import { QuickConnectRequest } from "../../../entities/quickConnectRequest.entity.ts";
-import { Setting } from "../../../entities/setting.entity.ts";
-import { User } from "../../../entities/user.entity.ts";
-import { appConfig } from "../../../config/store/appConfig.ts";
-import { RateLimitService } from "../login/rateLimitService.ts";
+import type { AuthService } from "../authService.js";
+import { QuickConnectService } from "./quickConnectService.js";
+import { QuickConnectRequest } from "../../../entities/quickConnectRequest.entity.js";
+import { Setting } from "../../../entities/setting.entity.js";
+import { User } from "../../../entities/user.entity.js";
+import { appConfig } from "../../../config/store/appConfig.js";
+import { RateLimitService } from "../login/rateLimitService.js";
 
 const REQUEST_ID = "1b2f6d7e-9813-4f90-bd7d-9457af0ec0a1";
 const POLL_TOKEN = "Y".repeat(43);

@@ -1,8 +1,8 @@
 import { inject } from "@tsed/di";
 import { Catch, ErrorFilter } from "@tsed/platform-exceptions";
 import type { BaseContext } from "@tsed/di";
-import { SentryService } from "./sentryService.ts";
-import { isLoggerManagementPath } from "../config/logger/requestLog.ts";
+import { SentryService } from "./sentryService.js";
+import { isLoggerManagementPath } from "../config/logger/requestLog.js";
 
 /** Reports unexpected (5xx) errors to Sentry, then renders the default error response. */
 @Catch(Error)

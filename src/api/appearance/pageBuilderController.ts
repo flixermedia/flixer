@@ -1,7 +1,7 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { PageBuilderService } from "./pageBuilderService.ts";
+import { PageBuilderService } from "./pageBuilderService.js";
 
 @Controller("/admin/page-templates")
 @Security("BearerAuth")

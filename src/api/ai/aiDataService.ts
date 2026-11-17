@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 
 const CANDIDATE_LIMIT = 20_000;
 const HISTORY_LIMIT = 500;

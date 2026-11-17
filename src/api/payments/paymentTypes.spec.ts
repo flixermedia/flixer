@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anyScopeCovers, computeTotals, couponDiscount, pickPrice, scopeCovers, subscriptionGrantsAccess, type ItemContext } from "./paymentTypes.ts";
+import { anyScopeCovers, computeTotals, couponDiscount, pickPrice, scopeCovers, subscriptionGrantsAccess, type ItemContext } from "./paymentTypes.js";
 
 const episode: ItemContext = { ids: ["ep", "season", "series"], kind: "tv", artists: [] };
 const track: ItemContext = { ids: ["track", "album"], kind: "music", artists: ["some artist"] };

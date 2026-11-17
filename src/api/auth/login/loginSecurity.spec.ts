@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity, validateLoginSecurity } from "./loginSecurity.ts";
+import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity, validateLoginSecurity } from "./loginSecurity.js";
 
 describe("login security settings", () => {
 	afterEach(() => setLoginSecurity(DEFAULT_LOGIN_SECURITY));

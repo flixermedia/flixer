@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { describe, expect, it } from "vitest";
-import { UserMediaService } from "./userMediaService.ts";
+import { UserMediaService } from "./userMediaService.js";
 
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("grouped playback history (isolated PostgreSQL)", () => {
 	it("groups only adjacent sessions before pagination and removes the entire selected group", async () => {

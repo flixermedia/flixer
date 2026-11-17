@@ -1,4 +1,4 @@
-import type { GuideChannelCache, GuideProgrammeCache, IptvChannelCache } from "../../entities/guideSource.entity.ts";
+import type { GuideChannelCache, GuideProgrammeCache, IptvChannelCache } from "../../entities/guideSource.entity.js";
 
 function decodeXml(value: string): string {
 	return value

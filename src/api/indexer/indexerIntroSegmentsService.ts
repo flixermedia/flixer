@@ -1,10 +1,10 @@
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource, In, MoreThan } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaSegment } from "../../entities/mediaSegment.entity.ts";
-import { isRecord } from "../../utils/isRecord.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaSegment } from "../../entities/mediaSegment.entity.js";
+import { isRecord } from "../../utils/isRecord.js";
 
 const INTRO_TYPES = ["intro", "credits"] as const;
 type IntroType = (typeof INTRO_TYPES)[number];

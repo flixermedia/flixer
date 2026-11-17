@@ -1,6 +1,6 @@
-import type { Advertisement } from "../../entities/advertisement.entity.ts";
-import type { AdvertisementSettings } from "../../entities/advertisementSettings.entity.ts";
-import { anyScopeCovers, type ItemContext } from "../payments/paymentTypes.ts";
+import type { Advertisement } from "../../entities/advertisement.entity.js";
+import type { AdvertisementSettings } from "../../entities/advertisementSettings.entity.js";
+import { anyScopeCovers, type ItemContext } from "../payments/paymentTypes.js";
 
 interface ScheduledAdvertisement {
 	atSeconds: number;

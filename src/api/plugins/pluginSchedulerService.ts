@@ -1,8 +1,8 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
 
 const TICK_MS = 30_000;
 const SYSTEM_USER = { id: "system", role: "system" } as const;

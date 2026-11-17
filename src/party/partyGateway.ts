@@ -2,11 +2,11 @@ import { Injectable, logger } from "@tsed/di";
 import { Inject } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { MediaAccessService } from "../api/access/mediaAccessService.ts";
-import { AuthService } from "../api/auth/authService.ts";
-import { CallService } from "../chat/callService.ts";
-import { PartiesService } from "./partiesService.ts";
-import { PARTY_PATH, PartySocketServer, personFrom } from "./partySocketServer.ts";
+import { MediaAccessService } from "../api/access/mediaAccessService.js";
+import { AuthService } from "../api/auth/authService.js";
+import { CallService } from "../chat/callService.js";
+import { PartiesService } from "./partiesService.js";
+import { PARTY_PATH, PartySocketServer, personFrom } from "./partySocketServer.js";
 
 /** Owns the party WebSocket. */
 @Injectable()

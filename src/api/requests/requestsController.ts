@@ -3,9 +3,9 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { DISCOVER_SECTIONS, type DiscoverSection } from "./externalMetadata.ts";
-import { MediaRequestsService } from "./mediaRequestsService.ts";
+import { AuthService } from "../auth/authService.js";
+import { DISCOVER_SECTIONS, type DiscoverSection } from "./externalMetadata.js";
+import { MediaRequestsService } from "./mediaRequestsService.js";
 import {
 	ApproveRequestBody,
 	CreateMediaRequest,
@@ -13,10 +13,10 @@ import {
 	RequestServiceInput,
 	RequestUserLimitInput,
 	TestServiceInput,
-} from "./requestRequests.ts";
-import { RequestServicesService } from "./requestServicesService.ts";
-import { RequestWebhookService } from "./requestWebhookService.ts";
-import { DiscogsImageCache, TmdbImageCache } from "./tmdbImageCache.ts";
+} from "./requestRequests.js";
+import { RequestServicesService } from "./requestServicesService.js";
+import { RequestWebhookService } from "./requestWebhookService.js";
+import { DiscogsImageCache, TmdbImageCache } from "./tmdbImageCache.js";
 
 function requireId(id: string): string {
 

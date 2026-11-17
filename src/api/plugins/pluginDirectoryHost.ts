@@ -1,7 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { Client } from "ldapts";
-import type { HostCall, HostResult } from "./pluginHostCalls.ts";
+import type { HostCall, HostResult } from "./pluginHostCalls.js";
 
 type DirectoryBind = (url: URL, bindDN: string, password: string, signal: AbortSignal) => Promise<void>;
 type DirectorySearch = (url: URL, bindDN: string, password: string, baseDN: string, filter: string, attributes: string[], signal: AbortSignal) => Promise<Array<Record<string, unknown>>>;

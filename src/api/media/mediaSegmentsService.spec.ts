@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaSegment } from "../../entities/mediaSegment.entity.ts";
-import type { PluginSegmentProvider, SegmentLookupOutcome } from "../plugins/pluginSegmentProvider.ts";
-import { MediaSegmentsService } from "./mediaSegmentsService.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaSegment } from "../../entities/mediaSegment.entity.js";
+import type { PluginSegmentProvider, SegmentLookupOutcome } from "../plugins/pluginSegmentProvider.js";
+import { MediaSegmentsService } from "./mediaSegmentsService.js";
 
 function setup(outcome: SegmentLookupOutcome) {
 	const segments = {

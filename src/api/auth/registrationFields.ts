@@ -1,5 +1,5 @@
 import { BadRequest } from "@tsed/exceptions";
-import { sanitizePageContent, type PublishedPage } from "../appearance/pageBuilderSchema.ts";
+import { sanitizePageContent, type PublishedPage } from "../appearance/pageBuilderSchema.js";
 
 export interface RegistrationFieldValue { id: string; label: string; value: string }
 

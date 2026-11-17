@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryRunner } from "typeorm";
-import { CreateUserMediaFeatures1798300000028 } from "./createUserMediaFeatures1798300000028.ts";
+import { CreateUserMediaFeatures1798300000028 } from "./createUserMediaFeatures1798300000028.js";
 
 describe("CreateUserMediaFeatures1798300000028", () => {
 	it("creates user-owned lists, queues, and feedback and can roll them back", async () => {

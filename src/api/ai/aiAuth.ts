@@ -1,6 +1,6 @@
 import { Unauthorized } from "@tsed/exceptions";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { appConfig } from "../../config/store/appConfig.ts";
+import { appConfig } from "../../config/store/appConfig.js";
 
 export const AI_TIMESTAMP_HEADER = "x-flixer-ai-timestamp";
 export const AI_SIGNATURE_HEADER = "x-flixer-ai-signature";

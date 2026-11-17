@@ -1,6 +1,6 @@
 import { logger } from "@tsed/di";
 import { DataSource, LessThanOrEqual } from "typeorm";
-import { UserSession } from "../entities/userSession.entity.ts";
+import { UserSession } from "../entities/userSession.entity.js";
 
 export const SESSION_CLEANUP_JOB = "cleanup-expired-user-sessions";
 

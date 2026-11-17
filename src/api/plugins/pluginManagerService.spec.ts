@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { IndexerClient } from "../indexer/indexerClient.ts";
-import type { PluginManifest } from "./pluginManifest.ts";
-import * as repositoryClient from "./pluginRepositoryClient.ts";
+import type { IndexerClient } from "../indexer/indexerClient.js";
+import type { PluginManifest } from "./pluginManifest.js";
+import * as repositoryClient from "./pluginRepositoryClient.js";
 import {
 	PluginManagerService,
 	pluginUpdateErrorMessage,
 	preservePluginInstallationState,
-} from "./pluginManagerService.ts";
+} from "./pluginManagerService.js";
 
 afterEach(() => vi.unstubAllEnvs());
 

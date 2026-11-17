@@ -1,7 +1,7 @@
 import { BadRequest, ServiceUnavailable } from "@tsed/exceptions";
 import { isIP } from "node:net";
-import { appConfig } from "../../../config/store/appConfig.ts";
-import { isPublicRepositoryAddress } from "../../plugins/pluginRepositoryClient.ts";
+import { appConfig } from "../../../config/store/appConfig.js";
+import { isPublicRepositoryAddress } from "../../plugins/pluginRepositoryClient.js";
 
 export interface ExternalOAuthProfileSettings {
 	authorizationUrl: string;

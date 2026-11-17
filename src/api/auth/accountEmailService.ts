@@ -1,7 +1,7 @@
 import { Injectable } from "@tsed/di";
-import type { User } from "../../entities/user.entity.ts";
-import { appConfig } from "../../config/store/appConfig.ts";
-import { MailService } from "./mailService.ts";
+import type { User } from "../../entities/user.entity.js";
+import { appConfig } from "../../config/store/appConfig.js";
+import { MailService } from "./mailService.js";
 
 @Injectable()
 export class AccountEmailService {

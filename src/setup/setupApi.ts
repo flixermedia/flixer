@@ -1,10 +1,10 @@
-import { appConfig } from "../config/store/appConfig.ts";
-import { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl, type ConfigName } from "../config/store/configSchema.ts";
-import { ConfigValidationError } from "../config/store/configStore.ts";
-import { runtimeState, setupStatus } from "../bootstrap/setupStatus.ts";
+import { appConfig } from "../config/store/appConfig.js";
+import { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl, type ConfigName } from "../config/store/configSchema.js";
+import { ConfigValidationError } from "../config/store/configStore.js";
+import { runtimeState, setupStatus } from "../bootstrap/setupStatus.js";
 import { $log } from "@tsed/logger";
-import { checkRecoveryCode, logRecoveryKey, needsRecovery } from "./recovery.ts";
-import { defaultProbes, findStep, SETUP_STEPS, SetupError, type Probes, type StepContext } from "./setupSteps.ts";
+import { checkRecoveryCode, logRecoveryKey, needsRecovery } from "./recovery.js";
+import { defaultProbes, findStep, SETUP_STEPS, SetupError, type Probes, type StepContext } from "./setupSteps.js";
 
 export interface SetupResponse {
 	status: number;

@@ -1,7 +1,7 @@
 import { getJsonSchema } from "@tsed/schema";
 import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
-import { QuickConnectDecisionRequest } from "./quickConnectRequest.ts";
+import { QuickConnectDecisionRequest } from "./quickConnectRequest.js";
 
 describe("QuickConnectDecisionRequest", () => {
 	const validate = new Ajv().compile(getJsonSchema(QuickConnectDecisionRequest));

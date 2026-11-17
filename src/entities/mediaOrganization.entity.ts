@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { OrganizationPlanMove, OrganizationPlanSummary } from "../api/mediaOrganization/mediaOrganizationService.ts";
-import type { OrganizationTemplates } from "../api/mediaOrganization/organizationPlanLogic.ts";
+import type { OrganizationPlanMove, OrganizationPlanSummary } from "../api/mediaOrganization/mediaOrganizationService.js";
+import type { OrganizationTemplates } from "../api/mediaOrganization/organizationPlanLogic.js";
 
 @Entity("media_organization_settings")
 export class MediaOrganizationSettings {

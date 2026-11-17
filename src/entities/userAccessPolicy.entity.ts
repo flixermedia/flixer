@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { User } from "./user.entity.ts";
+import { User } from "./user.entity.js";
 
 export type LibraryAccessMode = "all" | "selected";
 

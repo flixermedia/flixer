@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { AutomaticCollectionsService } from "./automaticCollectionsService.ts";
+import { AutomaticCollectionsService } from "./automaticCollectionsService.js";
 
 describe("automatic collections", () => {
 	it("groups collection metadata only after applying the viewer's content restrictions", async () => {

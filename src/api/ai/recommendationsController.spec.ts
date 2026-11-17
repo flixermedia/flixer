@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RecommendationsController } from "./recommendationsController.ts";
+import { RecommendationsController } from "./recommendationsController.js";
 
 describe("RecommendationsController", () => {
 	it("returns personalized album cards for music home recommendations", async () => {

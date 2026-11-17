@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { NetworkSharesService } from "../networkShares/networkSharesService.ts";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
-import { MediaLibrariesService } from "./mediaLibrariesService.ts";
-import { MediaRootsService } from "./mediaRootsService.ts";
+import type { NetworkSharesService } from "../networkShares/networkSharesService.js";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { MediaLibrariesService } from "./mediaLibrariesService.js";
+import { MediaRootsService } from "./mediaRootsService.js";
 
 describe("library scan paths", () => {
 	let directory: string;

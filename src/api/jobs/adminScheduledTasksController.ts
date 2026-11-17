@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, MaxLength, Post, Property, Put, Required, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { JobScheduler } from "../../jobs/jobScheduler.ts";
-import { isAdminScheduledTaskId } from "../../jobs/adminScheduledTasks.ts";
+import { AuthService } from "../auth/authService.js";
+import { JobScheduler } from "../../jobs/jobScheduler.js";
+import { isAdminScheduledTaskId } from "../../jobs/adminScheduledTasks.js";
 
 class AdminScheduledTaskScheduleRequest {
 	@Property()

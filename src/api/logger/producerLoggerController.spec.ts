@@ -1,10 +1,10 @@
 import { IncomingMessage } from "node:http";
 import { Socket } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { indexerSignature } from "../indexer/indexerAuth.ts";
-import { LoggerService } from "./loggerService.ts";
-import { ProducerLoggerController } from "./producerLoggerController.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { indexerSignature } from "../indexer/indexerAuth.js";
+import { LoggerService } from "./loggerService.js";
+import { ProducerLoggerController } from "./producerLoggerController.js";
 
 const secret = "test-shared-secret-with-at-least-32-bytes";
 const originalSecret = process.env.APP_SECRET;

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import { User } from "./user.entity.ts";
+import { User } from "./user.entity.js";
 
 @Entity("user_sessions")
 @Index("IDX_user_sessions_user_id", ["userId"])

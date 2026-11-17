@@ -3,8 +3,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
-import { dataPath } from "../../config/dataPath.ts";
-import { detectAvatarType } from "../auth/avatar/avatarStorage.ts";
+import { dataPath } from "../../config/dataPath.js";
+import { detectAvatarType } from "../auth/avatar/avatarStorage.js";
 
 const TMDB_IMAGE_HOST = "https://image.tmdb.org/t/p";
 const TIMEOUT_MS = 10_000;

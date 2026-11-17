@@ -1,10 +1,10 @@
 import { IncomingMessage } from "node:http";
 import { Socket } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { aiSignature } from "../ai/aiAuth.ts";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { AiLoggerController } from "./aiLoggerController.ts";
-import { LoggerService } from "./loggerService.ts";
+import { aiSignature } from "../ai/aiAuth.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { AiLoggerController } from "./aiLoggerController.js";
+import { LoggerService } from "./loggerService.js";
 
 const secret = "test-shared-secret-with-at-least-32-bytes";
 const path = "/api/internal/ai/logger-configuration";

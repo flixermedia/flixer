@@ -2,9 +2,9 @@ import { BadRequest } from "@tsed/exceptions";
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { AiRecommendationCacheService } from "./aiRecommendationCacheService.ts";
+import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
 
 describe("AiRecommendationCacheService", () => {
 	it("selects the exact persisted home cache and keeps movie and music scopes separate", async () => {

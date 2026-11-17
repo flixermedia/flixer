@@ -3,12 +3,12 @@ import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AppConfig, setAppConfig } from "../config/store/appConfig.ts";
-import { suggestedRedisUrl } from "../config/store/configSchema.ts";
-import { ConfigStore } from "../config/store/configStore.ts";
-import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.ts";
-import { adoptEnvironmentInstall, adoptExistingUsers, setupStatus, updateRuntime } from "./setupStatus.ts";
-import { waitForDatabase } from "./waitForDatabase.ts";
+import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
+import { suggestedRedisUrl } from "../config/store/configSchema.js";
+import { ConfigStore } from "../config/store/configStore.js";
+import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.js";
+import { adoptEnvironmentInstall, adoptExistingUsers, setupStatus, updateRuntime } from "./setupStatus.js";
+import { waitForDatabase } from "./waitForDatabase.js";
 
 const SECRET = "s".repeat(40);
 const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL"];
@@ -124,7 +124,7 @@ describe("bootstrap", () => {
 		const waiting = waitForDatabase((message) => logs.push(message), probe);
 		await new Promise((resolve) => setTimeout(resolve, 20));
 		expect(setupStatus(config).database).toBe("unavailable");
-		const { retryDatabaseNow } = await import("./waitForDatabase.ts");
+		const { retryDatabaseNow } = await import("./waitForDatabase.js");
 		retryDatabaseNow();
 		await waiting;
 		expect(setupStatus(config).database).toBe("ok");

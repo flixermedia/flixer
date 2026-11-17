@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { NotificationService } from "../notifications/notificationService.ts";
-import type { CreateFriendInviteRequest } from "./socialRequests.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { NotificationService } from "../notifications/notificationService.js";
+import type { CreateFriendInviteRequest } from "./socialRequests.js";
 
 type FriendshipStatus = "self" | "none" | "outgoing" | "incoming" | "friends";
 

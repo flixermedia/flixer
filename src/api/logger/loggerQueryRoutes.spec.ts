@@ -6,13 +6,13 @@ import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { ConfigStore } from "../../config/store/configStore.ts";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { AuthService } from "../auth/authService.ts";
-import { LoggerController } from "./loggerController.ts";
-import { LoggerQueryProxy } from "./loggerQueryProxy.ts";
-import { LoggerService } from "./loggerService.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { ConfigStore } from "../../config/store/configStore.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { AuthService } from "../auth/authService.js";
+import { LoggerController } from "./loggerController.js";
+import { LoggerQueryProxy } from "./loggerQueryProxy.js";
+import { LoggerService } from "./loggerService.js";
 
 @Configuration({})
 class TestServer {}

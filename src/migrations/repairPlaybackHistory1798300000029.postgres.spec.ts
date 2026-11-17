@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { describe, expect, it } from "vitest";
-import { RepairPlaybackHistory1798300000029 } from "./repairPlaybackHistory1798300000029.ts";
+import { RepairPlaybackHistory1798300000029 } from "./repairPlaybackHistory1798300000029.js";
 
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("playback history repair (isolated PostgreSQL)", () => {
 	it("repairs an old schema, backfills legacy activity, and never restores deleted sessions", async () => {

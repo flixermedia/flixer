@@ -2,9 +2,9 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { createHmac } from "node:crypto";
 import { DataSource } from "typeorm";
-import { appConfig } from "../../config/store/appConfig.ts";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../../entities/setting.entity.ts";
+import { appConfig } from "../../config/store/appConfig.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
 
 const DEFAULT_UPDATER_URL = "http://flixer-updater:8093";
 const DEFAULT_TIMEOUT_MS = 10_000;

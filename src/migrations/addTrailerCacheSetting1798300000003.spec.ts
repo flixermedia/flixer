@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryRunner } from "typeorm";
-import { AddTrailerCacheSetting1798300000003 } from "./addTrailerCacheSetting1798300000003.ts";
+import { AddTrailerCacheSetting1798300000003 } from "./addTrailerCacheSetting1798300000003.js";
 
 describe("trailer cache setting migration", () => {
 	it("inserts a private disabled setting without overwriting an existing value", async () => {

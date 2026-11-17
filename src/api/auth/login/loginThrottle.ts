@@ -1,4 +1,4 @@
-import { DEFAULT_LOGIN_SECURITY, type LoginSecurityConfig } from "./loginSecurity.ts";
+import { DEFAULT_LOGIN_SECURITY, type LoginSecurityConfig } from "./loginSecurity.js";
 
 const MAX_BUCKETS = 10_000;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { isSentryApp, SentryService } from "./sentryService.ts";
+import { isSentryApp, SentryService } from "./sentryService.js";
 
 describe.each(["ai", "logger", "updater"] as const)("Sentry configuration for %s", (app) => {
 	it("requires the global switch, app switch and DSN", async () => {

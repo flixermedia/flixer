@@ -2,18 +2,18 @@ import { Controller } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Get, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { IndexerClient } from "./indexerClient.ts";
-import { INDEXER_TASK_QUEUES, type IndexerTaskQueueName } from "./indexerSettingsService.ts";
+import { AuthService } from "../auth/authService.js";
+import { IndexerClient } from "./indexerClient.js";
+import { INDEXER_TASK_QUEUES, type IndexerTaskQueueName } from "./indexerSettingsService.js";
 import {
 	AdminIndexerService,
 	INDEXER_TASK_STATES,
 	type IndexerTaskPage,
-} from "./adminIndexerService.ts";
-import { MEDIA_ITEM_TYPES } from "../../entities/mediaItem.entity.ts";
-import { LibrarySegmentScanRequest, RefreshItemRequest, ScanLibraryRequest } from "./indexerRequests.ts";
-import { LiveService } from "../../live/liveService.ts";
-import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.ts";
+} from "./adminIndexerService.js";
+import { MEDIA_ITEM_TYPES } from "../../entities/mediaItem.entity.js";
+import { LibrarySegmentScanRequest, RefreshItemRequest, ScanLibraryRequest } from "./indexerRequests.js";
+import { LiveService } from "../../live/liveService.js";
+import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 

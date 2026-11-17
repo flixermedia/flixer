@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, OneToOne, PrimaryColumn } from "typeorm";
-import { UserPreference } from "./userPreference.entity.ts";
+import { UserPreference } from "./userPreference.entity.js";
 
 export type UserRole = "admin" | "user";
 export type OriginalAccess = "inherit" | "allow" | "deny";

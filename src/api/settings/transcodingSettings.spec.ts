@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateTranscodingSetting } from "./transcodingSettings.ts";
+import { validateTranscodingSetting } from "./transcodingSettings.js";
 
 describe("validateTranscodingSetting", () => {
 	it("accepts valid values", () => {

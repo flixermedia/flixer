@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { UnlockRequest } from "./accessRequests.ts";
-import { MediaAccessService, type AccessPolicyInput } from "./mediaAccessService.ts";
+import { AuthService } from "../auth/authService.js";
+import { UnlockRequest } from "./accessRequests.js";
+import { MediaAccessService, type AccessPolicyInput } from "./mediaAccessService.js";
 
 /** What the signed-in user is allowed to watch, and the PIN that lifts those limits on a device. */
 @Controller("/access")

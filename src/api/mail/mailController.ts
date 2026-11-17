@@ -3,13 +3,13 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { MailService } from "../auth/mailService.ts";
-import { MailDeliveryService } from "./mailDeliveryService.ts";
-import { MailDomainService } from "./mailDomainService.ts";
-import { MailInboundService } from "./mailInboundService.ts";
-import { MailMessageService } from "./mailMessageService.ts";
-import { MailboxService } from "./mailboxService.ts";
+import { AuthService } from "../auth/authService.js";
+import { MailService } from "../auth/mailService.js";
+import { MailDeliveryService } from "./mailDeliveryService.js";
+import { MailDomainService } from "./mailDomainService.js";
+import { MailInboundService } from "./mailInboundService.js";
+import { MailMessageService } from "./mailMessageService.js";
+import { MailboxService } from "./mailboxService.js";
 import {
 	CreateMailboxRequest,
 	CreateMailDomainRequest,
@@ -20,9 +20,9 @@ import {
 	UpdateMailboxRequest,
 	UpdateMailDomainRequest,
 	UpdateMailSettingsRequest,
-} from "./mailRequests.ts";
-import { MailSettingsService } from "./mailSettingsService.ts";
-import { MailTemplateService, templateVariables } from "./mailTemplateService.ts";
+} from "./mailRequests.js";
+import { MailSettingsService } from "./mailSettingsService.js";
+import { MailTemplateService, templateVariables } from "./mailTemplateService.js";
 
 function sendFile(ctx: PlatformContext, filename: string, size: number) {
 	const safeName = filename.replace(/[^\w.\- ]/g, "_");

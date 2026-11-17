@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { NotificationService } from "./notificationService.ts";
-import { MarkReadRequest, PushSubscriptionRequest, PushUnsubscribeRequest, SendNotificationRequest } from "./notificationRequests.ts";
+import { AuthService } from "../auth/authService.js";
+import { NotificationService } from "./notificationService.js";
+import { MarkReadRequest, PushSubscriptionRequest, PushUnsubscribeRequest, SendNotificationRequest } from "./notificationRequests.js";
 
 /** A signed-in user's own inbox and Web Push subscriptions. */
 @Controller("/notifications")

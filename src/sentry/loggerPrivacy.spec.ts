@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeLoggerManagementEvent } from "./sentryService.ts";
+import { sanitizeLoggerManagementEvent } from "./sentryService.js";
 
 describe("logger administration Sentry privacy", () => {
 	it("removes request data and breadcrumbs while retaining the exception", () => {

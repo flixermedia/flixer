@@ -1,6 +1,6 @@
-import { appConfig, type AppConfig } from "../config/store/appConfig.ts";
-import type { SetupState } from "../config/store/configStore.ts";
-import { needsRecovery } from "../setup/recovery.ts";
+import { appConfig, type AppConfig } from "../config/store/appConfig.js";
+import type { SetupState } from "../config/store/configStore.js";
+import { needsRecovery } from "../setup/recovery.js";
 
 type DatabaseStatus = "ok" | "unconfigured" | "unavailable";
 

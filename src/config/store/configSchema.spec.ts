@@ -8,7 +8,7 @@ describe("service defaults", () => {
 
 	it("points the indexer and streamer at localhost in a Coder workspace but keeps the Postgres, Redis and Meilisearch sidecar names", async () => {
 		vi.stubEnv("CODER", "true");
-		const { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl } = await import("./configSchema.ts");
+		const { CONFIG_KEYS, suggestedDatabaseUrl, suggestedRedisUrl } = await import("./configSchema.js");
 		expect(CONFIG_KEYS.indexerUrl.defaultValue).toBe("http://localhost:8092");
 		expect(CONFIG_KEYS.streamerInternalUrl.defaultValue).toBe("http://localhost:8091");
 		expect(suggestedRedisUrl()).toBe("redis://redis:6379");

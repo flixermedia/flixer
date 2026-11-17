@@ -2,11 +2,11 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { CreateVideoCollectionRequest, UpdateVideoCollectionRequest, UserMediaItemRequest } from "./userMediaRequests.ts";
-import { MAX_HISTORY_PAGE_SIZE, UserMediaService } from "./userMediaService.ts";
-import { PlaylistOrderRequest } from "./socialRequests.ts";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { CreateVideoCollectionRequest, UpdateVideoCollectionRequest, UserMediaItemRequest } from "./userMediaRequests.js";
+import { MAX_HISTORY_PAGE_SIZE, UserMediaService } from "./userMediaService.js";
+import { PlaylistOrderRequest } from "./socialRequests.js";
 
 function uuid(value: string, label = "Media item"): string {
 	if (!AuthService.isUuid(value)) throw new NotFound(`${label} not found.`);

@@ -2,12 +2,12 @@ import { Controller } from "@tsed/di";
 import { Conflict, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.ts";
-import { CreateNetworkShareRequest, UpdateNetworkShareRequest } from "./networkShareRequests.ts";
-import { NetworkSharesService } from "./networkSharesService.ts";
-import { smbMountSupported } from "./smbSupport.ts";
-import { LiveService } from "../../live/liveService.ts";
+import { AuthService } from "../auth/authService.js";
+import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
+import { CreateNetworkShareRequest, UpdateNetworkShareRequest } from "./networkShareRequests.js";
+import { NetworkSharesService } from "./networkSharesService.js";
+import { smbMountSupported } from "./smbSupport.js";
+import { LiveService } from "../../live/liveService.js";
 
 /** Network share (SMB) management for the admin dashboard. */
 @Controller("/admin/network-shares")

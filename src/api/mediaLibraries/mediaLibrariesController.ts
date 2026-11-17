@@ -2,11 +2,11 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { IndexerClient } from "../indexer/indexerClient.ts";
-import { MediaLibrariesService } from "./mediaLibrariesService.ts";
-import { CreateMediaLibraryRequest, UpdateMediaLibraryRequest } from "./mediaLibraryRequests.ts";
-import { MediaRootsService } from "./mediaRootsService.ts";
+import { AuthService } from "../auth/authService.js";
+import { IndexerClient } from "../indexer/indexerClient.js";
+import { MediaLibrariesService } from "./mediaLibrariesService.js";
+import { CreateMediaLibraryRequest, UpdateMediaLibraryRequest } from "./mediaLibraryRequests.js";
+import { MediaRootsService } from "./mediaRootsService.js";
 
 /** Media library management for the admin dashboard. */
 @Controller("/admin/media-libraries")

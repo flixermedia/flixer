@@ -9,9 +9,9 @@ import { Injectable, logger } from "@tsed/di";
 import { Conflict, BadRequest } from "@tsed/exceptions";
 import pg from "pg";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { appConfig } from "../../config/store/appConfig.ts";
-import type { DatabaseTransferJournal } from "../../config/store/configStore.ts";
-import { validatePostgresUrl } from "../../config/store/configSchema.ts";
+import { appConfig } from "../../config/store/appConfig.js";
+import type { DatabaseTransferJournal } from "../../config/store/configStore.js";
+import { validatePostgresUrl } from "../../config/store/configSchema.js";
 
 type TransferState = "idle" | "running" | "failed" | "interrupted" | "completed";
 

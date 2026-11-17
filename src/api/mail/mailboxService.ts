@@ -2,12 +2,12 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { randomBytes, randomUUID } from "node:crypto";
 import { DataSource, IsNull } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Mailbox, type MailboxKind } from "../../entities/mailbox.entity.ts";
-import { User } from "../../entities/user.entity.ts";
-import { normalizeLocalPart, parseAddress } from "./mailAddress.ts";
-import { MailDomainService } from "./mailDomainService.ts";
-import { MailSettingsService } from "./mailSettingsService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Mailbox, type MailboxKind } from "../../entities/mailbox.entity.js";
+import { User } from "../../entities/user.entity.js";
+import { normalizeLocalPart, parseAddress } from "./mailAddress.js";
+import { MailDomainService } from "./mailDomainService.js";
+import { MailSettingsService } from "./mailSettingsService.js";
 
 const RESERVED_LOCAL_PARTS = new Set(["postmaster", "abuse", "hostmaster", "webmaster", "mailer-daemon"]);
 

@@ -3,7 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { createHash } from "node:crypto";
 import { readdir, realpath, stat } from "node:fs/promises";
 import { basename, delimiter, join, relative, resolve, sep } from "node:path";
-import { NetworkSharesService } from "../networkShares/networkSharesService.ts";
+import { NetworkSharesService } from "../networkShares/networkSharesService.js";
 
 export interface MediaRoot {
 	id: string;

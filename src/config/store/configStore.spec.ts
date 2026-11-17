@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AppConfig, configDirectory } from "./appConfig.ts";
-import { ConfigStore, ConfigValidationError } from "./configStore.ts";
-import { SecretBox } from "./secretBox.ts";
+import { AppConfig, configDirectory } from "./appConfig.js";
+import { ConfigStore, ConfigValidationError } from "./configStore.js";
+import { SecretBox } from "./secretBox.js";
 
 const SECRET = "a".repeat(40);
 const ENV_KEYS = [

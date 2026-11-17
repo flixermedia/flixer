@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateOidcRedirectUris } from "./oidcClientService.ts";
+import { validateOidcRedirectUris } from "./oidcClientService.js";
 
 describe("validateOidcRedirectUris", () => {
 	it("allows exact HTTPS and HTTP loopback redirects", () => {

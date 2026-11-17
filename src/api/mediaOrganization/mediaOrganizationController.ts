@@ -2,8 +2,8 @@ import { Controller } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { MediaOrganizationService } from "./mediaOrganizationService.ts";
+import { AuthService } from "../auth/authService.js";
+import { MediaOrganizationService } from "./mediaOrganizationService.js";
 
 interface TemplatesRequest {
 	templates: unknown;

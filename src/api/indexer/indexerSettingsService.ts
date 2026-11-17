@@ -1,11 +1,11 @@
 import { BadRequest } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { SECRET_MASK } from "../settings/secretMask.ts";
-import { isRecord } from "../../utils/isRecord.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { SECRET_MASK } from "../settings/secretMask.js";
+import { isRecord } from "../../utils/isRecord.js";
 
 export const INDEXER_LANGUAGE_KEY = "indexer_language";
 export const INDEXER_PROVIDERS_KEY = "indexer_providers";

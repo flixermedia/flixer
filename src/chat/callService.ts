@@ -2,9 +2,9 @@ import { createHash, createHmac } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { appConfig } from "../config/store/appConfig.ts";
-import { PartiesService } from "../party/partiesService.ts";
-import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.ts";
+import { appConfig } from "../config/store/appConfig.js";
+import { PartiesService } from "../party/partiesService.js";
+import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 
 const CREDENTIAL_TTL_SECONDS = 6 * 60 * 60;
 

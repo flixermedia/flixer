@@ -1,4 +1,4 @@
-import { version } from "./config.ts";
+import { version } from "./config.js";
 
 /** Reports a development checkout separately from a published release. */
 export function runtimeVersion(): string {

@@ -2,9 +2,9 @@ import { Controller, Injectable } from "@tsed/di";
 import { BadRequest, ServiceUnavailable, TooManyRequests } from "@tsed/exceptions";
 import { BodyParams, HeaderParams } from "@tsed/platform-params";
 import { Enum, Post, Property, Required, Returns, Security } from "@tsed/schema";
-import { webLoggerExporter } from "../../logs/loggerExporter.ts";
-import { AuthService } from "../auth/authService.ts";
-import { LoggerService } from "./loggerService.ts";
+import { webLoggerExporter } from "../../logs/loggerExporter.js";
+import { AuthService } from "../auth/authService.js";
+import { LoggerService } from "./loggerService.js";
 
 const kinds = ["window-error", "unhandled-rejection", "vue-error"] as const;
 const errorTypes = ["Error", "TypeError", "RangeError", "ReferenceError", "SyntaxError", "URIError", "Other"] as const;

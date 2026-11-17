@@ -2,8 +2,8 @@ import { Controller } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, QueryParams } from "@tsed/platform-params";
 import { Get, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { AnalyticsService } from "./analyticsService.ts";
+import { AuthService } from "../auth/authService.js";
+import { AnalyticsService } from "./analyticsService.js";
 
 @Controller("/admin/analytics")
 @Security("BearerAuth")

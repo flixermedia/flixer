@@ -1,9 +1,9 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.ts";
-import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.js";
+import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
 
 const SEGMENT_PROVIDER_CAPABILITY = "media.segments";
 const SEGMENT_PROVIDER_PERMISSION = "media.segments.lookup";

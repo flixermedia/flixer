@@ -1,6 +1,6 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import schema from "./plugin-manifest.schema.json" with { type: "json" };
-import type { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
+import type { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 
 type PluginTargetName = "flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web";
 

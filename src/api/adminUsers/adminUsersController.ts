@@ -2,10 +2,10 @@ import { Controller } from "@tsed/di";
 import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/platform-multer";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { MAX_AVATAR_BYTES } from "../auth/avatar/avatarStorage.ts";
-import { CreateAdminUserRequest, SetUserPasswordRequest, UpdateAdminUserRequest } from "./adminUserRequests.ts";
-import { AdminUsersService } from "./adminUsersService.ts";
+import { AuthService } from "../auth/authService.js";
+import { MAX_AVATAR_BYTES } from "../auth/avatar/avatarStorage.js";
+import { CreateAdminUserRequest, SetUserPasswordRequest, UpdateAdminUserRequest } from "./adminUserRequests.js";
+import { AdminUsersService } from "./adminUsersService.js";
 
 /** User management for the admin dashboard. Needs a signed-in administrator; API keys can't manage users. */
 @Controller("/admin/users")

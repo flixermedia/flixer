@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AdminUserWebhookController, UserWebhookController } from "./userWebhookController.ts";
-import { UserWebhookService, webhookUrl } from "./userWebhookService.ts";
+import { AdminUserWebhookController, UserWebhookController } from "./userWebhookController.js";
+import { UserWebhookService, webhookUrl } from "./userWebhookService.js";
 
 const user = { id: "d3929747-385b-4245-a8d2-682c37626192", role: "user" };
 const itemId = "a89c26d2-513c-4528-9d8b-7ca16004bf72";

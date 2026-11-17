@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { ExternalIdentity } from "../../../entities/externalIdentity.entity.ts";
-import { PluginInstallation } from "../../../entities/pluginInstallation.entity.ts";
-import { User } from "../../../entities/user.entity.ts";
-import { ExternalAuthService } from "./externalAuthService.ts";
+import { ExternalIdentity } from "../../../entities/externalIdentity.entity.js";
+import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
+import { User } from "../../../entities/user.entity.js";
+import { ExternalAuthService } from "./externalAuthService.js";
 
 function setup() {
 	const plugin = { enabled: true, pluginId: "plugin.example", manifest: { name: "Directory", targets: { flixer: { entry: "auth.wasm" } }, capabilities: ["auth.directory"], permissions: ["auth.identity.verify", "auth.credentials"] }, approvedPermissions: ["auth.identity.verify", "auth.credentials"] };

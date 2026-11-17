@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Put, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { FavoritesService } from "./favoritesService.ts";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { FavoritesService } from "./favoritesService.js";
 
 const itemId = (value: string): string => {
 	if (!AuthService.isUuid(value)) {

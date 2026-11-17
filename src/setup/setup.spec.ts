@@ -3,14 +3,14 @@ import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { adoptExistingUsers, updateRuntime } from "../bootstrap/setupStatus.ts";
-import { AppConfig, appConfig, setAppConfig } from "../config/store/appConfig.ts";
-import { suggestedDatabaseUrl, suggestedRedisUrl } from "../config/store/configSchema.ts";
-import { ConfigStore } from "../config/store/configStore.ts";
-import { probeRedis } from "./redisProbe.ts";
-import { handleSetupRequest, type SetupRequestContext } from "./setupApi.ts";
-import type { Probes } from "./setupSteps.ts";
-import { resolveUrls } from "./urlRules.ts";
+import { adoptExistingUsers, updateRuntime } from "../bootstrap/setupStatus.js";
+import { AppConfig, appConfig, setAppConfig } from "../config/store/appConfig.js";
+import { suggestedDatabaseUrl, suggestedRedisUrl } from "../config/store/configSchema.js";
+import { ConfigStore } from "../config/store/configStore.js";
+import { probeRedis } from "./redisProbe.js";
+import { handleSetupRequest, type SetupRequestContext } from "./setupApi.js";
+import type { Probes } from "./setupSteps.js";
+import { resolveUrls } from "./urlRules.js";
 
 const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL", "FLIXER_PUBLIC_URL", "APP_URL", "PASSKEY_RP_ID", "PASSKEY_ORIGINS", "INDEXER_URL", "INDEXER_INTERNAL_URL", "STREAMER_INTERNAL_URL", "STREAMER_PUBLIC_URL"];
 

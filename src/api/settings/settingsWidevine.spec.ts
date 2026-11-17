@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { Setting } from "../../entities/setting.entity.ts";
-import { SettingsService } from "./settingsService.ts";
+import { Setting } from "../../entities/setting.entity.js";
+import { SettingsService } from "./settingsService.js";
 
 function createService(initial: Record<string, unknown> = {}) {
 	const settings = new Map(

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { PluginManifest } from "../api/plugins/pluginManifest.ts";
+import type { PluginManifest } from "../api/plugins/pluginManifest.js";
 
 export type PluginInstallationStatus =
 	"installed" | "initializing" | "enabled" | "running" | "disabled" | "error" | "updating";

@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, MoreThan } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { UserSession } from "../../entities/userSession.entity.ts";
-import { describeClient } from "./userAgent.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { UserSession } from "../../entities/userSession.entity.js";
+import { describeClient } from "./userAgent.js";
 
 interface PublicDevice {
 	id: string;

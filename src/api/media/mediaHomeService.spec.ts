@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import type { DataSource } from "typeorm";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.ts";
-import { PersonProfile } from "../../entities/personProfile.entity.ts";
-import type { IndexerClient } from "../indexer/indexerClient.ts";
-import type { AccessPolicy, MediaAccessService } from "../access/mediaAccessService.ts";
-import type { MediaSearchService } from "./mediaSearchService.ts";
-import { applyBrowseFilters, MediaHomeService } from "./mediaHomeService.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
+import { PersonProfile } from "../../entities/personProfile.entity.js";
+import type { IndexerClient } from "../indexer/indexerClient.js";
+import type { AccessPolicy, MediaAccessService } from "../access/mediaAccessService.js";
+import type { MediaSearchService } from "./mediaSearchService.js";
+import { applyBrowseFilters, MediaHomeService } from "./mediaHomeService.js";
 
 describe("media browse filters", () => {
 	it("parameterizes cast, studio, runtime, HDR, resolution, and language", () => {

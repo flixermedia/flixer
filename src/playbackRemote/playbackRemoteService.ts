@@ -1,8 +1,8 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { AuthService } from "../api/auth/authService.ts";
-import { PLAYBACK_REMOTE_PATH, PlaybackRemoteSocketServer } from "./playbackRemoteSocketServer.ts";
+import { AuthService } from "../api/auth/authService.js";
+import { PLAYBACK_REMOTE_PATH, PlaybackRemoteSocketServer } from "./playbackRemoteSocketServer.js";
 
 @Injectable()
 export class PlaybackRemoteService {

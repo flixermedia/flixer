@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { AuthService, PublicUser } from "../auth/authService.ts";
-import type { ChatService } from "../../chat/chatService.ts";
-import { IssueReportsService } from "./issueReportsService.ts";
+import type { AuthService, PublicUser } from "../auth/authService.js";
+import type { ChatService } from "../../chat/chatService.js";
+import { IssueReportsService } from "./issueReportsService.js";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const REPORT_ID = "22222222-2222-4222-8222-222222222222";

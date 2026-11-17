@@ -4,14 +4,14 @@ import { Configuration } from "@tsed/di";
 import { Forbidden } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { EntitlementService } from "../payments/entitlementService.ts";
-import { OidcClientsController } from "./oidcClientsController.ts";
-import { OidcClientService } from "./oidcClientService.ts";
-import { OidcProviderService } from "./oidcProviderService.ts";
-import { OidcResourceController } from "./oidcResourceController.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { EntitlementService } from "../payments/entitlementService.js";
+import { OidcClientsController } from "./oidcClientsController.js";
+import { OidcClientService } from "./oidcClientService.js";
+import { OidcProviderService } from "./oidcProviderService.js";
+import { OidcResourceController } from "./oidcResourceController.js";
 
 @Configuration({})
 class TestServer {}

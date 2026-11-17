@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { lstat, link, mkdir, readdir, realpath, unlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaLibrary, type MediaLibraryFolder } from "../../entities/mediaLibrary.entity.ts";
-import { MediaOrganizationPlan, MediaOrganizationPlanAudit, MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.ts";
-import { MediaRootsService, parseRelativePath } from "../mediaLibraries/mediaRootsService.ts";
-import { DEFAULT_ORGANIZATION_TEMPLATES, rejectTargetCollisions, renderOrganizationTemplate, validateOrganizationTemplates, type OrganizationTemplates } from "./organizationPlanLogic.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaLibrary, type MediaLibraryFolder } from "../../entities/mediaLibrary.entity.js";
+import { MediaOrganizationPlan, MediaOrganizationPlanAudit, MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { MediaRootsService, parseRelativePath } from "../mediaLibraries/mediaRootsService.js";
+import { DEFAULT_ORGANIZATION_TEMPLATES, rejectTargetCollisions, renderOrganizationTemplate, validateOrganizationTemplates, type OrganizationTemplates } from "./organizationPlanLogic.js";
 
 const MAX_PLAN_ITEMS = 10_000;
 const PLAN_HISTORY_SIZE = 50;

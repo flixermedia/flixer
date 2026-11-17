@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
-import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../indexer/indexerAuth.ts";
-import { LoggerService, type LoggerProducer } from "./loggerService.ts";
-import { requireProtectedProducerTransport, type ProducerRequestContext } from "./secureProducerRequest.ts";
+import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../indexer/indexerAuth.js";
+import { LoggerService, type LoggerProducer } from "./loggerService.js";
+import { requireProtectedProducerTransport, type ProducerRequestContext } from "./secureProducerRequest.js";
 
 const producers = {
 	indexer: "flixer-indexer",

@@ -1,4 +1,4 @@
-import type { PaymentProviderId } from "./paymentTypes.ts";
+import type { PaymentProviderId } from "./paymentTypes.js";
 
 export interface ProviderCard {
 	ref: string;

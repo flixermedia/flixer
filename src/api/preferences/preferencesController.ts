@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams } from "@tsed/platform-params";
 import { Get, Patch, Security } from "@tsed/schema";
-import { PreferencesService } from "./preferencesService.ts";
-import { UpdatePreferencesRequest } from "./updatePreferencesRequest.ts";
+import { PreferencesService } from "./preferencesService.js";
+import { UpdatePreferencesRequest } from "./updatePreferencesRequest.js";
 
 @Controller("/preferences")
 @Security("BearerAuth")

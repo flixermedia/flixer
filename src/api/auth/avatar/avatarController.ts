@@ -3,8 +3,8 @@ import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/pla
 import { Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Security } from "@tsed/schema";
-import { AvatarService } from "./avatarService.ts";
-import { MAX_AVATAR_BYTES } from "./avatarStorage.ts";
+import { AvatarService } from "./avatarService.js";
+import { MAX_AVATAR_BYTES } from "./avatarStorage.js";
 
 @Controller("/auth")
 export class AvatarController {

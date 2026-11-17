@@ -1,11 +1,11 @@
 import { createDecipheriv, createHash, createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { Advertisement } from "../../entities/advertisement.entity.ts";
-import { AdvertisementSettings } from "../../entities/advertisementSettings.entity.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { User } from "../../entities/user.entity.ts";
-import { PlaybackService } from "./playbackService.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { Advertisement } from "../../entities/advertisement.entity.js";
+import { AdvertisementSettings } from "../../entities/advertisementSettings.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { User } from "../../entities/user.entity.js";
+import { PlaybackService } from "./playbackService.js";
 
 const secret = "advertisement-test-secret-not-for-production";
 

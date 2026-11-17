@@ -1,10 +1,10 @@
 import { $log } from "@tsed/logger";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import "../../logs/loggerAppender.ts";
-import { loggerExporter } from "../../logs/loggerExporter.ts";
-import { AiAdminService } from "./aiAdminService.ts";
-import { AiRecommendationsService } from "./aiRecommendationsService.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import "../../logs/loggerAppender.js";
+import { loggerExporter } from "../../logs/loggerExporter.js";
+import { AiAdminService } from "./aiAdminService.js";
+import { AiRecommendationsService } from "./aiRecommendationsService.js";
 
 const endpoint = process.env.LOGGER_CORRELATION_URL;
 const ingest = process.env.LOGGER_CORRELATION_INGEST;

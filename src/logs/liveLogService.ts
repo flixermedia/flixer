@@ -1,8 +1,8 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { AuthService } from "../api/auth/authService.ts";
-import { LIVE_LOG_PATH, LiveLogSocketServer } from "./liveLogSocketServer.ts";
+import { AuthService } from "../api/auth/authService.js";
+import { LIVE_LOG_PATH, LiveLogSocketServer } from "./liveLogSocketServer.js";
 
 /** Attaches the live log WebSocket to flixer's HTTP server once it is listening. */
 @Injectable()

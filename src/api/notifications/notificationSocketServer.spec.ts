@@ -2,8 +2,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it } from "vitest";
-import { NotificationSocketServer } from "./notificationSocketServer.ts";
-import type { NotificationEvent } from "./notificationService.ts";
+import { NotificationSocketServer } from "./notificationSocketServer.js";
+import type { NotificationEvent } from "./notificationService.js";
 
 function fakeNotifications() {
 

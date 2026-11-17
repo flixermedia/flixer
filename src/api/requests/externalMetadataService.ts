@@ -1,18 +1,18 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import type { RequestMediaType } from "../../entities/mediaRequest.entity.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { discogsImagePath, tmdbImagePath } from "./tmdbImageCache.ts";
-import { INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY } from "../indexer/indexerSettingsService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { discogsImagePath, tmdbImagePath } from "./tmdbImageCache.js";
+import { INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY } from "../indexer/indexerSettingsService.js";
 import {
 	type DiscoverSection,
 	type ExternalMediaCard,
 	type ExternalMediaDetail,
 	splitDiscogsTitle,
 	yearOf,
-} from "./externalMetadata.ts";
+} from "./externalMetadata.js";
 
 const TMDB_API = "https://api.themoviedb.org/3";
 const DISCOGS_API = "https://api.discogs.com";

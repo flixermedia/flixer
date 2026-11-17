@@ -2,12 +2,12 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Forbidden, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { Theme } from "../../entities/theme.entity.ts";
-import { ThemeVersion } from "../../entities/themeVersion.entity.ts";
-import { AuthService } from "../auth/authService.ts";
-import { BUILT_IN_THEME_IDS, DEFAULT_THEME_ID } from "./builtInThemes.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { Theme } from "../../entities/theme.entity.js";
+import { ThemeVersion } from "../../entities/themeVersion.entity.js";
+import { AuthService } from "../auth/authService.js";
+import { BUILT_IN_THEME_IDS, DEFAULT_THEME_ID } from "./builtInThemes.js";
 import {
 	THEME_DESCRIPTION_MAX,
 	THEME_FILE_FORMAT,
@@ -23,7 +23,7 @@ import {
 	sanitizeThemeConfig,
 	type ThemeConfig,
 	type ThemeFile,
-} from "./themeSchema.ts";
+} from "./themeSchema.js";
 
 const ACTIVE_THEME_SETTING = "active_theme_id";
 const USER_SELECTION_SETTING = "theme_user_selection_enabled";

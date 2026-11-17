@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { ExternalMetadataService } from "./externalMetadataService.ts";
+import { ExternalMetadataService } from "./externalMetadataService.js";
 
 describe("TMDB trailer lookup", () => {
 	afterEach(() => vi.unstubAllGlobals());

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MediaOrganizationController } from "./mediaOrganizationController.ts";
+import { MediaOrganizationController } from "./mediaOrganizationController.js";
 
 describe("MediaOrganizationController password confirmation", () => {
 	const libraryId = "00000000-0000-4000-8000-000000000001";

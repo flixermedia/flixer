@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { Unauthorized } from "@tsed/exceptions";
 import type { DataSource } from "typeorm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { User } from "../../../entities/user.entity.ts";
-import { AuthService } from "../authService.ts";
-import { PasskeyService } from "./passkeyService.ts";
+import { User } from "../../../entities/user.entity.js";
+import { AuthService } from "../authService.js";
+import { PasskeyService } from "./passkeyService.js";
 
 describe("PasskeyService native handoff exchange", () => {
 	afterEach(() => {

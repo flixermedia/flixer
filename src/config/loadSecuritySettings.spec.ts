@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../api/auth/login/loginSecurity.ts";
-import { loadSecuritySettings } from "./loadSecuritySettings.ts";
-import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "./trustedProxies.ts";
+import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../api/auth/login/loginSecurity.js";
+import { loadSecuritySettings } from "./loadSecuritySettings.js";
+import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "./trustedProxies.js";
 
 function source(login: unknown, proxies: unknown): DataSource {
 	return { getRepository: () => ({ findOneBy: async ({ key }: { key: string }) => ({ value: key === "login_security" ? login : proxies }) }) } as unknown as DataSource;

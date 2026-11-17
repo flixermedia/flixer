@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import type { MediaRootsService } from "./mediaRootsService.ts";
-import { STREAMER_HOOK_CONTEXT, STREAMER_ROOTS_CONTEXT, StreamerRootsController } from "./streamerRootsController.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import type { MediaRootsService } from "./mediaRootsService.js";
+import { STREAMER_HOOK_CONTEXT, STREAMER_ROOTS_CONTEXT, StreamerRootsController } from "./streamerRootsController.js";
 
 describe("streamer trailer root", () => {
 	afterEach(() => {

@@ -2,12 +2,12 @@ import { Controller } from "@tsed/di";
 import { Forbidden, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Returns, Security } from "@tsed/schema";
-import { CallService } from "../../chat/callService.ts";
-import { PartiesService } from "../../party/partiesService.ts";
-import { personFrom } from "../../party/partySocketServer.ts";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { CreatePartyRequest } from "./socialRequests.ts";
+import { CallService } from "../../chat/callService.js";
+import { PartiesService } from "../../party/partiesService.js";
+import { personFrom } from "../../party/partySocketServer.js";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { CreatePartyRequest } from "./socialRequests.js";
 
 const partyId = (value: string): string => {
 	if (!/^[A-Za-z0-9_-]{8}$/.test(value)) {

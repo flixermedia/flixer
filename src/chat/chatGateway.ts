@@ -1,10 +1,10 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { AuthService } from "../api/auth/authService.ts";
-import { CallService } from "./callService.ts";
-import { ChatService } from "./chatService.ts";
-import { CHAT_PATH, ChatSocketServer } from "./chatSocketServer.ts";
+import { AuthService } from "../api/auth/authService.js";
+import { CallService } from "./callService.js";
+import { ChatService } from "./chatService.js";
+import { CHAT_PATH, ChatSocketServer } from "./chatSocketServer.js";
 
 /** Owns the realtime chat WebSocket. */
 @Injectable()

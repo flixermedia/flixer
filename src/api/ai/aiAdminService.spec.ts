@@ -1,10 +1,10 @@
 import { BadRequest } from "@tsed/exceptions";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { aiSignature } from "./aiAuth.ts";
-import { AiAdminService } from "./aiAdminService.ts";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { aiSignature } from "./aiAuth.js";
+import { AiAdminService } from "./aiAdminService.js";
 
 describe("AiAdminService", () => {
 	const originalSecret = process.env.APP_SECRET;

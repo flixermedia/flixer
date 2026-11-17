@@ -1,10 +1,10 @@
-import { isRecord } from "../../utils/isRecord.ts";
+import { isRecord } from "../../utils/isRecord.js";
 import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import type { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import type { PluginColumnDefinition, PluginColumnType, PluginTableDefinition } from "./pluginManifest.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import type { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import type { PluginColumnDefinition, PluginColumnType, PluginTableDefinition } from "./pluginManifest.js";
 
 export const DATABASE_PERMISSION = "database.tables";
 const MAX_ROWS = 200;

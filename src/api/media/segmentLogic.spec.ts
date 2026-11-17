@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapterSegments, mergeSegments, parseChapters, parseMediaChapters } from "./segmentLogic.ts";
+import { chapterSegments, mergeSegments, parseChapters, parseMediaChapters } from "./segmentLogic.js";
 
 describe("segmentLogic", () => {
 	it("reads stored chapters in seconds and skips malformed ones", () => {

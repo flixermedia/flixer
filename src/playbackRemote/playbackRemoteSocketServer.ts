@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../utils/socketCloseCodes.ts";
+import { CLOSE_UNAUTHORIZED } from "../utils/socketCloseCodes.js";
 
 export const PLAYBACK_REMOTE_PATH = "/api/playback/remote";
 

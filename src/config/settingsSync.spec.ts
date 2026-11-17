@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { Setting } from "../entities/setting.entity.ts";
-import { ADMIN_SCHEDULED_TASKS_SETTING } from "../jobs/adminScheduledTasks.ts";
-import { synchronizeSettings } from "./settingsSync.ts";
+import { Setting } from "../entities/setting.entity.js";
+import { ADMIN_SCHEDULED_TASKS_SETTING } from "../jobs/adminScheduledTasks.js";
+import { synchronizeSettings } from "./settingsSync.js";
 
 describe("synchronizeSettings", () => {
 	it("preserves saved scheduled task preferences while removing obsolete settings", async () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import type { IndexerClient } from "../indexer/indexerClient.ts";
-import { ThemesService, themeTaskFor } from "./themesService.ts";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
+import type { IndexerClient } from "../indexer/indexerClient.js";
+import { ThemesService, themeTaskFor } from "./themesService.js";
 
 describe("themeTaskFor", () => {
 	const base = {

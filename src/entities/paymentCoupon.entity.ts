@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn } from "typeorm";
-import type { Price } from "../api/payments/paymentTypes.ts";
+import type { Price } from "../api/payments/paymentTypes.js";
 
 @Entity("payment_coupons")
 export class PaymentCoupon {

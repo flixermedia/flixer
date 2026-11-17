@@ -1,16 +1,16 @@
-import { isRecord } from "../../utils/isRecord.ts";
+import { isRecord } from "../../utils/isRecord.js";
 import { BadRequest, Exception, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
-import { IndexerClient } from "../indexer/indexerClient.ts";
-import { executeHostCalls, MAX_HOST_CALL_ROUNDS, publicHttpsGet, type HttpRequest } from "./pluginHostCalls.ts";
-import { PluginHostService } from "./pluginHostService.ts";
-import { PluginSettingsService } from "./pluginSettingsService.ts";
-import { updatePluginTargetHealth } from "./pluginManifest.ts";
-import { executeDirectoryBind, executeDirectorySearch } from "./pluginDirectoryHost.ts";
-import { PluginStorageService } from "./pluginStorageService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
+import { IndexerClient } from "../indexer/indexerClient.js";
+import { executeHostCalls, MAX_HOST_CALL_ROUNDS, publicHttpsGet, type HttpRequest } from "./pluginHostCalls.js";
+import { PluginHostService } from "./pluginHostService.js";
+import { PluginSettingsService } from "./pluginSettingsService.js";
+import { updatePluginTargetHealth } from "./pluginManifest.js";
+import { executeDirectoryBind, executeDirectorySearch } from "./pluginDirectoryHost.js";
+import { PluginStorageService } from "./pluginStorageService.js";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
 

@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { NetworkSharesService } from "../networkShares/networkSharesService.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
-import { MediaOrganizationPlan, MediaOrganizationPlanAudit, MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.ts";
-import { MediaOrganizationService } from "./mediaOrganizationService.ts";
-import { MediaRootsService } from "../mediaLibraries/mediaRootsService.ts";
+import type { NetworkSharesService } from "../networkShares/networkSharesService.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { MediaOrganizationPlan, MediaOrganizationPlanAudit, MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { MediaOrganizationService } from "./mediaOrganizationService.js";
+import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 
 describe("media organization service", () => {
 	let directory: string;

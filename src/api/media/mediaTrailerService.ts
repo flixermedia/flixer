@@ -1,14 +1,14 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { ExternalMetadataService } from "../requests/externalMetadataService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { PlaybackService } from "../playback/playbackService.ts";
-import { TrailerCacheService } from "./trailerCacheService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { ExternalMetadataService } from "../requests/externalMetadataService.js";
+import { AuthService } from "../auth/authService.js";
+import { PlaybackService } from "../playback/playbackService.js";
+import { TrailerCacheService } from "./trailerCacheService.js";
 
 /** Resolves trailers only for media accessible to the current viewer. */
 @Injectable()

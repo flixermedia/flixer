@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { User } from "../../../entities/user.entity.ts";
-import { AuthService } from "../authService.ts";
+import type { User } from "../../../entities/user.entity.js";
+import { AuthService } from "../authService.js";
 
 describe("external primary authentication checks", () => {
 	it("preserves disabled, payment, email and passkey requirements", async () => {

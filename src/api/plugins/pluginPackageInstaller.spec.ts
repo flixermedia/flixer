@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import tar from "tar-stream";
-import { inspectPluginPackage, installPluginPackageAtomically } from "./pluginPackageInstaller.ts";
-import type { PluginManifest } from "./pluginManifest.ts";
+import { inspectPluginPackage, installPluginPackageAtomically } from "./pluginPackageInstaller.js";
+import type { PluginManifest } from "./pluginManifest.js";
 
 const manifest: PluginManifest = {
 	manifestVersion: 1,

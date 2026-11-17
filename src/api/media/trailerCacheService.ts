@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rename, rm, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { dataPath } from "../../config/dataPath.ts";
+import { dataPath } from "../../config/dataPath.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_BYTES = 250 * 1024 * 1024;

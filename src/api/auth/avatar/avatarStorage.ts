@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { dataPath } from "../../../config/dataPath.ts";
+import { dataPath } from "../../../config/dataPath.js";
 
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 

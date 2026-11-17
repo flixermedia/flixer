@@ -2,10 +2,10 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Put } from "@tsed/schema";
-import { AiDataService } from "./aiDataService.ts";
-import { AiAdminService } from "./aiAdminService.ts";
-import { AiRecommendationCacheService } from "./aiRecommendationCacheService.ts";
-import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, canonicalAiJson, verifyAiRequest } from "./aiAuth.ts";
+import { AiDataService } from "./aiDataService.js";
+import { AiAdminService } from "./aiAdminService.js";
+import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
+import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, canonicalAiJson, verifyAiRequest } from "./aiAuth.js";
 
 const PREFIX = "/api/internal/ai";
 

@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AppConfig, setAppConfig } from "../../../config/store/appConfig.ts";
-import { ExternalAuthFlow } from "../../../entities/externalAuthFlow.entity.ts";
-import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.ts";
-import { PluginInstallation } from "../../../entities/pluginInstallation.entity.ts";
-import { ExternalOAuthService } from "./externalOAuthService.ts";
+import { AppConfig, setAppConfig } from "../../../config/store/appConfig.js";
+import { ExternalAuthFlow } from "../../../entities/externalAuthFlow.entity.js";
+import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.js";
+import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
+import { ExternalOAuthService } from "./externalOAuthService.js";
 
 const browserSecret = Buffer.alloc(32, 7).toString("base64url");
 

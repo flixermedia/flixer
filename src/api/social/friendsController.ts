@@ -1,9 +1,9 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { FriendsService } from "./friendsService.ts";
-import { CreateFriendInviteRequest } from "./socialRequests.ts";
+import { AuthService } from "../auth/authService.js";
+import { FriendsService } from "./friendsService.js";
+import { CreateFriendInviteRequest } from "./socialRequests.js";
 
 /** Friend requests and accepted friendships between users on this server. */
 @Controller("/friends")

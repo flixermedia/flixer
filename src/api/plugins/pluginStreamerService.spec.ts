@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { PluginStreamerService } from "./pluginStreamerService.ts";
+import { PluginStreamerService } from "./pluginStreamerService.js";
 
 describe("PluginStreamerService", () => {
 	it("only invokes approved hooks and preserves the core decision on failures", async () => {

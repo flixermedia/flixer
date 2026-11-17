@@ -2,11 +2,11 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { Playlist } from "../../entities/playlist.entity.ts";
-import { PlaylistItem } from "../../entities/playlistItem.entity.ts";
-import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Playlist } from "../../entities/playlist.entity.js";
+import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
 const MAX_PLAYLISTS = 200;
 const MAX_TRACKS = 5000;

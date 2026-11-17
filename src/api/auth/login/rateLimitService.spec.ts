@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "../../../config/trustedProxies.ts";
-import { RateLimitService } from "./rateLimitService.ts";
+import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "../../../config/trustedProxies.js";
+import { RateLimitService } from "./rateLimitService.js";
 
 const state = vi.hoisted(() => ({ context: undefined as { request: { raw: { ip: string } } } | undefined }));
 

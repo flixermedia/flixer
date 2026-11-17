@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LoggerService } from "../api/logger/loggerService.ts";
-import { LoggerExportService } from "./loggerExportService.ts";
-import { loggerExporter } from "./loggerExporter.ts";
+import { LoggerService } from "../api/logger/loggerService.js";
+import { LoggerExportService } from "./loggerExportService.js";
+import { loggerExporter } from "./loggerExporter.js";
 
 describe("logger exporter lifecycle", () => {
 	afterEach(() => {

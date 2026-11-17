@@ -3,13 +3,13 @@ import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Context, BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { CollectionOf, Delete, Get, Nullable, Post, Property, Put, Required, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.ts";
-import { AdminMediaService } from "./adminMediaService.ts";
-import { MediaHomeService } from "./mediaHomeService.ts";
-import { MediaTrailerService } from "./mediaTrailerService.ts";
-import { imageCacheResponse } from "./imageCacheResponse.ts";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { WatchedRequest, WatchProgressRequest } from "./adminMediaRequests.js";
+import { AdminMediaService } from "./adminMediaService.js";
+import { MediaHomeService } from "./mediaHomeService.js";
+import { MediaTrailerService } from "./mediaTrailerService.js";
+import { imageCacheResponse } from "./imageCacheResponse.js";
 
 class TrailerView {
 	@Nullable(String)

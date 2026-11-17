@@ -1,10 +1,10 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { EnqueueJobRequest } from "./enqueueJobRequest.ts";
-import { ScheduleJobRequest } from "./scheduleJobRequest.ts";
-import { JobScheduler } from "../../jobs/jobScheduler.ts";
+import { AuthService } from "../auth/authService.js";
+import { EnqueueJobRequest } from "./enqueueJobRequest.js";
+import { ScheduleJobRequest } from "./scheduleJobRequest.js";
+import { JobScheduler } from "../../jobs/jobScheduler.js";
 
 @Controller("/jobs")
 @Security("BearerAuth")

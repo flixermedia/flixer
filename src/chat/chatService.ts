@@ -2,8 +2,8 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { createPublicKey, randomUUID, verify } from "node:crypto";
 import { DataSource, EntityManager } from "typeorm";
-import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.ts";
-import { NotificationService } from "../api/notifications/notificationService.ts";
+import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
+import { NotificationService } from "../api/notifications/notificationService.js";
 
 export const MAX_MESSAGE_LENGTH = 2000;
 const MAX_ENCRYPTED_MESSAGE_LENGTH = 32768;

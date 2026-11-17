@@ -8,9 +8,9 @@ import { Post } from "@tsed/schema";
 import type { FastifyInstance } from "fastify";
 import type { DataSource } from "typeorm";
 import { describe, expect, it, vi } from "vitest";
-import type { AuthService } from "../authService.ts";
-import { LoginExceptionFilter } from "./loginExceptionFilter.ts";
-import { LoginRequest } from "./loginRequest.ts";
+import type { AuthService } from "../authService.js";
+import { LoginExceptionFilter } from "./loginExceptionFilter.js";
+import { LoginRequest } from "./loginRequest.js";
 
 let timingService: AuthService | undefined;
 
@@ -62,7 +62,7 @@ describe("LoginExceptionFilter", () => {
 			expect(response.json()).not.toHaveProperty("stack");
 			expect(response.json()).not.toHaveProperty("errors");
 
-			const { AuthService } = await import("../authService.ts");
+			const { AuthService } = await import("../authService.js");
 			const findOneBy = vi.fn();
 			timingService = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
 			const passwordHash = await timingService.hashPassword("correct-password");

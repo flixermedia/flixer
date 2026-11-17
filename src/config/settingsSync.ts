@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { DataSource, EntityManager } from "typeorm";
-import { Setting } from "../entities/setting.entity.ts";
-import { ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs } from "../jobs/adminScheduledTasks.ts";
+import { Setting } from "../entities/setting.entity.js";
+import { ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs } from "../jobs/adminScheduledTasks.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 

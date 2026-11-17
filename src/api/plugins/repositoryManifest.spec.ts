@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest } from "./repositoryManifest.ts";
+import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest } from "./repositoryManifest.js";
 
 const validCatalog = {
 	manifestVersion: 1,

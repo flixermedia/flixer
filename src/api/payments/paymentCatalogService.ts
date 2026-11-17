@@ -2,14 +2,14 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, ILike } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { PaymentCoupon } from "../../entities/paymentCoupon.entity.ts";
-import { PaymentPlan } from "../../entities/paymentPlan.entity.ts";
-import { PaymentProduct } from "../../entities/paymentProduct.entity.ts";
-import { EntitlementService } from "./entitlementService.ts";
-import { PaymentConfigService, assertPriceCurrencies } from "./paymentConfigService.ts";
-import { isUuid, parsePrices, parseScope, parseScopes, type PlanInterval, type RentalStart } from "./paymentTypes.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { PaymentCoupon } from "../../entities/paymentCoupon.entity.js";
+import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
+import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
+import { EntitlementService } from "./entitlementService.js";
+import { PaymentConfigService, assertPriceCurrencies } from "./paymentConfigService.js";
+import { isUuid, parsePrices, parseScope, parseScopes, type PlanInterval, type RentalStart } from "./paymentTypes.js";
 
 type Body = Record<string, unknown>;
 

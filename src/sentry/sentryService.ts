@@ -1,14 +1,14 @@
 import * as Sentry from "@sentry/node";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../entities/setting.entity.ts";
-import { version } from "../config/config.ts";
+import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../entities/setting.entity.js";
+import { version } from "../config/config.js";
 
-export const SENTRY_APPS = ["flixer", "streamer", "indexer", "web", "ai", "logger", "updater"] as const;
-export type SentryApp = (typeof SENTRY_APPS)[number];
+const SENTRY_APPS = ["flixer", "streamer", "indexer", "web", "ai", "logger", "updater"] as const;
+type SentryApp = (typeof SENTRY_APPS)[number];
 
-export interface SentryAppConfig {
+interface SentryAppConfig {
 	enabled: boolean;
 	dsn: string | null;
 }

@@ -1,10 +1,10 @@
 import { Inject, Injectable } from "@tsed/di";
 import nodemailer, { type Transporter } from "nodemailer";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { MailDeliveryService } from "../mail/mailDeliveryService.ts";
-import { MailTemplateService, type RenderedMail } from "../mail/mailTemplateService.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { MailDeliveryService } from "../mail/mailDeliveryService.js";
+import { MailTemplateService, type RenderedMail } from "../mail/mailTemplateService.js";
 
 const DEFAULT_FROM = "Flixer <no-reply@localhost>";
 const DEFAULT_PORT = 587;

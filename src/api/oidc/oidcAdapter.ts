@@ -1,6 +1,6 @@
 import type { Adapter, AdapterPayload } from "oidc-provider";
 import type { DataSource } from "typeorm";
-import { decryptOidcSecret } from "./oidcSecrets.ts";
+import { decryptOidcSecret } from "./oidcSecrets.js";
 
 interface ClientRow {
 	id: string;

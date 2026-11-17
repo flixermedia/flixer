@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PlatformContext } from "@tsed/platform-http";
-import type { ExternalAuthService } from "./externalAuthService.ts";
-import { ExternalAuthController } from "./externalAuthController.ts";
-import type { ExternalOAuthService } from "./externalOAuthService.ts";
+import type { ExternalAuthService } from "./externalAuthService.js";
+import { ExternalAuthController } from "./externalAuthController.js";
+import type { ExternalOAuthService } from "./externalOAuthService.js";
 
 describe("ExternalAuthController rate limiting", () => {
 	it("does not let a forged forwarding header reset the client limit", () => {

@@ -1,5 +1,5 @@
 import { CollectionOf, Enum, Format, MaxItems, MaxLength, Max, Min, MinLength, Nullable, Property, Required } from "@tsed/schema";
-import type { GuideSourceKind } from "../../entities/guideSource.entity.ts";
+import type { GuideSourceKind } from "../../entities/guideSource.entity.js";
 
 export class CreateGuideSourceRequest {
 	@Property()

@@ -3,12 +3,12 @@ import { BadRequest, ServiceUnavailable } from "@tsed/exceptions";
 import { generateKeyPairSync, hkdfSync } from "node:crypto";
 import Provider, { errors, interactionPolicy, type JWKS } from "oidc-provider";
 import { DataSource } from "typeorm";
-import { appConfig } from "../../config/store/appConfig.ts";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { User } from "../../entities/user.entity.ts";
-import { createOidcAdapter } from "./oidcAdapter.ts";
-import { decryptOidcSecret, encryptOidcSecret } from "./oidcSecrets.ts";
-import { isOidcResourceScope } from "./oidcResourceScopes.ts";
+import { appConfig } from "../../config/store/appConfig.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { User } from "../../entities/user.entity.js";
+import { createOidcAdapter } from "./oidcAdapter.js";
+import { decryptOidcSecret, encryptOidcSecret } from "./oidcSecrets.js";
+import { isOidcResourceScope } from "./oidcResourceScopes.js";
 
 /** Provides one configured OpenID Connect issuer for this server. */
 @Injectable()

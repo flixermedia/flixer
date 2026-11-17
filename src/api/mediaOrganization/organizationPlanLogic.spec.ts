@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ORGANIZATION_TEMPLATES, rejectTargetCollisions, renderOrganizationTemplate, validateOrganizationTemplates } from "./organizationPlanLogic.ts";
+import { DEFAULT_ORGANIZATION_TEMPLATES, rejectTargetCollisions, renderOrganizationTemplate, validateOrganizationTemplates } from "./organizationPlanLogic.js";
 
 describe("media organization plan logic", () => {
 	it("accepts defaults and renders safe relative paths", () => {

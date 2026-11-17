@@ -2,10 +2,10 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { PlaylistsService } from "./playlistsService.ts";
-import { CreatePlaylistRequest, PlaylistItemRequest, PlaylistOrderRequest, UpdatePlaylistRequest } from "./socialRequests.ts";
+import { MediaAccessService } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { PlaylistsService } from "./playlistsService.js";
+import { CreatePlaylistRequest, PlaylistItemRequest, PlaylistOrderRequest, UpdatePlaylistRequest } from "./socialRequests.js";
 
 const uuid = (value: string, what = "Playlist"): string => {
 	if (!AuthService.isUuid(value)) {

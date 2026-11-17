@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import tar from "tar-stream";
-import { extractPluginArchive } from "./safePluginArchive.ts";
+import { extractPluginArchive } from "./safePluginArchive.js";
 
 async function makeArchive(entries: Array<{ name: string; body?: string; type?: "file" | "symlink"; linkname?: string }>): Promise<Buffer> {
 	const pack = tar.pack();

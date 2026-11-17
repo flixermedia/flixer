@@ -3,14 +3,14 @@ import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Security } from "@tsed/schema";
 import { $log } from "@tsed/logger";
-import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { MediaHomeService } from "../media/mediaHomeService.ts";
-import { AiRecommendationCacheService } from "./aiRecommendationCacheService.ts";
-import { AiRecommendationsService } from "./aiRecommendationsService.ts";
-import { RecommendationRequest } from "./recommendationRequests.ts";
-import { RecommendationFeedbackRequest } from "../social/userMediaRequests.ts";
-import { UserMediaService } from "../social/userMediaService.ts";
+import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
+import { AuthService } from "../auth/authService.js";
+import { MediaHomeService } from "../media/mediaHomeService.js";
+import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
+import { AiRecommendationsService } from "./aiRecommendationsService.js";
+import { RecommendationRequest } from "./recommendationRequests.js";
+import { RecommendationFeedbackRequest } from "../social/userMediaRequests.js";
+import { UserMediaService } from "../social/userMediaService.js";
 
 @Controller("/recommendations")
 @Security("BearerAuth")

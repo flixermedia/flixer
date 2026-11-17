@@ -3,10 +3,10 @@ import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { AuthService } from "../auth/authService.ts";
-import { LoggerService } from "./loggerService.ts";
-import { WebLogController, WebLogService } from "./webLogController.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { AuthService } from "../auth/authService.js";
+import { LoggerService } from "./loggerService.js";
+import { WebLogController, WebLogService } from "./webLogController.js";
 
 @Configuration({})
 class TestServer {}

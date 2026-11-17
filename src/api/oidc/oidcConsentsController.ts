@@ -2,8 +2,8 @@ import { Controller } from "@tsed/di";
 import { Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { OidcConsentService } from "./oidcConsentService.ts";
+import { AuthService } from "../auth/authService.js";
+import { OidcConsentService } from "./oidcConsentService.js";
 
 /** Lists and revokes the current user's application approvals. */
 @Controller("/account/oidc-apps")

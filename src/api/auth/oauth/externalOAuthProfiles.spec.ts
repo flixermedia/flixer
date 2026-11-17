@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AppConfig, setAppConfig } from "../../../config/store/appConfig.ts";
-import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.ts";
-import { PluginInstallation } from "../../../entities/pluginInstallation.entity.ts";
-import { oauthProfileId, splitOAuthProfileId, validateOAuthProfileSettings } from "./externalOAuthProfiles.ts";
-import { ExternalOAuthProfilesService } from "./externalOAuthProfilesService.ts";
+import { AppConfig, setAppConfig } from "../../../config/store/appConfig.js";
+import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.js";
+import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
+import { oauthProfileId, splitOAuthProfileId, validateOAuthProfileSettings } from "./externalOAuthProfiles.js";
+import { ExternalOAuthProfilesService } from "./externalOAuthProfilesService.js";
 
 const profile = {
 	authorizationUrl: "https://login.example.com/authorize",

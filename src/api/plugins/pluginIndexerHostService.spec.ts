@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { PluginIndexerHostService } from "./pluginIndexerHostService.ts";
+import { PluginIndexerHostService } from "./pluginIndexerHostService.js";
 
 describe("PluginIndexerHostService", () => {
 	it("allows only approved network permissions for an enabled indexer target", async () => {

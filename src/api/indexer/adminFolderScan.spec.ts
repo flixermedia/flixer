@@ -3,14 +3,14 @@ import { Configuration } from "@tsed/di";
 import { BadRequest, Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { LiveService } from "../../live/liveService.ts";
-import { AuthService } from "../auth/authService.ts";
-import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.ts";
-import { AdminIndexerController } from "./adminIndexerController.ts";
-import { AdminIndexerService } from "./adminIndexerService.ts";
-import { IndexerClient } from "./indexerClient.ts";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { NetworkSharesService } from "../networkShares/networkSharesService.ts";
+import { LiveService } from "../../live/liveService.js";
+import { AuthService } from "../auth/authService.js";
+import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
+import { AdminIndexerController } from "./adminIndexerController.js";
+import { AdminIndexerService } from "./adminIndexerService.js";
+import { IndexerClient } from "./indexerClient.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { NetworkSharesService } from "../networkShares/networkSharesService.js";
 
 @Configuration({})
 class TestServer {}

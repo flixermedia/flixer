@@ -4,11 +4,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync } from "node:fs";
 import { isIP } from "node:net";
 import { dirname, isAbsolute } from "node:path";
-import { appConfig } from "../../config/store/appConfig.ts";
-import type { ConfigName } from "../../config/store/configSchema.ts";
-import { loggerExporter, webLoggerExporter } from "../../logs/loggerExporter.ts";
-import { AuthService } from "../auth/authService.ts";
-import type { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.ts";
+import { appConfig } from "../../config/store/appConfig.js";
+import type { ConfigName } from "../../config/store/configSchema.js";
+import { loggerExporter, webLoggerExporter } from "../../logs/loggerExporter.js";
+import { AuthService } from "../auth/authService.js";
+import type { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.js";
 
 interface RetentionPolicy {
 	enabled: boolean;

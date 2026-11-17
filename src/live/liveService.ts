@@ -1,14 +1,14 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { PlatformApplication } from "@tsed/platform-http";
 import type { Server } from "node:http";
-import { AdminIndexerService } from "../api/indexer/adminIndexerService.ts";
-import { AuthService } from "../api/auth/authService.ts";
-import { DevicesService } from "../api/devices/devicesService.ts";
-import { NetworkSharesService } from "../api/networkShares/networkSharesService.ts";
-import { OverviewService } from "../api/overview/overviewService.ts";
-import { StreamsService } from "../api/streams/streamsService.ts";
-import { LiveHub, type LiveTopic } from "./liveHub.ts";
-import { LIVE_PATH, LiveSocketServer } from "./liveSocketServer.ts";
+import { AdminIndexerService } from "../api/indexer/adminIndexerService.js";
+import { AuthService } from "../api/auth/authService.js";
+import { DevicesService } from "../api/devices/devicesService.js";
+import { NetworkSharesService } from "../api/networkShares/networkSharesService.js";
+import { OverviewService } from "../api/overview/overviewService.js";
+import { StreamsService } from "../api/streams/streamsService.js";
+import { LiveHub, type LiveTopic } from "./liveHub.js";
+import { LIVE_PATH, LiveSocketServer } from "./liveSocketServer.js";
 
 /** Owns the live admin socket and the hub that feeds it. Controllers call invalidate() after changing something. */
 @Injectable()

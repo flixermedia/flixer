@@ -1,8 +1,8 @@
 import { scrypt } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AuthService } from "./authService.ts";
-import { DEFAULT_LOGIN_SECURITY, setLoginSecurity } from "./login/loginSecurity.ts";
+import { AuthService } from "./authService.js";
+import { DEFAULT_LOGIN_SECURITY, setLoginSecurity } from "./login/loginSecurity.js";
 
 vi.mock("node:crypto", async (importOriginal) => {
 	const original = await importOriginal<typeof import("node:crypto")>();

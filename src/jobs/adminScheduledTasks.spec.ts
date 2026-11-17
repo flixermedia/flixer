@@ -3,7 +3,7 @@ import {
 	ADMIN_SCHEDULED_TASKS,
 	defaultAdminScheduledTaskConfigs,
 	readAdminScheduledTaskConfigs,
-} from "./adminScheduledTasks.ts";
+} from "./adminScheduledTasks.js";
 
 describe("admin scheduled task configuration", () => {
 	it("keeps explicitly disabled schedules disabled when loading persisted settings", () => {

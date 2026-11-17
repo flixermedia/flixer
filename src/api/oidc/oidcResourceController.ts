@@ -4,14 +4,14 @@ import { Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-p
 import type { PlatformContext } from "@tsed/platform-http";
 import { Get, Security } from "@tsed/schema";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { User } from "../../entities/user.entity.ts";
-import { MediaItem } from "../../entities/mediaItem.entity.ts";
-import { MediaAccessService, scheduleStatus } from "../access/mediaAccessService.ts";
-import { EntitlementService } from "../payments/entitlementService.ts";
-import { isUuid } from "../payments/paymentTypes.ts";
-import { OidcProviderService } from "./oidcProviderService.ts";
-import type { OidcResourceScope } from "./oidcResourceScopes.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { User } from "../../entities/user.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaAccessService, scheduleStatus } from "../access/mediaAccessService.js";
+import { EntitlementService } from "../payments/entitlementService.js";
+import { isUuid } from "../payments/paymentTypes.js";
+import { OidcProviderService } from "./oidcProviderService.js";
+import type { OidcResourceScope } from "./oidcResourceScopes.js";
 
 /** Read-only resources available to explicitly authorized OAuth applications. */
 @Controller("/oauth/me")

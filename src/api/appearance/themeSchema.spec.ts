@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BUILT_IN_THEMES } from "./builtInThemes.ts";
-import { parseThemeFile, sanitizeCustomCss, sanitizeImage, sanitizeLibraryAccents, sanitizeSchedules, sanitizeThemeConfig, scheduledThemeId, THEME_FILE_FORMAT, THEME_FILE_VERSION } from "./themeSchema.ts";
+import { BUILT_IN_THEMES } from "./builtInThemes.js";
+import { parseThemeFile, sanitizeCustomCss, sanitizeImage, sanitizeLibraryAccents, sanitizeSchedules, sanitizeThemeConfig, scheduledThemeId, THEME_FILE_FORMAT, THEME_FILE_VERSION } from "./themeSchema.js";
 
 const png = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).toString("base64")}`;
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

@@ -2,14 +2,14 @@ import { BadRequest, Forbidden, NotFound, Unauthorized } from "@tsed/exceptions"
 import { Inject, Injectable } from "@tsed/di";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DataSource, EntityManager, LessThan, MoreThan } from "typeorm";
-import { appConfig } from "../../../config/store/appConfig.ts";
-import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.ts";
-import { QuickConnectRequest, type QuickConnectStatus } from "../../../entities/quickConnectRequest.entity.ts";
-import { Setting } from "../../../entities/setting.entity.ts";
-import { User } from "../../../entities/user.entity.ts";
-import { isUniqueViolation } from "../../../utils/isUniqueViolation.ts";
-import { RateLimitService } from "../login/rateLimitService.ts";
-import { AuthService, type AuthResult } from "../authService.ts";
+import { appConfig } from "../../../config/store/appConfig.js";
+import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.js";
+import { QuickConnectRequest, type QuickConnectStatus } from "../../../entities/quickConnectRequest.entity.js";
+import { Setting } from "../../../entities/setting.entity.js";
+import { User } from "../../../entities/user.entity.js";
+import { isUniqueViolation } from "../../../utils/isUniqueViolation.js";
+import { RateLimitService } from "../login/rateLimitService.js";
+import { AuthService, type AuthResult } from "../authService.js";
 
 const QUICK_CONNECT_SETTING = "quick_connect_enabled";
 const REQUEST_LIFETIME_MS = 5 * 60_000;

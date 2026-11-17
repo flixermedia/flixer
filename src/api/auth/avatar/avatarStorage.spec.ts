@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { getAvatarDirectory } from "./avatarStorage.ts";
+import { getAvatarDirectory } from "./avatarStorage.js";
 
 describe("avatar storage", () => {
 	const originalDataPath = process.env.DATA_PATH;

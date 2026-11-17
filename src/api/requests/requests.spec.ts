@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeArrUrl, pickAlbum } from "./arrClient.ts";
-import { normalizeTitle, splitDiscogsTitle, yearOf } from "./externalMetadata.ts";
-import { remainingSeasons, resolveAccess } from "./requestAccess.ts";
-import { parseRequestSettings, validateRequestSetting } from "./requestSettings.ts";
+import { normalizeArrUrl, pickAlbum } from "./arrClient.js";
+import { normalizeTitle, splitDiscogsTitle, yearOf } from "./externalMetadata.js";
+import { remainingSeasons, resolveAccess } from "./requestAccess.js";
+import { parseRequestSettings, validateRequestSetting } from "./requestSettings.js";
 
 const defaults = parseRequestSettings(new Map());
 

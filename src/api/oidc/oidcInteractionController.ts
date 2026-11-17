@@ -4,10 +4,10 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Enum, Get, Post, Property, Required, Security } from "@tsed/schema";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { AuthService } from "../auth/authService.ts";
-import { OidcProviderService } from "./oidcProviderService.ts";
-import { isOidcResourceScope } from "./oidcResourceScopes.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { AuthService } from "../auth/authService.js";
+import { OidcProviderService } from "./oidcProviderService.js";
+import { isOidcResourceScope } from "./oidcResourceScopes.js";
 
 class OidcInteractionDecision {
 

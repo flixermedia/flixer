@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LiveHub } from "./liveHub.ts";
+import { LiveHub } from "./liveHub.js";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 

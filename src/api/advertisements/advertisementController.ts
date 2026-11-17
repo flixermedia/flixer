@@ -4,8 +4,8 @@ import { Middleware, UseBefore } from "@tsed/platform-middlewares";
 import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/platform-multer";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { AD_CHUNK_BYTES, AdvertisementService } from "./advertisementService.ts";
+import { AuthService } from "../auth/authService.js";
+import { AD_CHUNK_BYTES, AdvertisementService } from "./advertisementService.js";
 
 @Middleware({ priority: -100 })
 class RequireAdvertisementAdmin {

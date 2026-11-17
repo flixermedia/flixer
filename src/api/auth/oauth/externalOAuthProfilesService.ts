@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.ts";
-import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.ts";
-import { PluginInstallation } from "../../../entities/pluginInstallation.entity.ts";
-import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "../../plugins/pluginSettingsSecrets.ts";
-import { validateOAuthProfileSettings, type ExternalOAuthProfileSettings } from "./externalOAuthProfiles.ts";
+import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.js";
+import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.js";
+import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
+import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "../../plugins/pluginSettingsSecrets.js";
+import { validateOAuthProfileSettings, type ExternalOAuthProfileSettings } from "./externalOAuthProfiles.js";
 
 export interface ExternalOAuthProfileUpdate {
 	name: string;

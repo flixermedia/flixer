@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickNextEpisode, type EpisodeRef } from "./nextEpisode.ts";
+import { pickNextEpisode, type EpisodeRef } from "./nextEpisode.js";
 
 const ep = (id: string, seasonNumber: number | null, episodeNumber: number | null): EpisodeRef => ({ id, title: id, seasonNumber, episodeNumber });
 const all = [ep("s2e1", 2, 1), ep("s1e2", 1, 2), ep("s1e1", 1, 1), ep("sp", 0, 1)];

@@ -1,4 +1,4 @@
-import type { SegmentSource, SegmentType } from "../../entities/mediaSegment.entity.ts";
+import type { SegmentSource, SegmentType } from "../../entities/mediaSegment.entity.js";
 
 export interface Chapter {
 	title: string;

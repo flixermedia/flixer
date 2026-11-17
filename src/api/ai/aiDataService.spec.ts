@@ -1,6 +1,6 @@
 import { DataSource } from "typeorm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AiDataService } from "./aiDataService.ts";
+import { AiDataService } from "./aiDataService.js";
 
 describe("AiDataService", () => {
 	afterEach(() => {

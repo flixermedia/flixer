@@ -2,11 +2,11 @@ import { DILoggerOptions } from "@tsed/di";
 import { $log } from "@tsed/logger";
 import "@tsed/logger-std";
 import "@tsed/logger/layouts/JsonLayout.js";
-import "../../logs/liveLogAppender.ts";
-import "../../logs/loggerAppender.ts";
-import "../../logs/unifiedLog.ts";
-import { isProduction } from "../utils/index.ts";
-import { alterRequestLog, logRequestResponse } from "./requestLog.ts";
+import "../../logs/liveLogAppender.js";
+import "../../logs/loggerAppender.js";
+import "../../logs/unifiedLog.js";
+import { isProduction } from "../utils/index.js";
+import { alterRequestLog, logRequestResponse } from "./requestLog.js";
 
 // Mirrors log events to the admin dashboard's live log stream.
 $log.appenders.set("live", { type: "live" });

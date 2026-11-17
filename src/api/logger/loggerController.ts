@@ -3,9 +3,9 @@ import { Context } from "@tsed/platform-params";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Security } from "@tsed/schema";
-import { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.ts";
-import { LoggerService } from "./loggerService.ts";
-import { LoggerQueryProxy } from "./loggerQueryProxy.ts";
+import { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.js";
+import { LoggerService } from "./loggerService.js";
+import { LoggerQueryProxy } from "./loggerQueryProxy.js";
 
 @Controller("/admin/logger")
 @Security("BearerAuth")

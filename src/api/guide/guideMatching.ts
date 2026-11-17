@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { GuideProgrammeCache } from "../../entities/guideSource.entity.ts";
+import type { GuideProgrammeCache } from "../../entities/guideSource.entity.js";
 
 const REGION_WORDS = new Set([
 	"england",

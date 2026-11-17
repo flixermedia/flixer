@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, NotFound, Unauthorized } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";
-import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.ts";
-import { ExternalIdentity } from "../../../entities/externalIdentity.entity.ts";
-import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.ts";
-import { PluginInstallation } from "../../../entities/pluginInstallation.entity.ts";
-import { User } from "../../../entities/user.entity.ts";
-import { PluginWasiRuntime } from "../../plugins/pluginWasiRuntime.ts";
-import { AuthService } from "../authService.ts";
-import { oauthProfileId, splitOAuthProfileId } from "./externalOAuthProfiles.ts";
+import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.js";
+import { ExternalIdentity } from "../../../entities/externalIdentity.entity.js";
+import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.js";
+import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
+import { User } from "../../../entities/user.entity.js";
+import { PluginWasiRuntime } from "../../plugins/pluginWasiRuntime.js";
+import { AuthService } from "../authService.js";
+import { oauthProfileId, splitOAuthProfileId } from "./externalOAuthProfiles.js";
 
 @Injectable()
 export class ExternalAuthService {

@@ -2,8 +2,8 @@ import { Controller } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { BodyParams, HeaderParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { DatabaseTransferService } from "./databaseTransferService.ts";
+import { AuthService } from "../auth/authService.js";
+import { DatabaseTransferService } from "./databaseTransferService.js";
 
 /** Performs a full PostgreSQL transfer from the admin connections page. */
 @Controller("/admin/database-transfer")

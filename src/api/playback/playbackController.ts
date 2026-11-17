@@ -2,8 +2,8 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { PlaybackService } from "./playbackService.ts";
+import { AuthService } from "../auth/authService.js";
+import { PlaybackService } from "./playbackService.js";
 
 @Controller("/playback")
 export class PlaybackController {

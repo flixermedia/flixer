@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.ts";
-import { DeleteUserRequest } from "./deleteUserRequest.ts";
+import { AuthService } from "../auth/authService.js";
+import { DeleteUserRequest } from "./deleteUserRequest.js";
 
 @Controller("/users")
 @Security("BearerAuth")

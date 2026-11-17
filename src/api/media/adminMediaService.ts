@@ -1,14 +1,14 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.ts";
-import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.ts";
-import { IndexerClient } from "../indexer/indexerClient.ts";
-import { UpdateMediaItemRequest } from "./adminMediaRequests.ts";
-import { normalizeChapterTitle } from "./chapterTitles.ts";
-import { normalizeWidth, resizeImage } from "./mediaImageResizer.ts";
-import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { IndexerClient } from "../indexer/indexerClient.js";
+import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
+import { normalizeChapterTitle } from "./chapterTitles.js";
+import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
+import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
 
 const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
 const MAX_IMAGES_PER_ITEM = 60;

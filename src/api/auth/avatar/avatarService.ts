@@ -1,11 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound, RequestEntityTooLarge } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.ts";
-import { User } from "../../../entities/user.entity.ts";
-import { UserPreference } from "../../../entities/userPreference.entity.ts";
-import { AuthService, type PublicUser } from "../authService.ts";
-import { deleteAvatarFile, detectAvatarType, MAX_AVATAR_BYTES, mimeForAvatarFile, readAvatarFile, saveAvatarFile } from "./avatarStorage.ts";
+import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.js";
+import { User } from "../../../entities/user.entity.js";
+import { UserPreference } from "../../../entities/userPreference.entity.js";
+import { AuthService, type PublicUser } from "../authService.js";
+import { deleteAvatarFile, detectAvatarType, MAX_AVATAR_BYTES, mimeForAvatarFile, readAvatarFile, saveAvatarFile } from "./avatarStorage.js";
 
 @Injectable()
 export class AvatarService {

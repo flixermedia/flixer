@@ -1,15 +1,15 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
-import { Setting } from "../../entities/setting.entity.ts";
-import { IndexerClient } from "./indexerClient.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Setting } from "../../entities/setting.entity.js";
+import { IndexerClient } from "./indexerClient.js";
 import {
 	INDEXER_CONCURRENCY_KEY,
 	IndexerSettingsService,
 	type IndexerQueueName,
 	type IndexerTaskQueueName,
-} from "./indexerSettingsService.ts";
+} from "./indexerSettingsService.js";
 
 export type IndexerScanState = "scanning" | "indexing" | "complete" | "failed";
 export const INDEXER_TASK_STATES = ["pending", "active", "scheduled", "retry", "archived", "completed"] as const;

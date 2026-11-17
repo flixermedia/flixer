@@ -1,7 +1,7 @@
-import { appConfig } from "../config/store/appConfig.ts";
-import { suggestedRedisUrl } from "../config/store/configSchema.ts";
-import { probeDatabase, type DatabaseProbe } from "./databaseProbe.ts";
-import { adoptEnvironmentInstall, adoptExistingUsers, updateRuntime } from "./setupStatus.ts";
+import { appConfig } from "../config/store/appConfig.js";
+import { suggestedRedisUrl } from "../config/store/configSchema.js";
+import { probeDatabase, type DatabaseProbe } from "./databaseProbe.js";
+import { adoptEnvironmentInstall, adoptExistingUsers, updateRuntime } from "./setupStatus.js";
 
 const MIN_DELAY_MS = 2000;
 const MAX_DELAY_MS = 15000;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dataPath } from "./dataPath.ts";
+import { dataPath } from "./dataPath.js";
 
 describe("dataPath", () => {
 	afterEach(() => vi.unstubAllEnvs());
