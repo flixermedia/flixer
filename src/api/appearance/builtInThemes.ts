@@ -1,6 +1,6 @@
 import type { ThemeConfig, ThemePalette } from "./themeSchema.ts";
 
-export interface BuiltInTheme {
+interface BuiltInTheme {
 	id: string;
 	name: string;
 	description: string;

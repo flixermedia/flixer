@@ -12,8 +12,8 @@ const PREFIX = "page-builder:";
 const LOGIN_ID = "login";
 const SITE_SETTING = "page-builder-site";
 const TEMPLATES_SETTING = "page-builder-templates";
-export interface PageSiteSettings { homePageId: string | null; navigationIds: string[] }
-export interface ReusablePageBlock { id: string; name: string; block: PageBlock }
+interface PageSiteSettings { homePageId: string | null; navigationIds: string[] }
+interface ReusablePageBlock { id: string; name: string; block: PageBlock }
 
 function initialLogin(): BuilderPage {
 	return { id: LOGIN_ID, title: "Login", slug: "login", kind: "login", draft: { blocks: [{ id: "auth", type: "auth", text: "", image: null }] }, published: null };

@@ -7,19 +7,19 @@ import { randomUUID } from "node:crypto";
  * storage, the API or the web app, whether it came from the editor or from an imported theme file.
  */
 
-export const PALETTE_KEYS = ["background", "surface", "border", "primary", "secondary", "accent", "highlight", "text", "muted", "ink"] as const;
-export type PaletteKey = (typeof PALETTE_KEYS)[number];
+const PALETTE_KEYS = ["background", "surface", "border", "primary", "secondary", "accent", "highlight", "text", "muted", "ink"] as const;
+type PaletteKey = (typeof PALETTE_KEYS)[number];
 export type ThemePalette = Record<PaletteKey, string>;
 
-export const THEME_FONTS = ["system", "humanist", "geometric", "serif", "mono", "rounded"] as const;
-export const CONTENT_WIDTHS = ["compact", "standard", "wide", "full"] as const;
-export const DENSITIES = ["compact", "comfortable", "spacious"] as const;
-export const CARD_STYLES = ["outlined", "elevated", "flat", "glass"] as const;
-export const HEADER_STYLES = ["floating", "bar", "transparent", "minimal"] as const;
-export const HEADER_HEIGHTS = ["compact", "standard", "tall"] as const;
-export const NAV_ALIGNMENTS = ["start", "center"] as const;
-export const DEFAULT_MODES = ["dark", "light", "auto"] as const;
-export const BUTTON_STYLES = ["solid", "gradient", "soft"] as const;
+const THEME_FONTS = ["system", "humanist", "geometric", "serif", "mono", "rounded"] as const;
+const CONTENT_WIDTHS = ["compact", "standard", "wide", "full"] as const;
+const DENSITIES = ["compact", "comfortable", "spacious"] as const;
+const CARD_STYLES = ["outlined", "elevated", "flat", "glass"] as const;
+const HEADER_STYLES = ["floating", "bar", "transparent", "minimal"] as const;
+const HEADER_HEIGHTS = ["compact", "standard", "tall"] as const;
+const NAV_ALIGNMENTS = ["start", "center"] as const;
+const DEFAULT_MODES = ["dark", "light", "auto"] as const;
+const BUTTON_STYLES = ["solid", "gradient", "soft"] as const;
 
 export interface ThemeConfig {
 	defaultMode: (typeof DEFAULT_MODES)[number];
@@ -52,11 +52,11 @@ export interface ThemeConfig {
 
 export const THEME_NAME_MAX = 60;
 export const THEME_DESCRIPTION_MAX = 240;
-export const APP_NAME_MAX = 40;
-export const IMAGE_MAX_BYTES = 256 * 1024;
-export const BACKGROUND_MAX_BYTES = 768 * 1024;
-export const CUSTOM_CSS_MAX = 30_000;
-export const RADIUS_MAX = 1.5;
+const APP_NAME_MAX = 40;
+const IMAGE_MAX_BYTES = 256 * 1024;
+const BACKGROUND_MAX_BYTES = 768 * 1024;
+const CUSTOM_CSS_MAX = 30_000;
+const RADIUS_MAX = 1.5;
 
 const COLOR_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -322,7 +322,7 @@ export interface ThemeSchedule {
 	enabled: boolean;
 }
 
-export const MAX_SCHEDULES = 24;
+const MAX_SCHEDULES = 24;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 

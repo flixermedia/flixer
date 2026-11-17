@@ -1,18 +1,18 @@
 import { BadRequest } from "@tsed/exceptions";
 import { sanitizeImage } from "./themeSchema.ts";
 
-export const PAGE_BLOCK_TYPES = ["heading", "text", "image", "auth", "auth-field", "auth-custom", "auth-action", "button", "video", "card", "columns"] as const;
-export type PageBlockType = (typeof PAGE_BLOCK_TYPES)[number];
-export const AUTH_FIELDS = ["username", "password", "email", "displayName", "submit", "switch", "passkey", "quickConnect", "providers", "resend"] as const;
-export type AuthField = (typeof AUTH_FIELDS)[number];
-export interface PageBlockStyle { align?: "left" | "center" | "right"; color?: string; background?: string; spacing?: "compact" | "normal" | "spacious" }
-export interface PagePosition { x: number; y: number; width: number }
+const PAGE_BLOCK_TYPES = ["heading", "text", "image", "auth", "auth-field", "auth-custom", "auth-action", "button", "video", "card", "columns"] as const;
+type PageBlockType = (typeof PAGE_BLOCK_TYPES)[number];
+const AUTH_FIELDS = ["username", "password", "email", "displayName", "submit", "switch", "passkey", "quickConnect", "providers", "resend"] as const;
+type AuthField = (typeof AUTH_FIELDS)[number];
+interface PageBlockStyle { align?: "left" | "center" | "right"; color?: string; background?: string; spacing?: "compact" | "normal" | "spacious" }
+interface PagePosition { x: number; y: number; width: number }
 export interface PageBlock { id: string; type: PageBlockType; text: string; image: string | null; description?: string; href?: string; field?: AuthField; allowedFields?: string[]; style?: PageBlockStyle; columns?: PageBlock[][]; position?: { desktop: PagePosition; mobile: PagePosition } }
-export interface PageContent { blocks: PageBlock[]; layout?: "flow" | "free" }
-export type PageAccess = "public" | "signed-in";
+interface PageContent { blocks: PageBlock[]; layout?: "flow" | "free" }
+type PageAccess = "public" | "signed-in";
 export interface PublishedPage extends PageContent { title: string; slug: string; access?: PageAccess }
-export interface PageVersion { id: string; createdAt: string; content: PublishedPage }
-export interface ScheduledPage { at: string; content: PublishedPage }
+interface PageVersion { id: string; createdAt: string; content: PublishedPage }
+interface ScheduledPage { at: string; content: PublishedPage }
 export interface BuilderPage { id: string; title: string; slug: string; kind: "page" | "login"; draft: PageContent; access?: PageAccess; published: PublishedPage | null; history?: PageVersion[]; scheduled?: ScheduledPage | null }
 
 function object(value: unknown): Record<string, unknown> {

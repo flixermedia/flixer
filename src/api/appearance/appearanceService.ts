@@ -25,11 +25,11 @@ import {
 	type ThemeFile,
 } from "./themeSchema.ts";
 
-export const ACTIVE_THEME_SETTING = "active_theme_id";
-export const USER_SELECTION_SETTING = "theme_user_selection_enabled";
-export const SELECTABLE_THEMES_SETTING = "theme_user_selectable_ids";
-export const SCHEDULES_SETTING = "theme_schedules";
-export const LIBRARY_ACCENTS_SETTING = "theme_library_accents";
+const ACTIVE_THEME_SETTING = "active_theme_id";
+const USER_SELECTION_SETTING = "theme_user_selection_enabled";
+const SELECTABLE_THEMES_SETTING = "theme_user_selectable_ids";
+const SCHEDULES_SETTING = "theme_schedules";
+const LIBRARY_ACCENTS_SETTING = "theme_library_accents";
 export const LOGIN_LAYOUT_SETTING = "login_layout";
 export const LOGIN_LAYOUTS = ["classic", "spotlight", "centered", "studio", "cinema", "custom"] as const;
 export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING, USER_SELECTION_SETTING, SELECTABLE_THEMES_SETTING, SCHEDULES_SETTING, LIBRARY_ACCENTS_SETTING, LOGIN_LAYOUT_SETTING];
@@ -37,9 +37,9 @@ export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING,
 const MAX_CUSTOM_THEMES = 50;
 const MAX_VERSIONS = 20;
 
-export type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
+type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
 
-export interface ThemeView {
+interface ThemeView {
 	id: string;
 	name: string;
 	description: string;
@@ -49,7 +49,7 @@ export interface ThemeView {
 	updatedAt: Date;
 }
 
-export interface ThemeVersionView {
+interface ThemeVersionView {
 	id: string;
 	name: string;
 	description: string;
@@ -57,7 +57,7 @@ export interface ThemeVersionView {
 	createdAt: Date;
 }
 
-export interface AppearanceState {
+interface AppearanceState {
 	/** The theme chosen by the admin. */
 	activeThemeId: string;
 	/** The theme visitors actually get today: the active theme unless a schedule overrides it. */
@@ -70,7 +70,7 @@ export interface AppearanceState {
 	themes: ThemeView[];
 }
 
-export interface PublicAppearance {
+interface PublicAppearance {
 	activeThemeId: string;
 	userSelectionEnabled: boolean;
 	libraryAccents: Record<string, string>;
