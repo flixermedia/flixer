@@ -7,7 +7,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { QuickConnectRequest, type QuickConnectStatus } from "../../entities/quickConnectRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
-import { RateLimitService } from "../rateLimitService.js";
+import { RateLimitService } from "./rateLimitService.js";
 import { AuthService, type AuthResult } from "./authService.js";
 
 const QUICK_CONNECT_SETTING = "quick_connect_enabled";

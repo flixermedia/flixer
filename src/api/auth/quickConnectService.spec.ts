@@ -7,7 +7,7 @@ import { QuickConnectRequest } from "../../entities/quickConnectRequest.entity.j
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
-import { RateLimitService } from "../rateLimitService.js";
+import { RateLimitService } from "./rateLimitService.js";
 
 const REQUEST_ID = "1b2f6d7e-9813-4f90-bd7d-9457af0ec0a1";
 const POLL_TOKEN = "Y".repeat(43);

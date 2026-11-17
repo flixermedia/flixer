@@ -1,36 +1,22 @@
-import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { appConfig } from "../../config/store/appConfig.js";
+import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "../../utils/aesGcm.js";
 
 const CONTEXT = "flixer:payments:v1";
-const NONCE_BYTES = 12;
-const TAG_BYTES = 16;
+const AAD = Buffer.from(CONTEXT);
 
+// The same derived key also signs the setup/pending/receipt tokens below.
 function key(): Buffer {
-	const secret = appConfig().require("appSecret");
-	if (Buffer.byteLength(secret) < 32) {
-		throw new Error("APP_SECRET must be at least 32 bytes to store payment credentials.");
-	}
-	return Buffer.from(hkdfSync("sha256", Buffer.from(secret), Buffer.alloc(0), CONTEXT, 32));
+	return deriveAesKey(appConfig().require("appSecret"), CONTEXT, "APP_SECRET must be at least 32 bytes to store payment credentials.");
 }
 
 /** Encrypts the payment provider credentials for storage using a key derived from APP_SECRET. */
 export function encryptPaymentSecret(value: string): string {
-	const nonce = randomBytes(NONCE_BYTES);
-	const cipher = createCipheriv("aes-256-gcm", key(), nonce);
-	cipher.setAAD(Buffer.from(CONTEXT));
-	const body = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-	return Buffer.concat([nonce, body, cipher.getAuthTag()]).toString("base64url");
+	return aesGcmEncrypt(value, key(), AAD);
 }
 
 export function decryptPaymentSecret(value: string): string {
-	const raw = Buffer.from(value, "base64url");
-	if (raw.length < NONCE_BYTES + TAG_BYTES) {
-		throw new Error("Stored payment credentials are corrupted.");
-	}
-	const decipher = createDecipheriv("aes-256-gcm", key(), raw.subarray(0, NONCE_BYTES));
-	decipher.setAAD(Buffer.from(CONTEXT));
-	decipher.setAuthTag(raw.subarray(raw.length - TAG_BYTES));
-	return Buffer.concat([decipher.update(raw.subarray(NONCE_BYTES, raw.length - TAG_BYTES)), decipher.final()]).toString("utf8");
+	return aesGcmDecrypt(value, key(), AAD, "Stored payment credentials are corrupted.");
 }
 
 const SETUP_TOKEN_TTL_MS = 30 * 60 * 1000;

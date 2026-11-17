@@ -1,4 +1,4 @@
-export { VersionController } from "./api/versionController.js";
+export { VersionController } from "./api/updates/versionController.js";
 export { SetupController } from "./api/setup/setupController.js";
 export { InternalConfigController } from "./api/setup/internalConfigController.js";
 export { AiController } from "./api/ai/aiController.js";
