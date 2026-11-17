@@ -59,6 +59,8 @@ import { ThemeVersion } from "../entities/themeVersion.entity.js";
 import { PlaybackHistory } from "../entities/playbackHistory.entity.js";
 import { IssueReport, IssueReportUpdate } from "../entities/issueReport.entity.js";
 import { ChatConversation } from "../entities/chatConversation.entity.js";
+import { ChatMember, ChatMessage } from "../entities/chat.entity.js";
+import { ChatMlsDevice, ChatMlsHistoryBackup, ChatMlsKeyPackage, ChatMlsWelcome } from "../entities/chatMls.entity.js";
 import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../entities/oidc.entity.js";
 import { SocialFriendInvite, SocialFriendship } from "../entities/social.entity.js";
 import { VideoCollection, VideoCollectionItem } from "../entities/videoCollection.entity.js";
@@ -130,6 +132,12 @@ export const ENTITIES = [
 	IssueReport,
 	IssueReportUpdate,
 	ChatConversation,
+	ChatMember,
+	ChatMessage,
+	ChatMlsDevice,
+	ChatMlsKeyPackage,
+	ChatMlsWelcome,
+	ChatMlsHistoryBackup,
 	OidcClient,
 	OidcArtifact,
 	OidcConfig,

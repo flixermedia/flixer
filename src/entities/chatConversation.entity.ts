@@ -1,7 +1,7 @@
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import { User } from "./user.entity.js";
 
-/** Mapped so other entities can reference conversations; the chat service still uses raw SQL. */
+/** A direct or group conversation; `encryptionMode` decides whether messages are end-to-end encrypted. */
 @Entity("chat_conversations")
 @Check("chk_chat_conversation_encryption_mode", `"encryption_mode" IN ('encrypted', 'plaintext')`)
 @Index("uq_chat_conversations_direct_key", ["directKey"], { unique: true, where: `"direct_key" IS NOT NULL` })
