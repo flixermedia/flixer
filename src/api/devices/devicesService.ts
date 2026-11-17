@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { UserSession } from "../../entities/userSession.entity.js";
 import { describeClient } from "./userAgent.js";
 
-interface PublicDevice {
+export interface PublicDevice {
 	id: string;
 	device: string;
 	app: string;
