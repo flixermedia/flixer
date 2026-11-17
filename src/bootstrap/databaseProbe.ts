@@ -32,9 +32,11 @@ export async function probeDatabase(url: string | undefined): Promise<DatabasePr
 	client.on("error", () => undefined);
 	try {
 		await client.connect();
+		// RAW SQL: pg.Client probe before TypeORM is initialised; catalog lookup
 		const table = await client.query<{ exists: boolean }>("SELECT to_regclass('public.users') IS NOT NULL AS exists");
 		let hasUsers = false;
 		if (table.rows[0]?.exists) {
+			// RAW SQL: pg.Client probe before TypeORM is initialised
 			const count = await client.query<{ present: boolean }>("SELECT EXISTS (SELECT 1 FROM users) AS present");
 			hasUsers = count.rows[0]?.present === true;
 		}
