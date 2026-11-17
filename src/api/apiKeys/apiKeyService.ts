@@ -10,7 +10,7 @@ const API_KEY_PREFIX = "flx_";
 const DISPLAY_PREFIX_LENGTH = 12;
 const LAST_USED_GRANULARITY_MS = 60_000;
 
-interface PublicApiKey {
+export interface PublicApiKey {
 	id: string;
 	name: string;
 	prefix: string;
