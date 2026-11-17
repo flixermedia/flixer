@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
+import type { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { AuthService } from "../auth/authService.js";
@@ -13,7 +14,7 @@ interface DashboardGridItem {
 	h: number;
 }
 
-interface Preferences {
+export interface Preferences {
 	language?: string;
 	audioLanguage?: string;
 	adminDashboardGrid?: DashboardGridItem[];
@@ -131,7 +132,7 @@ export class PreferencesService {
 					data[key] = value;
 				}
 			}
-			await repository.upsert({ userId: user.id, data }, ["userId"]);
+			await repository.upsert({ userId: user.id, data: data as QueryDeepPartialEntity<UserPreference["data"]> }, ["userId"]);
 			return publicPreferences(data);
 		});
 	}

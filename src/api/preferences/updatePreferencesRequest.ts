@@ -1,4 +1,4 @@
-import { AdditionalProperties, array, Integer, Nullable, Property, Required, Schema } from "@tsed/schema";
+import { AdditionalProperties, array, Integer, type JsonSchema, Nullable, Property, Required, Schema } from "@tsed/schema";
 
 export class DashboardGridItemRequest {
 
@@ -39,7 +39,7 @@ export class UpdatePreferencesRequest {
 	@Nullable(String)
 	audioLanguage?: string | null;
 
-	@Schema(array(DashboardGridItemRequest).nullable())
+	@Schema(array(DashboardGridItemRequest as unknown as JsonSchema).nullable())
 	adminDashboardGrid?: DashboardGridItemRequest[] | null;
 
 	@Property()
