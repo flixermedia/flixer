@@ -18,7 +18,7 @@ const MAX_SIGNALS_PER_WINDOW = 60;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 const MAX_PENDING_EVENTS = 256;
 
-export type ChatAuthenticator = (token: string) => Promise<string>;
+type ChatAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	authenticated: boolean;

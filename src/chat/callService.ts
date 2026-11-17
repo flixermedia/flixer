@@ -8,7 +8,7 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.t
 
 const CREDENTIAL_TTL_SECONDS = 6 * 60 * 60;
 
-export interface PartyKeyPackage {
+interface PartyKeyPackage {
 	userId: string;
 	deviceId: string;
 	keyPackageId: string;
@@ -16,13 +16,13 @@ export interface PartyKeyPackage {
 	available: boolean;
 }
 
-export interface IceServer {
+interface IceServer {
 	urls: string[];
 	username?: string;
 	credential?: string;
 }
 
-export interface IceConfig {
+interface IceConfig {
 	iceServers: IceServer[];
 	relayOnly: boolean;
 }

@@ -6,12 +6,12 @@ import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.t
 import { NotificationService } from "../api/notifications/notificationService.ts";
 
 export const MAX_MESSAGE_LENGTH = 2000;
-export const MAX_ENCRYPTED_MESSAGE_LENGTH = 32768;
+const MAX_ENCRYPTED_MESSAGE_LENGTH = 32768;
 const MAX_MLS_PAYLOAD_LENGTH = 32768;
 const MAX_MLS_HISTORY_BACKUP_LENGTH = 29_000_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-export const MAX_GROUP_MEMBERS = 50;
-export const MAX_GROUP_NAME = 60;
+const MAX_GROUP_MEMBERS = 50;
+const MAX_GROUP_NAME = 60;
 const PAGE_SIZE = 50;
 const RATE_WINDOW_MS = 10_000;
 const RATE_LIMIT = 10;
@@ -39,7 +39,7 @@ export interface ChatMessage {
 	createdAt: string;
 }
 
-export interface ChatMlsDeviceSummary {
+interface ChatMlsDeviceSummary {
 	deviceId: string;
 	name: string;
 	status: "active" | "pending" | "revoked";
