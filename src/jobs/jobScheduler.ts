@@ -36,7 +36,7 @@ const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
 const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export interface AdminTaskRunStatus {
+interface AdminTaskRunStatus {
 	id: AdminScheduledTaskId;
 	name: string;
 	category: string;
