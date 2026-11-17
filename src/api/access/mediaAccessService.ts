@@ -200,6 +200,7 @@ export class MediaAccessService {
 
 	private effectiveRating(alias: string): string {
 		const clean = (column: string) => `NULLIF(btrim(${column}), '')`;
+		// RAW SQL: SQL fragment: nested COALESCE/NULLIF with correlated subselects on parent rows
 		return `COALESCE(${clean(`${alias}.metadata ->> 'contentRating'`)}, (SELECT ${clean("p.metadata ->> 'contentRating'")} FROM media_items p WHERE p.id = ${alias}.parent_id), (SELECT ${clean("g.metadata ->> 'contentRating'")} FROM media_items p JOIN media_items g ON g.id = p.parent_id WHERE p.id = ${alias}.parent_id))`;
 	}
 
@@ -218,6 +219,7 @@ export class MediaAccessService {
 
 	private hasTag(alias: string, param: string): string {
 		const list = (column: string) => `CASE WHEN jsonb_typeof(${column}) = 'array' THEN ${column} ELSE '[]'::jsonb END`;
+		// RAW SQL: SQL fragment: jsonb array EXISTS over the item and its ancestors
 		return `EXISTS (SELECT 1 FROM media_items t WHERE t.id IN (${alias}.id, ${alias}.parent_id, (SELECT p.parent_id FROM media_items p WHERE p.id = ${alias}.parent_id)) AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(${list("t.metadata -> 'genres'")} || ${list("t.metadata -> 'tags'")}) v WHERE lower(btrim(v)) = ANY(:${param})))`;
 	}
 

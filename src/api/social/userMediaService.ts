@@ -16,6 +16,7 @@ const MAX_COLLECTION_ITEMS = 2000;
 const MAX_QUEUE_ITEMS = 500;
 export const MAX_HISTORY_PAGE_SIZE = 200;
 
+// RAW SQL: CTEs and window functions grouping consecutive history rows
 const HISTORY_GROUPS_SQL = `
 	WITH resolved_history AS (
 		SELECT history.*,

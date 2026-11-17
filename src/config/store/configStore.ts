@@ -40,6 +40,7 @@ interface Migration {
 const MIGRATIONS: Migration[] = [
 	{
 		version: 1,
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		sql: `
 			CREATE TABLE config (
 				key TEXT PRIMARY KEY,
@@ -53,6 +54,7 @@ const MIGRATIONS: Migration[] = [
 	},
 	{
 		version: 2,
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		sql: "UPDATE config SET key = 'app_secret' WHERE key = 'stream_token_secret' AND NOT EXISTS (SELECT 1 FROM config WHERE key = 'app_secret')",
 	},
 ];
@@ -78,7 +80,9 @@ export class ConfigStore {
 	}
 
 	private migrate(): void {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const applied = new Set((this.db.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]).map((row) => row.version));
 		for (const migration of MIGRATIONS) {
 			if (applied.has(migration.version)) {
@@ -87,6 +91,7 @@ export class ConfigStore {
 			this.db.exec("BEGIN IMMEDIATE");
 			try {
 				this.db.exec(migration.sql);
+				// RAW SQL: SQLite bootstrap config store, outside TypeORM
 				this.db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(migration.version, new Date().toISOString());
 				this.db.exec("COMMIT");
 			} catch (error: unknown) {
@@ -98,11 +103,13 @@ export class ConfigStore {
 
 	/** Counts every saved change so other services can tell when to reload. */
 	version(): number {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'config_version'").get() as { value: string } | undefined;
 		return row ? Number(row.value) : 0;
 	}
 
 	get(name: ConfigName): string | undefined {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const row = this.db.prepare("SELECT value, encrypted FROM config WHERE key = ?").get(definitionOf(name).key) as { value: string; encrypted: number } | undefined;
 		if (!row) {
 			return undefined;
@@ -111,6 +118,7 @@ export class ConfigStore {
 	}
 
 	has(name: ConfigName): boolean {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		return this.db.prepare("SELECT 1 FROM config WHERE key = ?").get(definitionOf(name).key) !== undefined;
 	}
 
@@ -135,15 +143,18 @@ export class ConfigStore {
 		try {
 			const next = this.version() + 1;
 			const now = new Date().toISOString();
+			// RAW SQL: SQLite bootstrap config store, outside TypeORM
 			const upsert = this.db.prepare("INSERT INTO config (key, value, encrypted, version, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, encrypted = excluded.encrypted, version = excluded.version, updated_at = excluded.updated_at");
 			for (const [name, value] of entries) {
 				const definition = definitionOf(name);
 				upsert.run(definition.key, definition.secret ? this.box.encrypt(value) : value, definition.secret ? 1 : 0, next, now);
 			}
+			// RAW SQL: SQLite bootstrap config store, outside TypeORM
 			const deleteKey = this.db.prepare("DELETE FROM config WHERE key = ?");
 			for (const name of remove) {
 				deleteKey.run(definitionOf(name).key);
 			}
+			// RAW SQL: SQLite bootstrap config store, outside TypeORM
 			this.db.prepare("INSERT INTO meta (key, value) VALUES ('config_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(next));
 			this.db.exec("COMMIT");
 			return next;
@@ -154,6 +165,7 @@ export class ConfigStore {
 	}
 
 	setupState(): SetupState {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'setup_state'").get() as { value: string } | undefined;
 		return SETUP_STATES.find((state) => state === row?.value) ?? "not_started";
 	}
@@ -168,6 +180,7 @@ export class ConfigStore {
 
 	/** Which wizard flow was chosen and which steps are done, so a refresh or a second browser resumes where setup stopped. */
 	wizardProgress(): WizardProgress {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'wizard_progress'").get() as { value: string } | undefined;
 		try {
 			const parsed = JSON.parse(row?.value ?? "") as Partial<WizardProgress>;
@@ -184,10 +197,12 @@ export class ConfigStore {
 	}
 
 	setWizardProgress(progress: WizardProgress): void {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.prepare("INSERT INTO meta (key, value) VALUES ('wizard_progress', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(progress));
 	}
 
 	getDatabaseTransferJournal(): DatabaseTransferJournal | null {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		const row = this.db.prepare("SELECT value FROM meta WHERE key = 'database_transfer_journal'").get() as { value: string } | undefined;
 		if (!row) {
 			return null;
@@ -196,10 +211,12 @@ export class ConfigStore {
 	}
 
 	setDatabaseTransferJournal(journal: DatabaseTransferJournal): void {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.prepare("INSERT INTO meta (key, value) VALUES ('database_transfer_journal', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(this.box.encrypt(JSON.stringify(journal)));
 	}
 
 	clearDatabaseTransferJournal(): void {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.prepare("DELETE FROM meta WHERE key = 'database_transfer_journal'").run();
 	}
 
@@ -216,10 +233,12 @@ export class ConfigStore {
 	/** Reopens the wizard. Saved values stay, so the steps come back pre-filled. */
 	reset(): void {
 		this.writeSetupState("not_started");
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.prepare("DELETE FROM meta WHERE key = 'wizard_progress'").run();
 	}
 
 	private writeSetupState(state: SetupState): void {
+		// RAW SQL: SQLite bootstrap config store, outside TypeORM
 		this.db.prepare("INSERT INTO meta (key, value) VALUES ('setup_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(state);
 	}
 

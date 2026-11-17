@@ -177,6 +177,7 @@ export class ProfilesService {
 	}
 
 	private userSql(where: string): string {
+		// RAW SQL: shared SELECT joining users and user_preferences with a COALESCE default
 		return `SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file, COALESCE(up.profile_visibility, 'public') AS visibility
 			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE ${where} AND u.disabled_at IS NULL`;
 	}

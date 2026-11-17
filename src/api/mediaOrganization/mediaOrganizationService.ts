@@ -524,6 +524,7 @@ export class MediaOrganizationService {
 	}
 
 	private async claimStateWithAudit(plan: MediaOrganizationPlan, expected: string, next: string, actorId: string, action: string, details: Record<string, unknown>, error: string | null = null): Promise<void> {
+		// RAW SQL: single-statement state claim: UPDATE ... RETURNING inside a CTE
 		const rows = await this.dataSource.query<Array<{ id: string }>>('WITH claimed AS (UPDATE "media_organization_plans" SET "state" = $1, "error" = $2, "updated_at" = now() WHERE "id" = $3 AND "library_id" = $4 AND "state" = $5 RETURNING "id") INSERT INTO "media_organization_plan_audit" ("id", "plan_id", "actor_id", "action", "details") SELECT $6, "id", $7, $8, $9::jsonb FROM claimed RETURNING "plan_id" AS "id"', [next, error, plan.id, plan.libraryId, expected, randomUUID(), actorId, action, JSON.stringify(details)]);
 		if (rows.length !== 1) throw new Conflict("This organization plan has already changed state.");
 	}

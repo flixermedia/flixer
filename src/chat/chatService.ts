@@ -147,6 +147,7 @@ const messageOf = (row: MessageRow): ChatMessage => ({
 	createdAt: row.created_at.toISOString(),
 });
 
+// RAW SQL: shared SELECT with joins; no entity for chat_messages
 const MESSAGE_SELECT = `SELECT m.id, m.sequence, m.conversation_id, m.kind, m.encrypted, m.body, m.created_at, u.username, u.display_name, up.avatar_file
 	FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id`;
 

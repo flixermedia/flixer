@@ -92,6 +92,7 @@ interface MediaItemQuery {
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
 const POPULAR_ITEMS_PER_SECTION = 13;
+// RAW SQL: shared predicate: correlated EXISTS subqueries over child items
 const REVIEW_QUEUE_PREDICATE = `(item.match_confidence IN ('low', 'unidentified', 'unknown')
 	OR EXISTS (
 		SELECT 1 FROM media_items child
@@ -181,6 +182,7 @@ export class AdminMediaService {
 	private async globalCategoryCounts(reviewOnly = false): Promise<MediaCategoryCounts> {
 		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
 		const scope = reviewOnly ? `item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album') AND ${REVIEW_QUEUE_PREDICATE}` : "item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album')";
+		// RAW SQL: SQL condition string interpolating the review-queue predicate
 		const rows = await this.dataSource.query<Array<{ category: MediaCategory; count: string | number }>>(`
 			SELECT CASE
 				WHEN item.type IN ('movie', 'video') THEN 'movies'
@@ -241,6 +243,7 @@ export class AdminMediaService {
 				sectionTotal: string | number;
 			}>
 		>(
+			// RAW SQL: CTEs and window functions ranking popular items per section
 			`
 			WITH watcher_counts AS (
 				SELECT item_id, COUNT(*) AS watcher_count

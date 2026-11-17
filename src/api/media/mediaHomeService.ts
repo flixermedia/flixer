@@ -67,10 +67,12 @@ export function applyBrowseFilters(query: SelectQueryBuilder<MediaItem>, filters
 	const studio = filters.studio?.trim().slice(0, 100);
 	if (cast) {
 		const pattern = `%${cast.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		// RAW SQL: jsonb array EXISTS filter on cast
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(item.metadata -> 'cast') = 'array' THEN item.metadata -> 'cast' ELSE '[]'::jsonb END) person WHERE person ->> 'name' ILIKE :cast)`, { cast: pattern });
 	}
 	if (studio) {
 		const pattern = `%${studio.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		// RAW SQL: jsonb array EXISTS filter on studios
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'studios') = 'array' THEN item.metadata -> 'studios' ELSE '[]'::jsonb END) studio WHERE studio ILIKE :studio)`, { studio: pattern });
 	}
 	const runtime = `COALESCE(CASE WHEN item.metadata ->> 'runtime' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.metadata ->> 'runtime')::numeric END, CASE WHEN item.technical ->> 'duration' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.technical ->> 'duration')::numeric / 60 END)`;
@@ -81,6 +83,7 @@ export function applyBrowseFilters(query: SelectQueryBuilder<MediaItem>, filters
 		query.andWhere(`CASE WHEN item.technical ->> 'height' ~ '^[0-9]+$' THEN (item.technical ->> 'height')::integer >= :resolution ELSE false END`, { resolution: filters.resolution });
 	}
 	if (filters.audioLanguage?.trim()) {
+		// RAW SQL: jsonb array EXISTS filter on audio languages
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.technical -> 'audioLanguages') = 'array' THEN item.technical -> 'audioLanguages' ELSE '[]'::jsonb END) language WHERE lower(language) = lower(:audioLanguage))`, { audioLanguage: filters.audioLanguage.trim().slice(0, 30) });
 	}
 
@@ -563,6 +566,7 @@ export class MediaHomeService {
 		} else if (term) {
 			const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
 			query_.andWhere(
+				// RAW SQL: search predicate: jsonb arrays and correlated EXISTS over related items and lyrics
 				`(
 						item.title ILIKE :contains
 						OR item.metadata ->> 'overview' ILIKE :contains
@@ -623,6 +627,7 @@ export class MediaHomeService {
 			);
 		}
 		if (genre && !searchIds) {
+			// RAW SQL: jsonb array EXISTS filter on genres
 			query_.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre });
 		}
 		if (!searchIds && Number.isInteger(filters.yearFrom)) {
@@ -632,6 +637,7 @@ export class MediaHomeService {
 			query_.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
 		}
 		if (filters.unwatched) {
+			// RAW SQL: NOT EXISTS subselect on watch_progress
 			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
 		}
 
@@ -686,9 +692,11 @@ export class MediaHomeService {
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 		this.access.restrict(query, "item", policy);
 		applyBrowseFilters(query, filters);
+		// RAW SQL: jsonb array EXISTS filter on genres
 		if (filters.genre?.trim()) query.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre: filters.genre.trim().slice(0, 60) });
 		if (Number.isInteger(filters.yearFrom)) query.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
 		if (Number.isInteger(filters.yearTo)) query.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
+		// RAW SQL: NOT EXISTS subselect on watch_progress
 		if (filters.unwatched) query.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId: policy.userId });
 		if (sort === "title") {
 			query.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
@@ -949,6 +957,7 @@ export class MediaHomeService {
 		this.access.restrict(query, "item", policy, { content: true });
 		if (userId) {
 			query.andWhere(
+				// RAW SQL: NOT (...) with correlated EXISTS over watch_progress and episodes
 				`NOT (
 					(item.type IN ('movie', 'video') AND EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true))
 					OR (item.type = 'series'
