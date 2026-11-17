@@ -16,7 +16,7 @@ import { validatePostgresUrl } from "../../config/store/configSchema.js";
 
 type TransferState = "idle" | "running" | "failed" | "interrupted" | "completed";
 
-interface DatabaseTransferStatus {
+export interface DatabaseTransferStatus {
 	state: TransferState;
 	phase: string;
 	message: string;
