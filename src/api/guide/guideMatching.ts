@@ -45,7 +45,7 @@ export interface RegionalGuideChannel {
 	programmes: GuideProgrammeCache[];
 }
 
-export interface RegionalGuideGroup {
+interface RegionalGuideGroup {
 	primary: RegionalGuideChannel;
 	variants: RegionalGuideChannel[];
 }
