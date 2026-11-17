@@ -310,7 +310,7 @@ function isPlayerState(value: unknown): value is RemotePlayerState {
 		state.duration <= 86_400 &&
 		(state.volume === undefined || (typeof state.volume === "number" && Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1)) &&
 		(state.muted === undefined || typeof state.muted === "boolean") &&
-		(state.audioTrackIndex === undefined || state.audioTrackIndex === null || (Number.isInteger(state.audioTrackIndex) && state.audioTrackIndex >= 0 && state.audioTrackIndex < 32)) &&
+		(state.audioTrackIndex === undefined || state.audioTrackIndex === null || (Number.isInteger(state.audioTrackIndex) && (state.audioTrackIndex as number) >= 0 && (state.audioTrackIndex as number) < 32)) &&
 		isTracks(state.audioTracks) &&
 		isTracks(state.subtitles) &&
 		(state.subtitleId === undefined || (typeof state.subtitleId === "string" && state.subtitleId.length <= 128)) &&
