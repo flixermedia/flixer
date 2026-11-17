@@ -249,6 +249,7 @@ export class MediaSearchService {
 	}
 
 	async enqueueRebuild(): Promise<{ queued: boolean }> {
+		// RAW SQL: no entity for media_search_outbox; ON CONFLICT ... WHERE partial-index upsert with RETURNING
 		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
 			INSERT INTO "media_search_outbox" ("operation")
 			VALUES ('rebuild')
@@ -262,6 +263,7 @@ export class MediaSearchService {
 	async resetAndRebuild(): Promise<{ queued: boolean }> {
 		await this.ensureAdminSettingsLoaded();
 		if (!this.enabled) throw new BadRequest("Enable Meilisearch before resetting its media index.");
+		// RAW SQL: no entity for media_search_outbox; ON CONFLICT ... WHERE partial-index upsert with RETURNING
 		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
 			INSERT INTO "media_search_outbox" ("operation")
 			VALUES ('reset')
@@ -284,6 +286,7 @@ export class MediaSearchService {
 
 		await this.dataSource.transaction(async (manager) => {
 			if (lyrics.trim()) {
+				// RAW SQL: no entity for media_search_lyrics; ON CONFLICT upsert
 				await manager.query(
 					`INSERT INTO "media_search_lyrics" ("item_id", "lyrics")
 					VALUES ($1, $2)
@@ -291,8 +294,10 @@ export class MediaSearchService {
 					[itemId, lyrics],
 				);
 			} else {
+				// RAW SQL: no entity for media_search_lyrics
 				await manager.query(`DELETE FROM "media_search_lyrics" WHERE "item_id" = $1`, [itemId]);
 			}
+			// RAW SQL: no entity for media_search_outbox
 			await manager.query(`INSERT INTO "media_search_outbox" ("item_id", "operation") VALUES ($1, 'upsert')`, [itemId]);
 		});
 	}
@@ -312,6 +317,7 @@ export class MediaSearchService {
 
 	async getAdminStatus(): Promise<MediaSearchAdminStatus> {
 		await this.loadAdminSettings();
+		// RAW SQL: no entity for media_search_outbox; FILTER aggregates and scalar subquery
 		const outboxRows: Array<{ pending: number | string; failed: number | string; last_error: string | null }> = await this.dataSource.query(`
 				SELECT
 					COUNT(*) FILTER (WHERE "last_error" IS NULL)::int AS pending,
@@ -452,7 +458,9 @@ export class MediaSearchService {
 
 	private async createIndex(): Promise<void> {
 		const index = await this.request<MeilisearchIndex>(`/indexes/${INDEX_UID}`, {}, [404]);
+		// RAW SQL: settings read of the document version, kept raw alongside the settings upsert below
 		const documentVersions: Array<{ value: number }> = await this.dataSource.query('SELECT "value" FROM "settings" WHERE "key" = $1', [SEARCH_DOCUMENT_VERSION_SETTING]);
+		// RAW SQL: no entity for media_search_outbox
 		const pendingMaintenance: Array<{ operation: "rebuild" | "reset" }> = await this.dataSource.query(`
 			SELECT "operation"
 			FROM "media_search_outbox"
@@ -472,6 +480,7 @@ export class MediaSearchService {
 		}
 		await this.configureIndex();
 		if (needsRebuild) await this.enqueueRebuild();
+		// RAW SQL: settings cleanup, kept raw alongside the settings upsert below
 		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [LEGACY_VECTOR_SEARCH_SETTINGS]);
 		this.ready = true;
 	}
@@ -512,8 +521,10 @@ export class MediaSearchService {
 						await this.rebuildIndex();
 					}
 				}
+				// RAW SQL: no entity for media_search_outbox; bigint[] id match
 				await this.dataSource.query(`DELETE FROM "media_search_outbox" WHERE "event_id" = ANY($1::bigint[])`, [events.map((event) => event.event_id)]);
 			} catch (error) {
+				// RAW SQL: no entity for media_search_outbox; DB-side now() and interval
 				await this.dataSource.query(
 					`UPDATE "media_search_outbox"
 					SET "locked_until" = NULL, "next_attempt_at" = now() + interval '30 seconds', "last_error" = $2
@@ -542,6 +553,7 @@ export class MediaSearchService {
 
 	private async claimEvents(): Promise<OutboxEvent[]> {
 		return this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for media_search_outbox; FOR UPDATE SKIP LOCKED claim
 			const rows: OutboxEvent[] = await manager.query(
 				`SELECT "event_id", "item_id", "operation", "document"
 				FROM "media_search_outbox"
@@ -554,6 +566,7 @@ export class MediaSearchService {
 			if (rows.length === 0) return [];
 			const maintenanceIndex = rows.findIndex((event) => event.operation === "rebuild" || event.operation === "reset");
 			const claimed = maintenanceIndex < 0 ? rows : rows.slice(0, maintenanceIndex + 1);
+			// RAW SQL: no entity for media_search_outbox; DB-side now() and interval
 			await manager.query(
 				`UPDATE "media_search_outbox"
 				SET "locked_until" = now() + interval '30 minutes', "attempts" = "attempts" + 1
@@ -599,6 +612,7 @@ export class MediaSearchService {
 	private async searchDocumentsFor(itemIds: string[], includeRelated = true): Promise<SearchDocument[]> {
 		if (itemIds.length === 0) return [];
 		const targetIds = new Set(itemIds);
+		// RAW SQL: recursive CTE over media_items with unnest
 		const relatedRows: Array<{ id: string }> = await this.dataSource.query(
 			`WITH RECURSIVE ancestors("id", "depth") AS (
 				SELECT unnest($1::uuid[]), 0
@@ -625,6 +639,7 @@ export class MediaSearchService {
 		const items = await this.dataSource.getRepository(MediaItem).find({ where: { id: In(relatedIds) } });
 		const byId = new Map(items.map((item) => [item.id, item]));
 		const trackIds = items.filter((item) => item.type === "track").map((item) => item.id);
+		// RAW SQL: no entity for media_search_lyrics
 		const lyricRows: Array<{ item_id: string; lyrics: string }> = trackIds.length > 0 ? await this.dataSource.query(`SELECT "item_id", "lyrics" FROM "media_search_lyrics" WHERE "item_id" = ANY($1::uuid[])`, [trackIds]) : [];
 		const lyricsById = new Map(lyricRows.map((row) => [row.item_id, row.lyrics]));
 		const seriesFor = (item: MediaItem): MediaItem | undefined => {
@@ -677,7 +692,9 @@ export class MediaSearchService {
 			afterId = items[items.length - 1].id;
 		}
 		logger().info("Rebuilt the Meilisearch media index.");
+		// RAW SQL: settings cleanup, kept raw alongside the settings upsert below
 		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [LEGACY_VECTOR_SEARCH_SETTINGS]);
+		// RAW SQL: settings entity declares no unique key; ON CONFLICT (key) upsert
 		await this.dataSource.query(
 			`INSERT INTO "settings" ("key", "value", "is_public")
 			VALUES ($1, $2::jsonb, false)

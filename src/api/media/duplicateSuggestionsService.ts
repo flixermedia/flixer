@@ -34,6 +34,7 @@ export class DuplicateSuggestionsService {
 	async list(query: DuplicateSuggestionsQuery = {}): Promise<DuplicateSuggestionsPage> {
 		const page = boundedInteger(query.page, 1, MAX_PAGE);
 		const size = boundedInteger(query.size, 50, MAX_PAGE_SIZE);
+		// RAW SQL: CTE with LATERAL jsonb_each_text and UNION ALL
 		const rows = await this.dataSource.query<SuggestionRow[]>(
 			`
 			WITH candidate_rows AS (

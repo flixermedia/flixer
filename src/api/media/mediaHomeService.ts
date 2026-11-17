@@ -341,6 +341,7 @@ export class MediaHomeService {
 	}
 
 	private async episodeIds(id: string, type: "season" | "series"): Promise<string[]> {
+		// RAW SQL: two join shapes chosen per type; kept as one raw lookup
 		const rows: Array<{ id: string }> = await this.dataSource.query(type === "season" ? `SELECT id FROM media_items WHERE parent_id = $1 AND type = 'episode' AND is_placeholder = false` : `SELECT e.id FROM media_items e JOIN media_items s ON e.parent_id = s.id WHERE s.parent_id = $1 AND e.type = 'episode' AND e.is_placeholder = false`, [id]);
 		return rows.map((row) => row.id);
 	}
@@ -525,6 +526,7 @@ export class MediaHomeService {
 
 	/** Every genre present in the library, for the search filter. */
 	async genres(policy?: AccessPolicy): Promise<string[]> {
+		// RAW SQL: jsonb_array_elements_text over metadata genres
 		const rows: Array<{ genre: string }> = await this.dataSource.query(`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`);
 		const hidden = new Set(policy?.enforced && policy.displayMode === "hidden" ? policy.blockedTags : []);
 		return rows.map((row) => row.genre).filter((genre) => Boolean(genre) && !hidden.has(genre.trim().toLowerCase()));

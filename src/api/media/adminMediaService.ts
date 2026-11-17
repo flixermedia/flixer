@@ -337,6 +337,7 @@ export class AdminMediaService {
 	async matchConflicts(id: string): Promise<Array<{ id: string; title: string; path: string; providers: string[] }>> {
 		const item = await this.find(id);
 		if (!["movie", "series"].includes(item.type)) return [];
+		// RAW SQL: LATERAL jsonb_each_text join with array_agg
 		return this.dataSource.query(
 			`SELECT other.id, other.title, other.path, array_agg(ids.key ORDER BY ids.key) AS providers
 			 FROM media_items other
