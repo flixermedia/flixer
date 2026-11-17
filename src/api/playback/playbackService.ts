@@ -29,7 +29,7 @@ const SAMPLE_EXTENSIONS = new Set([".mp4", ".webm", ".mkv"]);
 const AUDIO_EXTENSIONS = new Set([".mp3", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".wav", ".aiff", ".aif"]);
 const PLAYABLE_TYPES: MediaItemType[] = ["movie", "episode", "video", "track"];
 
-export interface SampleVideo {
+interface SampleVideo {
 	id: string;
 	title: string;
 	container: string;
@@ -37,7 +37,7 @@ export interface SampleVideo {
 	directPlay: boolean;
 }
 
-export interface PlaybackInfo {
+interface PlaybackInfo {
 	playSessionId: string;
 	mediaSource: SampleVideo & {
 		mediaSourceId: string;
