@@ -38,7 +38,7 @@ export interface IndexerSubtitleSetting {
 	autoFetch: boolean;
 }
 
-interface IndexerSettings {
+export interface IndexerSettings {
 	providers: Record<string, IndexerProviderSetting>;
 	concurrency: Record<string, number>;
 	language: string;

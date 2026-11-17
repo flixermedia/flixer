@@ -10,7 +10,7 @@ const INTRO_TYPES = ["intro", "credits"] as const;
 type IntroType = (typeof INTRO_TYPES)[number];
 type TimedSegment = { startMs: number; endMs: number };
 
-interface IntroSyncCandidate {
+export interface IntroSyncCandidate {
 	id: string;
 	type: "movie" | "episode";
 	providerIds: Record<string, string>;
@@ -65,7 +65,7 @@ export class IndexerIntroSegmentsService {
 		});
 		const existing: ExistingIntroSegments = {};
 		for (const { type } of rows) {
-			existing[type] = true;
+			existing[type as keyof ExistingIntroSegments] = true;
 		}
 		return existing;
 	}

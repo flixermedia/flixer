@@ -203,7 +203,7 @@ export class IndexerApiController {
 		}
 		await this.writes.run(() =>
 			this.items.markScanItemsSeen(
-				request.libraryId!.toLowerCase(),
+				(request.libraryId as string).toLowerCase(),
 				(request.itemIds as string[]).map((id) => id.toLowerCase()),
 			),
 		);
