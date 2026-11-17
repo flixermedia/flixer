@@ -32,13 +32,13 @@ export interface OrganizationPlanSummary {
 	totalBytes: number;
 }
 
-interface OrganizationPlanView extends MediaOrganizationPlan {
+export interface OrganizationPlanView extends MediaOrganizationPlan {
 	audit: MediaOrganizationPlanAudit[];
 }
 
 type OrganizationMoveStatus = "notMoved" | "moved" | "bothExist" | "neitherExists" | "changed" | "unavailable";
 
-interface OrganizationMoveReconciliation {
+export interface OrganizationMoveReconciliation {
 	itemId: string;
 	title: string;
 	sourceRelativePath: string;
