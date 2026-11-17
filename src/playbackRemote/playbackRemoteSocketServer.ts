@@ -13,7 +13,7 @@ const MAX_CLIENTS = 500;
 const MAX_MESSAGE_BYTES = 256 * 1_024;
 const MAX_BUFFERED_BYTES = 512 * 1_024;
 
-export type RemoteCommand =
+type RemoteCommand =
 	| { action: "play" | "pause" }
 	| { action: "seek"; position: number }
 	| { action: "volume"; volume: number; muted: boolean }
@@ -21,7 +21,7 @@ export type RemoteCommand =
 	| { action: "subtitle"; id: string }
 	| { action: "skip" }
 	| { action: "play-item"; item: RemoteCastItem };
-export interface RemoteAudioTrack {
+interface RemoteAudioTrack {
 	id: string;
 	title: string;
 	artist: string | null;
@@ -30,7 +30,7 @@ export interface RemoteAudioTrack {
 	albumId: string | null;
 	art: { itemId: string; index: number; version?: string } | null;
 }
-export type RemoteCastItem =
+type RemoteCastItem =
 	| { kind: "video"; itemId: string; title: string; startAt?: number }
 	| { kind: "audio"; tracks: RemoteAudioTrack[]; startIndex: number };
 interface RemoteTrack { id: string; label: string }
@@ -39,7 +39,7 @@ interface RemoteSegment { start: number; end: number; type: string }
 interface RemoteTrickplay {
 	manifest: { intervalMs: number; thumbWidth: number; thumbHeight: number; columns: number; rows: number; count: number; sheets: number };
 }
-export interface RemotePlayerState {
+interface RemotePlayerState {
 	kind: "audio" | "video";
 	title: string;
 	subtitle?: string;
@@ -57,14 +57,14 @@ export interface RemotePlayerState {
 	segments?: RemoteSegment[];
 	trickplay?: RemoteTrickplay;
 }
-export interface RemoteDevice {
+interface RemoteDevice {
 	clientId: string;
 	deviceName: string;
 	player?: RemotePlayerState;
 	updatedAt: number;
 }
 
-export type PlaybackRemoteAuthenticator = (token: string) => Promise<string>;
+type PlaybackRemoteAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	token?: string;
