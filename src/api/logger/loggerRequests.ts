@@ -13,7 +13,7 @@ export class LoggerConfigurationRequest {
 	manageToken!: string;
 }
 
-export class LoggerSeverityRetention {
+class LoggerSeverityRetention {
 	@Property()
 	trace?: number;
 

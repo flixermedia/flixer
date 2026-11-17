@@ -11,7 +11,7 @@ const errorTypes = ["Error", "TypeError", "RangeError", "ReferenceError", "Synta
 type ErrorKind = typeof kinds[number];
 type ErrorType = typeof errorTypes[number];
 
-export class WebLogRequest {
+class WebLogRequest {
 	@Property()
 	@Required()
 	@Enum(...kinds)
