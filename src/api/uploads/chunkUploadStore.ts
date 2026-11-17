@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-interface ChunkUpload {
+export interface ChunkUpload {
 	id: string;
 	ownerId: string;
 	size: number;
