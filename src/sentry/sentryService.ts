@@ -8,7 +8,7 @@ import { version } from "../config/config.js";
 const SENTRY_APPS = ["flixer", "streamer", "indexer", "web", "ai", "logger", "updater"] as const;
 type SentryApp = (typeof SENTRY_APPS)[number];
 
-interface SentryAppConfig {
+export interface SentryAppConfig {
 	enabled: boolean;
 	dsn: string | null;
 }
