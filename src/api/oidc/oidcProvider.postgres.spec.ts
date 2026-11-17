@@ -1,5 +1,5 @@
 import { createHash, createPublicKey, randomBytes, randomUUID, verify } from "node:crypto";
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import middie from "@fastify/middie";
 import type { PlatformContext } from "@tsed/platform-http";
 import request from "supertest";
@@ -40,7 +40,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 	const schema = `oidc_test_${randomUUID().replaceAll("-", "")}`;
 	let admin: DataSource;
 	let db: DataSource;
-	let app: ReturnType<typeof Fastify>;
+	let app: FastifyInstance;
 	let clients: OidcClientService;
 	let issuer: string;
 	let service: OidcProviderService;
@@ -110,7 +110,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 			return interactionController.decide(req.params.uid, req.body, "Bearer test", ctx);
 		});
 		app.get("/api/account/oidc-apps", async (req, reply) => {
-			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as PlatformContext;
+			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as unknown as PlatformContext;
 			return consentsController.list(req.headers.authorization, ctx);
 		});
 		app.delete<{ Params: { id: string } }>("/api/account/oidc-apps/:id", async (req, reply) => {
@@ -118,11 +118,11 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 			reply.code(204).send();
 		});
 		app.get("/api/oauth/me/subscriptions", async (req, reply) => {
-			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as PlatformContext;
+			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as unknown as PlatformContext;
 			return resourceController.subscriptions(req.headers.authorization, undefined, undefined, ctx);
 		});
 		app.get("/api/oauth/me/preferences", async (req, reply) => {
-			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as PlatformContext;
+			const ctx = { response: { setHeader: (name: string, value: string) => reply.header(name, value) } } as unknown as PlatformContext;
 			return resourceController.preferences(req.headers.authorization, ctx);
 		});
 		await app.listen({ port: 0, host: "127.0.0.1" });
@@ -153,7 +153,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 			{
 				contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }),
 				lockState: async () => ({ locked: false }),
-			} as EntitlementService,
+			} as unknown as EntitlementService,
 		);
 	}, 30_000);
 
@@ -220,7 +220,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		const blockReason = vi.fn(async (): Promise<"rating" | null> => null);
 		const lockState = vi.fn(async () => ({ locked: false }));
 		const access = { forUser: async () => ({ enforced: false }), visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids), blockReason, restrictionSql: () => ({ sql: "TRUE", params: {} }) } as unknown as MediaAccessService;
-		const entitlement = { contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }), lockState } as EntitlementService;
+		const entitlement = { contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }), lockState } as unknown as EntitlementService;
 		const controller = new OidcResourceController(db, service, access, entitlement);
 		const item = randomUUID(),
 			library = randomUUID(),
@@ -375,7 +375,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		expect(publicClient.headers["cache-control"]).toBe("no-store");
 		expect(publicClient.body).toEqual({ clientName: "Example app" });
 		expect((await request(app.server).get(`${interactionPath}/client`)).status).not.toBe(200);
-		const cookies: string[] = authorization.headers["set-cookie"];
+		const cookies = authorization.headers["set-cookie"] as unknown as string[];
 		const interactionCookies = cookies.map((value) => value.split(";")[0]).join("; ");
 		await request(app.server).get(`/api/oidc/interaction/wrong-id/client`).set("Cookie", interactionCookies).expect(404);
 		const loginDetails = await agent.get(`${interactionPath}/details`).expect(200);
@@ -522,7 +522,7 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		let revoked = false;
 		const querySpy = vi.spyOn(db, "query").mockImplementation(async (sql, params, runner) => {
 			const result = await originalQuery(sql, params, runner);
-			if (!revoked && sql.includes(`INSERT INTO "oidc_artifacts"`) && params?.[0] === "Grant") {
+			if (!revoked && sql.includes(`INSERT INTO "oidc_artifacts"`) && (params as unknown[] | undefined)?.[0] === "Grant") {
 				revoked = true;
 				await new OidcConsentService(db).revoke(userId, client.id);
 			}
