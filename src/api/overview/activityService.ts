@@ -42,7 +42,7 @@ export function mapActivityRow(row: ActivityRow) {
 	};
 }
 
-export interface ActivityQuery {
+interface ActivityQuery {
 	search?: string;
 	user?: string;
 	type?: string;
