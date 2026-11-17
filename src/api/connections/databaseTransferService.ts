@@ -118,10 +118,12 @@ export function preservedSchemas(schemas: TargetSchema[], currentUser: string): 
 
 async function targetReplacementPlan(client: pg.Client): Promise<TargetReplacementPlan> {
 
+	// RAW SQL: pg.Client connection to an external database, outside TypeORM; current_user lookup
 	const userResult = await client.query<{ currentUser: string }>('SELECT current_user AS "currentUser"');
 	const currentUser = userResult.rows[0]?.currentUser;
 	if (!currentUser) throw new Error("Could not identify the target database user.");
 
+	// RAW SQL: pg.Client connection to an external database, outside TypeORM; catalog lookup
 	const schemaResult = await client.query<TargetSchema>(
 		`SELECT nspname AS name, pg_get_userbyid(nspowner) AS owner
 		FROM pg_namespace
@@ -132,6 +134,7 @@ async function targetReplacementPlan(client: pg.Client): Promise<TargetReplaceme
 	const publicSchema = schemaResult.rows.find(({ name }) => name === "public");
 	const publicSchemaOwned = publicSchema?.owner === currentUser;
 	if (!publicSchemaOwned) {
+		// RAW SQL: pg.Client connection to an external database, outside TypeORM; catalog lookup
 		const publicObjects = await client.query<{ hasObjects: boolean }>(`
 			SELECT (
 				EXISTS (
@@ -150,6 +153,7 @@ async function targetReplacementPlan(client: pg.Client): Promise<TargetReplaceme
 			throw new Conflict(`Cannot replace objects in schema "public": it is owned by PostgreSQL role "${publicSchema?.owner ?? "another role"}", but the target connection uses "${currentUser}". Use the schema owner’s connection or clear its application objects before transferring.`);
 		}
 		if (publicSchema) {
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; privilege check
 			const canCreate = await client.query<{ allowed: boolean }>("SELECT has_schema_privilege(current_user, 'public', 'CREATE') AS allowed");
 			if (canCreate.rows[0]?.allowed !== true) {
 				throw new Conflict(`The target role "${currentUser}" cannot create objects in schema "public". Grant it CREATE permission or use a role with access to that schema.`);
@@ -456,6 +460,7 @@ export class DatabaseTransferService {
 		const client = clientFor(targetUrl);
 		try {
 			await client.connect();
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; catalog lookup
 			const result = await client.query<{ database: string; hasObjects: boolean }>(`
 				SELECT current_database() AS database,
 					(
@@ -489,6 +494,7 @@ export class DatabaseTransferService {
 		const client = clientFor(targetUrl);
 		try {
 			await client.connect();
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; connectivity probe
 			await client.query("SELECT 1");
 			await targetReplacementPlan(client);
 		} finally {
@@ -502,17 +508,23 @@ export class DatabaseTransferService {
 			await client.connect();
 			const plan = await targetReplacementPlan(client);
 
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; manual transaction control
 			await client.query("BEGIN");
 			try {
 				for (const name of plan.schemasToDrop) {
+					// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 					await client.query(`DROP SCHEMA ${quoteIdentifier(name)} CASCADE`);
 				}
 				if (plan.publicSchemaOwned) {
+					// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 					await client.query("DROP SCHEMA public CASCADE");
+					// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 					await client.query(`CREATE SCHEMA public AUTHORIZATION ${quoteIdentifier(plan.currentUser)}`);
 				}
+				// RAW SQL: pg.Client connection to an external database, outside TypeORM; manual transaction control
 				await client.query("COMMIT");
 			} catch (error) {
+				// RAW SQL: pg.Client connection to an external database, outside TypeORM; manual transaction control
 				await client.query("ROLLBACK");
 				throw error;
 			}
@@ -536,6 +548,7 @@ export class DatabaseTransferService {
 		const client = clientFor(sourceUrl);
 		try {
 			await client.connect();
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; catalog lookup
 			const result = await client.query<{ name: string }>("SELECT nspname AS name FROM pg_namespace WHERE nspname = ANY($1::text[])", [["public", "pgboss"]]);
 			return result.rows.map(({ name }) => name);
 		} finally {
@@ -547,6 +560,7 @@ export class DatabaseTransferService {
 		const client = clientFor(journal.sourceUrl);
 		try {
 			await client.connect();
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; session setting lookup
 			const current = await client.query<{ database: string; readOnly: string }>("SELECT current_database() AS database, current_setting('default_transaction_read_only') AS \"readOnly\"");
 			const database = current.rows[0]?.database;
 			if (!database) throw new Error("Could not identify the source database.");
@@ -555,8 +569,11 @@ export class DatabaseTransferService {
 			journal.phase = "Freezing writes";
 			journal.message = "Marking the current database read-only and disconnecting existing sessions.";
 			this.save(journal);
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; session setting DDL
 			await client.query("SET default_transaction_read_only = off");
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 			await client.query(`ALTER DATABASE ${quoteIdentifier(database)} SET default_transaction_read_only = on`);
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; terminates other backends via pg_stat_activity
 			const terminated = await client.query<{ terminated: boolean }>(
 				`SELECT pg_terminate_backend(pid) AS terminated
 				FROM pg_stat_activity
@@ -567,10 +584,12 @@ export class DatabaseTransferService {
 			if (terminated.rows.some((row) => row.terminated !== true)) {
 				throw new Error("PostgreSQL did not allow all existing database sessions to be disconnected.");
 			}
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; session setting
 			await client.query("SET default_transaction_read_only = on");
 			const check = clientFor(journal.sourceUrl);
 			try {
 				await check.connect();
+				// RAW SQL: pg.Client connection to an external database, outside TypeORM; session setting lookup
 				const readonly = await check.query<{ value: string }>("SELECT current_setting('default_transaction_read_only') AS value");
 				if (readonly.rows[0]?.value !== "on") {
 					throw new Error("Could not verify the source database write lock.");
@@ -587,14 +606,19 @@ export class DatabaseTransferService {
 		const client = clientFor(journal.sourceUrl);
 		try {
 			await client.connect();
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; catalog lookup
 			const database = (await client.query<{ database: string }>("SELECT current_database() AS database")).rows[0]?.database;
 			if (!database) throw new Error("Could not identify the source database while restoring writes.");
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; session setting
 			await client.query("SET default_transaction_read_only = off");
 			if (journal.sourceWasReadOnly) {
+				// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 				await client.query(`ALTER DATABASE ${quoteIdentifier(database)} SET default_transaction_read_only = on`);
 			} else {
+				// RAW SQL: pg.Client connection to an external database, outside TypeORM; DDL
 				await client.query(`ALTER DATABASE ${quoteIdentifier(database)} RESET default_transaction_read_only`);
 			}
+			// RAW SQL: pg.Client connection to an external database, outside TypeORM; terminates other backends via pg_stat_activity
 			const terminated = await client.query<{ terminated: boolean }>(
 				`SELECT pg_terminate_backend(pid) AS terminated
 				FROM pg_stat_activity
