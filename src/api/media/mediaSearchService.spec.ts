@@ -350,7 +350,7 @@ describe("MediaSearchService", () => {
 			getRepository: vi.fn(() => ({
 				findOne: vi.fn().mockResolvedValue({ id: "track-1" }),
 			})),
-			transaction: vi.fn(async (callback: (manager: typeof manager) => Promise<void>) => callback(manager)),
+			transaction: vi.fn(async (callback: (transactionManager: typeof manager) => Promise<void>) => callback(manager)),
 		} as unknown as DataSource;
 		const service = new MediaSearchService(dataSource);
 
@@ -421,7 +421,7 @@ describe("MediaSearchService", () => {
 				count: vi.fn().mockResolvedValue(1),
 				findBy: vi.fn().mockResolvedValue([]),
 			})),
-			transaction: vi.fn(async (callback: (manager: typeof manager) => Promise<unknown>) => callback(manager)),
+			transaction: vi.fn(async (callback: (transactionManager: typeof manager) => Promise<unknown>) => callback(manager)),
 		} as unknown as DataSource;
 		const fetch = vi
 			.fn()

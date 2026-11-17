@@ -25,7 +25,7 @@ interface StoredImage {
 	language?: unknown;
 }
 
-interface MediaItemImage {
+export interface MediaItemImage {
 	index: number;
 	type: string;
 	provider: string;

@@ -19,7 +19,7 @@ const PROFILE_REFRESH_MS = 180 * 24 * 60 * 60 * 1000;
 const PROFILE_RETRY_MS = 14 * 24 * 60 * 60 * 1000;
 const PROFILE_LINK_PREFIXES = ["https://en.wikipedia.org/", "https://www.discogs.com/"];
 
-interface PersonProfileView {
+export interface PersonProfileView {
 	description: string | null;
 	biography: string | null;
 	source: string | null;
@@ -176,7 +176,7 @@ function crewOf(value: unknown): Array<{ id: string; name: string; role: string;
 
 }
 
-interface HomeCard {
+export interface HomeCard {
 	id: string;
 	type: MediaItemType;
 	title: string;
@@ -198,7 +198,7 @@ interface HomeFeatured extends HomeCard {
 	runtimeMinutes: number | null;
 }
 
-interface HomeLibrary {
+export interface HomeLibrary {
 	id: string;
 	name: string;
 	type: string;
@@ -207,7 +207,7 @@ interface HomeLibrary {
 	cover: { itemId: string; index: number; updatedAt: Date } | null;
 }
 
-interface ContinueCard {
+export interface ContinueCard {
 	id: string;
 	type: MediaItemType;
 	title: string;

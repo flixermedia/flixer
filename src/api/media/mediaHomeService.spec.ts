@@ -39,7 +39,7 @@ describe("MediaHomeService person images", () => {
 			.mockResolvedValueOnce({ data: await image(255), mime: "image/png" });
 		const query = { where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([{ image: url }]) };
 		const dataSource = { getRepository: () => ({ createQueryBuilder: () => query }) } as unknown as DataSource;
-		const service = new MediaHomeService(dataSource, { fetchPersonImage } as unknown as IndexerClient, {} as MediaSearchService);
+		const service = new MediaHomeService(dataSource, { fetchPersonImage } as unknown as IndexerClient, {} as MediaSearchService, undefined as unknown as MediaAccessService);
 		const first = await service.personImage(id, 64);
 		vi.advanceTimersByTime(86_400_000);
 		const second = await service.personImage(id, 64);
@@ -99,7 +99,7 @@ describe("MediaHomeService person images", () => {
 			}),
 		} as unknown as DataSource;
 		const indexer = { fetchPersonImage: vi.fn().mockResolvedValue(image) } as unknown as IndexerClient;
-		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService);
+		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService, undefined as unknown as MediaAccessService);
 
 		await expect(service.personImage(id.toUpperCase(), 128)).resolves.toEqual(image);
 		expect(query.where).toHaveBeenCalledWith("credit.person_id = :id AND credit.image IS NOT NULL", { id });
@@ -229,12 +229,12 @@ describe("MediaHomeService search ranking", () => {
 				images: [],
 				updatedAt: new Date("2021-01-01T00:00:00.000Z"),
 			},
-		] as MediaItem[];
+		] as unknown as MediaItem[];
 		const repository = { findBy: vi.fn().mockResolvedValue(items) };
 		const dataSource = {
 			getRepository: vi.fn(() => repository),
 		} as unknown as DataSource;
-		const service = new MediaHomeService(dataSource, {} as IndexerClient, {} as MediaSearchService);
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, {} as MediaSearchService, undefined as unknown as MediaAccessService);
 
 		const cards = await service.cardsByIds([items[1].id, "00000000-0000-4000-8000-000000000003", items[0].id, items[1].id]);
 
@@ -277,7 +277,7 @@ describe("MediaHomeService search ranking", () => {
 		const mediaSearch = {
 			searchIds: vi.fn().mockResolvedValue(["scream", "spider"]),
 		} as unknown as MediaSearchService;
-		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch);
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch, undefined as unknown as MediaAccessService);
 
 		const result = await service.search("user-1", "scream");
 
@@ -302,7 +302,7 @@ describe("MediaHomeService search ranking", () => {
 			getRepository: vi.fn(() => ({ createQueryBuilder: () => queryBuilder })),
 		} as unknown as DataSource;
 		const mediaSearch = { searchIds: vi.fn().mockResolvedValue([]) } as unknown as MediaSearchService;
-		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch);
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch, undefined as unknown as MediaAccessService);
 
 		await service.search("user-1", "pilot", { type: "series" });
 		expect(mediaSearch.searchIds).toHaveBeenCalledWith("pilot", expect.objectContaining({ type: ["series"] }));
@@ -325,7 +325,7 @@ describe("MediaHomeService search ranking", () => {
 			getRepository: vi.fn(() => ({ createQueryBuilder: () => queryBuilder })),
 		} as unknown as DataSource;
 		const mediaSearch = { searchIds: vi.fn().mockResolvedValue([]) } as unknown as MediaSearchService;
-		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch);
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch, undefined as unknown as MediaAccessService);
 
 		await service.search("user-1", "lyrics", { includeChildren: true });
 

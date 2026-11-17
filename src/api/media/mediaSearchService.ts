@@ -80,7 +80,7 @@ interface MeilisearchTasksResponse {
 	results?: MeilisearchTaskSummary[];
 }
 
-interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
+export interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
 	details: Record<string, unknown> | null;
 	error: {
 		message?: string;
@@ -90,7 +90,7 @@ interface MediaSearchTaskDetails extends MeilisearchTaskSummary {
 	} | null;
 }
 
-interface MediaSearchAdminStatus {
+export interface MediaSearchAdminStatus {
 	enabled: boolean;
 	url: string;
 	customUrl: string;

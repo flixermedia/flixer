@@ -22,7 +22,7 @@ interface SuggestionRow {
 function boundedInteger(value: number | undefined, fallback: number, maximum: number): number {
 
 	if (!Number.isSafeInteger(value)) return fallback;
-	return Math.max(1, Math.min(maximum, value));
+	return Math.max(1, Math.min(maximum, value as number));
 
 }
 

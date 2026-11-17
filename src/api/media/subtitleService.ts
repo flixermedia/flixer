@@ -8,14 +8,14 @@ import { IndexerClient } from "../indexer/indexerClient.js";
 const SUBTITLE_TYPES = ["movie", "episode", "video"];
 const SUBTITLE_TIMEOUT_MS = 60_000;
 
-interface SubtitleTrack {
+export interface SubtitleTrack {
 	file: string;
 	language: string;
 	label?: string;
 	format: string;
 }
 
-interface SubtitleResult {
+export interface SubtitleResult {
 	fileId: number;
 	language: string;
 	release: string;
