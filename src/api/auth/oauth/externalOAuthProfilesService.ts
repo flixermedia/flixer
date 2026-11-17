@@ -3,6 +3,7 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../../datasources/defaultDataSource.datasource.js";
+import { ExternalIdentity } from "../../../entities/externalIdentity.entity.js";
 import { ExternalOAuthProvider } from "../../../entities/externalOAuthProvider.entity.js";
 import { PluginInstallation } from "../../../entities/pluginInstallation.entity.js";
 import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "../../plugins/pluginSettingsSecrets.js";
@@ -43,8 +44,8 @@ export class ExternalOAuthProfilesService {
 			if (settings.tokenAuthMethod === "none") secretCipher = null;
 			if (settings.tokenAuthMethod !== "none" && !secretCipher) throw new BadRequest("A client secret is required for this authentication method.");
 			if (existing && IDENTITY_SETTINGS.some((key) => existing.settings[key] !== settings[key])) {
-				const links = await manager.query('SELECT 1 FROM "external_identities" WHERE "plugin_id" = $1 AND "provider_key" = $2 LIMIT 1', [pluginId, profileId]);
-				if (links.length) throw new Conflict("Unlink all accounts before changing the provider identity configuration.");
+				const linked = await manager.existsBy(ExternalIdentity, { pluginId, providerKey: profileId });
+				if (linked) throw new Conflict("Unlink all accounts before changing the provider identity configuration.");
 			}
 			const profile = repository.create({ id: profileId, pluginId, name: input.name.trim(), enabled: input.enabled, settings: { ...settings }, secretCipher, revision: randomUUID() });
 			return this.publicProfile(await repository.save(profile));
@@ -57,8 +58,8 @@ export class ExternalOAuthProfilesService {
 			const repository = manager.getRepository(ExternalOAuthProvider);
 			const profile = await repository.findOne({ where: { id, pluginId }, lock: { mode: "pessimistic_write" } });
 			if (!profile) throw new NotFound("OAuth provider not found.");
-			const links = await manager.query('SELECT 1 FROM "external_identities" WHERE "plugin_id" = $1 AND "provider_key" = $2 LIMIT 1', [pluginId, id]);
-			if (links.length) throw new Conflict("Unlink all accounts before removing this provider.");
+			const linked = await manager.existsBy(ExternalIdentity, { pluginId, providerKey: id });
+			if (linked) throw new Conflict("Unlink all accounts before removing this provider.");
 			await repository.delete({ id, pluginId });
 		});
 	}

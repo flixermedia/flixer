@@ -49,7 +49,7 @@ describe("OAuth profile storage", () => {
 
 		const plugin = { pluginId: "example.oauth", enabled: true, manifest: { capabilities: ["auth.oauth", "auth.oauth.profiles"], permissions: ["auth.identity.verify", "network.http.configured"] }, approvedPermissions: ["auth.identity.verify", "network.http.configured"] };
 		const profiles = { findOne: vi.fn(), findOneBy: vi.fn(), create: vi.fn((value) => value), save: vi.fn(async (value) => value) };
-		const manager = { getRepository: vi.fn(() => profiles), query: vi.fn(async () => []) };
+		const manager = { getRepository: vi.fn(() => profiles), existsBy: vi.fn(async () => false) };
 		const dataSource = { getRepository: vi.fn((entity) => (entity === PluginInstallation ? { findOneBy: vi.fn().mockResolvedValue(plugin) } : entity === ExternalOAuthProvider ? profiles : null)), transaction: vi.fn(async (callback) => callback(manager)) } as unknown as DataSource;
 		return { service: new ExternalOAuthProfilesService(dataSource), profiles, manager };
 
@@ -70,7 +70,7 @@ describe("OAuth profile storage", () => {
 	it("refuses identity configuration changes when accounts are linked", async () => {
 		const { service, profiles, manager } = setup();
 		profiles.findOne.mockResolvedValue({ id: "8f8b4e43-655f-463e-a034-55ca2434d7e8", settings: validateOAuthProfileSettings(profile), secretCipher: "encrypted" });
-		manager.query.mockResolvedValueOnce([{}]);
+		manager.existsBy.mockResolvedValueOnce(true);
 		await expect(service.save("example.oauth", "8f8b4e43-655f-463e-a034-55ca2434d7e8", { name: "Example", enabled: true, settings: { ...profile, issuer: "https://different.example" } as never })).rejects.toThrow("Unlink all accounts");
 		expect(profiles.save).not.toHaveBeenCalled();
 	});

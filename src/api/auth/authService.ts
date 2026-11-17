@@ -302,6 +302,7 @@ export class AuthService {
 
 		const [saveError] = await tryCatch(() =>
 			this.dataSource.transaction(async (manager) => {
+				// RAW SQL: advisory transaction lock; no TypeORM equivalent
 				await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:first-user-admin"]);
 				const users = manager.getRepository(User);
 				const userCount = await users.count();
