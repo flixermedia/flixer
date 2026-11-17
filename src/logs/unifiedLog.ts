@@ -24,6 +24,7 @@ const ANSI_PATTERN = /\u001b\[[0-9;]*m|\u001b/g;
 const RESERVED_FIELDS = new Set(["time", "startTime", "level", "app", "source", "message", "categoryName", "data"]);
 
 function toLevel(levelStr: string): UnifiedLogRecord["level"] {
+
 	switch (levelStr.toLowerCase()) {
 		case "warn":
 			return "warn";
@@ -35,9 +36,11 @@ function toLevel(levelStr: string): UnifiedLogRecord["level"] {
 		default:
 			return "debug";
 	}
+
 }
 
 function formatItem(item: unknown): string {
+
 	if (typeof item === "string") {
 		return item;
 	}
@@ -45,16 +48,20 @@ function formatItem(item: unknown): string {
 		return item.stack ?? item.message;
 	}
 	return inspect(item, { depth: 4, breakLength: Infinity });
+
 }
 
 /** Joins log arguments into one plain-text line (no colours, bounded length). */
 function formatLogMessage(data: unknown[]): string {
+
 	const message = data.map(formatItem).join(" ").replace(ANSI_PATTERN, "").trim();
 	return message.length > MAX_MESSAGE_LENGTH ? `${message.slice(0, MAX_MESSAGE_LENGTH)}…` : message;
+
 }
 
 /** Builds the shared log record from a Ts.ED logger event. */
 export function toUnifiedRecord(event: LogEvent): UnifiedLogRecord {
+
 	const text: unknown[] = [];
 	const fields: Record<string, unknown> = { ...event.context.toJSON() };
 
@@ -93,6 +100,7 @@ export function toUnifiedRecord(event: LogEvent): UnifiedLogRecord {
 		message,
 		...extra,
 	};
+
 }
 
 /** Layout that writes {@link UnifiedLogRecord} JSON lines. */

@@ -9,7 +9,11 @@ import { OidcConsentService } from "./oidcConsentService.js";
 @Controller("/account/oidc-apps")
 @Security("BearerAuth")
 export class OidcConsentsController {
-	constructor(private readonly auth: AuthService, private readonly consents: OidcConsentService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly consents: OidcConsentService,
+	) {}
 
 	@Get("/")
 	async list(@HeaderParams("authorization") authorization: string | undefined, @Context() ctx: PlatformContext) {

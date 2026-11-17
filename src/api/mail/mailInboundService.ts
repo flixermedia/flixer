@@ -24,8 +24,10 @@ const AUTH_TIMEOUT_MS = 10_000;
 const CERT_RENEW_BEFORE_MS = 30 * 86_400_000;
 
 function addressList(value: AddressObject | AddressObject[] | undefined): string[] {
+
 	const objects = value === undefined ? [] : Array.isArray(value) ? value : [value];
 	return objects.flatMap((object) => object.value.map((entry) => entry.address?.toLowerCase() ?? "")).filter(Boolean);
+
 }
 
 /** Receives mail for Flixer mailboxes. It never relays: only recipients that exist locally are accepted. */

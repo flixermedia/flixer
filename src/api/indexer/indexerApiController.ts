@@ -85,9 +85,7 @@ export class IndexerApiController {
 		}
 		if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadRequest("Invalid match request.");
 		const request = value as Record<string, unknown>;
-		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) ||
-			typeof request.type !== "string" || !(MEDIA_ITEM_TYPES as readonly string[]).includes(request.type) ||
-			typeof request.path !== "string" || !request.path || request.path.length > 4096) {
+		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) || typeof request.type !== "string" || !(MEDIA_ITEM_TYPES as readonly string[]).includes(request.type) || typeof request.path !== "string" || !request.path || request.path.length > 4096) {
 			throw new BadRequest("Invalid match request.");
 		}
 		return { providerIds: await this.items.manualMatch(request.libraryId.toLowerCase(), request.type as MediaItemType, request.path) };
@@ -175,12 +173,14 @@ export class IndexerApiController {
 		const body = Buffer.from(raw ?? "");
 		verifyIndexerRequest({ method: "POST", path: `${PREFIX}/media/scan-state`, body, timestamp, signature });
 		let parsed: unknown;
-		try { parsed = JSON.parse(body.toString("utf8")); } catch { throw new BadRequest("The request body must be valid JSON."); }
+		try {
+			parsed = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new BadRequest("Invalid scan state request.");
 		const request = parsed as Record<string, unknown>;
-		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) ||
-			(request.afterId !== undefined && (typeof request.afterId !== "string" || !UUID_PATTERN.test(request.afterId))) ||
-			!Number.isInteger(request.limit) || (request.limit as number) < 1 || (request.limit as number) > 500) {
+		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) || (request.afterId !== undefined && (typeof request.afterId !== "string" || !UUID_PATTERN.test(request.afterId))) || !Number.isInteger(request.limit) || (request.limit as number) < 1 || (request.limit as number) > 500) {
 			throw new BadRequest("Invalid scan state request.");
 		}
 		return { items: await this.items.scanState(request.libraryId.toLowerCase(), request.afterId as string | undefined, request.limit as number) };
@@ -191,14 +191,22 @@ export class IndexerApiController {
 		const body = Buffer.from(raw ?? "");
 		verifyIndexerRequest({ method: "POST", path: `${PREFIX}/media/scan-seen`, body, timestamp, signature });
 		let parsed: unknown;
-		try { parsed = JSON.parse(body.toString("utf8")); } catch { throw new BadRequest("The request body must be valid JSON."); }
+		try {
+			parsed = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new BadRequest("Invalid scan seen request.");
 		const request = parsed as Record<string, unknown>;
-		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) || !Array.isArray(request.itemIds) ||
-			request.itemIds.length > 500 || !request.itemIds.every((id) => typeof id === "string" && UUID_PATTERN.test(id))) {
+		if (typeof request.libraryId !== "string" || !UUID_PATTERN.test(request.libraryId) || !Array.isArray(request.itemIds) || request.itemIds.length > 500 || !request.itemIds.every((id) => typeof id === "string" && UUID_PATTERN.test(id))) {
 			throw new BadRequest("Invalid scan seen request.");
 		}
-		await this.writes.run(() => this.items.markScanItemsSeen(request.libraryId!.toLowerCase(), (request.itemIds as string[]).map((id) => id.toLowerCase())));
+		await this.writes.run(() =>
+			this.items.markScanItemsSeen(
+				request.libraryId!.toLowerCase(),
+				(request.itemIds as string[]).map((id) => id.toLowerCase()),
+			),
+		);
 		return { ok: true };
 	}
 

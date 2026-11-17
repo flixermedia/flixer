@@ -13,11 +13,7 @@ interface SentryAppConfig {
 	dsn: string | null;
 }
 
-export const SENTRY_SETTING_KEYS = [
-	"sentry_enabled",
-	...SENTRY_APPS.map((app) => `sentry_${app}_enabled`),
-	...SENTRY_APPS.map((app) => `sentry_${app}_dsn`),
-];
+export const SENTRY_SETTING_KEYS = ["sentry_enabled", ...SENTRY_APPS.map((app) => `sentry_${app}_enabled`), ...SENTRY_APPS.map((app) => `sentry_${app}_dsn`)];
 
 export function isSentryApp(value: string): value is SentryApp {
 	return (SENTRY_APPS as readonly string[]).includes(value);
@@ -50,11 +46,7 @@ export class SentryService {
 		const settings = await this.dataSource.getRepository(Setting).find();
 		const values = new Map(settings.map((setting) => [setting.key, setting.value]));
 		const dsn = values.get(`sentry_${app}_dsn`);
-		const enabled =
-			values.get("sentry_enabled") === true &&
-			values.get(`sentry_${app}_enabled`) === true &&
-			typeof dsn === "string" &&
-			dsn.trim() !== "";
+		const enabled = values.get("sentry_enabled") === true && values.get(`sentry_${app}_enabled`) === true && typeof dsn === "string" && dsn.trim() !== "";
 
 		return { enabled, dsn: enabled ? (dsn as string).trim() : null };
 	}
@@ -74,7 +66,7 @@ export class SentryService {
 					environment: process.env.NODE_ENV ?? "development",
 					beforeSend: sanitizeLoggerManagementEvent,
 					// Errors the app catches and only logs would otherwise never reach Sentry.
-    				// integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
+					// integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
 				});
 				this.active = true;
 			}
@@ -99,10 +91,12 @@ export class SentryService {
 }
 
 export function sanitizeLoggerManagementEvent<T extends Sentry.ErrorEvent>(event: T): T {
+
 	if (event.tags?.sensitive_logger_management === "true") {
 		delete event.request;
 		delete event.extra;
 		delete event.breadcrumbs;
 	}
 	return event;
+
 }

@@ -22,6 +22,7 @@ const manifest: PluginManifest = {
 };
 
 async function makeArchive(packageManifest: PluginManifest): Promise<Buffer> {
+
 	const pack = tar.pack();
 	const chunks: Buffer[] = [];
 	pack.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -37,6 +38,7 @@ async function makeArchive(packageManifest: PluginManifest): Promise<Buffer> {
 	}
 	pack.finalize();
 	return gzipSync(await finished);
+
 }
 
 describe("installPluginPackageAtomically", () => {
@@ -53,13 +55,7 @@ describe("installPluginPackageAtomically", () => {
 	it("installs a verified package and keeps plugin data separate", async () => {
 		const root = await mkdtemp(join(tmpdir(), "flixer-plugin-install-"));
 		try {
-			const result = await installPluginPackageAtomically(
-				root,
-				await makeArchive(manifest),
-				manifest,
-				"a".repeat(64),
-				async () => undefined,
-			);
+			const result = await installPluginPackageAtomically(root, await makeArchive(manifest), manifest, "a".repeat(64), async () => undefined);
 			expect(result.installPath).toBe(join(root, "installed", manifest.id));
 			expect(await readFile(join(result.installPath, "backend/worker.wasm"))).toEqual(Buffer.from([0, 97, 115, 109]));
 			await writeFile(join(root, "data", manifest.id, "state.json"), "{}");
@@ -89,15 +85,7 @@ describe("installPluginPackageAtomically", () => {
 	it("rejects package contents that disagree with the downloaded manifest", async () => {
 		const root = await mkdtemp(join(tmpdir(), "flixer-plugin-mismatch-"));
 		try {
-			await expect(
-				installPluginPackageAtomically(
-					root,
-					await makeArchive({ ...manifest, description: "Changed in archive." }),
-					manifest,
-					"c".repeat(64),
-					async () => undefined,
-				),
-			).rejects.toThrow("does not match");
+			await expect(installPluginPackageAtomically(root, await makeArchive({ ...manifest, description: "Changed in archive." }), manifest, "c".repeat(64), async () => undefined)).rejects.toThrow("does not match");
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}

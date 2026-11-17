@@ -40,7 +40,10 @@ describe("personal webhooks", () => {
 	});
 
 	it("limits destinations and deletion to the authenticated owner", async () => {
-		const query = vi.fn().mockResolvedValueOnce([{ enabled: true, audience: "everyone", allowed_urls: [url] }]).mockResolvedValueOnce([]);
+		const query = vi
+			.fn()
+			.mockResolvedValueOnce([{ enabled: true, audience: "everyone", allowed_urls: [url] }])
+			.mockResolvedValueOnce([]);
 		const service = new UserWebhookService({ query } as never, access as never);
 		await expect(service.save(user, { name: "bad", url: "http://127.0.0.1/admin", enabled: true })).rejects.toThrow("not been approved");
 		await expect(service.remove(user, hookId)).rejects.toThrow("not found");
@@ -64,9 +67,7 @@ describe("personal webhooks", () => {
 	});
 
 	it("accepts HTTP and HTTPS with the default rule without allowing other schemes", async () => {
-		const query = vi.fn(async (sql: string, args?: unknown[]) => sql.includes("user_webhook_config")
-			? [{ enabled: true, audience: "everyone", allowed_urls: ["regex:https?://.*"] }]
-			: [{ id: hookId, url: args?.[3] }]);
+		const query = vi.fn(async (sql: string, args?: unknown[]) => (sql.includes("user_webhook_config") ? [{ enabled: true, audience: "everyone", allowed_urls: ["regex:https?://.*"] }] : [{ id: hookId, url: args?.[3] }]));
 		const service = new UserWebhookService({ query } as never, access as never);
 		for (const destination of ["http://127.0.0.1:8123/", "https://public.example/path"]) {
 			await expect(service.save(user, { name: "Home", url: destination, enabled: true }, hookId)).resolves.toMatchObject({ url: destination });
@@ -85,7 +86,9 @@ describe("personal webhooks", () => {
 			return [];
 		});
 		const fetchMock = vi.fn().mockImplementationOnce(async () => {
-			await new Promise<void>((resolve) => { release = resolve; });
+			await new Promise<void>((resolve) => {
+				release = resolve;
+			});
 			return { ok: true, status: 200, body: null };
 		});
 		vi.stubGlobal("fetch", fetchMock);
@@ -104,7 +107,11 @@ describe("personal webhooks", () => {
 			if (sql.includes("user_webhook_config")) return [{ enabled: true, audience: "everyone", allowed_urls: [url] }];
 			if (sql.includes("FROM media_items")) return [{ id: itemId, title: "Movie", type: "movie" }];
 			if (sql.includes("JOIN users")) return [{ id: hookId }];
-			if (sql.includes("FROM user_webhooks")) return [{ id: hookId, name: "Home", enabled: true, url }, { id: "unapproved", name: "Other", enabled: true, url: "http://other/" }];
+			if (sql.includes("FROM user_webhooks"))
+				return [
+					{ id: hookId, name: "Home", enabled: true, url },
+					{ id: "unapproved", name: "Other", enabled: true, url: "http://other/" },
+				];
 			return [];
 		});
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, body: null });
@@ -121,9 +128,7 @@ describe("personal webhooks", () => {
 	});
 
 	it("does not disclose metadata for restricted media", async () => {
-		const query = vi.fn(async (sql: string) => sql.includes("user_webhook_config")
-			? [{ enabled: true, audience: "everyone", allowed_urls: [url] }]
-			: [{ id: hookId, name: "Home", url, enabled: true }]);
+		const query = vi.fn(async (sql: string) => (sql.includes("user_webhook_config") ? [{ enabled: true, audience: "everyone", allowed_urls: [url] }] : [{ id: hookId, name: "Home", url, enabled: true }]));
 		const denied = { resolve: vi.fn().mockResolvedValue({}), visibleIds: vi.fn().mockResolvedValue(new Set()) };
 		const service = new UserWebhookService({ query } as never, denied as never);
 		await expect(service.report(user, report, "token")).rejects.toThrow("not found");

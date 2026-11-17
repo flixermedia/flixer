@@ -102,10 +102,7 @@ describe("chat helpers", () => {
 		const { chat, query } = service(true);
 
 		await expect(chat.send(A, CONVERSATION, "plaintext")).rejects.toThrow(/requires end-to-end encrypted messages/i);
-		expect(query).not.toHaveBeenCalledWith(
-			expect.stringContaining("INSERT INTO chat_messages"),
-			expect.anything(),
-		);
+		expect(query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_messages"), expect.anything());
 	});
 
 	it("allows an authorized member to downgrade an encrypted conversation", async () => {
@@ -133,14 +130,8 @@ describe("chat helpers", () => {
 		chat.onEvent(listener);
 
 		await expect(chat.downgradeToPlaintext(A, CONVERSATION)).resolves.toEqual(conversation);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("UPDATE chat_conversations SET encryption_mode = $2"),
-			[CONVERSATION, "plaintext"],
-		);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("INSERT INTO chat_messages"),
-			expect.arrayContaining([CONVERSATION, A, expect.stringContaining("Future messages are readable by the server.")]),
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE chat_conversations SET encryption_mode = $2"), [CONVERSATION, "plaintext"]);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_messages"), expect.arrayContaining([CONVERSATION, A, expect.stringContaining("Future messages are readable by the server.")]));
 		expect(listener).toHaveBeenCalledWith([B], { type: "changed", conversationId: CONVERSATION });
 	});
 
@@ -167,30 +158,17 @@ describe("chat helpers", () => {
 		chat.onEvent(listener);
 
 		await expect(chat.upgradeToEncrypted(A, CONVERSATION)).resolves.toEqual(conversation);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("UPDATE chat_conversations SET encryption_mode = $2"),
-			[CONVERSATION, "encrypted"],
-		);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("INSERT INTO chat_messages"),
-			expect.arrayContaining([CONVERSATION, A, expect.stringContaining("Earlier plaintext messages remain readable by the server.")]),
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE chat_conversations SET encryption_mode = $2"), [CONVERSATION, "encrypted"]);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_messages"), expect.arrayContaining([CONVERSATION, A, expect.stringContaining("Earlier plaintext messages remain readable by the server.")]));
 		expect(listener).toHaveBeenCalledWith([B], { type: "changed", conversationId: CONVERSATION });
 	});
 
 	it("rejects a downgrade when the administrator has disabled it", async () => {
-		const query = vi.fn(async (sql: string): Promise<unknown[]> => (
-			sql.includes("SELECT c.encryption_mode, s.value AS downgrade_enabled")
-				? [{ encryption_mode: "encrypted", downgrade_enabled: false }]
-				: []
-		));
+		const query = vi.fn(async (sql: string): Promise<unknown[]> => (sql.includes("SELECT c.encryption_mode, s.value AS downgrade_enabled") ? [{ encryption_mode: "encrypted", downgrade_enabled: false }] : []));
 		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
 
 		await expect(chat.downgradeToPlaintext(A, CONVERSATION)).rejects.toThrow(/administrator has not enabled/i);
-		expect(query).not.toHaveBeenCalledWith(
-			expect.stringContaining("UPDATE chat_conversations"),
-			expect.anything(),
-		);
+		expect(query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE chat_conversations"), expect.anything());
 	});
 
 	it("reports whether members are allowed to downgrade", async () => {
@@ -266,14 +244,8 @@ describe("ChatService", () => {
 			status: "active",
 			approvalChallenge: null,
 		});
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("INSERT INTO chat_mls_devices"),
-			expect.arrayContaining([A, "Browser", "active", pairingPublicKey, null]),
-		);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("CASE WHEN $7::boolean THEN now()"),
-			["44444444-4444-4444-8444-444444444444", A, "Browser", "active", pairingPublicKey, null, true],
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_mls_devices"), expect.arrayContaining([A, "Browser", "active", pairingPublicKey, null]));
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("CASE WHEN $7::boolean THEN now()"), ["44444444-4444-4444-8444-444444444444", A, "Browser", "active", pairingPublicKey, null, true]);
 	});
 
 	it("activates a previously pending device and repairs its pairing key on registration", async () => {
@@ -287,13 +259,8 @@ describe("ChatService", () => {
 		});
 		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
 
-		await expect(
-			chat.registerMlsDevice(A, "44444444-4444-4444-8444-444444444444", "Browser", "AAAA", pairingPublicKey),
-		).resolves.toMatchObject({ status: "active" });
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("status = 'active', approval_challenge = NULL"),
-			["44444444-4444-4444-8444-444444444444", "Browser", pairingPublicKey],
-		);
+		await expect(chat.registerMlsDevice(A, "44444444-4444-4444-8444-444444444444", "Browser", "AAAA", pairingPublicKey)).resolves.toMatchObject({ status: "active" });
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("status = 'active', approval_challenge = NULL"), ["44444444-4444-4444-8444-444444444444", "Browser", pairingPublicKey]);
 	});
 
 	it("stores only the user's opaque encrypted chat history backup", async () => {
@@ -301,10 +268,7 @@ describe("ChatService", () => {
 		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
 
 		await chat.saveChatHistoryBackup(A, "encrypted-envelope");
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("ON CONFLICT (user_id) DO UPDATE"),
-			[A, "encrypted-envelope"],
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (user_id) DO UPDATE"), [A, "encrypted-envelope"]);
 		await expect(chat.saveChatHistoryBackup(A, "")).rejects.toThrow(/backup is invalid/i);
 	});
 
@@ -323,10 +287,7 @@ describe("ChatService", () => {
 		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
 
 		await expect(chat.approveMlsDevice(A, "55555555-5555-4555-8555-555555555555", targetDeviceId, signature)).resolves.toBeUndefined();
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("SET status = 'active'"),
-			[targetDeviceId],
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("SET status = 'active'"), [targetDeviceId]);
 		await expect(chat.approveMlsDevice(A, "55555555-5555-4555-8555-555555555555", targetDeviceId, "AAAA")).rejects.toThrow(/trusted device/i);
 	});
 
@@ -338,14 +299,8 @@ describe("ChatService", () => {
 		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
 
 		await expect(chat.revokeMlsDevice(A, "44444444-4444-4444-8444-444444444444")).resolves.toBeUndefined();
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("WHERE id = $1 AND user_id = $2 AND status <> 'revoked'"),
-			["44444444-4444-4444-8444-444444444444", A],
-		);
-		expect(query).toHaveBeenCalledWith(
-			expect.stringContaining("UPDATE chat_mls_key_packages SET used_at"),
-			["44444444-4444-4444-8444-444444444444"],
-		);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE id = $1 AND user_id = $2 AND status <> 'revoked'"), ["44444444-4444-4444-8444-444444444444", A]);
+		expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE chat_mls_key_packages SET used_at"), ["44444444-4444-4444-8444-444444444444"]);
 	});
 
 	it("claims an MLS key package once for a conversation member", async () => {

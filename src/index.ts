@@ -12,6 +12,7 @@ import { Server } from "./server.js";
 import { freePortIfBusy } from "./utils/freePort.js";
 
 async function startServer(): Promise<void> {
+
 	const port = Number(process.env.PORT || 8083);
 	await freePortIfBusy(port, (message) => $log.warn(message));
 
@@ -50,6 +51,7 @@ async function startServer(): Promise<void> {
 
 	process.on("SIGINT", close);
 	process.on("SIGTERM", close);
+
 }
 
 await startServer();

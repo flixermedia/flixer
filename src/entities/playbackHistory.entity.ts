@@ -4,6 +4,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColum
 @Index("idx_playback_history_user_started", ["userId", "startedAt"])
 @Index("idx_playback_history_user_item", ["userId", "itemId"])
 export class PlaybackHistory {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

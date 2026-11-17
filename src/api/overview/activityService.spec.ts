@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ActivityService } from "./activityService.js";
 
 function setup() {
+
 	const query = vi.fn(async (sql: string) => {
 		if (sql.includes("COUNT(*)")) {
 			return [{ total: 7, finished: 3, users: 2 }];
@@ -9,6 +10,7 @@ function setup() {
 		return [];
 	});
 	return { query, service: new ActivityService({ query } as never) };
+
 }
 
 const listCall = (query: ReturnType<typeof setup>["query"]) => query.mock.calls.find(([sql]) => String(sql).includes("ORDER BY w.updated_at") || String(sql).includes("ORDER BY user_name") || String(sql).includes("ORDER BY i.title"))!;

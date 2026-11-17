@@ -31,18 +31,22 @@ const CONNECTION_TIMEOUT_MS = 10_000;
 const QUERY_TIMEOUT_MS = 15_000;
 
 function urlParts(value: string): { host: string; port: string; database: string } {
+
 	const url = new URL(value);
 	return {
 		host: url.hostname.toLowerCase(),
 		port: url.port || "5432",
 		database: decodeURIComponent(url.pathname.replace(/^\/+/, "")),
 	};
+
 }
 
 function sameDatabase(left: string, right: string): boolean {
+
 	const source = urlParts(left);
 	const target = urlParts(right);
 	return source.host === target.host && source.port === target.port && source.database === target.database;
+
 }
 
 function quoteIdentifier(value: string): string {
@@ -58,14 +62,13 @@ export function excludedSchemaArguments(schemas: string[]): string[] {
 }
 
 export function transferSchemaArguments(sourceSchemas: string[], excludedSchemas: string[] = []): string[] {
+
 	const selectedSchemas = sourceSchemas.filter((schema) => schema === "public" || schema === "pgboss");
 	if (!selectedSchemas.includes("public")) {
 		throw new Error('The source database does not contain Flixer’s "public" schema.');
 	}
-	return [
-		...selectedSchemas.flatMap((schema) => ["--schema", schema]),
-		...excludedSchemaArguments(excludedSchemas.filter((schema) => selectedSchemas.includes(schema))),
-	];
+	return [...selectedSchemas.flatMap((schema) => ["--schema", schema]), ...excludedSchemaArguments(excludedSchemas.filter((schema) => selectedSchemas.includes(schema)))];
+
 }
 
 export function restoreListWithoutPublicSchema(list: string): string {
@@ -76,6 +79,7 @@ export function restoreListWithoutPublicSchema(list: string): string {
 }
 
 export function redactDatabaseUrl(value: string | undefined): string | null {
+
 	if (!value) return null;
 	try {
 		const url = new URL(value);
@@ -89,6 +93,7 @@ export function redactDatabaseUrl(value: string | undefined): string | null {
 	} catch {
 		return null;
 	}
+
 }
 
 interface TargetSchema {
@@ -112,6 +117,7 @@ export function preservedSchemas(schemas: TargetSchema[], currentUser: string): 
 }
 
 async function targetReplacementPlan(client: pg.Client): Promise<TargetReplacementPlan> {
+
 	const userResult = await client.query<{ currentUser: string }>('SELECT current_user AS "currentUser"');
 	const currentUser = userResult.rows[0]?.currentUser;
 	if (!currentUser) throw new Error("Could not identify the target database user.");
@@ -141,18 +147,12 @@ async function targetReplacementPlan(client: pg.Client): Promise<TargetReplaceme
 			) AS "hasObjects"
 		`);
 		if (publicObjects.rows[0]?.hasObjects) {
-			throw new Conflict(
-				`Cannot replace objects in schema "public": it is owned by PostgreSQL role "${publicSchema?.owner ?? "another role"}", but the target connection uses "${currentUser}". Use the schema owner’s connection or clear its application objects before transferring.`,
-			);
+			throw new Conflict(`Cannot replace objects in schema "public": it is owned by PostgreSQL role "${publicSchema?.owner ?? "another role"}", but the target connection uses "${currentUser}". Use the schema owner’s connection or clear its application objects before transferring.`);
 		}
 		if (publicSchema) {
-			const canCreate = await client.query<{ allowed: boolean }>(
-				"SELECT has_schema_privilege(current_user, 'public', 'CREATE') AS allowed",
-			);
+			const canCreate = await client.query<{ allowed: boolean }>("SELECT has_schema_privilege(current_user, 'public', 'CREATE') AS allowed");
 			if (canCreate.rows[0]?.allowed !== true) {
-				throw new Conflict(
-					`The target role "${currentUser}" cannot create objects in schema "public". Grant it CREATE permission or use a role with access to that schema.`,
-				);
+				throw new Conflict(`The target role "${currentUser}" cannot create objects in schema "public". Grant it CREATE permission or use a role with access to that schema.`);
 			}
 		}
 	}
@@ -163,9 +163,11 @@ async function targetReplacementPlan(client: pg.Client): Promise<TargetReplaceme
 		schemasToPreserve: preservedSchemas(schemaResult.rows, currentUser),
 		publicSchemaOwned,
 	};
+
 }
 
 function clientFor(url: string): pg.Client {
+
 	const client = new pg.Client({
 		connectionString: url,
 		connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
@@ -173,6 +175,7 @@ function clientFor(url: string): pg.Client {
 	});
 	client.on("error", () => undefined);
 	return client;
+
 }
 
 function databaseName(url: string): string {
@@ -180,6 +183,7 @@ function databaseName(url: string): string {
 }
 
 function connectionEnvironment(connectionUrl: string): NodeJS.ProcessEnv {
+
 	const url = new URL(connectionUrl);
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
@@ -200,9 +204,11 @@ function connectionEnvironment(connectionUrl: string): NodeJS.ProcessEnv {
 		if (value) env[variable] = value;
 	}
 	return env;
+
 }
 
 function redact(message: string, connectionUrls: string[]): string {
+
 	let output = message;
 	for (const connectionUrl of connectionUrls) {
 		try {
@@ -215,22 +221,18 @@ function redact(message: string, connectionUrls: string[]): string {
 		}
 	}
 	return output.replace(/\s+/g, " ").trim();
+
 }
 
 function childExit(child: ChildProcessWithoutNullStreams, name: string, urls: string[]): Promise<void> {
+
 	let stderr = "";
 	child.stderr.on("data", (chunk: Buffer) => {
 		if (stderr.length < 2000) stderr += chunk.toString();
 	});
 	return new Promise((resolve, reject) => {
 		child.once("error", (error: NodeJS.ErrnoException) => {
-			reject(
-				new Error(
-					error.code === "ENOENT"
-						? `${name} is not installed in the API container.`
-						: `${name}: ${redact(error.message, urls)}`,
-				),
-			);
+			reject(new Error(error.code === "ENOENT" ? `${name} is not installed in the API container.` : `${name}: ${redact(error.message, urls)}`));
 		});
 		child.once("close", (code, signal) => {
 			if (code === 0) {
@@ -241,9 +243,11 @@ function childExit(child: ChildProcessWithoutNullStreams, name: string, urls: st
 			reject(new Error(`${name} failed (${termination}): ${redact(stderr, urls) || "No details provided."}`));
 		});
 	});
+
 }
 
 function childOutput(child: ChildProcessWithoutNullStreams, name: string, urls: string[]): Promise<string> {
+
 	let stderr = "";
 	const output: Buffer[] = [];
 	let outputLength = 0;
@@ -260,13 +264,7 @@ function childOutput(child: ChildProcessWithoutNullStreams, name: string, urls: 
 	});
 	return new Promise((resolve, reject) => {
 		child.once("error", (error: NodeJS.ErrnoException) => {
-			reject(
-				new Error(
-					error.code === "ENOENT"
-						? `${name} is not installed in the API container.`
-						: `${name}: ${redact(error.message, urls)}`,
-				),
-			);
+			reject(new Error(error.code === "ENOENT" ? `${name} is not installed in the API container.` : `${name}: ${redact(error.message, urls)}`));
 		});
 		child.once("close", (code, signal) => {
 			if (outputLength > 16 * 1024 * 1024) {
@@ -281,10 +279,12 @@ function childOutput(child: ChildProcessWithoutNullStreams, name: string, urls: 
 			reject(new Error(`${name} failed (${termination}): ${redact(stderr, urls) || "No details provided."}`));
 		});
 	});
+
 }
 
 @Injectable()
 export class DatabaseTransferService {
+
 	private state: DatabaseTransferState = {
 		state: "idle",
 		phase: "",
@@ -302,8 +302,7 @@ export class DatabaseTransferService {
 		if (interrupted) {
 			journal.state = "failed";
 			journal.phase = "interrupted";
-			journal.message =
-				"The API restarted during transfer. The source database may still be read-only; restore writes or restart the transfer.";
+			journal.message = "The API restarted during transfer. The source database may still be read-only; restore writes or restart the transfer.";
 			journal.finishedAt = new Date().toISOString();
 			appConfig().persistent?.setDatabaseTransferJournal(journal);
 		}
@@ -334,15 +333,11 @@ export class DatabaseTransferService {
 			throw new Conflict("The database transfer is complete. Restart the API to switch to the new database.");
 		}
 		if (this.state.sourceLocked) {
-			throw new Conflict(
-				"The source database is still read-only. Restore writes before starting another transfer.",
-			);
+			throw new Conflict("The source database is still read-only. Restore writes before starting another transfer.");
 		}
 		const config = appConfig();
 		if (config.source("databaseUrl") === "env") {
-			throw new Conflict(
-				"DATABASE_URL is set by the environment and cannot be switched from the admin dashboard.",
-			);
+			throw new Conflict("DATABASE_URL is set by the environment and cannot be switched from the admin dashboard.");
 		}
 		const sourceUrl = config.get("databaseUrl");
 		if (!sourceUrl) throw new Conflict("The current PostgreSQL connection is not configured.");
@@ -353,9 +348,7 @@ export class DatabaseTransferService {
 			id: randomUUID(),
 			state: "running",
 			phase: "Validating target",
-			message: replaceTarget
-				? "Checking that the target is reachable."
-				: "Checking that the target is reachable and empty.",
+			message: replaceTarget ? "Checking that the target is reachable." : "Checking that the target is reachable and empty.",
 			sourceUrl,
 			targetUrl,
 			replaceTarget,
@@ -368,10 +361,7 @@ export class DatabaseTransferService {
 		this.running = true;
 		void this.execute(journal)
 			.catch((error: unknown) => {
-				const message = redact(error instanceof Error ? error.message : String(error), [
-					journal.sourceUrl,
-					journal.targetUrl,
-				]);
+				const message = redact(error instanceof Error ? error.message : String(error), [journal.sourceUrl, journal.targetUrl]);
 				this.state = {
 					state: "failed",
 					phase: journal.sourceLocked ? "restore-required" : "failed",
@@ -402,16 +392,12 @@ export class DatabaseTransferService {
 		const journal = appConfig().persistent?.getDatabaseTransferJournal();
 		if (!journal?.sourceLocked) throw new Conflict("There is no transfer lock to remove.");
 		if (journal.state === "completed") {
-			throw new Conflict(
-				"The transfer is complete. Restart the Flixer API to switch databases before considering a rollback.",
-			);
+			throw new Conflict("The transfer is complete. Restart the Flixer API to switch databases before considering a rollback.");
 		}
 		await this.restoreSource(journal);
 		journal.sourceLocked = false;
 		journal.phase = "writes-restored";
-		journal.message = journal.sourceWasReadOnly
-			? "The source database was already read-only before transfer; its prior read-only setting was preserved."
-			: "Writes are restored on the source database. You can try another empty target.";
+		journal.message = journal.sourceWasReadOnly ? "The source database was already read-only before transfer; its prior read-only setting was preserved." : "Writes are restored on the source database. You can try another empty target.";
 		journal.state = "failed";
 		journal.finishedAt = new Date().toISOString();
 		this.save(journal);
@@ -439,15 +425,12 @@ export class DatabaseTransferService {
 			}
 			await this.lockSource(journal);
 			journal.phase = "Copying database";
-			journal.message = journal.replaceTarget
-				? "Writes are frozen. Replacing the target contents with a copy of the source."
-				: "Writes are frozen. Dumping the source and restoring it to the empty target.";
+			journal.message = journal.replaceTarget ? "Writes are frozen. Replacing the target contents with a copy of the source." : "Writes are frozen. Dumping the source and restoring it to the empty target.";
 			this.save(journal);
 			await this.copyDatabase(journal.sourceUrl, journal.targetUrl, journal.replaceTarget);
 			journal.state = "completed";
 			journal.phase = "Ready to switch";
-			journal.message =
-				"The full database was copied. The old database remains read-only; restart the Flixer API to use the new connection.";
+			journal.message = "The full database was copied. The old database remains read-only; restart the Flixer API to use the new connection.";
 			journal.finishedAt = new Date().toISOString();
 			this.save(journal);
 		} catch (error) {
@@ -462,13 +445,8 @@ export class DatabaseTransferService {
 			}
 			journal.state = "failed";
 			journal.phase = journal.sourceLocked ? "restore-required" : "failed";
-			const transferError = redact(error instanceof Error ? error.message : String(error), [
-				journal.sourceUrl,
-				journal.targetUrl,
-			]);
-			journal.message = unlockError
-				? `Transfer failed: ${transferError} Writes could not be restored: ${redact(unlockError instanceof Error ? unlockError.message : String(unlockError), [journal.sourceUrl, journal.targetUrl])}`
-				: `Transfer failed and the source database is writable again: ${transferError}`;
+			const transferError = redact(error instanceof Error ? error.message : String(error), [journal.sourceUrl, journal.targetUrl]);
+			journal.message = unlockError ? `Transfer failed: ${transferError} Writes could not be restored: ${redact(unlockError instanceof Error ? unlockError.message : String(unlockError), [journal.sourceUrl, journal.targetUrl])}` : `Transfer failed and the source database is writable again: ${transferError}`;
 			journal.finishedAt = new Date().toISOString();
 			this.save(journal);
 		}
@@ -500,9 +478,7 @@ export class DatabaseTransferService {
 					) AS "hasObjects"
 			`);
 			if (result.rows[0]?.hasObjects) {
-				throw new Conflict(
-					"The target database contains objects. Choose an empty target or enable Replace target contents in the confirmation dialog.",
-				);
+				throw new Conflict("The target database contains objects. Choose an empty target or enable Replace target contents in the confirmation dialog.");
 			}
 		} finally {
 			await client.end().catch(() => undefined);
@@ -560,10 +536,7 @@ export class DatabaseTransferService {
 		const client = clientFor(sourceUrl);
 		try {
 			await client.connect();
-			const result = await client.query<{ name: string }>(
-				"SELECT nspname AS name FROM pg_namespace WHERE nspname = ANY($1::text[])",
-				[["public", "pgboss"]],
-			);
+			const result = await client.query<{ name: string }>("SELECT nspname AS name FROM pg_namespace WHERE nspname = ANY($1::text[])", [["public", "pgboss"]]);
 			return result.rows.map(({ name }) => name);
 		} finally {
 			await client.end().catch(() => undefined);
@@ -574,9 +547,7 @@ export class DatabaseTransferService {
 		const client = clientFor(journal.sourceUrl);
 		try {
 			await client.connect();
-			const current = await client.query<{ database: string; readOnly: string }>(
-				"SELECT current_database() AS database, current_setting('default_transaction_read_only') AS \"readOnly\"",
-			);
+			const current = await client.query<{ database: string; readOnly: string }>("SELECT current_database() AS database, current_setting('default_transaction_read_only') AS \"readOnly\"");
 			const database = current.rows[0]?.database;
 			if (!database) throw new Error("Could not identify the source database.");
 			journal.sourceWasReadOnly = current.rows[0]?.readOnly === "on";
@@ -600,9 +571,7 @@ export class DatabaseTransferService {
 			const check = clientFor(journal.sourceUrl);
 			try {
 				await check.connect();
-				const readonly = await check.query<{ value: string }>(
-					"SELECT current_setting('default_transaction_read_only') AS value",
-				);
+				const readonly = await check.query<{ value: string }>("SELECT current_setting('default_transaction_read_only') AS value");
 				if (readonly.rows[0]?.value !== "on") {
 					throw new Error("Could not verify the source database write lock.");
 				}
@@ -618,14 +587,11 @@ export class DatabaseTransferService {
 		const client = clientFor(journal.sourceUrl);
 		try {
 			await client.connect();
-			const database = (await client.query<{ database: string }>("SELECT current_database() AS database")).rows[0]
-				?.database;
+			const database = (await client.query<{ database: string }>("SELECT current_database() AS database")).rows[0]?.database;
 			if (!database) throw new Error("Could not identify the source database while restoring writes.");
 			await client.query("SET default_transaction_read_only = off");
 			if (journal.sourceWasReadOnly) {
-				await client.query(
-					`ALTER DATABASE ${quoteIdentifier(database)} SET default_transaction_read_only = on`,
-				);
+				await client.query(`ALTER DATABASE ${quoteIdentifier(database)} SET default_transaction_read_only = on`);
 			} else {
 				await client.query(`ALTER DATABASE ${quoteIdentifier(database)} RESET default_transaction_read_only`);
 			}
@@ -652,12 +618,7 @@ export class DatabaseTransferService {
 		}
 		const urls = [sourceUrl, targetUrl];
 		const sourceSchemas = await this.sourceSchemasToCopy(sourceUrl);
-		const dumpArguments = [
-			"--format=custom",
-			"--no-owner",
-			"--no-acl",
-			...transferSchemaArguments(sourceSchemas, schemasToPreserve),
-		];
+		const dumpArguments = ["--format=custom", "--no-owner", "--no-acl", ...transferSchemaArguments(sourceSchemas, schemasToPreserve)];
 		const temporaryDirectory = await mkdtemp(join(tmpdir(), "flixer-database-transfer-"));
 		const archivePath = join(temporaryDirectory, "database.dump");
 		const restoreListPath = join(temporaryDirectory, "restore.list");
@@ -687,18 +648,7 @@ export class DatabaseTransferService {
 			const restoreList = await childOutput(listProcess, "pg_restore --list", urls);
 			await writeFile(restoreListPath, restoreListWithoutPublicSchema(restoreList), { mode: 0o600 });
 
-			const restoreArguments = [
-				"--single-transaction",
-				"--exit-on-error",
-				"--no-owner",
-				"--no-acl",
-				...excludedSchemaArguments(schemasToPreserve),
-				"--use-list",
-				restoreListPath,
-				archivePath,
-				"--dbname",
-				databaseName(targetUrl),
-			];
+			const restoreArguments = ["--single-transaction", "--exit-on-error", "--no-owner", "--no-acl", ...excludedSchemaArguments(schemasToPreserve), "--use-list", restoreListPath, archivePath, "--dbname", databaseName(targetUrl)];
 			const restore = spawn("pg_restore", restoreArguments, {
 				env: connectionEnvironment(targetUrl),
 				stdio: ["ignore", "ignore", "pipe"],

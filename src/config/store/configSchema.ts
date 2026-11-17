@@ -35,8 +35,7 @@ export const suggestedDatabaseUrl = (): string => `postgres://flixer:flixer@${se
 
 const MIN_SECRET_BYTES = 32;
 
-export const validateSecret: ConfigValidator = (value) =>
-	Buffer.byteLength(value) >= MIN_SECRET_BYTES ? null : `Must be at least ${MIN_SECRET_BYTES} bytes long.`;
+export const validateSecret: ConfigValidator = (value) => (Buffer.byteLength(value) >= MIN_SECRET_BYTES ? null : `Must be at least ${MIN_SECRET_BYTES} bytes long.`);
 
 export const validateHttpUrl: ConfigValidator = (value) => {
 	try {

@@ -7,9 +7,7 @@ function response(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-function emptySettingsDataSource(
-	query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : [])),
-): DataSource {
+function emptySettingsDataSource(query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : []))): DataSource {
 	return {
 		getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]) })),
 		query,
@@ -45,8 +43,14 @@ describe("MediaSearchService", () => {
 	it("returns indexed results again when stalled setup completes", async () => {
 		vi.useFakeTimers();
 		let completeSetup!: (value: Response) => void;
-		const fetch = vi.fn()
-			.mockImplementationOnce(() => new Promise<Response>((resolve) => { completeSetup = resolve; }))
+		const fetch = vi
+			.fn()
+			.mockImplementationOnce(
+				() =>
+					new Promise<Response>((resolve) => {
+						completeSetup = resolve;
+					}),
+			)
 			.mockResolvedValueOnce(response({}))
 			.mockResolvedValueOnce(response({ hits: [{ id: "item-1" }] }));
 		vi.stubGlobal("fetch", fetch);
@@ -60,13 +64,17 @@ describe("MediaSearchService", () => {
 
 	it("falls back when a search request exceeds its deadline", async () => {
 		const controller = new AbortController();
-		const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => milliseconds === 2_000 ? controller.signal : new AbortController().signal);
-		const fetch = vi.fn()
+		const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => (milliseconds === 2_000 ? controller.signal : new AbortController().signal));
+		const fetch = vi
+			.fn()
 			.mockResolvedValueOnce(response({ uid: "media" }))
 			.mockResolvedValueOnce(response({}))
-			.mockImplementationOnce((_url, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
-				init.signal?.addEventListener("abort", () => reject(new Error("search timed out")));
-			}));
+			.mockImplementationOnce(
+				(_url, init: RequestInit) =>
+					new Promise<Response>((_resolve, reject) => {
+						init.signal?.addEventListener("abort", () => reject(new Error("search timed out")));
+					}),
+			);
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService(emptySettingsDataSource());
 		const result = service.searchIds("alien");
@@ -154,13 +162,14 @@ describe("MediaSearchService", () => {
 
 		await service.searchIds("alien");
 
-		expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get("Authorization")).toBe(
-			"Bearer shared-application-secret",
-		);
+		expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get("Authorization")).toBe("Bearer shared-application-secret");
 	});
 
 	it("reports actionable guidance when Meilisearch rejects the API key", async () => {
-		vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => response({ message: "Invalid API key." }, 403)));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockImplementation(async () => response({ message: "Invalid API key." }, 403)),
+		);
 		const service = new MediaSearchService(emptySettingsDataSource());
 		await expect(service.getAdminTask(1)).rejects.toThrow("Check the Meilisearch API key and permissions");
 		await expect(service.getAdminTask(1)).rejects.toThrow("restart the bundled Meilisearch service");
@@ -222,11 +231,7 @@ describe("MediaSearchService", () => {
 		expect(fetch.mock.calls.some(([url]) => String(url).endsWith("/search"))).toBe(false);
 		expect(query.mock.calls.some(([sql]) => String(sql).includes("VALUES ('rebuild')"))).toBe(true);
 		expect(query.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM "settings"'))).toBe(true);
-		expect(
-			query.mock.calls.some(
-				([, parameters]) => Array.isArray(parameters) && parameters.includes("media_search_document_version"),
-			),
-		).toBe(true);
+		expect(query.mock.calls.some(([, parameters]) => Array.isArray(parameters) && parameters.includes("media_search_document_version"))).toBe(true);
 	});
 
 	it("records the search document version after a completed rebuild", async () => {
@@ -247,10 +252,7 @@ describe("MediaSearchService", () => {
 
 		await worker.rebuildIndex();
 
-		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual([
-			"media_search_document_version",
-			"2",
-		]);
+		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual(["media_search_document_version", "2"]);
 	});
 
 	it("builds separate search fields for shows, episodes, albums, and tracks", async () => {
@@ -300,18 +302,8 @@ describe("MediaSearchService", () => {
 				metadata: { description: "Track description", artist: "Singer" },
 				isPlaceholder: false,
 			},
-		].map(
-			(item) => ({ ...item, sortTitle: item.title, genres: [], createdAt: new Date() }) as unknown as MediaItem,
-		);
-		const query = vi.fn((sql: string) =>
-			Promise.resolve(
-				sql.includes("WITH RECURSIVE")
-					? items.map(({ id }) => ({ id }))
-					: sql.includes("media_search_lyrics")
-						? [{ item_id: "track", lyrics: "song lyric words" }]
-						: [],
-			),
-		);
+		].map((item) => ({ ...item, sortTitle: item.title, genres: [], createdAt: new Date() }) as unknown as MediaItem);
+		const query = vi.fn((sql: string) => Promise.resolve(sql.includes("WITH RECURSIVE") ? items.map(({ id }) => ({ id })) : sql.includes("media_search_lyrics") ? [{ item_id: "track", lyrics: "song lyric words" }] : []));
 		const service = new MediaSearchService({
 			query,
 			getRepository: vi.fn(() => ({ find: vi.fn().mockResolvedValue(items) })),
@@ -409,9 +401,7 @@ describe("MediaSearchService", () => {
 			) => Promise<void>;
 		};
 
-		await worker.applyDocumentEvents([
-			{ event_id: "1", item_id: "media-item-1", operation: "delete", document: null },
-		]);
+		await worker.applyDocumentEvents([{ event_id: "1", item_id: "media-item-1", operation: "delete", document: null }]);
 
 		expect(fetch).toHaveBeenCalledWith(
 			"http://localhost:7700/indexes/media/documents/delete-batch",
@@ -523,24 +513,12 @@ describe("MediaSearchService", () => {
 			["http://localhost:7700/tasks/4", undefined],
 		]);
 		expect(JSON.parse(String(fetch.mock.calls[4]?.[1]?.body))).toEqual({
-			searchableAttributes: [
-				"title",
-				"parentTitle",
-				"childTitles",
-				"artist",
-				"credits",
-				"studios",
-				"description",
-				"lyrics",
-			],
+			searchableAttributes: ["title", "parentTitle", "childTitles", "artist", "credits", "studios", "description", "lyrics"],
 			filterableAttributes: ["type", "year", "genres"],
 			sortableAttributes: ["sortTitle", "year", "title", "createdAt"],
 			displayedAttributes: ["id"],
 		});
-		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual([
-			"media_search_document_version",
-			"2",
-		]);
+		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual(["media_search_document_version", "2"]);
 	});
 
 	it("reports saved settings and outbox status without contacting Meilisearch when disabled", async () => {
@@ -713,15 +691,9 @@ describe("MediaSearchService", () => {
 			getRepository: vi.fn(() => ({ findOneBy })),
 		} as unknown as DataSource);
 
-		await expect(service.saveAdminSettings({ enabled: true, url: "https://user:pass@meili.test" })).rejects.toThrow(
-			"without credentials",
-		);
-		await expect(service.saveAdminSettings({ enabled: true, url: "ftp://meili.test" })).rejects.toThrow(
-			"without credentials",
-		);
-		await expect(service.saveAdminSettings({ enabled: true, url: "x".repeat(2049) })).rejects.toThrow(
-			"settings are invalid",
-		);
+		await expect(service.saveAdminSettings({ enabled: true, url: "https://user:pass@meili.test" })).rejects.toThrow("without credentials");
+		await expect(service.saveAdminSettings({ enabled: true, url: "ftp://meili.test" })).rejects.toThrow("without credentials");
+		await expect(service.saveAdminSettings({ enabled: true, url: "x".repeat(2049) })).rejects.toThrow("settings are invalid");
 		expect(findOneBy).not.toHaveBeenCalled();
 	});
 });

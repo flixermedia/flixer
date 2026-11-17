@@ -6,6 +6,7 @@ import { User } from "../../../entities/user.entity.js";
 import { ExternalAuthService } from "./externalAuthService.js";
 
 function setup() {
+
 	const plugin = { enabled: true, pluginId: "plugin.example", manifest: { name: "Directory", targets: { flixer: { entry: "auth.wasm" } }, capabilities: ["auth.directory"], permissions: ["auth.identity.verify", "auth.credentials"] }, approvedPermissions: ["auth.identity.verify", "auth.credentials"] };
 	const identities = { findOneBy: vi.fn().mockResolvedValue(null), insert: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) };
 	const users = { findOneBy: vi.fn().mockResolvedValue({ id: "user" }) };
@@ -14,6 +15,7 @@ function setup() {
 	const auth = { reauthenticateUser: vi.fn().mockResolvedValue({ id: "user" }), completePrimaryAuthentication: vi.fn().mockResolvedValue({ accessToken: "session" }) };
 	const runtime = { execute: vi.fn().mockResolvedValue({ authenticated: true, issuer: "directory", subject: "stable-id" }) };
 	return { service: new ExternalAuthService(dataSource, auth as never, runtime as never), plugin, identities, users, auth, runtime };
+
 }
 
 describe("ExternalAuthService", () => {

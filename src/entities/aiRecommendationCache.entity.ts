@@ -2,6 +2,7 @@ import { Column, Entity, PrimaryColumn } from "typeorm";
 
 @Entity("ai_recommendation_caches")
 export class AiRecommendationCache {
+
 	@PrimaryColumn({ name: "user_id", type: "uuid" })
 	userId!: string;
 

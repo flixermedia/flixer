@@ -17,8 +17,15 @@ function randomLocal(): string {
 
 /** Slug of a username that is safe as an address local part; null when nothing usable remains. */
 export function usernameLocalPart(username: string): string | null {
-	const slug = username.toLowerCase().replace(/[^a-z0-9._+-]+/g, "-").replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "").replace(/\.{2,}/g, ".").slice(0, 48);
+
+	const slug = username
+		.toLowerCase()
+		.replace(/[^a-z0-9._+-]+/g, "-")
+		.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+		.replace(/\.{2,}/g, ".")
+		.slice(0, 48);
 	return normalizeLocalPart(slug);
+
 }
 
 /** Admin-created inboxes, the noreply system mailbox and per-user addresses. */
@@ -69,19 +76,26 @@ export class MailboxService {
 			throw new BadRequest("This address isn't on a verified domain. Add and verify the domain first.");
 		}
 		if (await this.repo.existsBy({ address: parsed.address })) throw new Conflict("That address already exists.");
-		return this.repo.save(this.repo.create({
-			id: randomUUID(),
-			address: parsed.address,
-			kind: "inbox",
-			displayName: input.displayName?.trim().slice(0, 100) || null,
-			userId: null,
-			enabled: true,
-		}));
+		return this.repo.save(
+			this.repo.create({
+				id: randomUUID(),
+				address: parsed.address,
+				kind: "inbox",
+				displayName: input.displayName?.trim().slice(0, 100) || null,
+				userId: null,
+				enabled: true,
+			}),
+		);
 	}
 
 	async update(id: string, input: { displayName?: string | null; enabled?: boolean }): Promise<Mailbox> {
 		const mailbox = await this.get(id);
-		if (input.displayName !== undefined) mailbox.displayName = input.displayName?.replace(/[\r\n\0]/g, " ").trim().slice(0, 100) || null;
+		if (input.displayName !== undefined)
+			mailbox.displayName =
+				input.displayName
+					?.replace(/[\r\n\0]/g, " ")
+					.trim()
+					.slice(0, 100) || null;
 		if (input.enabled !== undefined) mailbox.enabled = input.enabled === true;
 		return this.repo.save(mailbox);
 	}

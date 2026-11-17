@@ -4,19 +4,10 @@ import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.js";
 
 describe("normalizePluginRepositoryUrl", () => {
 	it("normalizes public HTTPS repository manifests", () => {
-		expect(normalizePluginRepositoryUrl("https://example.org/plugins/repository.json")).toBe(
-			"https://example.org/plugins/repository.json",
-		);
+		expect(normalizePluginRepositoryUrl("https://example.org/plugins/repository.json")).toBe("https://example.org/plugins/repository.json");
 	});
 
-	it.each([
-		"http://example.org/repository.json",
-		"https://user:pass@example.org/repository.json",
-		"https://127.0.0.1/repository.json",
-		"https://localhost/repository.json",
-		"https://example.org:8443/repository.json",
-		"https://example.org/plugins/",
-	])("rejects unsupported repository URLs: %s", (url) => {
+	it.each(["http://example.org/repository.json", "https://user:pass@example.org/repository.json", "https://127.0.0.1/repository.json", "https://localhost/repository.json", "https://example.org:8443/repository.json", "https://example.org/plugins/"])("rejects unsupported repository URLs: %s", (url) => {
 		expect(() => normalizePluginRepositoryUrl(url)).toThrow("Repository URL");
 	});
 
@@ -29,9 +20,7 @@ describe("normalizePluginRepositoryUrl", () => {
 	});
 
 	it("rejects private DNS results before an HTTP request", () => {
-		expect(() => assertPublicRepositoryAddresses([{ address: "127.0.0.1", family: 4 }])).toThrow(
-			"non-public network address",
-		);
+		expect(() => assertPublicRepositoryAddresses([{ address: "127.0.0.1", family: 4 }])).toThrow("non-public network address");
 		expect(() => assertPublicRepositoryAddresses([])).toThrow("did not resolve");
 	});
 });

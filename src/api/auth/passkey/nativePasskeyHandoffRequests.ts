@@ -3,6 +3,7 @@ import { Any, MaxLength, MinLength, Pattern, Property, Required } from "@tsed/sc
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export class NativePasskeyHandoffStartRequest {
+
 	@Property()
 	@Required()
 	@MinLength(43)
@@ -23,6 +24,7 @@ export class NativePasskeyHandoffStartRequest {
 }
 
 export class NativePasskeyHandoffIdRequest {
+
 	@Property()
 	@Required()
 	@MinLength(43)
@@ -32,12 +34,14 @@ export class NativePasskeyHandoffIdRequest {
 }
 
 export class NativePasskeyHandoffVerifyRequest extends NativePasskeyHandoffIdRequest {
+
 	@Any()
 	@Required()
 	response!: Record<string, unknown>;
 }
 
 export class NativePasskeyHandoffExchangeRequest {
+
 	@Property()
 	@Required()
 	@MinLength(43)

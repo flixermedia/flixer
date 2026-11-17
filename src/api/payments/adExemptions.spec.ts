@@ -11,6 +11,7 @@ const future = new Date(Date.now() + 60_000);
 const past = new Date(Date.now() - 60_000);
 
 function setup(rows: Record<string, object[]> = {}, active = true) {
+
 	const source = {
 		getRepository: vi.fn((entity: { name: string }) => ({
 			findBy: vi.fn(async (query: Record<string, unknown>) => {
@@ -21,6 +22,7 @@ function setup(rows: Record<string, object[]> = {}, active = true) {
 	};
 	const config = { isActive: vi.fn().mockResolvedValue(active) };
 	return { service: new EntitlementService(source as never, config as never), source };
+
 }
 
 describe("advertisement exemptions", () => {

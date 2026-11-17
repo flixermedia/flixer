@@ -16,7 +16,12 @@ const charge: ChargeInput = {
 };
 
 function respond(body: unknown, status = 400) {
-	vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } })));
+
+	vi.stubGlobal(
+		"fetch",
+		vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } })),
+	);
+
 }
 
 describe("payment provider error messages", () => {

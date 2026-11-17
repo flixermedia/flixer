@@ -2,13 +2,8 @@ import { createHash } from "node:crypto";
 import type { PlatformContext } from "@tsed/platform-http";
 
 /** Allows the native app to revalidate its own private artwork cache after authorization. */
-export function imageCacheResponse(
-	ctx: PlatformContext,
-	image: { data: Buffer; mime: string },
-	defaultCacheControl: string,
-	appCache: string | undefined,
-	validator: string | undefined,
-): Buffer | undefined {
+export function imageCacheResponse(ctx: PlatformContext, image: { data: Buffer; mime: string }, defaultCacheControl: string, appCache: string | undefined, validator: string | undefined): Buffer | undefined {
+
 	ctx.response.setHeader("Content-Type", image.mime);
 	ctx.response.setHeader("Cache-Control", defaultCacheControl);
 	ctx.response.setHeader("X-Content-Type-Options", "nosniff");
@@ -25,4 +20,5 @@ export function imageCacheResponse(
 		return undefined;
 	}
 	return image.data;
+
 }

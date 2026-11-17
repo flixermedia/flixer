@@ -12,6 +12,7 @@ function command(...parts: string[]): string {
 
 /** Checks a Redis URL with AUTH, SELECT and PING over a plain or TLS socket, so the API needs no Redis client. */
 export function probeRedis(url: string): Promise<RedisProbe> {
+
 	let config: ReturnType<typeof parseRedisUrl>;
 	try {
 		config = parseRedisUrl(url);
@@ -60,4 +61,5 @@ export function probeRedis(url: string): Promise<RedisProbe> {
 			}
 		});
 	});
+
 }

@@ -51,21 +51,28 @@ function normalizedRelative(value: string): string {
 }
 
 function isWithin(base: string, candidate: string): boolean {
+
 	const rel = relative(base, candidate);
 	return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+
 }
 
 function metadataText(item: MediaItem | undefined, key: string): string | undefined {
+
 	const value = item?.metadata?.[key];
 	return typeof value === "string" && value.trim() ? value.trim() : undefined;
+
 }
 
 function metadataNumber(item: MediaItem, key: string): number | undefined {
+
 	const value = item.metadata?.[key];
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
 }
 
 function libraryFolderFor(library: MediaLibrary, item: MediaItem): MediaLibraryFolder {
+
 	if (!item.rootId || !item.relativePath) throw new BadRequest(`Item "${item.title}" has no indexed root path.`);
 	const itemPath = normalizedRelative(item.relativePath);
 	const candidates = library.folders
@@ -78,14 +85,18 @@ function libraryFolderFor(library: MediaLibrary, item: MediaItem): MediaLibraryF
 	const folder = candidates[0];
 	if (!folder) throw new BadRequest(`Item "${item.title}" is outside the configured library folders.`);
 	return { rootId: folder.rootId, path: normalizedRelative(folder.path) };
+
 }
 
 function seriesFor(item: MediaItem, items: Map<string, MediaItem>): MediaItem | undefined {
+
 	const season = item.parentId ? items.get(item.parentId) : undefined;
 	return season?.parentId ? items.get(season.parentId) : undefined;
+
 }
 
 function targetFor(item: MediaItem, items: Map<string, MediaItem>, templates: OrganizationTemplates, filename: string): string | null {
+
 	const series = seriesFor(item, items);
 	const album = item.parentId ? items.get(item.parentId) : undefined;
 	const values = {
@@ -112,9 +123,11 @@ function targetFor(item: MediaItem, items: Map<string, MediaItem>, templates: Or
 		default:
 			return null;
 	}
+
 }
 
 async function exists(path: string): Promise<boolean> {
+
 	try {
 		await lstat(path);
 		return true;
@@ -122,18 +135,22 @@ async function exists(path: string): Promise<boolean> {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
 		throw error;
 	}
+
 }
 
 async function statFile(path: string) {
+
 	try {
 		return await lstat(path);
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
 		throw error;
 	}
+
 }
 
 async function rejectExistingDestination(root: string, relativePath: string, title: string): Promise<void> {
+
 	let current = root;
 	const segments = parseRelativePath(relativePath);
 	for (let index = 0; index < segments.length; index += 1) {
@@ -154,10 +171,12 @@ async function rejectExistingDestination(root: string, relativePath: string, tit
 		const info = await lstat(current);
 		if (info.isSymbolicLink() || !info.isDirectory()) throw new BadRequest("An organization destination parent is unsafe.");
 	}
+
 }
 
 /** Walks a root-relative path without following symlinks and optionally creates missing directories. */
 async function inspectPath(root: string, relativePath: string, options: { createDirectories?: boolean; file?: boolean } = {}): Promise<string> {
+
 	const segments = parseRelativePath(relativePath);
 	if (!segments.length) throw new BadRequest("An organization path cannot be the media root.");
 	let current = root;
@@ -183,9 +202,11 @@ async function inspectPath(root: string, relativePath: string, options: { create
 	const canonical = await realpath(current);
 	if (!isWithin(root, canonical)) throw new BadRequest("Organization path is outside the media root.");
 	return canonical;
+
 }
 
 async function createParentDirectories(root: string, relativePath: string): Promise<void> {
+
 	const parent = dirname(relativePath);
 	if (parent === ".") return;
 	const segments = parseRelativePath(parent);
@@ -201,9 +222,11 @@ async function createParentDirectories(root: string, relativePath: string): Prom
 		const canonical = await realpath(current);
 		if (!isWithin(root, canonical)) throw new BadRequest("Organization destination is outside the media root.");
 	}
+
 }
 
 async function moveWithoutOverwrite(source: string, target: string): Promise<void> {
+
 	if (await exists(target)) throw new Conflict("An organization destination already exists.");
 	await link(source, target);
 	try {
@@ -212,10 +235,12 @@ async function moveWithoutOverwrite(source: string, target: string): Promise<voi
 		await unlink(target).catch(() => undefined);
 		throw error;
 	}
+
 }
 
 @Injectable()
 export class MediaOrganizationService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly roots: MediaRootsService,
@@ -336,8 +361,15 @@ export class MediaOrganizationService {
 			}
 			const sourceInfo = await lstat(source);
 			moves.push({
-				itemId: item.id, rootId, libraryFolder: folderPath, type: item.type, title: item.title,
-				sourceRelativePath, targetRelativePath, sourceSizeBytes: sourceInfo.size, sourceModifiedAt: sourceInfo.mtime.toISOString(),
+				itemId: item.id,
+				rootId,
+				libraryFolder: folderPath,
+				type: item.type,
+				title: item.title,
+				sourceRelativePath,
+				targetRelativePath,
+				sourceSizeBytes: sourceInfo.size,
+				sourceModifiedAt: sourceInfo.mtime.toISOString(),
 			});
 			totalBytes += Number(sourceInfo.size);
 		}
@@ -492,10 +524,7 @@ export class MediaOrganizationService {
 	}
 
 	private async claimStateWithAudit(plan: MediaOrganizationPlan, expected: string, next: string, actorId: string, action: string, details: Record<string, unknown>, error: string | null = null): Promise<void> {
-		const rows = await this.dataSource.query<Array<{ id: string }>>(
-			'WITH claimed AS (UPDATE "media_organization_plans" SET "state" = $1, "error" = $2, "updated_at" = now() WHERE "id" = $3 AND "library_id" = $4 AND "state" = $5 RETURNING "id") INSERT INTO "media_organization_plan_audit" ("id", "plan_id", "actor_id", "action", "details") SELECT $6, "id", $7, $8, $9::jsonb FROM claimed RETURNING "plan_id" AS "id"',
-			[next, error, plan.id, plan.libraryId, expected, randomUUID(), actorId, action, JSON.stringify(details)],
-		);
+		const rows = await this.dataSource.query<Array<{ id: string }>>('WITH claimed AS (UPDATE "media_organization_plans" SET "state" = $1, "error" = $2, "updated_at" = now() WHERE "id" = $3 AND "library_id" = $4 AND "state" = $5 RETURNING "id") INSERT INTO "media_organization_plan_audit" ("id", "plan_id", "actor_id", "action", "details") SELECT $6, "id", $7, $8, $9::jsonb FROM claimed RETURNING "plan_id" AS "id"', [next, error, plan.id, plan.libraryId, expected, randomUUID(), actorId, action, JSON.stringify(details)]);
 		if (rows.length !== 1) throw new Conflict("This organization plan has already changed state.");
 	}
 

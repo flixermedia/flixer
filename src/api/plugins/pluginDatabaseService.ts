@@ -36,13 +36,16 @@ const COMPARISONS: Record<string, string> = {
 };
 
 export class PluginDatabaseError extends Error {
+
 	constructor(readonly code: "invalid_request" | "not_found" | "request_failed") {
 		super(code);
 	}
 }
 
 function invalid(): never {
+
 	throw new PluginDatabaseError("invalid_request");
+
 }
 
 /** The real table name: the plugin id is hashed so different ids can never share a table. */
@@ -55,6 +58,7 @@ function quote(identifier: string): string {
 }
 
 function literalDefault(column: PluginColumnDefinition): string | null {
+
 	const value = column.default;
 	if (value === undefined || value === null) return null;
 	if (column.type === "timestamp") {
@@ -65,13 +69,16 @@ function literalDefault(column: PluginColumnDefinition): string | null {
 	if (column.type === "integer") return typeof value === "number" && Number.isInteger(value) ? String(value) : invalid();
 	if (column.type === "text") return typeof value === "string" ? `'${value.replaceAll("'", "''")}'` : invalid();
 	return invalid();
+
 }
 
 function columnSql(name: string, column: PluginColumnDefinition, forAdd: boolean): string {
+
 	const defaultSql = literalDefault(column);
 	const notNull = column.nullable === false || column.primary === true;
 	if (forAdd && notNull && defaultSql === null) invalid();
 	return `${quote(name)} ${SQL_TYPE[column.type]}${defaultSql === null ? "" : ` DEFAULT ${defaultSql}`}${notNull ? " NOT NULL" : ""}`;
+
 }
 
 type Condition = { col: string; cmp: string; value?: unknown };
@@ -83,6 +90,7 @@ interface WhereClause {
 /** Gives each plugin its own Postgres tables, created from its manifest and reachable only through structured calls. */
 @Injectable()
 export class PluginDatabaseService {
+
 	private readonly provisioned = new Set<string>();
 
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
@@ -104,16 +112,9 @@ export class PluginDatabaseService {
 		const columns = Object.entries(definition.columns);
 		const primary = columns.filter(([, column]) => column.primary).map(([column]) => quote(column));
 		if (primary.length === 0) invalid();
-		const existing = await this.dataSource.query(
-			`SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1`,
-			[pluginTableName(pluginId, name)],
-		);
+		const existing = await this.dataSource.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1`, [pluginTableName(pluginId, name)]);
 		if (existing.length === 0) {
-			await this.dataSource.query(
-				`CREATE TABLE IF NOT EXISTS ${table} (${columns
-					.map(([column, spec]) => columnSql(column, spec, false))
-					.join(", ")}, PRIMARY KEY (${primary.join(", ")}))`,
-			);
+			await this.dataSource.query(`CREATE TABLE IF NOT EXISTS ${table} (${columns.map(([column, spec]) => columnSql(column, spec, false)).join(", ")}, PRIMARY KEY (${primary.join(", ")}))`);
 		} else {
 			const present = new Set((existing as Array<{ column_name: string }>).map((row) => row.column_name));
 			for (const [column, spec] of columns) {
@@ -128,9 +129,7 @@ export class PluginDatabaseService {
 				.update(`${pluginId}:${name}:${index.columns.join(",")}:${index.unique ? "u" : ""}`)
 				.digest("hex")
 				.slice(0, 40)}`;
-			await this.dataSource.query(
-				`CREATE ${index.unique ? "UNIQUE " : ""}INDEX IF NOT EXISTS ${quote(indexName)} ON ${table} (${index.columns.map(quote).join(", ")})`,
-			);
+			await this.dataSource.query(`CREATE ${index.unique ? "UNIQUE " : ""}INDEX IF NOT EXISTS ${quote(indexName)} ON ${table} (${index.columns.map(quote).join(", ")})`);
 		}
 	}
 
@@ -160,10 +159,7 @@ export class PluginDatabaseService {
 	}
 
 	private tableOf(installation: PluginInstallation, name: unknown): PluginTableDefinition {
-		const definition =
-			typeof name === "string" && Object.hasOwn(installation.manifest.database?.tables ?? {}, name)
-				? installation.manifest.database?.tables[name]
-				: undefined;
+		const definition = typeof name === "string" && Object.hasOwn(installation.manifest.database?.tables ?? {}, name) ? installation.manifest.database?.tables[name] : undefined;
 		if (!definition) throw new PluginDatabaseError("not_found");
 		return definition;
 	}
@@ -271,10 +267,7 @@ export class PluginDatabaseService {
 		const orderBy = this.orderSql(definition, call.orderBy);
 		const limit = this.bounded(call.limit, DEFAULT_ROWS, 1, MAX_ROWS);
 		const offset = this.bounded(call.offset, 0, 0, 1_000_000);
-		const rows: Array<Record<string, unknown>> = await this.dataSource.query(
-			`SELECT * FROM ${table}${where}${orderBy} LIMIT ${limit} OFFSET ${offset}`,
-			params,
-		);
+		const rows: Array<Record<string, unknown>> = await this.dataSource.query(`SELECT * FROM ${table}${where}${orderBy} LIMIT ${limit} OFFSET ${offset}`, params);
 		return rows.map((row) => this.outRow(definition, row));
 	}
 
@@ -286,10 +279,7 @@ export class PluginDatabaseService {
 			return { count: Number(rows[0]?.count ?? 0) };
 		}
 		const [name, column] = this.column(definition, call.groupBy);
-		const rows: Array<{ value: unknown; count: number }> = await this.dataSource.query(
-			`SELECT ${quote(name)} AS value, count(*)::int AS count FROM ${table}${where} GROUP BY ${quote(name)} ORDER BY ${quote(name)} LIMIT ${MAX_ROWS}`,
-			params,
-		);
+		const rows: Array<{ value: unknown; count: number }> = await this.dataSource.query(`SELECT ${quote(name)} AS value, count(*)::int AS count FROM ${table}${where} GROUP BY ${quote(name)} ORDER BY ${quote(name)} LIMIT ${MAX_ROWS}`, params);
 		return { groups: rows.map((row) => ({ value: this.outValue(column, row.value), count: Number(row.count) })) };
 	}
 
@@ -311,10 +301,7 @@ export class PluginDatabaseService {
 			});
 			return `(${cells.join(", ")})`;
 		});
-		const rowsInserted = await this.dataSource.query(
-			`WITH written AS (INSERT INTO ${table} (${columns.map(quote).join(", ")}) VALUES ${values.join(", ")} RETURNING 1) SELECT count(*)::int AS count FROM written`,
-			params,
-		);
+		const rowsInserted = await this.dataSource.query(`WITH written AS (INSERT INTO ${table} (${columns.map(quote).join(", ")}) VALUES ${values.join(", ")} RETURNING 1) SELECT count(*)::int AS count FROM written`, params);
 		return Number(rowsInserted[0]?.count ?? 0);
 	}
 
@@ -328,20 +315,14 @@ export class PluginDatabaseService {
 			return `${quote(column)} = $${params.length}${cast}`;
 		});
 		const where = this.whereSql(definition, call.where, params, true);
-		const rows = await this.dataSource.query(
-			`WITH written AS (UPDATE ${table} SET ${assignments.join(", ")}${where} RETURNING 1) SELECT count(*)::int AS count FROM written`,
-			params,
-		);
+		const rows = await this.dataSource.query(`WITH written AS (UPDATE ${table} SET ${assignments.join(", ")}${where} RETURNING 1) SELECT count(*)::int AS count FROM written`, params);
 		return Number(rows[0]?.count ?? 0);
 	}
 
 	private async remove(table: string, definition: PluginTableDefinition, call: Record<string, unknown>) {
 		const params: unknown[] = [];
 		const where = this.whereSql(definition, call.where, params, true);
-		const rows = await this.dataSource.query(
-			`WITH removed AS (DELETE FROM ${table}${where} RETURNING 1) SELECT count(*)::int AS count FROM removed`,
-			params,
-		);
+		const rows = await this.dataSource.query(`WITH removed AS (DELETE FROM ${table}${where} RETURNING 1) SELECT count(*)::int AS count FROM removed`, params);
 		return Number(rows[0]?.count ?? 0);
 	}
 
@@ -364,9 +345,7 @@ export class PluginDatabaseService {
 	}
 
 	private outRow(definition: PluginTableDefinition, row: Record<string, unknown>) {
-		return Object.fromEntries(
-			Object.entries(definition.columns).map(([name, column]) => [name, this.outValue(column, row[name])]),
-		);
+		return Object.fromEntries(Object.entries(definition.columns).map(([name, column]) => [name, this.outValue(column, row[name])]));
 	}
 
 	private outValue(column: PluginColumnDefinition, value: unknown): unknown {

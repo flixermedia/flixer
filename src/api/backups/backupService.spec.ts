@@ -165,7 +165,13 @@ describe("BackupService", () => {
 
 	it("rejects a second backup while one runs", async () => {
 		let release!: () => void;
-		service.dumpDatabase = (_url, file) => new Promise<void>((done) => { release = () => { writeFileSync(file, "x"); done(); }; });
+		service.dumpDatabase = (_url, file) =>
+			new Promise<void>((done) => {
+				release = () => {
+					writeFileSync(file, "x");
+					done();
+				};
+			});
 		const run = await service.create();
 		for (let i = 0; i < 200 && !release; i++) {
 			await new Promise((done) => setTimeout(done, 10));

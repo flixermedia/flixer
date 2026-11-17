@@ -7,8 +7,11 @@ import { UserMediaService } from "./userMediaService.js";
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (isolated PostgreSQL)", () => {
 	it("groups metadata case-insensitively and only counts or returns permitted movies", async () => {
 		const source = new DataSource({
-			type: "postgres", host: process.env.ANALYTICS_TEST_PG_SOCKET, port: 55441,
-			username: process.env.USER, database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			type: "postgres",
+			host: process.env.ANALYTICS_TEST_PG_SOCKET,
+			port: 55441,
+			username: process.env.USER,
+			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();
@@ -23,10 +26,12 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (i
 			const second = randomUUID();
 			const restricted = randomUUID();
 			const other = randomUUID();
-			await runner.query(`INSERT INTO media_items (id, type, metadata, year, sort_title) VALUES
+			await runner.query(
+				`INSERT INTO media_items (id, type, metadata, year, sort_title) VALUES
 				($1, 'movie', $5, 2002, 'Second'), ($2, 'movie', $6, 1999, 'First'),
 				($3, 'movie', $5, 2003, 'Restricted'), ($4, 'movie', $7, 2020, 'Other')`,
-			[first, second, restricted, other, { collection: "Example Collection" }, { collection: "  example collection  " }, { collection: "Other Collection" }]);
+				[first, second, restricted, other, { collection: "Example Collection" }, { collection: "  example collection  " }, { collection: "Other Collection" }],
+			);
 			const updatedAt = new Date("2025-01-01T00:00:00Z");
 			const card = (id: string, title: string) => ({ id, title, type: "movie", year: 2020, images: [{ type: "poster", path: "poster.jpg" }], metadata: {}, parentId: null, updatedAt });
 			const dataSource = {

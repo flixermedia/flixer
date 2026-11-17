@@ -12,6 +12,7 @@ vi.mock("./webhookSignature.js", () => ({
 }));
 
 function fulfilService(order: Partial<PaymentOrder>, product: unknown = null, plan: unknown = null) {
+
 	let committedStatus: PaymentOrder["status"] = "pending";
 	let stagedStatus: PaymentOrder["status"] | undefined;
 	const repositories = new Map<unknown, Record<string, ReturnType<typeof vi.fn>>>([
@@ -52,6 +53,7 @@ function fulfilService(order: Partial<PaymentOrder>, product: unknown = null, pl
 	const service = new PaymentsService(dataSource, config as never, entitlements as never, {} as never, { touch: vi.fn() } as never);
 
 	return { service, entitlements, getCommittedStatus: () => committedStatus };
+
 }
 
 describe("PaymentsService fulfilment", () => {
@@ -86,6 +88,7 @@ describe("PaymentsService fulfilment", () => {
 
 describe("PaymentsService webhook event persistence", () => {
 	function webhookService(query: ReturnType<typeof vi.fn>) {
+
 		const events = { existsBy: vi.fn().mockResolvedValue(false) };
 		const orders = { findOneBy: vi.fn().mockResolvedValue(null) };
 		const dataSource = {
@@ -99,6 +102,7 @@ describe("PaymentsService webhook event persistence", () => {
 		};
 		const service = new PaymentsService(dataSource, config as never, {} as never, {} as never, {} as never);
 		return { service, dataSource };
+
 	}
 
 	const body = JSON.stringify({

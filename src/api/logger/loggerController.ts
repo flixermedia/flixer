@@ -10,7 +10,11 @@ import { LoggerQueryProxy } from "./loggerQueryProxy.js";
 @Controller("/admin/logger")
 @Security("BearerAuth")
 export class LoggerController {
-	constructor(private readonly logger: LoggerService, private readonly queryProxy: LoggerQueryProxy) {}
+
+	constructor(
+		private readonly logger: LoggerService,
+		private readonly queryProxy: LoggerQueryProxy,
+	) {}
 
 	private async proxy(ctx: PlatformContext, kind: string, body: unknown, cursor?: string, authorization?: string) {
 		const url = typeof ctx.request.url === "string" ? ctx.request.url : "";
@@ -38,8 +42,7 @@ export class LoggerController {
 	}
 
 	@Get("/data/:kind")
-	query(@Context() ctx: PlatformContext, @PathParams("kind") kind: string,
-		@HeaderParams("last-event-id") cursor?: string, @HeaderParams("authorization") authorization?: string) {
+	query(@Context() ctx: PlatformContext, @PathParams("kind") kind: string, @HeaderParams("last-event-id") cursor?: string, @HeaderParams("authorization") authorization?: string) {
 		return this.proxy(ctx, kind, undefined, cursor, authorization);
 	}
 

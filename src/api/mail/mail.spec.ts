@@ -35,7 +35,7 @@ describe("mail templates", () => {
 
 describe("conditional template blocks", () => {
 	it("keeps a block only when its value is set", () => {
-		const source = "a{{#if poster}}<img src=\"{{poster}}\">{{/if}}b";
+		const source = 'a{{#if poster}}<img src="{{poster}}">{{/if}}b';
 		expect(fillTemplate(source, { poster: "/p.jpg" }, (value) => value)).toBe('a<img src="/p.jpg">b');
 		expect(fillTemplate(source, { poster: "" }, (value) => value)).toBe("ab");
 	});

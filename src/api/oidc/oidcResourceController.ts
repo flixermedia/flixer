@@ -17,6 +17,7 @@ import type { OidcResourceScope } from "./oidcResourceScopes.js";
 @Controller("/oauth/me")
 @Security("BearerAuth")
 export class OidcResourceController {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly oidc: OidcProviderService,
@@ -34,10 +35,7 @@ export class OidcResourceController {
 		if (!token?.isValid || token.aud !== resource || token.isSenderConstrained() || !token.clientId || !token.accountId || !token.grantId) throw new Unauthorized("Invalid OAuth access token.");
 		const grant = await provider.Grant.find(token.grantId);
 		if (!grant?.isValid || grant.clientId !== token.clientId || grant.accountId !== token.accountId) throw new Unauthorized("OAuth authorization has expired or been revoked.");
-		const clients: Array<{ resource_scopes: string[]; approved: boolean }> = await this.dataSource.query(
-			`SELECT c.resource_scopes, EXISTS(SELECT 1 FROM oidc_consents consent WHERE consent.client_id = c.id AND consent.account_id = $2 AND $3 = ANY(consent.scopes)) AS approved FROM oidc_clients c WHERE c.id = $1`,
-			[token.clientId, token.accountId, scope],
-		);
+		const clients: Array<{ resource_scopes: string[]; approved: boolean }> = await this.dataSource.query(`SELECT c.resource_scopes, EXISTS(SELECT 1 FROM oidc_consents consent WHERE consent.client_id = c.id AND consent.account_id = $2 AND $3 = ANY(consent.scopes)) AS approved FROM oidc_clients c WHERE c.id = $1`, [token.clientId, token.accountId, scope]);
 		if (!clients.length) throw new Unauthorized("OAuth client no longer exists.");
 		if (!token.scopes.has(scope) || !grant.getResourceScope(resource).split(" ").includes(scope) || !clients[0].resource_scopes.includes(scope) || !clients[0].approved) throw new Forbidden("The OAuth token does not have the required permission.");
 		const user = await this.dataSource.getRepository(User).findOneBy({ id: token.accountId });
@@ -71,14 +69,19 @@ export class OidcResourceController {
 	@Get("/entitlements")
 	async grants(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "entitlements:read", ctx);
-		return this.page(`SELECT id, source, scope, "expiresAt", "claimUntil", "activatedAt" FROM (
+		return this.page(
+			`SELECT id, source, scope, "expiresAt", "claimUntil", "activatedAt" FROM (
 			SELECT id::text AS id, source, scope, expires_at AS "expiresAt", claim_until AS "claimUntil", activated_at AS "activatedAt", created_at AS sort_at
 			FROM payment_entitlements WHERE user_id = $1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) AND (rental_hours IS NULL OR activated_at IS NOT NULL OR claim_until > now())
 			UNION ALL
 			SELECT s.id::text || ':' || scope.ordinality::text, 'subscription', scope.value, CASE WHEN s.status = 'past_due' AND s.period_end <= now() THEN s.grace_until ELSE s.period_end END, NULL, NULL, s.created_at
 			FROM payment_subscriptions s JOIN payment_plans p ON p.id = s.plan_id CROSS JOIN LATERAL jsonb_array_elements(p.scopes) WITH ORDINALITY AS scope(value, ordinality)
 			WHERE s.user_id = $1 AND s.status <> 'expired' AND (s.period_end > now() OR (s.status = 'past_due' AND s.grace_until > now()))
-		) grants ORDER BY sort_at DESC, id LIMIT $2 OFFSET $3`, user, limit, offset);
+		) grants ORDER BY sort_at DESC, id LIMIT $2 OFFSET $3`,
+			user,
+			limit,
+			offset,
+		);
 	}
 
 	@Get("/purchases")
@@ -107,9 +110,19 @@ export class OidcResourceController {
 		const page = this.pagination(limit, offset);
 		const policy = await this.access.forUser(user.id);
 		const condition = this.access.restrictionSql("item", policy, { content: true });
-		const qb = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-			.select("item.id", "id").addSelect("item.title", "title").addSelect("item.type", "type").addSelect("item.year", "year").addSelect("item.parentId", "parentId").addSelect("item.libraryId", "libraryId")
-			.where(condition.sql, condition.params).orderBy("item.id", "ASC").skip(page.offset).take(page.limit + 1);
+		const qb = this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.select("item.id", "id")
+			.addSelect("item.title", "title")
+			.addSelect("item.type", "type")
+			.addSelect("item.year", "year")
+			.addSelect("item.parentId", "parentId")
+			.addSelect("item.libraryId", "libraryId")
+			.where(condition.sql, condition.params)
+			.orderBy("item.id", "ASC")
+			.skip(page.offset)
+			.take(page.limit + 1);
 		const rows = await qb.getRawMany();
 		return { items: rows.slice(0, page.limit), nextOffset: rows.length > page.limit ? page.offset + page.limit : null };
 	}
@@ -123,7 +136,10 @@ export class OidcResourceController {
 	private async visiblePage(sql: string, user: User, limit: string | undefined, offset: string | undefined) {
 		const result = await this.page(sql, user, limit, offset);
 		const rows = result.items as Array<{ itemId: string }>;
-		const visible = await this.access.visibleIds(await this.access.forUser(user.id), rows.map((row) => row.itemId));
+		const visible = await this.access.visibleIds(
+			await this.access.forUser(user.id),
+			rows.map((row) => row.itemId),
+		);
 		return { ...result, items: rows.filter((row) => visible.has(row.itemId)) };
 	}
 
@@ -139,7 +155,10 @@ export class OidcResourceController {
 		if (!isUuid(id)) throw new BadRequest("Invalid playlist.");
 		const page = this.pagination(limit, offset);
 		const rows: Array<{ itemId: string; position: number }> = await this.dataSource.query(`SELECT i.item_id AS "itemId", i.position FROM playlist_items i JOIN playlists p ON p.id = i.playlist_id WHERE p.user_id = $1 AND p.id = $2 ORDER BY i.position, i.item_id LIMIT $3 OFFSET $4`, [user.id, id, page.limit + 1, page.offset]);
-		const visible = await this.access.visibleIds(await this.access.forUser(user.id), rows.slice(0, page.limit).map((row) => row.itemId));
+		const visible = await this.access.visibleIds(
+			await this.access.forUser(user.id),
+			rows.slice(0, page.limit).map((row) => row.itemId),
+		);
 		return { items: rows.slice(0, page.limit).filter((row) => visible.has(row.itemId)), nextOffset: rows.length > page.limit ? page.offset + page.limit : null };
 	}
 

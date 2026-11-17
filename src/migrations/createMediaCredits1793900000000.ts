@@ -18,7 +18,10 @@ export class CreateMediaCredits1793900000000 implements MigrationInterface {
 		await queryRunner.query(`CREATE INDEX "idx_media_credits_person" ON "media_credits" ("person_key", "role")`);
 
 		// Backfill from the metadata already stored.
-		for (const [field, fallbackRole] of [["cast", "actor"], ["crew", "crew"]] as const) {
+		for (const [field, fallbackRole] of [
+			["cast", "actor"],
+			["crew", "crew"],
+		] as const) {
 			await queryRunner.query(`
 				INSERT INTO "media_credits" ("item_id", "person_key", "role", "name", "detail", "position")
 				SELECT i.id,

@@ -6,33 +6,53 @@ describe("DuplicateSuggestionsService", () => {
 	it("returns paginated exact provider identity groups with bounded item details", async () => {
 		const query = vi.fn().mockResolvedValue([
 			{
-				library_id: "library-1", type: "movie", kind: "providerId", provider: "tmdb", provider_id: "42",
-				item_count: "12", items_truncated: true,
-				items: [{ id: "item-1", title: "First", year: 2000, path: "/media/first.mkv" }], total: "3",
+				library_id: "library-1",
+				type: "movie",
+				kind: "providerId",
+				provider: "tmdb",
+				provider_id: "42",
+				item_count: "12",
+				items_truncated: true,
+				items: [{ id: "item-1", title: "First", year: 2000, path: "/media/first.mkv" }],
+				total: "3",
 			},
 			{
-				library_id: "library-1", type: "movie", kind: "fileHash", provider: "SHA-256", provider_id: "a".repeat(64),
-				item_count: "2", items_truncated: false,
-				items: [{ id: "item-2", title: "Copy", year: 2000, path: "/media/copy.mkv" }], total: "3",
+				library_id: "library-1",
+				type: "movie",
+				kind: "fileHash",
+				provider: "SHA-256",
+				provider_id: "a".repeat(64),
+				item_count: "2",
+				items_truncated: false,
+				items: [{ id: "item-2", title: "Copy", year: 2000, path: "/media/copy.mkv" }],
+				total: "3",
 			},
 		]);
 		const service = new DuplicateSuggestionsService({ query } as unknown as DataSource);
 
 		await expect(service.list({ page: 2, size: 25 })).resolves.toEqual({
-			items: [{
-				libraryId: "library-1",
-				type: "movie",
-				kind: "providerId",
-				provider: "tmdb",
-				providerId: "42",
-				itemCount: 12,
-				itemsTruncated: true,
-				items: [{ id: "item-1", title: "First", year: 2000, path: "/media/first.mkv" }],
-			}, {
-				libraryId: "library-1", type: "movie", kind: "fileHash", provider: "SHA-256", providerId: "a".repeat(64),
-				itemCount: 2, itemsTruncated: false,
-				items: [{ id: "item-2", title: "Copy", year: 2000, path: "/media/copy.mkv" }],
-			}],
+			items: [
+				{
+					libraryId: "library-1",
+					type: "movie",
+					kind: "providerId",
+					provider: "tmdb",
+					providerId: "42",
+					itemCount: 12,
+					itemsTruncated: true,
+					items: [{ id: "item-1", title: "First", year: 2000, path: "/media/first.mkv" }],
+				},
+				{
+					libraryId: "library-1",
+					type: "movie",
+					kind: "fileHash",
+					provider: "SHA-256",
+					providerId: "a".repeat(64),
+					itemCount: 2,
+					itemsTruncated: false,
+					items: [{ id: "item-2", title: "Copy", year: 2000, path: "/media/copy.mkv" }],
+				},
+			],
 			total: 3,
 			page: 2,
 			size: 25,

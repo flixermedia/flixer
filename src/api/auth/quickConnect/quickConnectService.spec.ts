@@ -18,6 +18,7 @@ function hash(value: string) {
 }
 
 function setup(enabled = true) {
+
 	const requests = {
 		create: vi.fn((request: unknown) => request),
 		save: vi.fn(async (request: unknown) => request),
@@ -62,6 +63,7 @@ function setup(enabled = true) {
 		authService,
 		authResult,
 	};
+
 }
 
 describe("QuickConnectService", () => {

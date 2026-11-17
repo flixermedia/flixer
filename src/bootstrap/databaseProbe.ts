@@ -6,6 +6,7 @@ const PROBE_TIMEOUT_MS = 5000;
 
 /** Removes anything that could carry the password from a driver error before it is logged or returned. */
 function describe(error: unknown, url: string): string {
+
 	let text = error instanceof Error ? error.message : String(error);
 	try {
 		const parsed = new URL(url);
@@ -18,10 +19,12 @@ function describe(error: unknown, url: string): string {
 		// The URL itself is unparsable; the message cannot contain a parsed password.
 	}
 	return text.replace(/\s+/g, " ").trim() || "The database did not respond.";
+
 }
 
 /** Opens one short-lived connection to check that PostgreSQL is reachable and whether the app already has users. */
 export async function probeDatabase(url: string | undefined): Promise<DatabaseProbe> {
+
 	if (!url) {
 		return { ok: false, reason: "unconfigured", message: "No database connection is configured." };
 	}
@@ -41,4 +44,5 @@ export async function probeDatabase(url: string | undefined): Promise<DatabasePr
 	} finally {
 		await client.end().catch(() => undefined);
 	}
+
 }

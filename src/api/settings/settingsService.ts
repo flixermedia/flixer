@@ -51,16 +51,17 @@ export class SettingsService {
 		}
 
 		try {
-			await this.mailService.send({
-				to: user.email,
-				subject: "Flixer test email",
-				html: "<p>This is a test email from your Flixer server. Your SMTP settings work.</p>",
-				text: "This is a test email from your Flixer server. Your SMTP settings work.",
-			}, { wait: true });
-		} catch (error: unknown) {
-			throw new BadRequest(
-				`Could not send the test email: ${error instanceof Error ? error.message : "unknown error"}`,
+			await this.mailService.send(
+				{
+					to: user.email,
+					subject: "Flixer test email",
+					html: "<p>This is a test email from your Flixer server. Your SMTP settings work.</p>",
+					text: "This is a test email from your Flixer server. Your SMTP settings work.",
+				},
+				{ wait: true },
 			);
+		} catch (error: unknown) {
+			throw new BadRequest(`Could not send the test email: ${error instanceof Error ? error.message : "unknown error"}`);
 		}
 
 		return { sentTo: user.email };
@@ -163,20 +164,10 @@ export class SettingsService {
 				request.value = value;
 			}
 		}
-		if (
-			(key === "calls_stun_urls" || key === "calls_turn_urls") &&
-			(!Array.isArray(request.value) ||
-				request.value.length > 10 ||
-				!request.value.every(
-					(url) => typeof url === "string" && /^(stun|stuns|turn|turns):[^\s]{1,250}$/.test(url),
-				))
-		) {
+		if ((key === "calls_stun_urls" || key === "calls_turn_urls") && (!Array.isArray(request.value) || request.value.length > 10 || !request.value.every((url) => typeof url === "string" && /^(stun|stuns|turn|turns):[^\s]{1,250}$/.test(url)))) {
 			throw new BadRequest(`The ${key} setting must be a list of at most 10 stun:/turn: URLs.`);
 		}
-		if (
-			(key === "registration_enabled" || key === "email_verification_required") &&
-			typeof request.value !== "boolean"
-		) {
+		if ((key === "registration_enabled" || key === "email_verification_required") && typeof request.value !== "boolean") {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
 		if (key === LOG_SUCCESSFUL_API_REQUESTS_SETTING && typeof request.value !== "boolean") {
@@ -186,11 +177,7 @@ export class SettingsService {
 		if (key === "login_banner" && (typeof request.value !== "string" || request.value.length > 500)) {
 			throw new BadRequest("The login_banner setting must be text of at most 500 characters.");
 		}
-		if (
-			key === "server_name" &&
-			request.value !== null &&
-			(typeof request.value !== "string" || request.value.length > 100)
-		) {
+		if (key === "server_name" && request.value !== null && (typeof request.value !== "string" || request.value.length > 100)) {
 			throw new BadRequest("The server_name setting must be text of at most 100 characters.");
 		}
 
@@ -206,11 +193,7 @@ export class SettingsService {
 		if (key === "notifications_permission_prompt" && request.value !== "button" && request.value !== "load") {
 			throw new BadRequest('The notifications_permission_prompt setting must be "button" or "load".');
 		}
-		if (
-			key === "notifications_vapid_subject" &&
-			(typeof request.value !== "string" ||
-				(request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))
-		) {
+		if (key === "notifications_vapid_subject" && (typeof request.value !== "string" || (request.value.trim() !== "" && !isValidVapidSubject(request.value.trim())))) {
 			throw new BadRequest("The VAPID subject must be empty, a mailto: address or an https:// URL.");
 		}
 
@@ -234,12 +217,7 @@ export class SettingsService {
 			throw new BadRequest(`The ${key} setting must be a boolean.`);
 		}
 		if (key === "issue_reports_categories") {
-			if (
-				!Array.isArray(request.value) ||
-				request.value.length < 1 ||
-				request.value.length > 20 ||
-				request.value.some((category) => typeof category !== "string" || category.trim().length === 0 || category.trim().length > 60)
-			) {
+			if (!Array.isArray(request.value) || request.value.length < 1 || request.value.length > 20 || request.value.some((category) => typeof category !== "string" || category.trim().length === 0 || category.trim().length > 60)) {
 				throw new BadRequest("Issue report categories must contain 1 to 20 names of up to 60 characters.");
 			}
 			request.value = [...new Set(request.value.map((category) => (category as string).trim()))];
@@ -263,21 +241,10 @@ export class SettingsService {
 		if (key === "backups_state") {
 			throw new BadRequest("The backup state is managed by Flixer.");
 		}
-		if (
-			key === "backups_schedule" &&
-			request.value !== "off" &&
-			request.value !== "daily" &&
-			request.value !== "weekly"
-		) {
+		if (key === "backups_schedule" && request.value !== "off" && request.value !== "daily" && request.value !== "weekly") {
 			throw new BadRequest('The backups_schedule setting must be "off", "daily" or "weekly".');
 		}
-		if (
-			key === "backups_keep" &&
-			(typeof request.value !== "number" ||
-				!Number.isInteger(request.value) ||
-				request.value < 1 ||
-				request.value > 60)
-		) {
+		if (key === "backups_keep" && (typeof request.value !== "number" || !Number.isInteger(request.value) || request.value < 1 || request.value > 60)) {
 			throw new BadRequest("The backups_keep setting must be a whole number from 1 to 60.");
 		}
 
@@ -301,9 +268,7 @@ export class SettingsService {
 			throw new NotFound("Setting not found. Add new settings through a database migration.");
 		}
 
-		setting.value = INDEXER_SETTING_KEYS.includes(key)
-			? this.indexerSettings.validate(key, request.value, setting.value)
-			: request.value;
+		setting.value = INDEXER_SETTING_KEYS.includes(key) ? this.indexerSettings.validate(key, request.value, setting.value) : request.value;
 		const saved = await settings.save(setting);
 		if (key === "login_security") setLoginSecurity(validateLoginSecurity(saved.value));
 		if (key === "trusted_proxies") setTrustedProxyConfig(validateTrustedProxyConfig(saved.value));
@@ -328,11 +293,7 @@ export class SettingsService {
 			if (value === null) {
 				return;
 			}
-			if (
-				typeof value !== "string" ||
-				!URL.canParse(value.trim()) ||
-				!/^https?:$/.test(new URL(value.trim()).protocol)
-			) {
+			if (typeof value !== "string" || !URL.canParse(value.trim()) || !/^https?:$/.test(new URL(value.trim()).protocol)) {
 				throw new BadRequest(`The ${key} setting must be a valid DSN URL or null.`);
 			}
 		} else if (key === "sentry_enabled" || key.endsWith("_enabled")) {
@@ -359,16 +320,10 @@ export class SettingsService {
 	}
 
 	private toPublicSetting(setting: Setting): PublicSetting {
-		const isSecret = setting.key === "smtp_password" ||
-			setting.key === "requests_webhook_token" ||
-			setting.key === "calls_turn_secret";
+		const isSecret = setting.key === "smtp_password" || setting.key === "requests_webhook_token" || setting.key === "calls_turn_secret";
 		return {
 			key: setting.key,
-			value: isSecret
-				? setting.value
-					? SECRET_MASK
-					: ""
-				: this.indexerSettings.mask(setting.key, setting.value),
+			value: isSecret ? (setting.value ? SECRET_MASK : "") : this.indexerSettings.mask(setting.key, setting.value),
 			isPublic: setting.isPublic,
 			updatedAt: setting.updatedAt,
 		};

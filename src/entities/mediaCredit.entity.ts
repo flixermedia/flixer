@@ -45,6 +45,8 @@ export function personKeyOf(name: string): string {
 
 /** Stable id for a person: the md5 of their key formatted as a uuid, which Postgres computes identically with md5(key)::uuid. */
 export function personIdOf(name: string): string {
+
 	const hex = createHash("md5").update(personKeyOf(name)).digest("hex");
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+
 }

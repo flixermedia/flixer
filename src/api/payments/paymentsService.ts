@@ -87,6 +87,7 @@ function bodyOf(value: unknown): Record<string, unknown> {
 
 @Injectable()
 export class PaymentsService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly config: PaymentConfigService,

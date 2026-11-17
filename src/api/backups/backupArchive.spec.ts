@@ -37,9 +37,11 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 async function write(name: string, passphrase?: string) {
+
 	const destination = join(root, name);
 	const header = await writeArchive({ destination, sources, versions: { flixer: "1.0.0" }, passphrase });
 	return { destination, header };
+
 }
 
 describe("backup archive", () => {

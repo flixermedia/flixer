@@ -2,6 +2,7 @@ import { CollectionOf, Enum, Format, MaxItems, MaxLength, Max, Min, MinLength, N
 import type { GuideSourceKind } from "../../entities/guideSource.entity.js";
 
 export class CreateGuideSourceRequest {
+
 	@Property()
 	@Required()
 	@Enum("epg", "iptv")
@@ -20,6 +21,7 @@ export class CreateGuideSourceRequest {
 }
 
 export class UpdateGuideSourceRequest {
+
 	@Property()
 	@MinLength(1)
 	@MaxLength(100)
@@ -39,6 +41,7 @@ export class UpdateGuideSourceRequest {
 }
 
 export class UpdateGuideSettingsRequest {
+
 	@Property()
 	@Required()
 	@Min(1)
@@ -47,6 +50,7 @@ export class UpdateGuideSettingsRequest {
 }
 
 export class GuideChannelChange {
+
 	@Property()
 	@Required()
 	@Format("uuid")
@@ -67,6 +71,7 @@ export class GuideChannelChange {
 }
 
 export class UpdateGuideChannelsRequest {
+
 	@Property()
 	@Required()
 	@CollectionOf(GuideChannelChange)

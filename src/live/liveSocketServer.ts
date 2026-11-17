@@ -196,11 +196,12 @@ interface ClientMessage {
 }
 
 function parseMessage(raw: RawData): (ClientMessage & { type: string }) | null {
+
 	try {
 		const message = JSON.parse(raw.toString()) as ClientMessage;
 		return typeof message === "object" && message !== null && typeof message.type === "string" ? (message as ClientMessage & { type: string }) : null;
 	} catch {
 		return null;
 	}
-}
 
+}

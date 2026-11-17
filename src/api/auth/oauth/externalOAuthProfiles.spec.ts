@@ -46,11 +46,13 @@ describe("OAuth profile storage", () => {
 	});
 
 	function setup() {
+
 		const plugin = { pluginId: "example.oauth", enabled: true, manifest: { capabilities: ["auth.oauth", "auth.oauth.profiles"], permissions: ["auth.identity.verify", "network.http.configured"] }, approvedPermissions: ["auth.identity.verify", "network.http.configured"] };
 		const profiles = { findOne: vi.fn(), findOneBy: vi.fn(), create: vi.fn((value) => value), save: vi.fn(async (value) => value) };
 		const manager = { getRepository: vi.fn(() => profiles), query: vi.fn(async () => []) };
 		const dataSource = { getRepository: vi.fn((entity) => (entity === PluginInstallation ? { findOneBy: vi.fn().mockResolvedValue(plugin) } : entity === ExternalOAuthProvider ? profiles : null)), transaction: vi.fn(async (callback) => callback(manager)) } as unknown as DataSource;
 		return { service: new ExternalOAuthProfilesService(dataSource), profiles, manager };
+
 	}
 
 	it("encrypts client secrets and never returns them in the admin response", async () => {

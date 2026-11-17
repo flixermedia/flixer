@@ -7,6 +7,7 @@ import { AppearanceService } from "./appearanceService.js";
 /** The theme every visitor needs before signing in. No authentication: it only holds cosmetic data. */
 @Controller("/appearance")
 export class AppearanceController {
+
 	constructor(private readonly appearance: AppearanceService) {}
 
 	@Get("/")
@@ -34,6 +35,7 @@ export class AppearanceController {
 @Controller("/admin/appearance")
 @Security("BearerAuth")
 export class AdminAppearanceController {
+
 	constructor(private readonly appearance: AppearanceService) {}
 
 	@Get("/")

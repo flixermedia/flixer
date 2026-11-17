@@ -9,13 +9,16 @@ import { MAX_HISTORY_PAGE_SIZE, UserMediaService } from "./userMediaService.js";
 import { PlaylistOrderRequest } from "./socialRequests.js";
 
 function uuid(value: string, label = "Media item"): string {
+
 	if (!AuthService.isUuid(value)) throw new NotFound(`${label} not found.`);
 	return value.toLowerCase();
+
 }
 
 @Controller("/user-media")
 @Security("BearerAuth")
 export class UserMediaController {
+
 	constructor(
 		private readonly auth: AuthService,
 		private readonly userMedia: UserMediaService,
@@ -25,15 +28,14 @@ export class UserMediaController {
 	@Get("/history")
 	async history(@HeaderParams("authorization") authorization?: string, @QueryParams("offset", Number) offset?: number, @QueryParams("limit", Number) limit?: number) {
 		const policy = await this.access.resolve(authorization);
-		const safeOffset = Number.isSafeInteger(offset) && (offset as number) >= 0 ? offset as number : 0;
+		const safeOffset = Number.isSafeInteger(offset) && (offset as number) >= 0 ? (offset as number) : 0;
 		const safeLimit = Number.isSafeInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, MAX_HISTORY_PAGE_SIZE) : MAX_HISTORY_PAGE_SIZE;
 		const entries = await this.userMedia.history(policy.userId, safeOffset, safeLimit + 1);
 		const page = entries.slice(0, safeLimit);
-		const ids = page.flatMap((entry) => entry.item ? [entry.item.id, ...entry.sourceItemIds] : []);
+		const ids = page.flatMap((entry) => (entry.item ? [entry.item.id, ...entry.sourceItemIds] : []));
 		const visible = await this.access.visibleIds(policy, ids);
 		return {
-			entries: page.filter((entry) => entry.kind === "live" || (entry.item && visible.has(entry.item.id) && entry.sourceItemIds.every((id) => visible.has(id))))
-				.map(({ sourceItemIds: _sourceItemIds, ...entry }) => entry),
+			entries: page.filter((entry) => entry.kind === "live" || (entry.item && visible.has(entry.item.id) && entry.sourceItemIds.every((id) => visible.has(id)))).map(({ sourceItemIds: _sourceItemIds, ...entry }) => entry),
 			hasMore: entries.length > safeLimit,
 		};
 	}
@@ -56,7 +58,10 @@ export class UserMediaController {
 	async watchLater(@HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const items = await this.userMedia.watchLater(policy.userId);
-		const visible = await this.access.visibleIds(policy, items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			items.map((item) => item.id),
+		);
 		return { items: items.filter((item) => visible.has(item.id)) };
 	}
 
@@ -100,7 +105,10 @@ export class UserMediaController {
 	async collection(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const collection = await this.userMedia.collection(policy.userId, uuid(id, "Collection"));
-		const visible = await this.access.visibleIds(policy, collection.items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			collection.items.map((item) => item.id),
+		);
 		const items = collection.items.filter((item) => visible.has(item.id));
 		return { ...collection, itemCount: collection.isOwner ? collection.itemCount : items.length, items };
 	}
@@ -138,14 +146,21 @@ export class UserMediaController {
 	@Returns(204)
 	async reorderCollection(@PathParams("id") id: string, @BodyParams() request: PlaylistOrderRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.auth.getAuthenticatedUser(authorization);
-		await this.userMedia.reorderCollection(user.id, uuid(id, "Collection"), request.itemIds.map((itemId) => uuid(itemId)));
+		await this.userMedia.reorderCollection(
+			user.id,
+			uuid(id, "Collection"),
+			request.itemIds.map((itemId) => uuid(itemId)),
+		);
 	}
 
 	@Get("/queue")
 	async queue(@HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const items = await this.userMedia.queue(policy.userId);
-		const visible = await this.access.visibleIds(policy, items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			items.map((item) => item.id),
+		);
 		return { items: items.filter((item) => visible.has(item.id)) };
 	}
 
@@ -162,7 +177,10 @@ export class UserMediaController {
 	@Returns(204)
 	async reorderQueue(@BodyParams() request: PlaylistOrderRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.auth.getAuthenticatedUser(authorization);
-		await this.userMedia.reorderQueue(user.id, request.itemIds.map((itemId) => uuid(itemId)));
+		await this.userMedia.reorderQueue(
+			user.id,
+			request.itemIds.map((itemId) => uuid(itemId)),
+		);
 	}
 
 	@Delete("/queue/:itemId")

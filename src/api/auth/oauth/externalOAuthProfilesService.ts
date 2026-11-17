@@ -19,6 +19,7 @@ const IDENTITY_SETTINGS: Array<keyof ExternalOAuthProfileSettings> = ["authoriza
 
 @Injectable()
 export class ExternalOAuthProfilesService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(pluginId: string) {

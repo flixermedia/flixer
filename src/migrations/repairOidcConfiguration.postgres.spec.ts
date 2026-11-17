@@ -15,7 +15,9 @@ describe.skipIf(!databaseUrl)("OAuth configuration repair migration", () => {
 		await admin.initialize();
 		await admin.query(`CREATE SCHEMA "${schema}"`);
 		db = new DataSource({
-			type: "postgres", url: databaseUrl, schema,
+			type: "postgres",
+			url: databaseUrl,
+			schema,
 			extra: { options: `-c search_path=${schema}` },
 			migrations: [RepairOidcConfiguration1798300000016],
 		});

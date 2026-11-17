@@ -15,6 +15,7 @@ import { UserMediaService } from "../social/userMediaService.js";
 @Controller("/recommendations")
 @Security("BearerAuth")
 export class RecommendationsController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly recommendations: AiRecommendationsService,
@@ -42,7 +43,10 @@ export class RecommendationsController {
 	async dismissed(@HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const items = await this.userMedia.dismissedRecommendationItems(policy.userId);
-		const visible = await this.access.visibleIds(policy, items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			items.map((item) => item.id),
+		);
 		return { items: items.filter((item) => visible.has(item.id)) };
 	}
 
@@ -61,18 +65,29 @@ export class RecommendationsController {
 				filters: { types },
 			};
 			const refresh = (cached ? this.recommendations.recommend(policy.userId, request) : this.recommendations.refresh(policy.userId, request))
-				.then(() => undefined, () => { $log.warn({ event: "AI_HOME_REFRESH_FAILED", message: "Could not refresh home recommendations." }); })
+				.then(
+					() => undefined,
+					() => {
+						$log.warn({ event: "AI_HOME_REFRESH_FAILED", message: "Could not refresh home recommendations." });
+					},
+				)
 				.finally(() => this.pendingHomeRefreshes.delete(refreshKey));
 			this.pendingHomeRefreshes.set(refreshKey, refresh);
 		}
 		const result = cached ?? { items: [] };
 		const dismissed = new Set(await this.userMedia.dismissedRecommendations(policy.userId));
 		const visibleItems = result.items.filter((item) => !dismissed.has(item.id));
-		const cards = await this.home.cardsByIds(visibleItems.map((item) => item.id), policy);
+		const cards = await this.home.cardsByIds(
+			visibleItems.map((item) => item.id),
+			policy,
+		);
 		const scores = new Map(visibleItems.map((item) => [item.id, item.score]));
 		return {
 			enabled: true,
-			items: cards.filter((card) => types.includes(card.type)).slice(0, 20).map((card) => ({ ...card, score: scores.get(card.id) ?? 0 })),
+			items: cards
+				.filter((card) => types.includes(card.type))
+				.slice(0, 20)
+				.map((card) => ({ ...card, score: scores.get(card.id) ?? 0 })),
 		};
 	}
 
@@ -96,11 +111,7 @@ export class RecommendationsController {
 	}
 
 	@Post("/:itemId/feedback")
-	async feedback(
-		@PathParams("itemId") itemId: string,
-		@BodyParams() request: RecommendationFeedbackRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async feedback(@PathParams("itemId") itemId: string, @BodyParams() request: RecommendationFeedbackRequest, @HeaderParams("authorization") authorization?: string) {
 		if (!AuthService.isUuid(itemId)) throw new NotFound("Recommendation item not found.");
 		const policy = await this.access.resolve(authorization);
 		const id = itemId.toLowerCase();
@@ -118,7 +129,10 @@ export class RecommendationsController {
 	}
 
 	private async onlyVisible<T extends { items: Array<{ id: string }> }>(policy: AccessPolicy, result: T): Promise<T> {
-		const visible = await this.access.visibleIds(policy, result.items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			result.items.map((item) => item.id),
+		);
 		const dismissed = new Set(await this.userMedia.dismissedRecommendations(policy.userId));
 		return { ...result, items: result.items.filter((item) => visible.has(item.id) && !dismissed.has(item.id)) };
 	}

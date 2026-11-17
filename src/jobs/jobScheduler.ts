@@ -11,16 +11,7 @@ import { appConfig } from "../config/store/appConfig.js";
 import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
 import { IndexerClient } from "../api/indexer/indexerClient.js";
 import { GuideService } from "../api/guide/guideService.js";
-import {
-	ADMIN_SCHEDULED_TASKS,
-	ADMIN_SCHEDULED_TASKS_SETTING,
-	defaultAdminScheduledTaskConfigs,
-	isAdminScheduledTaskId,
-	readAdminScheduledTaskConfigs,
-	type AdminScheduledTaskConfig,
-	type AdminScheduledTaskConfigs,
-	type AdminScheduledTaskId,
-} from "./adminScheduledTasks.js";
+import { ADMIN_SCHEDULED_TASKS, ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs, isAdminScheduledTaskId, readAdminScheduledTaskConfigs, type AdminScheduledTaskConfig, type AdminScheduledTaskConfigs, type AdminScheduledTaskId } from "./adminScheduledTasks.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
@@ -61,6 +52,7 @@ interface IndexerScanState {
 
 @Injectable()
 export class JobScheduler {
+
 	private boss?: PgBoss;
 	private readonly activeTaskControllers = new Map<string, AbortController>();
 	private readonly activeTaskProgress = new Map<string, number>();
@@ -93,7 +85,9 @@ export class JobScheduler {
 		await boss.start();
 		const [setupError] = await tryCatch(async () => {
 			await boss.createQueue(PAGE_PUBLICATION_JOB);
-			await boss.work(PAGE_PUBLICATION_JOB, async () => { await this.pageBuilder.publishDue(); });
+			await boss.work(PAGE_PUBLICATION_JOB, async () => {
+				await this.pageBuilder.publishDue();
+			});
 			await boss.schedule(PAGE_PUBLICATION_JOB, "* * * * *");
 			await boss.createQueue(SESSION_CLEANUP_JOB);
 			await boss.work(SESSION_CLEANUP_JOB, async () => {
@@ -142,23 +136,14 @@ export class JobScheduler {
 			await boss.schedule(PAYMENTS_RENEWAL_JOB, "0 * * * *");
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });
-				await boss.work(
-					task.queue,
-					{ localConcurrency: 1, groupConcurrency: 1 },
-					(jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs),
-				);
+				await boss.work(task.queue, { localConcurrency: 1, groupConcurrency: 1 }, (jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs));
 			}
 			await boss.unschedule("admin-task-clean-logs");
 			const configs = await this.getAdminTaskConfigs(true);
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				const schedule = configs[task.id];
 				if (schedule.enabled) {
-					await boss.schedule(
-						task.queue,
-						schedule.cron,
-						{ taskId: task.id, scheduled: true },
-						{ tz: "UTC", missed: "skip", group: { id: task.id } },
-					);
+					await boss.schedule(task.queue, schedule.cron, { taskId: task.id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id: task.id } });
 				} else {
 					await boss.unschedule(task.queue);
 					await this.cancelQueuedAdminTaskJobs(task.id, boss);
@@ -166,9 +151,7 @@ export class JobScheduler {
 			}
 		});
 		if (setupError) {
-			const [stopError] = await tryCatch(() =>
-				boss.stop({ graceful: true, timeout: SCHEDULER_SHUTDOWN_TIMEOUT_MS }),
-			);
+			const [stopError] = await tryCatch(() => boss.stop({ graceful: true, timeout: SCHEDULER_SHUTDOWN_TIMEOUT_MS }));
 			if (stopError) {
 				logger().error("Failed to stop pg-boss after scheduler initialization failed.", stopError);
 			}
@@ -255,22 +238,10 @@ export class JobScheduler {
 					description: task.description,
 					enabled: configs[task.id].enabled,
 					cron: configs[task.id].cron,
-					state: active
-						? "running"
-						: queued
-							? "queued"
-							: latest?.state === "completed"
-								? "completed"
-								: latest?.state === "failed"
-									? "failed"
-									: latest?.state === "cancelled"
-										? "cancelled"
-										: "never",
+					state: active ? "running" : queued ? "queued" : latest?.state === "completed" ? "completed" : latest?.state === "failed" ? "failed" : latest?.state === "cancelled" ? "cancelled" : "never",
 					lastRunAt,
 					...(lastError ? { lastError } : {}),
-					...(active && this.activeTaskProgress.has(active.id)
-						? { progress: this.activeTaskProgress.get(active.id) }
-						: {}),
+					...(active && this.activeTaskProgress.has(active.id) ? { progress: this.activeTaskProgress.get(active.id) } : {}),
 				};
 			}),
 		);
@@ -301,12 +272,7 @@ export class JobScheduler {
 		await repository.save(setting);
 		try {
 			if (schedule.enabled) {
-				await this.getBoss().schedule(
-					task.queue,
-					next[id].cron,
-					{ taskId: id, scheduled: true },
-					{ tz: "UTC", missed: "skip", group: { id } },
-				);
+				await this.getBoss().schedule(task.queue, next[id].cron, { taskId: id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id } });
 			} else {
 				await this.getBoss().unschedule(task.queue);
 				await this.cancelQueuedAdminTaskJobs(id);
@@ -315,12 +281,7 @@ export class JobScheduler {
 			const rollbackErrors: unknown[] = [];
 			try {
 				if (configs[id].enabled) {
-					await this.getBoss().schedule(
-						task.queue,
-						configs[id].cron,
-						{ taskId: id, scheduled: true },
-						{ tz: "UTC", missed: "skip", group: { id } },
-					);
+					await this.getBoss().schedule(task.queue, configs[id].cron, { taskId: id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id } });
 				} else {
 					await this.getBoss().unschedule(task.queue);
 					await this.cancelQueuedAdminTaskJobs(id);
@@ -339,10 +300,7 @@ export class JobScheduler {
 				rollbackErrors.push(rollbackError);
 			}
 			if (rollbackErrors.length > 0) {
-				throw new AggregateError(
-					[error, ...rollbackErrors],
-					"Schedule update failed and rollback was unsuccessful.",
-				);
+				throw new AggregateError([error, ...rollbackErrors], "Schedule update failed and rollback was unsuccessful.");
 			}
 			throw error;
 		}
@@ -354,14 +312,7 @@ export class JobScheduler {
 		}
 		const task = ADMIN_SCHEDULED_TASKS.find((entry) => entry.id === id)!;
 		const jobs = await this.getBoss().findJobs<object>(task.queue, { limit: 50 });
-		if (
-			jobs.some(
-				(job) =>
-					job.state === "active" ||
-					job.state === "retry" ||
-					(job.state === "created" && job.startAfter.getTime() <= Date.now()),
-			)
-		) {
+		if (jobs.some((job) => job.state === "active" || job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()))) {
 			throw new BadRequest("This task is already running or queued.");
 		}
 		const jobId = await this.getBoss().send(task.queue, { taskId: id, scheduled: false }, { group: { id } });
@@ -379,9 +330,7 @@ export class JobScheduler {
 			this.activeTaskControllers.get(job.id)?.abort();
 			await this.getBoss().cancel(task.queue, job.id);
 		}
-		const queued = jobs.filter(
-			(job) => job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()),
-		);
+		const queued = jobs.filter((job) => job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()));
 		for (const job of queued) {
 			await this.getBoss().cancel(task.queue, job.id);
 		}
@@ -403,11 +352,7 @@ export class JobScheduler {
 		});
 		const now = Date.now();
 		for (const job of jobs) {
-			if (
-				job.data.taskId === id &&
-				job.data.scheduled !== false &&
-				(job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= now))
-			) {
+			if (job.data.taskId === id && job.data.scheduled !== false && (job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= now))) {
 				await boss.cancel(task.queue, job.id);
 			}
 		}
@@ -480,11 +425,7 @@ export class JobScheduler {
 		}
 	}
 
-	private async runIndexerTask(
-		id: "scan-libraries" | "refresh-metadata" | "trickplay",
-		jobId: string,
-		signal: AbortSignal,
-	): Promise<void> {
+	private async runIndexerTask(id: "scan-libraries" | "refresh-metadata" | "trickplay", jobId: string, signal: AbortSignal): Promise<void> {
 		const libraries = await this.libraries.forIndexer();
 		if (libraries.length === 0) return;
 		const before = await this.indexer.request<{ scans: IndexerScanState[] }>("GET", "/internal/stats", { signal });
@@ -495,12 +436,7 @@ export class JobScheduler {
 		try {
 			for (const library of libraries) {
 				if (signal.aborted) throw new Error("Scheduled indexer task was stopped.");
-				const body =
-					id === "scan-libraries"
-						? { libraryId: library.id }
-						: id === "refresh-metadata"
-							? { libraryId: library.id, jobs: ["images", "descriptions"], trackProgress: true }
-							: { libraryId: library.id, trickplayOnly: true, trackProgress: true };
+				const body = id === "scan-libraries" ? { libraryId: library.id } : id === "refresh-metadata" ? { libraryId: library.id, jobs: ["images", "descriptions"], trackProgress: true } : { libraryId: library.id, trickplayOnly: true, trackProgress: true };
 				inFlight.add(library.id);
 				let result: { queued: boolean };
 				try {
@@ -547,14 +483,7 @@ export class JobScheduler {
 			if (!signal.aborted) throw error;
 		} finally {
 			if (signal.aborted) {
-				await Promise.all(
-					[...new Set([...requested.keys(), ...inFlight])].map((libraryId) =>
-						this.indexer.request(
-							"POST",
-							`/internal/libraries/${encodeURIComponent(libraryId)}/cancel-tasks`,
-						),
-					),
-				);
+				await Promise.all([...new Set([...requested.keys(), ...inFlight])].map((libraryId) => this.indexer.request("POST", `/internal/libraries/${encodeURIComponent(libraryId)}/cancel-tasks`)));
 			}
 		}
 	}
@@ -565,9 +494,11 @@ export class JobScheduler {
 			const timer = setTimeout(done, delayMs);
 			const onAbort = () => done();
 			function done() {
+
 				clearTimeout(timer);
 				signal.removeEventListener("abort", onAbort);
 				resolve();
+
 			}
 			signal.addEventListener("abort", onAbort, { once: true });
 		});
@@ -576,8 +507,7 @@ export class JobScheduler {
 	private async requestStreamerCleanup(signal: AbortSignal): Promise<void> {
 		const baseUrl = (appConfig().get("streamerInternalUrl") || "http://localhost:8091").replace(/\/+$/, "");
 		const secret = appConfig().get("appSecret") ?? "";
-		if (Buffer.byteLength(secret) < 32)
-			throw new Error("APP_SECRET must be set to at least 32 bytes to call flixer-streamer.");
+		if (Buffer.byteLength(secret) < 32) throw new Error("APP_SECRET must be set to at least 32 bytes to call flixer-streamer.");
 		const adminKey = createHmac("sha256", secret).update("flixer-streamer:admin:v1").digest("hex");
 		const response = await fetch(`${baseUrl}/streamer/admin/transcode-cache/cleanup`, {
 			method: "POST",

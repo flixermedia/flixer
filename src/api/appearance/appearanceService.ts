@@ -8,22 +8,7 @@ import { Theme } from "../../entities/theme.entity.js";
 import { ThemeVersion } from "../../entities/themeVersion.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { BUILT_IN_THEME_IDS, DEFAULT_THEME_ID } from "./builtInThemes.js";
-import {
-	THEME_DESCRIPTION_MAX,
-	THEME_FILE_FORMAT,
-	THEME_FILE_MAX_CHARS,
-	THEME_FILE_VERSION,
-	THEME_NAME_MAX,
-	cleanText,
-	sanitizeLibraryAccents,
-	sanitizeSchedules,
-	scheduledThemeId,
-	type ThemeSchedule,
-	parseThemeFile,
-	sanitizeThemeConfig,
-	type ThemeConfig,
-	type ThemeFile,
-} from "./themeSchema.js";
+import { THEME_DESCRIPTION_MAX, THEME_FILE_FORMAT, THEME_FILE_MAX_CHARS, THEME_FILE_VERSION, THEME_NAME_MAX, cleanText, sanitizeLibraryAccents, sanitizeSchedules, scheduledThemeId, type ThemeSchedule, parseThemeFile, sanitizeThemeConfig, type ThemeConfig, type ThemeFile } from "./themeSchema.js";
 
 const ACTIVE_THEME_SETTING = "active_theme_id";
 const USER_SELECTION_SETTING = "theme_user_selection_enabled";
@@ -80,28 +65,35 @@ interface PublicAppearance {
 
 /** PNG width and height from the header, or null when the bytes are not a PNG. */
 function pngSize(bytes: Buffer): { width: number; height: number } | null {
+
 	if (bytes.length < 24 || bytes.readUInt32BE(0) !== 0x89504e47) {
 		return null;
 	}
 	return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+
 }
 
 function themeId(value: unknown): string {
+
 	if (typeof value !== "string" || !AuthService.isUuid(value)) {
 		throw new NotFound("That theme does not exist.");
 	}
 	return value;
+
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest(`${label} must be an object.`);
 	}
 	return value as Record<string, unknown>;
+
 }
 
 @Injectable()
 export class AppearanceService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,
@@ -131,7 +123,7 @@ export class AppearanceService {
 			selectableThemeIds: Array.isArray(selectable) ? selectable.filter((id): id is string => typeof id === "string") : [],
 			schedules: this.storedSchedules(value(SCHEDULES_SETTING)),
 			libraryAccents: this.storedAccents(value(LIBRARY_ACCENTS_SETTING)),
-			loginLayout: LOGIN_LAYOUTS.includes(loginLayout as LoginLayout) ? loginLayout as LoginLayout : "classic",
+			loginLayout: LOGIN_LAYOUTS.includes(loginLayout as LoginLayout) ? (loginLayout as LoginLayout) : "classic",
 		};
 	}
 
@@ -390,10 +382,16 @@ export class AppearanceService {
 		}
 		await this.dataSource.getRepository(Theme).delete({ id: theme.id });
 		if (settings.schedules.some((schedule) => schedule.themeId === theme.id)) {
-			await this.writeSetting(SCHEDULES_SETTING, settings.schedules.filter((schedule) => schedule.themeId !== theme.id));
+			await this.writeSetting(
+				SCHEDULES_SETTING,
+				settings.schedules.filter((schedule) => schedule.themeId !== theme.id),
+			);
 		}
 		if (settings.selectableThemeIds.includes(theme.id)) {
-			await this.writeSetting(SELECTABLE_THEMES_SETTING, settings.selectableThemeIds.filter((other) => other !== theme.id));
+			await this.writeSetting(
+				SELECTABLE_THEMES_SETTING,
+				settings.selectableThemeIds.filter((other) => other !== theme.id),
+			);
 		}
 	}
 

@@ -23,6 +23,7 @@ const setupAttempts = new Map<string, { count: number; resetAt: number }>();
 const completeAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function throttle(ctx: PlatformContext, attempts: Map<string, { count: number; resetAt: number }>): void {
+
 	const forwarded = ctx.request.get("x-forwarded-for");
 	const key = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "") || ctx.request.raw?.ip || "unknown";
 	const now = Date.now();
@@ -34,13 +35,16 @@ function throttle(ctx: PlatformContext, attempts: Map<string, { count: number; r
 	if (++entry.count > SETUP_LIMIT) {
 		throw new TooManyRequests("Too many attempts. Try again later.");
 	}
+
 }
 
 function id(value: string, what: string): string {
+
 	if (!AuthService.isUuid(value)) {
 		throw new NotFound(`${what} not found.`);
 	}
 	return value.toLowerCase();
+
 }
 
 function object(value: unknown): Body {
@@ -65,6 +69,7 @@ function checkoutRequest(body: Body): CheckoutRequest {
 /** Public payment status, cards on file, checkout and the signed-in user's billing. */
 @Controller("/payments")
 export class PaymentsController {
+
 	constructor(
 		private readonly auth: AuthService,
 		private readonly payments: PaymentsService,
@@ -225,6 +230,7 @@ export class PaymentsController {
 @Controller("/admin/payments")
 @Security("BearerAuth")
 export class AdminPaymentsController {
+
 	constructor(
 		private readonly auth: AuthService,
 		private readonly config: PaymentConfigService,

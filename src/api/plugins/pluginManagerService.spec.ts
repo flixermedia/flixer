@@ -3,11 +3,7 @@ import type { DataSource } from "typeorm";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { PluginManifest } from "./pluginManifest.js";
 import * as repositoryClient from "./pluginRepositoryClient.js";
-import {
-	PluginManagerService,
-	pluginUpdateErrorMessage,
-	preservePluginInstallationState,
-} from "./pluginManagerService.js";
+import { PluginManagerService, pluginUpdateErrorMessage, preservePluginInstallationState } from "./pluginManagerService.js";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -67,7 +63,10 @@ describe("pluginUpdateErrorMessage", () => {
 
 	it("keeps a failed backend visible when the indexer target is healthy", async () => {
 		const installation = {
-			pluginId: "flixer.example", enabled: true, status: "enabled", lastError: null,
+			pluginId: "flixer.example",
+			enabled: true,
+			status: "enabled",
+			lastError: null,
 			targetStatus: { flixer: "requested", "flixer-indexer": "requested" },
 			manifest: { targets: { flixer: { entry: "backend.wasm" }, "flixer-indexer": { entry: "indexer.wasm" } } },
 		};
@@ -81,11 +80,7 @@ describe("pluginUpdateErrorMessage", () => {
 	});
 
 	it("redacts bearer tokens and credential-like URL parameters", () => {
-		expect(
-			pluginUpdateErrorMessage(
-				new Error("Request failed with Bearer abc123 https://example.test/?api_key=secret&other=value"),
-			),
-		).toBe("Request failed with Bearer [redacted] https://example.test/?api_key=[redacted]&other=value");
+		expect(pluginUpdateErrorMessage(new Error("Request failed with Bearer abc123 https://example.test/?api_key=secret&other=value"))).toBe("Request failed with Bearer [redacted] https://example.test/?api_key=[redacted]&other=value");
 	});
 
 	it("limits stored diagnostics and handles non-error values", () => {

@@ -22,10 +22,7 @@ export class NotificationGateway {
 			logger().warn("Realtime notifications are unavailable: the HTTP server could not be located.");
 			return;
 		}
-		this.socketServer = new NotificationSocketServer(
-			async (token) => (await this.authService.getAuthenticatedUser(`Bearer ${token}`)).id,
-			this.notifications,
-		);
+		this.socketServer = new NotificationSocketServer(async (token) => (await this.authService.getAuthenticatedUser(`Bearer ${token}`)).id, this.notifications);
 		this.socketServer.attach(server);
 		logger().info(`Realtime notifications are available on ${NOTIFICATION_PATH}.`);
 	}

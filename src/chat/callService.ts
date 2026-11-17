@@ -41,6 +41,7 @@ export function derivedTurnSecret(appSecret: string): string {
  */
 @Injectable()
 export class CallService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly parties: PartiesService,
@@ -55,10 +56,7 @@ export class CallService {
 		if (!(await this.isEnabled())) {
 			throw new Forbidden("Calls are disabled on this server.");
 		}
-		const rows = (await this.dataSource.query(
-			`SELECT user_id FROM chat_members WHERE conversation_id = $1`,
-			[conversationId],
-		)) as Array<{ user_id: string }>;
+		const rows = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [conversationId])) as Array<{ user_id: string }>;
 		const ids = rows.map((row) => row.user_id);
 		if (!ids.includes(userId)) {
 			throw new NotFound("Conversation not found.");
@@ -94,10 +92,7 @@ export class CallService {
 	}
 
 	async claimPartyKeyPackage(userId: string, partyId: string, keyPackageId: string): Promise<PartyKeyPackage & { available: false }> {
-		const owner = (await this.dataSource.query(
-			`SELECT d.user_id FROM chat_mls_key_packages k JOIN chat_mls_devices d ON d.id = k.device_id WHERE k.id = $1`,
-			[keyPackageId],
-		)) as Array<{ user_id: string }>;
+		const owner = (await this.dataSource.query(`SELECT d.user_id FROM chat_mls_key_packages k JOIN chat_mls_devices d ON d.id = k.device_id WHERE k.id = $1`, [keyPackageId])) as Array<{ user_id: string }>;
 		if (!owner[0]) {
 			throw new Conflict("That MLS key package was already used or is no longer available.");
 		}

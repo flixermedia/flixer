@@ -7,6 +7,7 @@ import { extractPluginArchive } from "./safePluginArchive.js";
 const MAX_MANIFEST_BYTES = 1_048_576;
 
 export async function inspectPluginPackage(pluginsPath: string, archive: Buffer): Promise<PluginManifest> {
+
 	const temporaryRoot = join(pluginsPath, "temp");
 	await mkdir(temporaryRoot, { recursive: true, mode: 0o700 });
 	const temporary = await mkdtemp(join(temporaryRoot, "inspect-"));
@@ -25,6 +26,7 @@ export async function inspectPluginPackage(pluginsPath: string, archive: Buffer)
 	} finally {
 		await rm(temporary, { recursive: true, force: true });
 	}
+
 }
 
 interface PluginPackageInstallResult {
@@ -35,13 +37,8 @@ interface PluginPackageInstallResult {
 	manifest: PluginManifest;
 }
 
-export async function installPluginPackageAtomically(
-	pluginsPath: string,
-	archive: Buffer,
-	expectedManifest: PluginManifest,
-	packageDigest: string,
-	persist: (result: PluginPackageInstallResult) => Promise<void>,
-): Promise<PluginPackageInstallResult> {
+export async function installPluginPackageAtomically(pluginsPath: string, archive: Buffer, expectedManifest: PluginManifest, packageDigest: string, persist: (result: PluginPackageInstallResult) => Promise<void>): Promise<PluginPackageInstallResult> {
+
 	if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(expectedManifest.id)) {
 		throw new Error("Plugin id is invalid for installation.");
 	}
@@ -49,12 +46,7 @@ export async function installPluginPackageAtomically(
 	const installedRoot = join(pluginsPath, "installed");
 	const tempRoot = join(pluginsPath, "temp");
 	const dataRoot = join(pluginsPath, "data", expectedManifest.id);
-	await Promise.all([
-		mkdir(installedRoot, { recursive: true, mode: 0o755 }),
-		mkdir(tempRoot, { recursive: true, mode: 0o700 }),
-		mkdir(join(pluginsPath, "cache"), { recursive: true, mode: 0o700 }),
-		mkdir(dataRoot, { recursive: true, mode: 0o700 }),
-	]);
+	await Promise.all([mkdir(installedRoot, { recursive: true, mode: 0o755 }), mkdir(tempRoot, { recursive: true, mode: 0o700 }), mkdir(join(pluginsPath, "cache"), { recursive: true, mode: 0o700 }), mkdir(dataRoot, { recursive: true, mode: 0o700 })]);
 
 	const temporary = await import("node:fs/promises").then(({ mkdtemp }) => mkdtemp(join(tempRoot, "install-")));
 	const staged = join(temporary, "package");
@@ -73,11 +65,7 @@ export async function installPluginPackageAtomically(
 		} catch (error: unknown) {
 			throw new Error(`Plugin package manifest is missing or invalid: ${error instanceof Error ? error.message : "unknown error"}`);
 		}
-		if (
-			packagedManifest.id !== expectedManifest.id ||
-			packagedManifest.version !== expectedManifest.version ||
-			!isDeepStrictEqual(packagedManifest, expectedManifest)
-		) {
+		if (packagedManifest.id !== expectedManifest.id || packagedManifest.version !== expectedManifest.version || !isDeepStrictEqual(packagedManifest, expectedManifest)) {
 			throw new Error("Plugin package manifest does not match the repository release manifest.");
 		}
 
@@ -119,4 +107,5 @@ export async function installPluginPackageAtomically(
 	} finally {
 		await rm(temporary, { recursive: true, force: true });
 	}
+
 }

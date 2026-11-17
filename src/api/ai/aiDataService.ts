@@ -30,6 +30,7 @@ interface ItemRow {
 }
 
 function arrayValue(value: unknown): unknown[] {
+
 	if (Array.isArray(value)) return value;
 	if (typeof value !== "string") return [];
 	try {
@@ -38,6 +39,7 @@ function arrayValue(value: unknown): unknown[] {
 	} catch {
 		return [];
 	}
+
 }
 
 function stringArrayValue(value: unknown): string[] {
@@ -70,6 +72,7 @@ function mapItem(row: ItemRow) {
 
 @Injectable()
 export class AiDataService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async libraryContext() {

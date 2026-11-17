@@ -1,6 +1,7 @@
 import { MaxLength, Property, Required } from "@tsed/schema";
 
 export class SignupPaymentRequest {
+
 	@Property()
 	@MaxLength(2000)
 	setupToken?: string;
@@ -29,6 +30,7 @@ export class SignupPaymentRequest {
 }
 
 export class SignupPaymentTokenRequest {
+
 	/** The token returned when the account was created or when sign-in found it still unpaid. */
 	@Property()
 	@Required()
@@ -37,6 +39,7 @@ export class SignupPaymentTokenRequest {
 }
 
 export class CompleteSignupRequest extends SignupPaymentTokenRequest {
+
 	@Property()
 	payment?: SignupPaymentRequest;
 

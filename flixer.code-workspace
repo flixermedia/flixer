@@ -2,50 +2,50 @@
 	"folders": [
 		{
 			"name": "flixer",
-			"path": "."
+			"path": ".",
 		},
 		{
 			"name": "flixer-web",
-			"path": "../flixer-web"
+			"path": "../flixer-web",
 		},
 		{
 			"name": "flixer-streamer",
-			"path": "../flixer-streamer"
+			"path": "../flixer-streamer",
 		},
 		{
 			"name": "flixer-indexer",
-			"path": "../flixer-indexer"
+			"path": "../flixer-indexer",
 		},
 		{
 			"name": "flixer-plugins",
-			"path": "../flixer-plugins"
+			"path": "../flixer-plugins",
 		},
 		{
 			"name": "flixer-docs",
-			"path": "../flixer-docs"
+			"path": "../flixer-docs",
 		},
 		{
 			"name": "flixer-updater",
-			"path": "../flixer-updater"
+			"path": "../flixer-updater",
 		},
 		{
 			"name": "flixer-data",
-			"path": "../flixer-data"
+			"path": "../flixer-data",
 		},
 		{
-			"path": "../flixer-cloud"
+			"path": "../flixer-cloud",
 		},
 		{
-			"path": "../flixer-ai"
+			"path": "../flixer-ai",
 		},
 		{
-			"path": "../flixer-logger"
+			"path": "../flixer-logger",
 		},
 		{
-			"path": "../jellyfin-plugin-flixer"
-		}
+			"path": "../jellyfin-plugin-flixer",
+		},
 	],
 	"settings": {
-		"postman.settings.dotenv-detection-notification-visibility": false
-	}
+		"postman.settings.dotenv-detection-notification-visibility": false,
+	},
 }

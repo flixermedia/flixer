@@ -69,11 +69,7 @@ export function pickAlbum(results: Json[], title: string, artist: string | null)
 	const wanted = normalizeTitle(title);
 	const wantedArtist = artist ? normalizeTitle(artist) : null;
 	const named = (entry: Json) => normalizeTitle(typeof entry.title === "string" ? entry.title : "") === wanted;
-	const sameArtist = (entry: Json) =>
-		!wantedArtist ||
-		normalizeTitle(
-			typeof asRecord(entry.artist).artistName === "string" ? (asRecord(entry.artist).artistName as string) : "",
-		) === wantedArtist;
+	const sameArtist = (entry: Json) => !wantedArtist || normalizeTitle(typeof asRecord(entry.artist).artistName === "string" ? (asRecord(entry.artist).artistName as string) : "") === wantedArtist;
 	return results.find((entry) => named(entry) && sameArtist(entry)) ?? results.find(named) ?? results[0] ?? null;
 
 }
@@ -105,9 +101,7 @@ export class ArrClient {
 				signal: AbortSignal.timeout(TIMEOUT_MS),
 			});
 		} catch (error: unknown) {
-			throw new ArrError(
-				`Could not reach ${this.kind}: ${error instanceof Error ? error.message : "unknown error"}`,
-			);
+			throw new ArrError(`Could not reach ${this.kind}: ${error instanceof Error ? error.message : "unknown error"}`);
 		}
 		if (response.status === 401 || response.status === 403) {
 			throw new ArrError(`${this.kind} rejected the API key.`);
@@ -123,11 +117,8 @@ export class ArrClient {
 			const detail =
 				asList(parsed)
 					.map((entry) => entry.errorMessage)
-					.filter((message): message is string => typeof message === "string")[0] ??
-				(typeof asRecord(parsed).message === "string" ? (asRecord(parsed).message as string) : null);
-			throw new ArrError(
-				detail ? `${this.kind} answered: ${detail}` : `${this.kind} answered with HTTP ${response.status}.`,
-			);
+					.filter((message): message is string => typeof message === "string")[0] ?? (typeof asRecord(parsed).message === "string" ? (asRecord(parsed).message as string) : null);
+			throw new ArrError(detail ? `${this.kind} answered: ${detail}` : `${this.kind} answered with HTTP ${response.status}.`);
 		}
 		return parsed;
 	}
@@ -199,19 +190,10 @@ export class ArrClient {
 		if (existing.length > 0) {
 			const series = existing[0];
 			const current = asList(series.seasons);
-			const updated = current.map((season) =>
-				typeof season.seasonNumber === "number" && season.seasonNumber > 0 && isWanted(season.seasonNumber)
-					? { ...season, monitored: true }
-					: season,
-			);
+			const updated = current.map((season) => (typeof season.seasonNumber === "number" && season.seasonNumber > 0 && isWanted(season.seasonNumber) ? { ...season, monitored: true } : season));
 			await this.call("PUT", `/series/${series.id}`, { ...series, monitored: true, seasons: updated });
 			for (const season of updated) {
-				if (
-					typeof season.seasonNumber === "number" &&
-					season.seasonNumber > 0 &&
-					season.monitored === true &&
-					isWanted(season.seasonNumber)
-				) {
+				if (typeof season.seasonNumber === "number" && season.seasonNumber > 0 && season.monitored === true && isWanted(season.seasonNumber)) {
 					await this.call("POST", "/command", {
 						name: "SeasonSearch",
 						seriesId: series.id,
@@ -236,8 +218,7 @@ export class ArrClient {
 			monitored: true,
 			seasons: asList(found.seasons).map((season) => ({
 				...season,
-				monitored:
-					typeof season.seasonNumber === "number" && season.seasonNumber > 0 && isWanted(season.seasonNumber),
+				monitored: typeof season.seasonNumber === "number" && season.seasonNumber > 0 && isWanted(season.seasonNumber),
 			})),
 			addOptions: {
 				ignoreEpisodesWithFiles: true,

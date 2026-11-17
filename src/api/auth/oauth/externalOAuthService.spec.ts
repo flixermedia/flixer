@@ -10,6 +10,7 @@ import { ExternalOAuthService } from "./externalOAuthService.js";
 const browserSecret = Buffer.alloc(32, 7).toString("base64url");
 
 function setup() {
+
 	const plugin = { enabled: true, pluginId: "plugin.example", manifest: { targets: { flixer: { entry: "auth.wasm" } }, capabilities: ["auth.oidc"], permissions: ["auth.identity.verify", "network.http.login.example.com"] }, approvedPermissions: ["auth.identity.verify", "network.http.login.example.com"] };
 	const flows = new Map<string, Record<string, unknown>>();
 	const repository = {
@@ -39,6 +40,7 @@ function setup() {
 	};
 	const profiles = { resolved: vi.fn() };
 	return { service: new ExternalOAuthService(dataSource, auth as never, external as never, runtime as never, profiles as never), plugin, flows, repository, auth, external, runtime, profiles, lockedProfile, manager };
+
 }
 
 describe("ExternalOAuthService", () => {

@@ -13,6 +13,7 @@ import { oauthProfileId, splitOAuthProfileId } from "./externalOAuthProfiles.js"
 
 @Injectable()
 export class ExternalAuthService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly auth: AuthService,

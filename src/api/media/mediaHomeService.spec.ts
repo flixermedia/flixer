@@ -29,8 +29,13 @@ describe("MediaHomeService person images", () => {
 		vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
 		const id = "594da9b3-83da-0000-67b5-6dbe9f8c012c";
 		const url = "https://image.tmdb.org/t/p/original/cache-freshness-test.png";
-		const image = async (red: number) => sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } }).png().toBuffer();
-		const fetchPersonImage = vi.fn().mockResolvedValueOnce({ data: await image(0), mime: "image/png" })
+		const image = async (red: number) =>
+			sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } })
+				.png()
+				.toBuffer();
+		const fetchPersonImage = vi
+			.fn()
+			.mockResolvedValueOnce({ data: await image(0), mime: "image/png" })
 			.mockResolvedValueOnce({ data: await image(255), mime: "image/png" });
 		const query = { where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([{ image: url }]) };
 		const dataSource = { getRepository: () => ({ createQueryBuilder: () => query }) } as unknown as DataSource;
@@ -48,7 +53,7 @@ describe("MediaHomeService person images", () => {
 		const item = { id: "item", type: "series", title: "Show", images: [], metadata: { cast: [{ name, image: "/old/actor.jpg" }] } } as unknown as MediaItem;
 		const children = { where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([]) };
 		const credits = { innerJoin: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), getRawMany: vi.fn().mockResolvedValue([{ id }]) };
-		const dataSource = { getRepository: vi.fn((entity: unknown) => entity === MediaItem ? { findOneBy: vi.fn().mockResolvedValue(item), createQueryBuilder: () => children } : entity === MediaCredit ? { createQueryBuilder: () => credits } : { findBy: vi.fn().mockResolvedValue([]) }) } as unknown as DataSource;
+		const dataSource = { getRepository: vi.fn((entity: unknown) => (entity === MediaItem ? { findOneBy: vi.fn().mockResolvedValue(item), createQueryBuilder: () => children } : entity === MediaCredit ? { createQueryBuilder: () => credits } : { findBy: vi.fn().mockResolvedValue([]) })) } as unknown as DataSource;
 		const access = { blockReason: vi.fn().mockResolvedValue(null), restrict: vi.fn() } as unknown as MediaAccessService;
 		const policy = {} as AccessPolicy;
 		const service = new MediaHomeService(dataSource, {} as IndexerClient, {} as MediaSearchService, access);
@@ -66,7 +71,7 @@ describe("MediaHomeService person images", () => {
 		const image = { data: Buffer.from("fallback image"), mime: "image/jpeg" };
 		const credits = { where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([{ image: preferred }]) };
 		const items = { innerJoin: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([{ metadata: { cast: [{ name, fallbackImage: fallback }] } }]) };
-		const dataSource = { getRepository: vi.fn((entity: unknown) => entity === MediaCredit ? { createQueryBuilder: () => credits } : entity === MediaItem ? { createQueryBuilder: () => items } : { findOneBy: vi.fn().mockResolvedValue(null) }) } as unknown as DataSource;
+		const dataSource = { getRepository: vi.fn((entity: unknown) => (entity === MediaCredit ? { createQueryBuilder: () => credits } : entity === MediaItem ? { createQueryBuilder: () => items } : { findOneBy: vi.fn().mockResolvedValue(null) })) } as unknown as DataSource;
 		const indexer = { fetchPersonImage: vi.fn().mockRejectedValueOnce(new Error("unavailable")).mockResolvedValueOnce(image) } as unknown as IndexerClient;
 		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService, {} as MediaAccessService);
 
@@ -97,10 +102,7 @@ describe("MediaHomeService person images", () => {
 		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService);
 
 		await expect(service.personImage(id.toUpperCase(), 128)).resolves.toEqual(image);
-		expect(query.where).toHaveBeenCalledWith(
-			"credit.person_id = :id AND credit.image IS NOT NULL",
-			{ id },
-		);
+		expect(query.where).toHaveBeenCalledWith("credit.person_id = :id AND credit.image IS NOT NULL", { id });
 		expect(indexer.fetchPersonImage).toHaveBeenCalledOnce();
 		expect(indexer.fetchPersonImage).toHaveBeenCalledWith(id, url);
 		if (source === "profile") {
@@ -115,14 +117,19 @@ describe("MediaHomeService person images", () => {
 		const url = "https://i.discogs.com/artist-regression.jpg";
 		const image = { data: Buffer.from("image bytes"), mime: "image/jpeg" };
 		const query = {
-			where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(),
-			getMany: vi.fn().mockResolvedValue([]), getOne: vi.fn().mockResolvedValue({ personId: id, name: "Artist" }),
+			where: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			limit: vi.fn().mockReturnThis(),
+			getMany: vi.fn().mockResolvedValue([]),
+			getOne: vi.fn().mockResolvedValue({ personId: id, name: "Artist" }),
 		};
 		const profile = {
-			findOneBy: vi.fn().mockResolvedValue(null), create: vi.fn((row) => row), save: vi.fn().mockResolvedValue(undefined),
+			findOneBy: vi.fn().mockResolvedValue(null),
+			create: vi.fn((row) => row),
+			save: vi.fn().mockResolvedValue(undefined),
 		};
 		const dataSource = {
-			getRepository: vi.fn((entity: unknown) => entity === MediaCredit ? { createQueryBuilder: () => query } : profile),
+			getRepository: vi.fn((entity: unknown) => (entity === MediaCredit ? { createQueryBuilder: () => query } : profile)),
 		} as unknown as DataSource;
 		const indexer = { fetchPersonBio: vi.fn().mockResolvedValue({ imageUrl: url }), fetchPersonImage: vi.fn().mockResolvedValue(image) } as unknown as IndexerClient;
 		const service = new MediaHomeService(dataSource, indexer, {} as MediaSearchService, {} as MediaAccessService);
@@ -139,15 +146,28 @@ describe("MediaHomeService artist browsing", () => {
 		const item = { id: "album-1", images: [{ type: "poster", path: "cover.jpg" }], updatedAt };
 		const count = { select: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), getRawOne: vi.fn().mockResolvedValue({ total: "3" }) };
 		const groups = {
-			innerJoin: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(),
-			addSelect: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), clone: vi.fn(() => count),
-			orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(), offset: vi.fn().mockReturnThis(),
-			limit: vi.fn().mockReturnThis(), getRawMany: vi.fn().mockResolvedValue([{ id: "artist-1", name: "Artist", albumCount: "1" }]),
+			innerJoin: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			select: vi.fn().mockReturnThis(),
+			addSelect: vi.fn().mockReturnThis(),
+			groupBy: vi.fn().mockReturnThis(),
+			clone: vi.fn(() => count),
+			orderBy: vi.fn().mockReturnThis(),
+			addOrderBy: vi.fn().mockReturnThis(),
+			offset: vi.fn().mockReturnThis(),
+			limit: vi.fn().mockReturnThis(),
+			getRawMany: vi.fn().mockResolvedValue([{ id: "artist-1", name: "Artist", albumCount: "1" }]),
 		};
 		const albums = {
-			innerJoinAndMapOne: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
-			orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(),
-			getMany: vi.fn().mockResolvedValue([{ personId: "artist-1", item }, { personId: "artist-1", item }]),
+			innerJoinAndMapOne: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			addOrderBy: vi.fn().mockReturnThis(),
+			getMany: vi.fn().mockResolvedValue([
+				{ personId: "artist-1", item },
+				{ personId: "artist-1", item },
+			]),
 		};
 		const builders = [groups, albums];
 		const dataSource = { getRepository: vi.fn(() => ({ createQueryBuilder: () => builders.shift() })) } as unknown as DataSource;
@@ -171,8 +191,12 @@ describe("MediaHomeService artist browsing", () => {
 describe("MediaHomeService search ranking", () => {
 	it("uses PostgreSQL and preserves access restrictions when search is unavailable", async () => {
 		const query = {
-			select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
-			orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([]),
+			select: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			limit: vi.fn().mockReturnThis(),
+			getMany: vi.fn().mockResolvedValue([]),
 		};
 		const dataSource = { getRepository: () => ({ createQueryBuilder: () => query }) } as unknown as DataSource;
 		const search = { searchIds: vi.fn().mockResolvedValue(null) } as unknown as MediaSearchService;
@@ -212,12 +236,7 @@ describe("MediaHomeService search ranking", () => {
 		} as unknown as DataSource;
 		const service = new MediaHomeService(dataSource, {} as IndexerClient, {} as MediaSearchService);
 
-		const cards = await service.cardsByIds([
-			items[1].id,
-			"00000000-0000-4000-8000-000000000003",
-			items[0].id,
-			items[1].id,
-		]);
+		const cards = await service.cardsByIds([items[1].id, "00000000-0000-4000-8000-000000000003", items[0].id, items[1].id]);
 
 		expect(repository.findBy).toHaveBeenCalledOnce();
 		expect(cards.map(({ title }) => title)).toEqual(["First", "Second"]);
@@ -266,10 +285,7 @@ describe("MediaHomeService search ranking", () => {
 			searchIds: ["scream", "spider"],
 		});
 		expect(result.items.map((item) => item.title)).toEqual(["Scream", "Spider-Man: Far From Home"]);
-		expect(mediaSearch.searchIds).toHaveBeenCalledWith(
-			"scream",
-			expect.objectContaining({ type: ["movie", "series", "album", "video"] }),
-		);
+		expect(mediaSearch.searchIds).toHaveBeenCalledWith("scream", expect.objectContaining({ type: ["movie", "series", "album", "video"] }));
 	});
 
 	it("includes episodes only when the child-results filter is enabled", async () => {
@@ -289,16 +305,10 @@ describe("MediaHomeService search ranking", () => {
 		const service = new MediaHomeService(dataSource, {} as IndexerClient, mediaSearch);
 
 		await service.search("user-1", "pilot", { type: "series" });
-		expect(mediaSearch.searchIds).toHaveBeenCalledWith(
-			"pilot",
-			expect.objectContaining({ type: ["series"] }),
-		);
+		expect(mediaSearch.searchIds).toHaveBeenCalledWith("pilot", expect.objectContaining({ type: ["series"] }));
 
 		await service.search("user-1", "pilot", { type: "series", includeChildren: true });
-		expect(mediaSearch.searchIds).toHaveBeenLastCalledWith(
-			"pilot",
-			expect.objectContaining({ type: ["series", "episode"] }),
-		);
+		expect(mediaSearch.searchIds).toHaveBeenLastCalledWith("pilot", expect.objectContaining({ type: ["series", "episode"] }));
 	});
 
 	it("includes all nested types when child results are enabled without a type filter", async () => {
@@ -319,9 +329,6 @@ describe("MediaHomeService search ranking", () => {
 
 		await service.search("user-1", "lyrics", { includeChildren: true });
 
-		expect(mediaSearch.searchIds).toHaveBeenCalledWith(
-			"lyrics",
-			expect.objectContaining({ type: ["movie", "series", "album", "video", "episode", "track"] }),
-		);
+		expect(mediaSearch.searchIds).toHaveBeenCalledWith("lyrics", expect.objectContaining({ type: ["movie", "series", "album", "video", "episode", "track"] }));
 	});
 });

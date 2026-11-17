@@ -47,10 +47,10 @@ describe("password authentication", () => {
 		const findOneBy = vi.fn();
 		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
 		const passwordHash = await service.hashPassword("correct-password");
-		findOneBy.mockImplementation(async ({ username }: { username: string }) => username === "known" ? { id: "known", passwordHash } : null);
+		findOneBy.mockImplementation(async ({ username }: { username: string }) => (username === "known" ? { id: "known", passwordHash } : null));
 		const samples: Record<"known" | "unknown", number[]> = { known: [], unknown: [] };
 		for (let index = 0; index < 8; index++) {
-			for (const username of index % 2 === 0 ? ["known", "unknown"] as const : ["unknown", "known"] as const) {
+			for (const username of index % 2 === 0 ? (["known", "unknown"] as const) : (["unknown", "known"] as const)) {
 				const started = performance.now();
 				await expect(service.login(username, "wrong-password")).rejects.toMatchObject({ status: 401, message: "Invalid username or password." });
 				samples[username].push(performance.now() - started);

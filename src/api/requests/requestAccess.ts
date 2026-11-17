@@ -10,11 +10,7 @@ export interface RequestAccess {
 }
 
 /** What one user may do: administrators are unrestricted, everyone else follows the global defaults unless overridden. */
-export function resolveAccess(
-	isAdmin: boolean,
-	settings: RequestSettings,
-	limit: RequestUserLimit | null | undefined,
-): RequestAccess {
+export function resolveAccess(isAdmin: boolean, settings: RequestSettings, limit: RequestUserLimit | null | undefined): RequestAccess {
 
 	if (isAdmin) {
 		return { canRequest: true, autoApprove: true, quotaLimit: null, quotaDays: settings.quotaDays };

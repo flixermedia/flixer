@@ -23,6 +23,7 @@ function hash(value: string): string {
 
 @Injectable()
 export class QuickConnectService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,

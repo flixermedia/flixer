@@ -1,14 +1,4 @@
-import {
-	CollectionOf,
-	Enum,
-	Integer,
-	MaxItems,
-	MaxLength,
-	MinLength,
-	Nullable,
-	Property,
-	Required,
-} from "@tsed/schema";
+import { CollectionOf, Enum, Integer, MaxItems, MaxLength, MinLength, Nullable, Property, Required } from "@tsed/schema";
 import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
 import type { RequestServiceKind } from "../../entities/requestService.entity.js";
 

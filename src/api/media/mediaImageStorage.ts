@@ -53,13 +53,7 @@ export function uploadFilename(path: unknown): string | null {
 
 }
 
-export async function saveUpload(
-	rootId: string,
-	relativePath: string,
-	itemId: string,
-	buffer: Buffer,
-	type: AvatarType,
-): Promise<string> {
+export async function saveUpload(rootId: string, relativePath: string, itemId: string, buffer: Buffer, type: AvatarType): Promise<string> {
 
 	const key = mediaKey(rootId, relativePath);
 	const mediaDirectory = dirname(getMediaImageDirectory(key));

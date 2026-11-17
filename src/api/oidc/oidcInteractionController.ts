@@ -92,9 +92,7 @@ export class OidcInteractionController {
 			const grantId = await grant.save();
 			destination = await provider.interactionResult(ctx.request.req, ctx.response.res, { consent: { grantId } }, { mergeWithLastSubmission: true });
 			await this.dataSource.transaction(async (manager) => {
-				const clients: Array<{ resource_scopes: string[] }> = await manager.query(
-					`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR SHARE`, [clientId],
-				);
+				const clients: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR SHARE`, [clientId]);
 				if (!clients.length) throw new NotFound("OAuth client not found.");
 				const scopes = [...grant.getOIDCScope().split(" "), ...grant.getResourceScope(resource).split(" ")].filter((scope) => scope && (!isOidcResourceScope(scope) || clients[0].resource_scopes.includes(scope)));
 				const claims = grant.getOIDCClaims();

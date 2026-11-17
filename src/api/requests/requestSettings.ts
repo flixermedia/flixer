@@ -1,17 +1,6 @@
 import { BadRequest } from "@tsed/exceptions";
 
-export const REQUEST_SETTING_KEYS = [
-	"requests_enabled",
-	"requests_auto_approve",
-	"requests_movies_enabled",
-	"requests_tv_enabled",
-	"requests_music_enabled",
-	"requests_quota_limit",
-	"requests_quota_days",
-	"requests_default_can_request",
-	"requests_notify_admins",
-	"requests_notify_users",
-] as const;
+export const REQUEST_SETTING_KEYS = ["requests_enabled", "requests_auto_approve", "requests_movies_enabled", "requests_tv_enabled", "requests_music_enabled", "requests_quota_limit", "requests_quota_days", "requests_default_can_request", "requests_notify_admins", "requests_notify_users"] as const;
 
 export interface RequestSettings {
 	enabled: boolean;
@@ -33,8 +22,7 @@ export const MAX_QUOTA_DAYS = 365;
 /** Builds the typed settings from the stored key/value pairs, falling back to the defaults. */
 export function parseRequestSettings(values: Map<string, unknown>): RequestSettings {
 
-	const flag = (key: string, fallback: boolean) =>
-		typeof values.get(key) === "boolean" ? (values.get(key) as boolean) : fallback;
+	const flag = (key: string, fallback: boolean) => (typeof values.get(key) === "boolean" ? (values.get(key) as boolean) : fallback);
 	const count = (key: string, fallback: number) => {
 		const value = values.get(key);
 		return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : fallback;

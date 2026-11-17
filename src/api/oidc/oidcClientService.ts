@@ -22,6 +22,7 @@ function publicClient(row: ClientRow) {
 
 /** Exact redirect URI matching is required by the provider; never normalize registered values. */
 export function validateOidcRedirectUris(uris: string[]): void {
+
 	if (!Array.isArray(uris) || uris.length < 1 || uris.length > 10 || new Set(uris).size !== uris.length) {
 		throw new BadRequest("Provide between one and ten unique redirect URIs.");
 	}
@@ -38,16 +39,16 @@ export function validateOidcRedirectUris(uris: string[]): void {
 			throw new BadRequest("Redirect URIs must use HTTPS, except for HTTP loopback addresses.");
 		}
 	}
+
 }
 
 @Injectable()
 export class OidcClientService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list() {
-		const rows: ClientRow[] = await this.dataSource.query(
-			`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "resource_scopes", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`,
-		);
+		const rows: ClientRow[] = await this.dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "resource_scopes", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`);
 		return rows.map(publicClient);
 	}
 

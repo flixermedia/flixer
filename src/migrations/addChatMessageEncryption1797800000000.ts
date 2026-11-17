@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddChatMessageEncryption1797800000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`ALTER TABLE "chat_messages" ADD COLUMN "encrypted" boolean NOT NULL DEFAULT false`);
 		await queryRunner.query(`

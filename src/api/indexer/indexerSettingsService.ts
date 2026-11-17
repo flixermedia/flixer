@@ -11,12 +11,7 @@ export const INDEXER_LANGUAGE_KEY = "indexer_language";
 export const INDEXER_PROVIDERS_KEY = "indexer_providers";
 export const INDEXER_CONCURRENCY_KEY = "indexer_concurrency";
 const INDEXER_SUBTITLES_KEY = "indexer_subtitles";
-export const INDEXER_SETTING_KEYS = [
-	INDEXER_LANGUAGE_KEY,
-	INDEXER_PROVIDERS_KEY,
-	INDEXER_CONCURRENCY_KEY,
-	INDEXER_SUBTITLES_KEY,
-];
+export const INDEXER_SETTING_KEYS = [INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY, INDEXER_CONCURRENCY_KEY, INDEXER_SUBTITLES_KEY];
 
 /** Providers that need an API key (or client name) and the ones that work without one. */
 const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
@@ -24,28 +19,9 @@ const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
 const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
-const INDEXER_QUEUES = [
-	"scan",
-	"identify",
-	"metadata",
-	"images",
-	"probe",
-	"refresh",
-	"trickplay",
-	"themes",
-	"lyrics",
-	"intro-movies",
-	"intro-episodes",
-] as const;
+const INDEXER_QUEUES = ["scan", "identify", "metadata", "images", "probe", "refresh", "trickplay", "themes", "lyrics", "intro-movies", "intro-episodes"] as const;
 export type IndexerQueueName = (typeof INDEXER_QUEUES)[number];
-export const INDEXER_TASK_QUEUES = [
-	...INDEXER_QUEUES,
-	"identify-priority",
-	"metadata-priority",
-	"images-priority",
-	"probe-priority",
-	"refresh-priority",
-] as const;
+export const INDEXER_TASK_QUEUES = [...INDEXER_QUEUES, "identify-priority", "metadata-priority", "images-priority", "probe-priority", "refresh-priority"] as const;
 export type IndexerTaskQueueName = (typeof INDEXER_TASK_QUEUES)[number];
 const INDEXER_MAX_CONCURRENCY = 64;
 
@@ -146,15 +122,11 @@ export class IndexerSettingsService {
 			apiKey: typeof subs.apiKey === "string" ? subs.apiKey : "",
 			username: typeof subs.username === "string" ? subs.username : "",
 			password: typeof subs.password === "string" ? subs.password : "",
-			languages: Array.isArray(subs.languages)
-				? subs.languages.filter((item): item is string => typeof item === "string")
-				: [],
+			languages: Array.isArray(subs.languages) ? subs.languages.filter((item): item is string => typeof item === "string") : [],
 			autoFetch: subs.autoFetch !== false,
 		};
 		const themes = { enabled: value("themes_enabled") === true };
-		const installations = await this.dataSource
-			.getRepository(PluginInstallation)
-			.find({ where: { enabled: true } });
+		const installations = await this.dataSource.getRepository(PluginInstallation).find({ where: { enabled: true } });
 		const plugins = installations.flatMap((installation) => {
 			const indexerTarget = installation.manifest.targets["flixer-indexer"];
 			const backendTarget = installation.manifest.targets.flixer;
@@ -201,11 +173,7 @@ export class IndexerSettingsService {
 			return secret ? raw : raw.trim();
 		};
 		const languages = value.languages ?? [];
-		if (
-			!Array.isArray(languages) ||
-			languages.length > 10 ||
-			!languages.every((item) => typeof item === "string" && LANGUAGE_PATTERN.test(item))
-		) {
+		if (!Array.isArray(languages) || languages.length > 10 || !languages.every((item) => typeof item === "string" && LANGUAGE_PATTERN.test(item))) {
 			throw new BadRequest("Subtitle languages must be a list of up to 10 language codes such as en or pt-BR.");
 		}
 		if (value.autoFetch !== undefined && typeof value.autoFetch !== "boolean") {
@@ -220,10 +188,7 @@ export class IndexerSettingsService {
 		};
 	}
 
-	private validateProviders(
-		value: unknown,
-		current: Record<string, unknown>,
-	): Record<string, IndexerProviderSetting> {
+	private validateProviders(value: unknown, current: Record<string, unknown>): Record<string, IndexerProviderSetting> {
 		if (!isRecord(value)) {
 			throw new BadRequest("The indexer_providers setting must be an object keyed by provider name.");
 		}
@@ -277,9 +242,7 @@ export class IndexerSettingsService {
 				throw new BadRequest(`Unknown indexer queue "${queue}".`);
 			}
 			if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > INDEXER_MAX_CONCURRENCY) {
-				throw new BadRequest(
-					`Concurrency for "${queue}" must be a whole number between 1 and ${INDEXER_MAX_CONCURRENCY}.`,
-				);
+				throw new BadRequest(`Concurrency for "${queue}" must be a whole number between 1 and ${INDEXER_MAX_CONCURRENCY}.`);
 			}
 			result[queue] = count;
 		}

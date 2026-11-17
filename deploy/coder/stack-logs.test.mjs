@@ -21,7 +21,9 @@ async function fixture(t, socketMode) {
 
 	const stack = join(root, "stack");
 	writeFileSync(stack, match[1].replaceAll("/var/run/docker.sock", socket));
-	writeFileSync(join(root, "docker"), `#!/usr/bin/env bash
+	writeFileSync(
+		join(root, "docker"),
+		`#!/usr/bin/env bash
 if [ "$1" = context ] && [ "$2" = show ]; then
   printf '%s\\n' "\${MOCK_DOCKER_CONTEXT:-default}"
   exit 0
@@ -29,19 +31,26 @@ fi
 printf 'docker args: %s\\n' "$*" >&2
 printf '[api] api line\\n[logger] logger line\\n'
 exit "\${MOCK_DOCKER_EXIT:-0}"
-`, { mode: 0o755 });
-	writeFileSync(join(root, "sudo"), `#!/usr/bin/env bash
+`,
+		{ mode: 0o755 },
+	);
+	writeFileSync(
+		join(root, "sudo"),
+		`#!/usr/bin/env bash
 printf 'sudo args: %s\\n' "$*" >&2
 [ "\${MOCK_SUDO_FAIL:-0}" = 0 ] || exit 1
 shift
 if [ "$1" = true ]; then exit 0; fi
 exec "$@"
-`, { mode: 0o755 });
+`,
+		{ mode: 0o755 },
+	);
 
-	return (args, env = {}) => spawnSync("bash", [stack, "logs", ...args], {
-		encoding: "utf8",
-		env: { ...process.env, HOME: root, PATH: `${root}:${process.env.PATH}`, WORKSPACE_CONTAINER_NAME: "workspace", DOCKER_HOST: "", DOCKER_CONTEXT: "", ...env },
-	});
+	return (args, env = {}) =>
+		spawnSync("bash", [stack, "logs", ...args], {
+			encoding: "utf8",
+			env: { ...process.env, HOME: root, PATH: `${root}:${process.env.PATH}`, WORKSPACE_CONTAINER_NAME: "workspace", DOCKER_HOST: "", DOCKER_CONTEXT: "", ...env },
+		});
 }
 
 test("reads logs directly when the socket is writable", async (t) => {

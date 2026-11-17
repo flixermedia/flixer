@@ -22,6 +22,7 @@ let current = { ...DEFAULT_LOGIN_SECURITY };
 let revision = 0;
 
 export function validateLoginSecurity(value: unknown): LoginSecurityConfig {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Login security settings must be an object.");
 	const config = value as Record<string, unknown>;
 	if (typeof config.timingEnabled !== "boolean" || typeof config.throttleEnabled !== "boolean") throw new Error("Login security flags must be booleans.");
@@ -46,11 +47,14 @@ export function validateLoginSecurity(value: unknown): LoginSecurityConfig {
 		usernameLimit: config.usernameLimit as number,
 		windowSeconds: config.windowSeconds as number,
 	};
+
 }
 
 export function setLoginSecurity(value: LoginSecurityConfig): void {
+
 	current = validateLoginSecurity(value);
 	revision++;
+
 }
 
 export function getLoginSecurity(): { config: LoginSecurityConfig; revision: number } {

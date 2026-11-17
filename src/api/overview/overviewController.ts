@@ -24,18 +24,7 @@ export class OverviewController {
 
 	/** Every watch event, filterable by text, user, kind, status and date, newest first by default. */
 	@Get("/activity")
-	async activityList(
-		@QueryParams("search") search?: string,
-		@QueryParams("user") user?: string,
-		@QueryParams("type") type?: string,
-		@QueryParams("status") status?: string,
-		@QueryParams("from") from?: string,
-		@QueryParams("to") to?: string,
-		@QueryParams("sort") sort?: string,
-		@QueryParams("page") page?: string,
-		@QueryParams("pageSize") pageSize?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async activityList(@QueryParams("search") search?: string, @QueryParams("user") user?: string, @QueryParams("type") type?: string, @QueryParams("status") status?: string, @QueryParams("from") from?: string, @QueryParams("to") to?: string, @QueryParams("sort") sort?: string, @QueryParams("page") page?: string, @QueryParams("pageSize") pageSize?: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.activity.list({ search, user, type, status, from, to, sort, page, pageSize });
 	}

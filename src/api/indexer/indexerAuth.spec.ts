@@ -11,9 +11,7 @@ describe("indexerAuth", () => {
 	});
 
 	it("matches the signature flixer-indexer (Go) produces", () => {
-		expect(indexerSignature(SECRET, "1700000000", "POST", "/api/indexer/media/items", BODY)).toBe(
-			"90b96a8c36e04cf03e03605f76454a0c72c37fe75836a93d0c9811955381bacd",
-		);
+		expect(indexerSignature(SECRET, "1700000000", "POST", "/api/indexer/media/items", BODY)).toBe("90b96a8c36e04cf03e03605f76454a0c72c37fe75836a93d0c9811955381bacd");
 	});
 
 	it("accepts a request signed with the shared secret and rejects tampering", () => {

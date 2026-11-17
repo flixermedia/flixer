@@ -2,6 +2,7 @@ import { CollectionOf, Enum, MaxLength, MinLength, Property, Required } from "@t
 
 /** Registration details for a third-party OpenID Connect application. */
 export class CreateOidcClientRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)
@@ -20,6 +21,7 @@ export class CreateOidcClientRequest {
 
 /** Public origin used by the OpenID Connect provider. */
 export class UpdateOidcConfigurationRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(2048)
@@ -28,6 +30,7 @@ export class UpdateOidcConfigurationRequest {
 
 /** Resource scopes that a client may request. */
 export class UpdateOidcResourceScopesRequest {
+
 	@CollectionOf(String)
 	@Required()
 	scopes!: string[];

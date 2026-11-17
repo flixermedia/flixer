@@ -9,6 +9,7 @@ import { AD_CHUNK_BYTES, AdvertisementService } from "./advertisementService.js"
 
 @Middleware({ priority: -100 })
 class RequireAdvertisementAdmin {
+
 	constructor(private readonly auth: AuthService) {}
 	async use(@HeaderParams("authorization") authorization?: string) {
 		await this.auth.requireAdminSession(authorization);
@@ -19,16 +20,26 @@ class RequireAdvertisementAdmin {
 @Security("BearerAuth")
 @UseBefore(RequireAdvertisementAdmin)
 export class AdvertisementController {
-	constructor(private readonly ads: AdvertisementService, private readonly auth: AuthService) {}
+
+	constructor(
+		private readonly ads: AdvertisementService,
+		private readonly auth: AuthService,
+	) {}
 
 	@Get("/settings")
-	settings() { return this.ads.settings(); }
+	settings() {
+		return this.ads.settings();
+	}
 
 	@Put("/settings")
-	saveSettings(@BodyParams() body: unknown) { return this.ads.saveSettings(body); }
+	saveSettings(@BodyParams() body: unknown) {
+		return this.ads.saveSettings(body);
+	}
 
 	@Get("/")
-	list() { return this.ads.list(); }
+	list() {
+		return this.ads.list();
+	}
 
 	@Post("/uploads")
 	async createUpload(@BodyParams() body: { size?: number }, @HeaderParams("authorization") authorization?: string) {
@@ -38,8 +49,7 @@ export class AdvertisementController {
 
 	@Put("/uploads/:id/chunks/:index")
 	@MulterOptions({ limits: { fileSize: AD_CHUNK_BYTES, files: 1, fields: 0 } })
-	async chunk(@PathParams("id") id: string, @PathParams("index", Number) index: number,
-		@MultipartFile("chunk") file: PlatformMulterFile | undefined, @HeaderParams("authorization") authorization?: string) {
+	async chunk(@PathParams("id") id: string, @PathParams("index", Number) index: number, @MultipartFile("chunk") file: PlatformMulterFile | undefined, @HeaderParams("authorization") authorization?: string) {
 		const { user } = await this.auth.requireAdminSession(authorization);
 		if (!file?.buffer) throw new BadRequest("Choose a chunk to upload.");
 		await this.ads.putChunk(id, user.id, index, file.buffer);

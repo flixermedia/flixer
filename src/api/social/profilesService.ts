@@ -46,6 +46,7 @@ export function likePattern(term: string): string {
 
 @Injectable()
 export class ProfilesService {
+
 	/** What each user is playing right now. Short-lived by design, so it is kept in memory. */
 	private readonly listening = new Map<string, { itemId: string; at: number; position: number }>();
 
@@ -101,9 +102,7 @@ export class ProfilesService {
 	}
 
 	async setVisibility(userId: string, visibility: "public" | "hidden" | "friends") {
-		await this.dataSource
-			.getRepository(UserPreference)
-			.upsert({ userId, profileVisibility: visibility }, ["userId"]);
+		await this.dataSource.getRepository(UserPreference).upsert({ userId, profileVisibility: visibility }, ["userId"]);
 		return { visibility };
 	}
 
@@ -133,21 +132,14 @@ export class ProfilesService {
 	}
 
 	/** Records that the user started, continued or stopped playing a song. */
-	async reportListening(
-		userId: string,
-		itemId: string,
-		state: "playing" | "stopped",
-		positionSeconds = 0,
-	): Promise<void> {
+	async reportListening(userId: string, itemId: string, state: "playing" | "stopped", positionSeconds = 0): Promise<void> {
 		if (state === "stopped") {
 			if (this.listening.get(userId)?.itemId === itemId) {
 				this.listening.delete(userId);
 			}
 			return;
 		}
-		const item = await this.dataSource
-			.getRepository(MediaItem)
-			.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
 		if (!item || item.type !== "track") {
 			throw new NotFound("Song not found.");
 		}
@@ -186,20 +178,12 @@ export class ProfilesService {
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
-		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [
-			username.slice(0, 64),
-		])) as UserRow[];
+		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [username.slice(0, 64)])) as UserRow[];
 		return rows[0];
 	}
 
 	private async build(user: UserRow, viewerId: string, isSelf: boolean, isFriend: boolean) {
-		const [nowPlaying, recentlyWatched, recentlyListened, favorites, playlists] = await Promise.all([
-			this.nowPlaying(user.id),
-			this.recentlyWatched(user.id),
-			this.recentlyListened(user.id),
-			this.favorites.list(user.id, FAVORITES_LIMIT),
-			this.playlists.listForProfile(user.id, isSelf),
-		]);
+		const [nowPlaying, recentlyWatched, recentlyListened, favorites, playlists] = await Promise.all([this.nowPlaying(user.id), this.recentlyWatched(user.id), this.recentlyListened(user.id), this.favorites.list(user.id, FAVORITES_LIMIT), this.playlists.listForProfile(user.id, isSelf)]);
 		return {
 			username: user.username,
 			displayName: user.display_name ?? user.username,
@@ -270,10 +254,7 @@ export class ProfilesService {
 	}
 
 	private async recentlyListened(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(
-			`SELECT item_id, played_at FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC LIMIT $2`,
-			[userId, RECENT_LIMIT],
-		)) as Array<{
+		const rows = (await this.dataSource.query(`SELECT item_id, played_at FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC LIMIT $2`, [userId, RECENT_LIMIT])) as Array<{
 			item_id: string;
 			played_at: Date;
 		}>;

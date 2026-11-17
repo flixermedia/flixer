@@ -6,8 +6,11 @@ import { UserMediaService } from "./userMediaService.js";
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("grouped playback history (isolated PostgreSQL)", () => {
 	it("groups only adjacent sessions before pagination and removes the entire selected group", async () => {
 		const source = new DataSource({
-			type: "postgres", host: process.env.ANALYTICS_TEST_PG_SOCKET, port: 55441,
-			username: process.env.USER, database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			type: "postgres",
+			host: process.env.ANALYTICS_TEST_PG_SOCKET,
+			port: 55441,
+			username: process.env.USER,
+			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();
@@ -34,11 +37,13 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("grouped playback history
 			const episodes = Array.from({ length: 3 }, () => randomUUID());
 			const album = randomUUID();
 			const tracks = Array.from({ length: 3 }, () => randomUUID());
-			await runner.query(`INSERT INTO media_items (id, type, parent_id) VALUES
+			await runner.query(
+				`INSERT INTO media_items (id, type, parent_id) VALUES
 				($1, 'movie', NULL), ($2, 'movie', NULL), ($3, 'series', NULL),
 				($4, 'season', $3), ($5, 'season', $3), ($6, 'episode', $4), ($7, 'episode', $5), ($8, 'episode', $3),
 				($9, 'album', NULL), ($10, 'track', $9), ($11, 'track', $9), ($12, 'track', $9)`,
-			[movie, secondMovie, series, season, secondSeason, ...episodes, album, ...tracks]);
+				[movie, secondMovie, series, season, secondSeason, ...episodes, album, ...tracks],
+			);
 			const sessions = Array.from({ length: 8 }, () => randomUUID());
 			const entries = [
 				{ id: sessions[0], kind: "video", itemId: movie, channelId: null, name: null, seconds: 10 },
@@ -63,11 +68,13 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("grouped playback history
 			const service = new UserMediaService(dataSource, {} as never);
 			const firstPage = await service.history(user, 0, 2);
 			expect(firstPage.map((entry) => [entry.id, entry.item?.id, entry.watchedSeconds])).toEqual([
-				[sessions[0], movie, 30], [sessions[2], secondMovie, 30],
+				[sessions[0], movie, 30],
+				[sessions[2], secondMovie, 30],
 			]);
 			const secondPage = await service.history(user, 2, 2);
 			expect(secondPage.map((entry) => [entry.id, entry.item?.id ?? entry.channelName, entry.watchedSeconds])).toEqual([
-				[sessions[3], movie, 90], [sessions[5], "News", 130],
+				[sessions[3], movie, 90],
+				[sessions[5], "News", 130],
 			]);
 			expect((await service.history(user, 4, 2)).map((entry) => entry.channelName)).toEqual(["Sport"]);
 			await service.removeHistory(other, sessions[0]);
@@ -87,7 +94,12 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("grouped playback history
 			}
 			const grouped = await service.history(groupedUser, 0, 20);
 			expect(grouped.map((entry) => [entry.item?.id, entry.item?.type])).toEqual([
-				[series, "series"], [movie, "movie"], [series, "series"], [album, "album"], [movie, "movie"], [album, "album"],
+				[series, "series"],
+				[movie, "movie"],
+				[series, "series"],
+				[album, "album"],
+				[movie, "movie"],
+				[album, "album"],
 			]);
 			expect(grouped[0].sourceItemIds).toEqual(expect.arrayContaining([episodes[0], episodes[1]]));
 			expect(grouped[3].sourceItemIds).toEqual(expect.arrayContaining([tracks[0], tracks[1]]));

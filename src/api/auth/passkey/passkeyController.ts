@@ -9,6 +9,7 @@ import { NativePasskeyHandoffExchangeRequest, NativePasskeyHandoffIdRequest, Nat
 
 @Controller("/auth/passkeys")
 export class PasskeyController {
+
 	constructor(private readonly passkeyService: PasskeyService) {}
 
 	@Get("/")

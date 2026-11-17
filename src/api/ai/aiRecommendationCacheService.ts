@@ -37,6 +37,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isCachedRecommendationResponse(value: unknown): value is CachedRecommendationResponse {
+
 	if (!isRecord(value) || !Array.isArray(value.items)) {
 		return false;
 	}
@@ -46,9 +47,11 @@ function isCachedRecommendationResponse(value: unknown): value is CachedRecommen
 		}
 		return item.reason === undefined || item.reason === null || typeof item.reason === "string";
 	});
+
 }
 
 function validateState(value: unknown): RecommendationCacheState {
+
 	if (!isRecord(value) || !isRecord(value.entries)) {
 		throw new BadRequest("Invalid recommendation cache state.");
 	}
@@ -94,10 +97,12 @@ function validateState(value: unknown): RecommendationCacheState {
 	}
 
 	return { entries, lastRefreshAt, entryScopes, refreshTimes };
+
 }
 
 @Injectable()
 export class AiRecommendationCacheService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listUsers() {
@@ -160,7 +165,9 @@ export class AiRecommendationCacheService {
 
 	async forHome(userId: string, scope: "movies" | "music", types: string[]): Promise<CachedRecommendationResponse | null> {
 		const state = await this.get(userId);
-		const key = createHash("sha256").update(JSON.stringify({ limit: 20, filters: { types } })).digest("hex");
+		const key = createHash("sha256")
+			.update(JSON.stringify({ limit: 20, filters: { types } }))
+			.digest("hex");
 		const exact = state.entries[key];
 		if (isCachedRecommendationResponse(exact) && (state.entryScopes[key] ?? "movies") === scope) return exact;
 		const candidates = Object.entries(state.entries)

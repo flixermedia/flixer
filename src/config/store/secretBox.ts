@@ -61,5 +61,4 @@ export class SecretBox {
 		decipher.setAuthTag(raw.subarray(raw.length - TAG_BYTES));
 		return Buffer.concat([decipher.update(raw.subarray(NONCE_BYTES, raw.length - TAG_BYTES)), decipher.final()]).toString("utf8");
 	}
-
 }

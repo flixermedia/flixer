@@ -21,6 +21,8 @@ export function isInternalConfigService(value: string): value is InternalConfigS
 
 /** Only what that service needs. Callers must have verified the request signature. */
 export function indexerRuntimeConfig(config: AppConfig = appConfig()): IndexerRuntimeConfig {
+
 	const redisUrl = config.get("redisUrl");
 	return { version: config.persistent?.version() ?? 0, redis: redisUrl ? parseRedisUrl(redisUrl) : null };
+
 }

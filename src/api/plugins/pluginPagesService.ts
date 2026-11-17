@@ -13,6 +13,7 @@ interface PluginPageSummary {
 
 @Injectable()
 export class PluginPagesService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Pages of enabled plugins whose `ui.pages` capability and `api.routes.page` permission are both granted. */

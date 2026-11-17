@@ -70,6 +70,7 @@ describe("PasskeyService native handoff exchange", () => {
 });
 
 function createService(results: Array<{ raw: Array<{ user_id: string }> }>, user = { id: "00000000-0000-4000-8000-000000000001" }, authResult: object = { accessToken: "access-token" }) {
+
 	const where = vi.fn();
 	const execute = vi.fn(async () => results.shift() ?? { raw: [] });
 	const builder = {
@@ -92,4 +93,5 @@ function createService(results: Array<{ raw: Array<{ user_id: string }> }>, user
 	const service = new PasskeyService(dataSource as unknown as DataSource, authService as unknown as AuthService);
 
 	return { service, execute, issueAuthResult, where };
+
 }

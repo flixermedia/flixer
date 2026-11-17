@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm"
 @Entity("external_identities")
 @Index("IDX_external_identities_user", ["userId"])
 export class ExternalIdentity {
+
 	@PrimaryColumn({ name: "plugin_id", type: "varchar", length: 128 })
 	pluginId!: string;
 

@@ -132,10 +132,7 @@ export class AdminMediaService {
 			return this.popularOverview();
 		}
 
-		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-			.leftJoin("media_items", "parent", "parent.id = item.parent_id")
-			.addSelect("parent.title", "parentTitle")
-			.where("item.is_placeholder = false");
+		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").leftJoin("media_items", "parent", "parent.id = item.parent_id").addSelect("parent.title", "parentTitle").where("item.is_placeholder = false");
 		if (query.reviewOnly) {
 			builder.andWhere(REVIEW_QUEUE_PREDICATE);
 		}
@@ -183,9 +180,7 @@ export class AdminMediaService {
 
 	private async globalCategoryCounts(reviewOnly = false): Promise<MediaCategoryCounts> {
 		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
-		const scope = reviewOnly
-			? `item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album') AND ${REVIEW_QUEUE_PREDICATE}`
-			: "item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album')";
+		const scope = reviewOnly ? `item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album') AND ${REVIEW_QUEUE_PREDICATE}` : "item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album')";
 		const rows = await this.dataSource.query<Array<{ category: MediaCategory; count: string | number }>>(`
 			SELECT CASE
 				WHEN item.type IN ('movie', 'video') THEN 'movies'
@@ -502,15 +497,13 @@ export class AdminMediaService {
 		item.editedFields = [...edited];
 		await repository.save(item);
 		let nfoWriteFailed = false;
-		const nfoRelevantChange = request.title !== undefined || request.sortTitle !== undefined || request.year !== undefined ||
-			request.seasonNumber !== undefined || request.episodeNumber !== undefined || request.episodeEndNumber !== undefined ||
-			request.overview !== undefined || request.providerIds !== undefined;
+		const nfoRelevantChange = request.title !== undefined || request.sortTitle !== undefined || request.year !== undefined || request.seasonNumber !== undefined || request.episodeNumber !== undefined || request.episodeEndNumber !== undefined || request.overview !== undefined || request.providerIds !== undefined;
 		if (nfoRelevantChange && !item.isPlaceholder && item.path && ["movie", "video", "series", "season", "episode", "album"].includes(item.type)) {
 			try {
 				const writeSettings = await this.dataSource.getRepository(MediaOrganizationSettings).findOneBy({ libraryId: item.libraryId });
 				if (writeSettings?.nfoWritesEnabled) {
 					const metadata = item.metadata ?? {};
-					const text = (value: unknown) => typeof value === "string" ? value : "";
+					const text = (value: unknown) => (typeof value === "string" ? value : "");
 					const fields: Record<string, string> = {
 						title: item.title,
 						originaltitle: text(metadata.originalTitle),
@@ -531,10 +524,10 @@ export class AdminMediaService {
 							clearProviderIds: Object.keys(previousProviderIds).filter((provider) => !Object.hasOwn(item.providerIds ?? {}, provider)),
 						},
 					});
-				if (!item.nfoPresent) {
-					item.nfoPresent = true;
-					await repository.save(item);
-				}
+					if (!item.nfoPresent) {
+						item.nfoPresent = true;
+						await repository.save(item);
+					}
 				}
 			} catch {
 				nfoWriteFailed = true;

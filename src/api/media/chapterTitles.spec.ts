@@ -10,13 +10,7 @@ describe("chapter title normalization", () => {
 			{ title: "00:90:00", start: 5000, end: 5100 },
 			{ title: "At 00:01:00", start: 5100, end: 5200 },
 		];
-		expect(normalizeChapterTitles(input)).toEqual([
-			{ title: "Chapter 2", start: 293.126, end: 500 },
-			input[1],
-			{ title: "Chapter 3", start: 3600, end: 4000 },
-			input[3],
-			input[4],
-		]);
+		expect(normalizeChapterTitles(input)).toEqual([{ title: "Chapter 2", start: 293.126, end: 500 }, input[1], { title: "Chapter 3", start: 3600, end: 4000 }, input[3], input[4]]);
 		expect(input[0]?.title).toBe("00:04:53.126");
 		expect(normalizeChapterTitle("00:00:00.000", 1)).toBe("Chapter 1");
 	});

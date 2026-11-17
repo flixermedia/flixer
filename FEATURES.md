@@ -2,12 +2,12 @@
 
 A complete list of what the Flixer platform does, grouped by the repository that provides it.
 
-| Repository                                                        | Role                                                                                                  |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Repository                                                        | Role                                                                                                            |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [flixer](.)                                                       | Ts.ED/Fastify API: accounts, libraries, catalogue, playback authorisation, payments, admin, updates and backups |
-| [flixer-web](https://github.com/flixermedia/flixer-web)           | Vue 3 single-page app: browsing, video and music players, settings and the admin dashboard            |
-| [flixer-streamer](https://github.com/flixermedia/flixer-streamer) | Go media-delivery service: direct play, remux, transcoding, HLS, subtitles, trickplay                 |
-| [flixer-indexer](https://github.com/flixermedia/flixer-indexer)   | Go scanner and metadata pipeline: scanning, identification, artwork, probing, subtitles               |
+| [flixer-web](https://github.com/flixermedia/flixer-web)           | Vue 3 single-page app: browsing, video and music players, settings and the admin dashboard                      |
+| [flixer-streamer](https://github.com/flixermedia/flixer-streamer) | Go media-delivery service: direct play, remux, transcoding, HLS, subtitles, trickplay                           |
+| [flixer-indexer](https://github.com/flixermedia/flixer-indexer)   | Go scanner and metadata pipeline: scanning, identification, artwork, probing, subtitles                         |
 
 Flixer also relies on `flixer-updater` for the update and restore flow.
 
@@ -75,9 +75,9 @@ Under **Video Player > Player Settings**, administrators can enable automatic re
 - Eligible users manage up to 10 of their own webhooks under Settings → Webhooks. Only the authenticated user's events are delivered to their enabled destinations, and changing destination rules or disabling the feature stops future delivery to destinations no longer permitted. URLs, including any query tokens, are stored in the database; administrators can see the allowlist. Treat them as secrets.
 - Flixer's web and native video players, live TV player and music player emit `playback.started`, `playback.paused`, `playback.resumed` and `playback.stopped`. Every delivery is a JSON POST containing `id`, `event`, `occurredAt` (UTC), `userId`, `media` (`kind`, `id`, `title`, and for library media `type`), and `positionSeconds`. For example:
 
-  ```json
-  {"id":"a89c26d2-513c-4528-9d8b-7ca16004bf72","event":"playback.started","occurredAt":"2026-01-01T12:00:00.000Z","userId":"d3929747-385b-4245-a8d2-682c37626192","media":{"kind":"video","id":"b89c26d2-513c-4528-9d8b-7ca16004bf72","title":"Movie","type":"movie"},"positionSeconds":0}
-  ```
+    ```json
+    { "id": "a89c26d2-513c-4528-9d8b-7ca16004bf72", "event": "playback.started", "occurredAt": "2026-01-01T12:00:00.000Z", "userId": "d3929747-385b-4245-a8d2-682c37626192", "media": { "kind": "video", "id": "b89c26d2-513c-4528-9d8b-7ca16004bf72", "title": "Movie", "type": "movie" }, "positionSeconds": 0 }
+    ```
 
 - Playback reports are client-generated and best effort: interruptions, other clients, player reloads and ad breaks can omit or split transitions. Deliveries are ordered per webhook within one API process, bounded, time out after five seconds, and are not retried or persisted. Failures are logged without logging destination URLs. They are not signed, so secure receiving endpoints with an unguessable URL and network controls.
 

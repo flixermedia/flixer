@@ -16,7 +16,11 @@ const TRACK = "33333333-3333-4333-8333-333333333333";
 
 describe("personal media", () => {
 	it("bounds history pages and filters inaccessible items", async () => {
-		const entries = [{ kind: "video", item: { id: TRACK }, sourceItemIds: [TRACK] }, { kind: "live", item: null, sourceItemIds: [] }, { kind: "video", item: { id: OTHER }, sourceItemIds: [OTHER] }];
+		const entries = [
+			{ kind: "video", item: { id: TRACK }, sourceItemIds: [TRACK] },
+			{ kind: "live", item: null, sourceItemIds: [] },
+			{ kind: "video", item: { id: OTHER }, sourceItemIds: [OTHER] },
+		];
 		const userMedia = { history: vi.fn().mockResolvedValue(entries) };
 		const access = { resolve: vi.fn().mockResolvedValue({ userId: USER }), visibleIds: vi.fn().mockResolvedValue(new Set()) };
 		const controller = new UserMediaController({} as never, userMedia as never, access as never);
@@ -88,7 +92,7 @@ describe("personal media", () => {
 	});
 
 	it("rejects duplicate or incomplete queue orders and locks the owner row", async () => {
-		const manager = { query: vi.fn(async (sql: string) => sql.includes("SELECT item_id") ? [{ item_id: TRACK }] : []) };
+		const manager = { query: vi.fn(async (sql: string) => (sql.includes("SELECT item_id") ? [{ item_id: TRACK }] : [])) };
 		const source = { transaction: vi.fn(async (callback) => callback(manager)) } as unknown as DataSource;
 		const service = new UserMediaService(source, {} as never);
 		await expect(service.reorderQueue(USER, [TRACK, TRACK])).rejects.toThrow(/invalid queue order/i);
@@ -101,6 +105,7 @@ describe("personal media", () => {
 });
 
 function dataSource(options: { item?: Partial<MediaItem> | null; queries?: Array<unknown[]> } = {}) {
+
 	const query = vi.fn(async (sql: string): Promise<unknown[]> => {
 		options.queries?.push([sql]);
 		return [];
@@ -108,6 +113,7 @@ function dataSource(options: { item?: Partial<MediaItem> | null; queries?: Array
 	const repos = new Map<unknown, unknown>([[MediaItem, { findOne: vi.fn(async () => options.item ?? null) }]]);
 	const source = { query, getRepository: (entity: unknown) => repos.get(entity) ?? {} } as unknown as DataSource;
 	return { source, query };
+
 }
 
 describe("social helpers", () => {
@@ -155,14 +161,11 @@ describe("FavoritesService", () => {
 
 describe("ProfilesService listening", () => {
 	function setup(item: Partial<MediaItem> | null = { id: TRACK, type: "track" }) {
+
 		const { source, query } = dataSource({ item });
-		const service = new ProfilesService(
-			source,
-			{} as FavoritesService,
-			{} as PlaylistsService,
-			{} as FriendsService,
-		);
+		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService, {} as FriendsService);
 		return { service, query };
+
 	}
 
 	it("counts a play once while the same song keeps reporting", async () => {
@@ -193,9 +196,7 @@ describe("ProfilesService listening", () => {
 		await service.reportListening(USER, TRACK, "playing");
 		await service.reportListening(OTHER, TRACK, "playing");
 		expect(query).toHaveBeenCalledTimes(2);
-		await expect(
-			setup({ id: TRACK, type: "movie" }).service.reportListening(USER, TRACK, "playing"),
-		).rejects.toThrow(/not found/i);
+		await expect(setup({ id: TRACK, type: "movie" }).service.reportListening(USER, TRACK, "playing")).rejects.toThrow(/not found/i);
 	});
 
 	it("hides a hidden profile from everyone but its owner", async () => {
@@ -209,12 +210,7 @@ describe("ProfilesService listening", () => {
 			visibility: "hidden" as const,
 		};
 		(source.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce([row]);
-		const service = new ProfilesService(
-			source,
-			{} as FavoritesService,
-			{} as PlaylistsService,
-			{} as FriendsService,
-		);
+		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService, {} as FriendsService);
 		await expect(service.profile(USER, "sam")).rejects.toThrow(/not found/i);
 	});
 });
@@ -225,6 +221,7 @@ describe("PlaylistsService.addTrack with albums", () => {
 	const T2 = "55555555-5555-4555-8555-555555555552";
 
 	function setup(type: string, albumTracks: string[], existing: string[]) {
+
 		const inserts: unknown[][] = [];
 		const manager = {
 			query: vi.fn(async (sql: string, params: unknown[] = []): Promise<unknown[]> => {
@@ -244,6 +241,7 @@ describe("PlaylistsService.addTrack with albums", () => {
 			transaction: async (work: (m: typeof manager) => unknown) => work(manager),
 		} as unknown as DataSource;
 		return { service: new PlaylistsService(source), inserts };
+
 	}
 
 	it("adds every song of an album in order and skips ones already present", async () => {
@@ -254,8 +252,6 @@ describe("PlaylistsService.addTrack with albums", () => {
 
 	it("rejects an album without songs and items that are neither songs nor albums", async () => {
 		await expect(setup("album", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/no songs/);
-		await expect(setup("movie", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(
-			/songs and albums/,
-		);
+		await expect(setup("movie", [], []).service.addTrack(USER, PLAYLIST, TRACK)).rejects.toThrow(/songs and albums/);
 	});
 });

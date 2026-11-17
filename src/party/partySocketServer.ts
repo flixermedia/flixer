@@ -47,12 +47,12 @@ interface Connection {
  * The host sends playback commands; Redis commits the canonical timeline and fans the versioned state out to members.
  */
 export class PartySocketServer {
+
 	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_SIGNAL_MESSAGE_BYTES });
 	private readonly connections = new Map<WebSocket, Connection>();
 	private server?: Server;
 	private heartbeat?: NodeJS.Timeout;
-	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) =>
-		this.handleUpgrade(request, socket, head);
+	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
 
 	constructor(
 		private readonly authenticate: PartyAuthenticator,
@@ -141,13 +141,9 @@ export class PartySocketServer {
 				connection.leave = undefined;
 				connection.renew = undefined;
 				connection.partyId = undefined;
-				const { snapshot, serverTime, leave, renew } = await this.parties.join(
-					message.partyId,
-					person,
-					(outgoing) => {
-						connection.queue = (connection.queue ?? Promise.resolve()).then(() => this.deliver(ws, connection, outgoing)).catch(() => undefined);
-					},
-				);
+				const { snapshot, serverTime, leave, renew } = await this.parties.join(message.partyId, person, (outgoing) => {
+					connection.queue = (connection.queue ?? Promise.resolve()).then(() => this.deliver(ws, connection, outgoing)).catch(() => undefined);
+				});
 				if (!(await this.canView(connection.token ?? "", snapshot.item.id))) {
 					await leave();
 					throw new Forbidden("This media is restricted for your account.");
@@ -226,14 +222,7 @@ export class PartySocketServer {
 			return;
 		}
 		connection.signals.push(now);
-		if (
-			typeof callId !== "string" ||
-			!/^[\w-]{1,64}$/.test(callId) ||
-			typeof payload !== "string" ||
-			payload.length === 0 ||
-			payload.length > MAX_SIGNAL_PAYLOAD_CHARS ||
-			(to !== undefined && typeof to !== "string")
-		) {
+		if (typeof callId !== "string" || !/^[\w-]{1,64}$/.test(callId) || typeof payload !== "string" || payload.length === 0 || payload.length > MAX_SIGNAL_PAYLOAD_CHARS || (to !== undefined && typeof to !== "string")) {
 			this.send(ws, { type: "error", status: 400, message: "Invalid call signal." });
 			return;
 		}
@@ -336,14 +325,14 @@ function isPartyAction(value: unknown): value is "play" | "pause" | "seek" | "ch
 }
 
 function parseMessage(raw: RawData): ClientMessage | null {
+
 	try {
 		const message = JSON.parse(raw.toString()) as Partial<ClientMessage>;
-		return typeof message === "object" && message !== null && typeof message.type === "string"
-			? (message as ClientMessage)
-			: null;
+		return typeof message === "object" && message !== null && typeof message.type === "string" ? (message as ClientMessage) : null;
 	} catch {
 		return null;
 	}
+
 }
 
 export function personFrom(user: Awaited<ReturnType<AuthService["getAuthenticatedUser"]>>): PartyPerson {

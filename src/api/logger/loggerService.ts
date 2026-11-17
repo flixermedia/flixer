@@ -30,17 +30,19 @@ const localRenewalKeys: ConfigName[] = ["loggerLocalRenewalToken", "loggerLocalR
 type ProducerConfiguration = { endpoint: string; token: string; expiresAt: string };
 
 function validSeverityRetention(value: unknown): value is Record<string, number> {
+
 	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
 	for (const [level, days] of Object.entries(value)) {
-		if (!["trace", "debug", "info", "warn", "error", "fatal"].includes(level) ||
-			typeof days !== "number" || !Number.isInteger(days) || days < 1 || days > 3650) {
+		if (!["trace", "debug", "info", "warn", "error", "fatal"].includes(level) || typeof days !== "number" || !Number.isInteger(days) || days < 1 || days > 3650) {
 			return false;
 		}
 	}
 	return true;
+
 }
 
 function loggerOrigin(input: string): string {
+
 	let url: URL;
 	try {
 		url = new URL(input);
@@ -49,16 +51,15 @@ function loggerOrigin(input: string): string {
 	}
 	const host = url.hostname.replace(/^\[|\]$/g, "");
 	const loopback = isIP(host) !== 0 && (host === "::1" || host.startsWith("127."));
-	if (
-		(url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
-		url.username || url.password || url.pathname !== "/" || url.search || url.hash
-	) {
+	if ((url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
 		throw new BadRequest("The logger endpoint must be an HTTPS origin (HTTP is allowed only on loopback).");
 	}
 	return url.origin;
+
 }
 
 function localOwnerToken(path: string): string {
+
 	if (!isAbsolute(path)) throw new Error("Logger owner file path must be absolute.");
 	const directory = lstatSync(dirname(path));
 	if (!directory.isDirectory() || directory.uid !== process.geteuid?.() || (directory.mode & 0o077) !== 0) {
@@ -84,23 +85,21 @@ function localOwnerToken(path: string): string {
 	} finally {
 		closeSync(fd);
 	}
+
 }
 
 function localManagementCredential(payload: unknown, expiresAt: string): { token: string; expiry: string } {
-	if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" ||
-		!/^[A-Za-z0-9_-]{43}$/.test(payload.token) || !("credential" in payload) || !payload.credential ||
-		typeof payload.credential !== "object" || !("scope" in payload.credential) || payload.credential.scope !== "manage" ||
-		!("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" ||
-		Date.parse(payload.credential.expires_at) !== Date.parse(expiresAt)) {
+
+	if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(payload.token) || !("credential" in payload) || !payload.credential || typeof payload.credential !== "object" || !("scope" in payload.credential) || payload.credential.scope !== "manage" || !("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" || Date.parse(payload.credential.expires_at) !== Date.parse(expiresAt)) {
 		throw new Exception(502, "The logger returned invalid bootstrap information.");
 	}
 	return { token: payload.token, expiry: payload.credential.expires_at };
+
 }
 
 function retentionPolicy(value: unknown): RetentionPolicy {
-	if (!value || typeof value !== "object" || !("enabled" in value) || !("days" in value) ||
-		typeof value.enabled !== "boolean" || typeof value.days !== "number" || !Number.isInteger(value.days) ||
-		value.days < 0 || value.days > 3650 || (value.enabled && value.days === 0)) {
+
+	if (!value || typeof value !== "object" || !("enabled" in value) || !("days" in value) || typeof value.enabled !== "boolean" || typeof value.days !== "number" || !Number.isInteger(value.days) || value.days < 0 || value.days > 3650 || (value.enabled && value.days === 0)) {
 		throw new Exception(502, "The logger returned an invalid retention policy.");
 	}
 	const severityDays = "severity_days" in value ? value.severity_days : undefined;
@@ -108,42 +107,39 @@ function retentionPolicy(value: unknown): RetentionPolicy {
 		throw new Exception(502, "The logger returned an invalid retention policy.");
 	}
 	return { enabled: value.enabled, days: value.days, ...(severityDays && Object.keys(severityDays).length ? { severityDays } : {}) };
+
 }
 
 function ingestionPolicy(value: unknown): LoggerIngestionPolicyRequest {
-	if (!value || typeof value !== "object" || !("events_per_second" in value) ||
-		typeof value.events_per_second !== "number" || !Number.isInteger(value.events_per_second) ||
-		value.events_per_second < 1 || value.events_per_second > 100_000 || !("burst" in value) ||
-		typeof value.burst !== "number" || !Number.isInteger(value.burst) || value.burst < 1_000 || value.burst > 1_000_000) {
+
+	if (!value || typeof value !== "object" || !("events_per_second" in value) || typeof value.events_per_second !== "number" || !Number.isInteger(value.events_per_second) || value.events_per_second < 1 || value.events_per_second > 100_000 || !("burst" in value) || typeof value.burst !== "number" || !Number.isInteger(value.burst) || value.burst < 1_000 || value.burst > 1_000_000) {
 		throw new Exception(502, "The logger returned an invalid ingestion policy.");
 	}
 	const optionalRate = (rate: unknown, burst: unknown) => {
 		if (rate === undefined && burst === undefined) return undefined;
-		if (typeof rate !== "number" || !Number.isInteger(rate) || rate < 1 || rate > 100_000 ||
-			typeof burst !== "number" || !Number.isInteger(burst) || burst < 1_000 || burst > 1_000_000) {
+		if (typeof rate !== "number" || !Number.isInteger(rate) || rate < 1 || rate > 100_000 || typeof burst !== "number" || !Number.isInteger(burst) || burst < 1_000 || burst > 1_000_000) {
 			throw new Exception(502, "The logger returned an invalid ingestion policy.");
 		}
 		return { rate, burst };
 	};
-	const credential = optionalRate("credential_events_per_second" in value ? value.credential_events_per_second : undefined,
-		"credential_burst" in value ? value.credential_burst : undefined);
-	const service = optionalRate("service_events_per_second" in value ? value.service_events_per_second : undefined,
-		"service_burst" in value ? value.service_burst : undefined);
+	const credential = optionalRate("credential_events_per_second" in value ? value.credential_events_per_second : undefined, "credential_burst" in value ? value.credential_burst : undefined);
+	const service = optionalRate("service_events_per_second" in value ? value.service_events_per_second : undefined, "service_burst" in value ? value.service_burst : undefined);
 	return {
 		eventsPerSecond: value.events_per_second,
 		burst: value.burst,
 		...(credential ? { credentialEventsPerSecond: credential.rate, credentialBurst: credential.burst } : {}),
 		...(service ? { serviceEventsPerSecond: service.rate, serviceBurst: service.burst } : {}),
 	};
+
 }
 
 function quotaPolicy(value: unknown): { maxBytes: number; usedBytes: number } {
-	if (!value || typeof value !== "object" || !("max_bytes" in value) || !("used_bytes" in value) ||
-		typeof value.max_bytes !== "number" || !Number.isSafeInteger(value.max_bytes) || value.max_bytes < 0 || value.max_bytes > 2 ** 50 ||
-		typeof value.used_bytes !== "number" || !Number.isSafeInteger(value.used_bytes) || value.used_bytes < 0) {
+
+	if (!value || typeof value !== "object" || !("max_bytes" in value) || !("used_bytes" in value) || typeof value.max_bytes !== "number" || !Number.isSafeInteger(value.max_bytes) || value.max_bytes < 0 || value.max_bytes > 2 ** 50 || typeof value.used_bytes !== "number" || !Number.isSafeInteger(value.used_bytes) || value.used_bytes < 0) {
 		throw new Exception(502, "The logger returned an invalid quota.");
 	}
 	return { maxBytes: value.max_bytes, usedBytes: value.used_bytes };
+
 }
 
 function nonnegativeNumber(value: unknown, maximum: number): value is number {
@@ -151,15 +147,16 @@ function nonnegativeNumber(value: unknown, maximum: number): value is number {
 }
 
 function capacityPolicy(value: unknown): LoggerCapacityPolicyRequest {
-	if (!value || typeof value !== "object" || !("max_database_bytes" in value) ||
-		!("min_free_bytes" in value) || !nonnegativeNumber(value.max_database_bytes, 2 ** 50) ||
-		!nonnegativeNumber(value.min_free_bytes, 2 ** 50)) {
+
+	if (!value || typeof value !== "object" || !("max_database_bytes" in value) || !("min_free_bytes" in value) || !nonnegativeNumber(value.max_database_bytes, 2 ** 50) || !nonnegativeNumber(value.min_free_bytes, 2 ** 50)) {
 		throw new Exception(502, "The logger returned an invalid capacity policy.");
 	}
 	return { maxDatabaseBytes: value.max_database_bytes, minFreeBytes: value.min_free_bytes };
+
 }
 
 function capacity(value: unknown) {
+
 	if (!value || typeof value !== "object") throw new Exception(502, "The logger returned invalid capacity.");
 	const numbers = ["filesystem_total_bytes", "filesystem_available_bytes", "database_bytes", "compaction_debt_bytes", "compactions_in_progress"] as const;
 	const result = {} as Record<(typeof numbers)[number], number>;
@@ -171,26 +168,26 @@ function capacity(value: unknown) {
 	}
 	if (result.filesystem_available_bytes > result.filesystem_total_bytes) throw new Exception(502, "The logger returned invalid capacity.");
 	return result;
+
 }
 
 function validPairingDeployment(deploymentId: unknown): deploymentId is string {
-	return typeof deploymentId === "string" && deploymentId.length > 0 && deploymentId.trim() === deploymentId &&
-		Buffer.byteLength(deploymentId) <= 128 && !/[\u0000-\u001f\u007f]/.test(deploymentId);
+	return typeof deploymentId === "string" && deploymentId.length > 0 && deploymentId.trim() === deploymentId && Buffer.byteLength(deploymentId) <= 128 && !/[\u0000-\u001f\u007f]/.test(deploymentId);
 }
 
 function pairingMetadata(value: unknown) {
-	if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "string" || !/^[0-9a-f]{32}$/.test(value.id) ||
-		!("expires_at" in value) || typeof value.expires_at !== "string" || !Number.isFinite(Date.parse(value.expires_at)) ||
-		!("management_expiry" in value) || typeof value.management_expiry !== "string" || !Number.isFinite(Date.parse(value.management_expiry)) ||
-		Date.parse(value.management_expiry) <= Date.parse(value.expires_at)) {
+
+	if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "string" || !/^[0-9a-f]{32}$/.test(value.id) || !("expires_at" in value) || typeof value.expires_at !== "string" || !Number.isFinite(Date.parse(value.expires_at)) || !("management_expiry" in value) || typeof value.management_expiry !== "string" || !Number.isFinite(Date.parse(value.management_expiry)) || Date.parse(value.management_expiry) <= Date.parse(value.expires_at)) {
 		throw new Exception(502, "The logger returned invalid pairing information.");
 	}
 	return { id: value.id, expiresAt: value.expires_at, managementExpiry: value.management_expiry };
+
 }
 
 /** Flixer control-plane operations; log data remains in flixer-logger. */
 @Injectable()
 export class LoggerService {
+
 	private pairingInProgress = false;
 	private producerRequests = new Map<LoggerProducer, Promise<ProducerConfiguration>>();
 	private producerRevocationGeneration = 0;
@@ -210,24 +207,21 @@ export class LoggerService {
 			const localEndpoint = process.env.FLIXER_LOGGER_LOCAL_ENDPOINT?.trim() || "http://127.0.0.1:8098";
 			try {
 				const url = new URL(loggerOrigin(localEndpoint));
-				if (ownerPath && endpoint === url.origin &&
-					(url.protocol === "https:" || (url.protocol === "http:" && url.hostname === "127.0.0.1"))) {
+				if (ownerPath && endpoint === url.origin && (url.protocol === "https:" || (url.protocol === "http:" && url.hostname === "127.0.0.1"))) {
 					managementRenewal = "automatic";
 				}
 			} catch {
 				// Invalid local bootstrap configuration cannot renew the credential.
 			}
 		}
-		return { configured: Boolean(endpoint && store.get("loggerManageToken")), endpoint: endpoint ?? null,
-			...(expiry && Number.isFinite(Date.parse(expiry)) ? { managementExpiresAt: expiry, managementRenewal } : {}) };
+		return { configured: Boolean(endpoint && store.get("loggerManageToken")), endpoint: endpoint ?? null, ...(expiry && Number.isFinite(Date.parse(expiry)) ? { managementExpiresAt: expiry, managementRenewal } : {}) };
 	}
 
 	async configure(request: LoggerConfigurationRequest, authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		if (this.pairingInProgress) throw new Exception(409, "Logger pairing is in progress.");
 		const endpoint = loggerOrigin(request.endpoint);
-		if (typeof request.manageToken !== "string" || request.manageToken.length < 32 || request.manageToken.length > 1024 ||
-			/[\r\n]/.test(request.manageToken)) {
+		if (typeof request.manageToken !== "string" || request.manageToken.length < 32 || request.manageToken.length > 1024 || /[\r\n]/.test(request.manageToken)) {
 			throw new BadRequest("The logger management credential is invalid.");
 		}
 		const store = appConfig().persistent;
@@ -239,20 +233,21 @@ export class LoggerService {
 		const previousPendingExpiry = store.get("loggerPendingPairingExpiry");
 		retentionPolicy(await this.request(endpoint, request.manageToken, "GET", "/api/logger/retention"));
 		const ingest = await this.issueCredential(endpoint, request.manageToken, "ingest", 364 * 86_400_000);
-		if (this.pairingInProgress || store.get("loggerUrl") !== previousEndpoint || store.get("loggerManageToken") !== previousToken ||
-			store.get("loggerPendingPairingUrl") !== previousPendingUrl || store.get("loggerPendingPairingToken") !== previousPendingToken ||
-			store.get("loggerPendingPairingExpiry") !== previousPendingExpiry) {
+		if (this.pairingInProgress || store.get("loggerUrl") !== previousEndpoint || store.get("loggerManageToken") !== previousToken || store.get("loggerPendingPairingUrl") !== previousPendingUrl || store.get("loggerPendingPairingToken") !== previousPendingToken || store.get("loggerPendingPairingExpiry") !== previousPendingExpiry) {
 			throw new Exception(409, "Logger configuration changed; retry registration.");
 		}
-		store.setMany({
-			loggerUrl: endpoint,
-			loggerManageToken: request.manageToken,
-			loggerManageExpiry: "",
-			loggerIngestToken: ingest.token,
-			loggerIngestExpiry: ingest.expiresAt,
-			loggerIngestApp: "flixer",
-			...(ingest.id ? { loggerIngestId: ingest.id } : {}),
-		}, ["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", "loggerLocalManaged", ...localRenewalKeys, ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])]);
+		store.setMany(
+			{
+				loggerUrl: endpoint,
+				loggerManageToken: request.manageToken,
+				loggerManageExpiry: "",
+				loggerIngestToken: ingest.token,
+				loggerIngestExpiry: ingest.expiresAt,
+				loggerIngestApp: "flixer",
+				...(ingest.id ? { loggerIngestId: ingest.id } : {}),
+			},
+			["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", "loggerLocalManaged", ...localRenewalKeys, ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])],
+		);
 		webLoggerExporter.configure();
 		loggerExporter.configure({ endpoint, ...ingest });
 		return { configured: true, endpoint };
@@ -269,8 +264,7 @@ export class LoggerService {
 	async pair(request: LoggerPairingRequest, authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		const endpoint = loggerOrigin(request.endpoint);
-		if (!validPairingDeployment(request.deploymentId) ||
-			typeof request.pairingToken !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(request.pairingToken)) {
+		if (!validPairingDeployment(request.deploymentId) || typeof request.pairingToken !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(request.pairingToken)) {
 			throw new BadRequest("Invalid logger pairing request.");
 		}
 		const store = appConfig().persistent;
@@ -281,12 +275,7 @@ export class LoggerService {
 		this.pairingInProgress = true;
 		try {
 			const payload = await this.request(endpoint, undefined, "POST", "/api/logger/pairings/redeem", { token: request.pairingToken });
-			if (!payload || typeof payload !== "object" || !("deployment_id" in payload) || payload.deployment_id !== request.deploymentId ||
-				!("token" in payload) || typeof payload.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(payload.token) ||
-				!("credential" in payload) || !payload.credential || typeof payload.credential !== "object" ||
-				!("scope" in payload.credential) || payload.credential.scope !== "manage" ||
-				!("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" ||
-				!Number.isFinite(Date.parse(payload.credential.expires_at)) || Date.parse(payload.credential.expires_at) <= Date.now()) {
+			if (!payload || typeof payload !== "object" || !("deployment_id" in payload) || payload.deployment_id !== request.deploymentId || !("token" in payload) || typeof payload.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(payload.token) || !("credential" in payload) || !payload.credential || typeof payload.credential !== "object" || !("scope" in payload.credential) || payload.credential.scope !== "manage" || !("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" || !Number.isFinite(Date.parse(payload.credential.expires_at)) || Date.parse(payload.credential.expires_at) <= Date.now()) {
 				throw new Exception(502, "The logger returned invalid pairing information.");
 			}
 			store.setMany({ loggerPendingPairingUrl: endpoint, loggerPendingPairingToken: payload.token, loggerPendingPairingExpiry: payload.credential.expires_at });
@@ -333,18 +322,22 @@ export class LoggerService {
 		const locallyManaged = store.get("loggerLocalPending") === "true";
 		retentionPolicy(await this.request(endpoint, token, "GET", "/api/logger/retention"));
 		const ingest = await this.issueCredential(endpoint, token, "ingest", 364 * 86_400_000);
-		if (store.get("loggerPendingPairingUrl") !== endpoint || store.get("loggerPendingPairingToken") !== token ||
-			store.get("loggerPendingPairingExpiry") !== expiry ||
-			store.get("loggerUrl") !== previousEndpoint || store.get("loggerManageToken") !== previousToken ||
-			(store.get("loggerLocalPending") === "true") !== locallyManaged) {
+		if (store.get("loggerPendingPairingUrl") !== endpoint || store.get("loggerPendingPairingToken") !== token || store.get("loggerPendingPairingExpiry") !== expiry || store.get("loggerUrl") !== previousEndpoint || store.get("loggerManageToken") !== previousToken || (store.get("loggerLocalPending") === "true") !== locallyManaged) {
 			throw new Exception(409, "Logger configuration changed; retry pairing.");
 		}
-		store.setMany({
-			loggerUrl: endpoint, loggerManageToken: token, loggerManageExpiry: expiry, loggerIngestToken: ingest.token, loggerIngestExpiry: ingest.expiresAt,
-			loggerIngestApp: "flixer",
-			...(locallyManaged ? { loggerLocalManaged: "true" } : {}),
-			...(ingest.id ? { loggerIngestId: ingest.id } : {}),
-		}, ["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", ...localRenewalKeys, ...(!locallyManaged ? ["loggerLocalManaged" as const] : []), ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])]);
+		store.setMany(
+			{
+				loggerUrl: endpoint,
+				loggerManageToken: token,
+				loggerManageExpiry: expiry,
+				loggerIngestToken: ingest.token,
+				loggerIngestExpiry: ingest.expiresAt,
+				loggerIngestApp: "flixer",
+				...(locallyManaged ? { loggerLocalManaged: "true" } : {}),
+				...(ingest.id ? { loggerIngestId: ingest.id } : {}),
+			},
+			["loggerOwnerUrl", "loggerOwnerToken", "loggerPendingPairingUrl", "loggerPendingPairingToken", "loggerPendingPairingExpiry", "loggerLocalPending", ...localRenewalKeys, ...(!locallyManaged ? ["loggerLocalManaged" as const] : []), ...producerCredentialKeys, ...(ingest.id ? [] : ["loggerIngestId" as const])],
+		);
 		webLoggerExporter.configure();
 		loggerExporter.configure({ endpoint, ...ingest });
 		return { configured: true, endpoint, managementExpiresAt: expiry, ...(!locallyManaged ? { managementRenewal: "manual" as const } : {}) };
@@ -372,8 +365,7 @@ export class LoggerService {
 			const pendingExpiry = store.get("loggerPendingPairingExpiry");
 			if (pending) {
 				if (store.get("loggerLocalPending") !== "true" || pending !== url.origin) return true;
-				if (!pendingToken || !/^[A-Za-z0-9_-]{43}$/.test(pendingToken) || !pendingExpiry ||
-					!Number.isFinite(Date.parse(pendingExpiry)) || !validPairingDeployment(store.get("loggerLocalDeploymentId"))) {
+				if (!pendingToken || !/^[A-Za-z0-9_-]{43}$/.test(pendingToken) || !pendingExpiry || !Number.isFinite(Date.parse(pendingExpiry)) || !validPairingDeployment(store.get("loggerLocalDeploymentId"))) {
 					throw new Error("Local logger bootstrap credential is invalid; manual recovery is required.");
 				}
 				if (Date.parse(pendingExpiry) > Date.now()) {
@@ -390,20 +382,18 @@ export class LoggerService {
 			}
 			if (!validPairingDeployment(deploymentId)) throw new Error("Invalid local logger deployment ID.");
 			const expiresAt = new Date(Date.now() + 364 * 86_400_000).toISOString();
-			const credential = localManagementCredential(await this.request(url.origin, owner, "POST", "/api/owner/credentials", {
-				deployment_id: deploymentId, expires_at: expiresAt,
-			}), expiresAt);
+			const credential = localManagementCredential(
+				await this.request(url.origin, owner, "POST", "/api/owner/credentials", {
+					deployment_id: deploymentId,
+					expires_at: expiresAt,
+				}),
+				expiresAt,
+			);
 			if (stopped()) return false;
-			if (store.get("loggerUrl") || store.get("loggerManageToken") ||
-				store.get("loggerLocalDeploymentId") !== deploymentId ||
-				store.get("loggerPendingPairingUrl") !== pending ||
-				store.get("loggerPendingPairingToken") !== pendingToken ||
-				store.get("loggerPendingPairingExpiry") !== pendingExpiry ||
-				(pending && store.get("loggerLocalPending") !== "true")) {
+			if (store.get("loggerUrl") || store.get("loggerManageToken") || store.get("loggerLocalDeploymentId") !== deploymentId || store.get("loggerPendingPairingUrl") !== pending || store.get("loggerPendingPairingToken") !== pendingToken || store.get("loggerPendingPairingExpiry") !== pendingExpiry || (pending && store.get("loggerLocalPending") !== "true")) {
 				throw new Exception(409, "Logger configuration changed during local bootstrap.");
 			}
-			store.setMany({ loggerPendingPairingUrl: url.origin, loggerPendingPairingToken: credential.token,
-				loggerPendingPairingExpiry: credential.expiry, loggerLocalPending: "true" });
+			store.setMany({ loggerPendingPairingUrl: url.origin, loggerPendingPairingToken: credential.token, loggerPendingPairingExpiry: credential.expiry, loggerLocalPending: "true" });
 			await this.finishPairing(url.origin, credential.token, credential.expiry);
 			return true;
 		} finally {
@@ -423,13 +413,14 @@ export class LoggerService {
 		if (Date.parse(expiry) > Date.now() + 30 * 86_400_000 || this.pairingInProgress) return;
 		this.pairingInProgress = true;
 		try {
-			const binding = createHash("sha256").update(JSON.stringify([endpoint, deploymentId, token, expiry])).digest("hex");
+			const binding = createHash("sha256")
+				.update(JSON.stringify([endpoint, deploymentId, token, expiry]))
+				.digest("hex");
 			const pendingToken = store.get("loggerLocalRenewalToken");
 			const pendingExpiry = store.get("loggerLocalRenewalExpiry");
 			const pendingBinding = store.get("loggerLocalRenewalBinding");
 			const hasPending = Boolean(pendingToken || pendingExpiry || pendingBinding);
-			if (hasPending && (!pendingToken || !/^[A-Za-z0-9_-]{43}$/.test(pendingToken) || !pendingExpiry ||
-				!Number.isFinite(Date.parse(pendingExpiry)) || pendingBinding !== binding)) {
+			if (hasPending && (!pendingToken || !/^[A-Za-z0-9_-]{43}$/.test(pendingToken) || !pendingExpiry || !Number.isFinite(Date.parse(pendingExpiry)) || pendingBinding !== binding)) {
 				throw new Error("Pending local logger renewal is invalid; manual recovery is required.");
 			}
 			let credential: { token: string; expiry: string };
@@ -438,26 +429,22 @@ export class LoggerService {
 			} else {
 				const owner = localOwnerToken(ownerPath);
 				const expiresAt = new Date(Date.now() + 364 * 86_400_000).toISOString();
-				credential = localManagementCredential(await this.request(endpoint, owner, "POST", "/api/owner/credentials", {
-					deployment_id: deploymentId, expires_at: expiresAt,
-				}), expiresAt);
+				credential = localManagementCredential(
+					await this.request(endpoint, owner, "POST", "/api/owner/credentials", {
+						deployment_id: deploymentId,
+						expires_at: expiresAt,
+					}),
+					expiresAt,
+				);
 				if (stopped()) return;
-				if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token ||
-					store.get("loggerManageExpiry") !== expiry || store.get("loggerLocalManaged") !== "true" ||
-					store.get("loggerLocalDeploymentId") !== deploymentId || store.get("loggerPendingPairingUrl") ||
-					store.get("loggerLocalRenewalToken") !== pendingToken || store.get("loggerLocalRenewalExpiry") !== pendingExpiry ||
-					store.get("loggerLocalRenewalBinding") !== pendingBinding) {
+				if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token || store.get("loggerManageExpiry") !== expiry || store.get("loggerLocalManaged") !== "true" || store.get("loggerLocalDeploymentId") !== deploymentId || store.get("loggerPendingPairingUrl") || store.get("loggerLocalRenewalToken") !== pendingToken || store.get("loggerLocalRenewalExpiry") !== pendingExpiry || store.get("loggerLocalRenewalBinding") !== pendingBinding) {
 					throw new Exception(409, "Logger configuration changed during local renewal.");
 				}
 				store.setMany({ loggerLocalRenewalToken: credential.token, loggerLocalRenewalExpiry: credential.expiry, loggerLocalRenewalBinding: binding });
 			}
 			retentionPolicy(await this.request(endpoint, credential.token, "GET", "/api/logger/retention"));
 			if (stopped()) return;
-			if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token ||
-				store.get("loggerManageExpiry") !== expiry || store.get("loggerLocalManaged") !== "true" ||
-				store.get("loggerLocalDeploymentId") !== deploymentId || store.get("loggerPendingPairingUrl") ||
-				store.get("loggerLocalRenewalToken") !== credential.token || store.get("loggerLocalRenewalExpiry") !== credential.expiry ||
-				store.get("loggerLocalRenewalBinding") !== binding) {
+			if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token || store.get("loggerManageExpiry") !== expiry || store.get("loggerLocalManaged") !== "true" || store.get("loggerLocalDeploymentId") !== deploymentId || store.get("loggerPendingPairingUrl") || store.get("loggerLocalRenewalToken") !== credential.token || store.get("loggerLocalRenewalExpiry") !== credential.expiry || store.get("loggerLocalRenewalBinding") !== binding) {
 				throw new Exception(409, "Logger configuration changed during local renewal.");
 			}
 			store.setMany({ loggerManageToken: credential.token, loggerManageExpiry: credential.expiry }, localRenewalKeys);
@@ -476,8 +463,7 @@ export class LoggerService {
 
 	async configureOwner(request: LoggerOwnerConfigurationRequest, authorization?: string) {
 		await this.auth.requireAdmin(authorization);
-		if (typeof request.ownerToken !== "string" || request.ownerToken.length < 32 || request.ownerToken.length > 1024 ||
-			/[\r\n]/.test(request.ownerToken)) throw new BadRequest("The logger owner credential is invalid.");
+		if (typeof request.ownerToken !== "string" || request.ownerToken.length < 32 || request.ownerToken.length > 1024 || /[\r\n]/.test(request.ownerToken)) throw new BadRequest("The logger owner credential is invalid.");
 		const store = appConfig().persistent;
 		if (!store) throw new Exception(503, "The Flixer configuration store is unavailable.");
 		const { endpoint, token: manageToken } = this.credentials();
@@ -507,15 +493,17 @@ export class LoggerService {
 			throw new BadRequest("Capacity thresholds must be whole numbers between 0 and 1125899906842624 bytes.");
 		}
 		const { endpoint, token } = this.ownerCredentials();
-		return capacityPolicy(await this.request(endpoint, token, "PUT", "/api/owner/capacity-policy", {
-			max_database_bytes: request.maxDatabaseBytes, min_free_bytes: request.minFreeBytes,
-		}));
+		return capacityPolicy(
+			await this.request(endpoint, token, "PUT", "/api/owner/capacity-policy", {
+				max_database_bytes: request.maxDatabaseBytes,
+				min_free_bytes: request.minFreeBytes,
+			}),
+		);
 	}
 
 	async createOwnerPairing(request: LoggerOwnerPairingRequest, authorization?: string) {
 		await this.auth.requireAdmin(authorization);
-		if (!validPairingDeployment(request.deploymentId) || !Number.isInteger(request.minutes) || request.minutes < 1 || request.minutes > 15 ||
-			!Number.isInteger(request.managementDays) || request.managementDays < 1 || request.managementDays > 364) {
+		if (!validPairingDeployment(request.deploymentId) || !Number.isInteger(request.minutes) || request.minutes < 1 || request.minutes > 15 || !Number.isInteger(request.managementDays) || request.managementDays < 1 || request.managementDays > 364) {
 			throw new BadRequest("Invalid logger pairing settings.");
 		}
 		const { endpoint, token } = this.ownerCredentials();
@@ -523,10 +511,11 @@ export class LoggerService {
 		const expiresAt = new Date(now + request.minutes * 60_000).toISOString();
 		const managementExpiry = new Date(now + request.managementDays * 86_400_000).toISOString();
 		const payload = await this.request(endpoint, token, "POST", "/api/owner/pairings", {
-			deployment_id: request.deploymentId, expires_at: expiresAt, management_expiry: managementExpiry,
+			deployment_id: request.deploymentId,
+			expires_at: expiresAt,
+			management_expiry: managementExpiry,
 		});
-		if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" ||
-			!/^[A-Za-z0-9_-]{43}$/.test(payload.token) || !("pairing" in payload)) {
+		if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(payload.token) || !("pairing" in payload)) {
 			throw new Exception(502, "The logger returned invalid pairing information.");
 		}
 		const pairing = pairingMetadata(payload.pairing);
@@ -563,16 +552,11 @@ export class LoggerService {
 		const { endpoint, token } = this.ownerCredentials();
 		const query = new URLSearchParams({ deployment_id: deploymentId });
 		const payload = await this.request(endpoint, token, "GET", `/api/owner/credentials?${query}`);
-		if (!payload || typeof payload !== "object" || !("credentials" in payload) ||
-			!Array.isArray(payload.credentials) || payload.credentials.length > 100) {
+		if (!payload || typeof payload !== "object" || !("credentials" in payload) || !Array.isArray(payload.credentials) || payload.credentials.length > 100) {
 			throw new Exception(502, "The logger returned invalid credentials.");
 		}
 		return payload.credentials.map((credential: unknown) => {
-			if (!credential || typeof credential !== "object" || !("id" in credential) ||
-				typeof credential.id !== "string" || !/^[0-9a-f]{32}$/.test(credential.id) ||
-				!("scope" in credential) || credential.scope !== "manage" ||
-				!("expires_at" in credential) || typeof credential.expires_at !== "string" ||
-				!Number.isFinite(Date.parse(credential.expires_at))) {
+			if (!credential || typeof credential !== "object" || !("id" in credential) || typeof credential.id !== "string" || !/^[0-9a-f]{32}$/.test(credential.id) || !("scope" in credential) || credential.scope !== "manage" || !("expires_at" in credential) || typeof credential.expires_at !== "string" || !Number.isFinite(Date.parse(credential.expires_at))) {
 				throw new Exception(502, "The logger returned invalid credentials.");
 			}
 			return { id: credential.id, expiresAt: credential.expires_at };
@@ -605,20 +589,16 @@ export class LoggerService {
 		const token = store.get("loggerManageToken");
 		if (!endpoint || !token) return;
 		const expiry = Date.parse(store.get("loggerIngestExpiry") ?? "");
-		if (store.get("loggerIngestToken") && store.get("loggerIngestApp") === "flixer" &&
-			Number.isFinite(expiry) && expiry > Date.now() + 7 * 86_400_000) return;
+		if (store.get("loggerIngestToken") && store.get("loggerIngestApp") === "flixer" && Number.isFinite(expiry) && expiry > Date.now() + 7 * 86_400_000) return;
 		const previousToken = store.get("loggerIngestToken");
 		const previousExpiry = store.get("loggerIngestExpiry");
 		const previousId = store.get("loggerIngestId");
 		const generation = this.producerRevocationGeneration;
 		const ingest = await this.issueCredential(loggerOrigin(endpoint), token, "ingest", 364 * 86_400_000);
-		if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token ||
-			store.get("loggerIngestToken") !== previousToken || store.get("loggerIngestExpiry") !== previousExpiry ||
-			store.get("loggerIngestId") !== previousId || generation !== this.producerRevocationGeneration) {
+		if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== token || store.get("loggerIngestToken") !== previousToken || store.get("loggerIngestExpiry") !== previousExpiry || store.get("loggerIngestId") !== previousId || generation !== this.producerRevocationGeneration) {
 			throw new Error("Logger configuration changed while renewing the ingestion credential.");
 		}
-		store.setMany({ loggerIngestToken: ingest.token, loggerIngestExpiry: ingest.expiresAt, loggerIngestApp: "flixer",
-			...(ingest.id ? { loggerIngestId: ingest.id } : {}) }, ingest.id ? [] : ["loggerIngestId"]);
+		store.setMany({ loggerIngestToken: ingest.token, loggerIngestExpiry: ingest.expiresAt, loggerIngestApp: "flixer", ...(ingest.id ? { loggerIngestId: ingest.id } : {}) }, ingest.id ? [] : ["loggerIngestId"]);
 		loggerExporter.renewCredential({ endpoint, ...ingest });
 	}
 
@@ -648,9 +628,7 @@ export class LoggerService {
 		await this.auth.requireAdmin(authorization);
 		const { endpoint, token } = this.credentials();
 		const payload = await this.request(endpoint, token, "GET", "/api/status");
-		if (!payload || typeof payload !== "object" || !("status" in payload) || payload.status !== "ready" ||
-			!("last_ingested_at" in payload) ||
-			(payload.last_ingested_at !== null && (typeof payload.last_ingested_at !== "string" || !Number.isFinite(Date.parse(payload.last_ingested_at))))) {
+		if (!payload || typeof payload !== "object" || !("status" in payload) || payload.status !== "ready" || !("last_ingested_at" in payload) || (payload.last_ingested_at !== null && (typeof payload.last_ingested_at !== "string" || !Number.isFinite(Date.parse(payload.last_ingested_at))))) {
 			throw new Exception(502, "The logger returned an invalid status.");
 		}
 		const count = (key: string): number => {
@@ -662,11 +640,7 @@ export class LoggerService {
 		let retention: { completed_at: string; deleted: number; batch_full: boolean; failed: boolean } | null = null;
 		if ("retention" in payload && payload.retention !== null) {
 			const value = payload.retention;
-			if (!value || typeof value !== "object" || !("completed_at" in value) ||
-				typeof value.completed_at !== "string" || !Number.isFinite(Date.parse(value.completed_at)) ||
-				!("deleted" in value) || typeof value.deleted !== "number" || !Number.isSafeInteger(value.deleted) ||
-				value.deleted < 0 || !("batch_full" in value) || typeof value.batch_full !== "boolean" ||
-				!("failed" in value) || typeof value.failed !== "boolean") {
+			if (!value || typeof value !== "object" || !("completed_at" in value) || typeof value.completed_at !== "string" || !Number.isFinite(Date.parse(value.completed_at)) || !("deleted" in value) || typeof value.deleted !== "number" || !Number.isSafeInteger(value.deleted) || value.deleted < 0 || !("batch_full" in value) || typeof value.batch_full !== "boolean" || !("failed" in value) || typeof value.failed !== "boolean") {
 				throw new Exception(502, "The logger returned an invalid retention status.");
 			}
 			retention = { completed_at: value.completed_at, deleted: value.deleted, batch_full: value.batch_full, failed: value.failed };
@@ -693,9 +667,13 @@ export class LoggerService {
 			throw new BadRequest("Severity retention must contain known levels with between 1 and 3650 days.");
 		}
 		const { endpoint, token } = this.credentials();
-		return retentionPolicy(await this.request(endpoint, token, "PUT", "/api/logger/retention", {
-			enabled: request.enabled, days: request.days, ...(severityDays ? { severity_days: severityDays } : {}),
-		}));
+		return retentionPolicy(
+			await this.request(endpoint, token, "PUT", "/api/logger/retention", {
+				enabled: request.enabled,
+				days: request.days,
+				...(severityDays ? { severity_days: severityDays } : {}),
+			}),
+		);
 	}
 
 	async getIngestionPolicy(authorization?: string) {
@@ -706,31 +684,33 @@ export class LoggerService {
 
 	async setIngestionPolicy(request: LoggerIngestionPolicyRequest, authorization?: string) {
 		await this.auth.requireAdmin(authorization);
-		if (!Number.isInteger(request.eventsPerSecond) || request.eventsPerSecond < 1 || request.eventsPerSecond > 100_000 ||
-			!Number.isInteger(request.burst) || request.burst < 1_000 || request.burst > 1_000_000) {
+		if (!Number.isInteger(request.eventsPerSecond) || request.eventsPerSecond < 1 || request.eventsPerSecond > 100_000 || !Number.isInteger(request.burst) || request.burst < 1_000 || request.burst > 1_000_000) {
 			throw new BadRequest("Invalid logger ingestion rate or burst.");
 		}
 		const { credentialEventsPerSecond, credentialBurst, serviceEventsPerSecond, serviceBurst } = request;
-		const validOptionalRate = (rate: number | undefined, burst: number | undefined) =>
-			(rate === undefined && burst === undefined) ||
-			(typeof rate === "number" && Number.isInteger(rate) && rate >= 1 && rate <= 100_000 &&
-				typeof burst === "number" && Number.isInteger(burst) && burst >= 1_000 && burst <= 1_000_000);
+		const validOptionalRate = (rate: number | undefined, burst: number | undefined) => (rate === undefined && burst === undefined) || (typeof rate === "number" && Number.isInteger(rate) && rate >= 1 && rate <= 100_000 && typeof burst === "number" && Number.isInteger(burst) && burst >= 1_000 && burst <= 1_000_000);
 		if (!validOptionalRate(credentialEventsPerSecond, credentialBurst) || !validOptionalRate(serviceEventsPerSecond, serviceBurst)) {
 			throw new BadRequest("Invalid logger credential or service ingestion rate or burst.");
 		}
 		const { endpoint, token } = this.credentials();
-		return ingestionPolicy(await this.request(endpoint, token, "PUT", "/api/logger/ingestion-policy", {
-			events_per_second: request.eventsPerSecond,
-			burst: request.burst,
-			...(credentialEventsPerSecond === undefined ? {} : {
-				credential_events_per_second: credentialEventsPerSecond,
-				credential_burst: credentialBurst,
+		return ingestionPolicy(
+			await this.request(endpoint, token, "PUT", "/api/logger/ingestion-policy", {
+				events_per_second: request.eventsPerSecond,
+				burst: request.burst,
+				...(credentialEventsPerSecond === undefined
+					? {}
+					: {
+							credential_events_per_second: credentialEventsPerSecond,
+							credential_burst: credentialBurst,
+						}),
+				...(serviceEventsPerSecond === undefined
+					? {}
+					: {
+							service_events_per_second: serviceEventsPerSecond,
+							service_burst: serviceBurst,
+						}),
 			}),
-			...(serviceEventsPerSecond === undefined ? {} : {
-				service_events_per_second: serviceEventsPerSecond,
-				service_burst: serviceBurst,
-			}),
-		}));
+		);
 	}
 
 	async getQuota(authorization?: string) {
@@ -752,8 +732,7 @@ export class LoggerService {
 		await this.auth.requireAdmin(authorization);
 		const { endpoint, token } = this.credentials();
 		const payload = await this.request(endpoint, token, "POST", "/api/logs/clear");
-		if (!payload || typeof payload !== "object" || !("cleared" in payload) ||
-			typeof payload.cleared !== "number" || !Number.isSafeInteger(payload.cleared) || payload.cleared < 0) {
+		if (!payload || typeof payload !== "object" || !("cleared" in payload) || typeof payload.cleared !== "number" || !Number.isSafeInteger(payload.cleared) || payload.cleared < 0) {
 			throw new Exception(502, "The logger returned an invalid log-clear response.");
 		}
 		return { cleared: payload.cleared };
@@ -762,23 +741,18 @@ export class LoggerService {
 	async issueQueryToken(authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		const { endpoint, token } = this.credentials();
-		return { endpoint, ...await this.issueCredential(endpoint, token, "query", 60_000) };
+		return { endpoint, ...(await this.issueCredential(endpoint, token, "query", 60_000)) };
 	}
 
 	async listCredentials(authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		const { endpoint, token } = this.credentials();
 		const payload = await this.request(endpoint, token, "GET", "/api/logger/credentials");
-		if (!payload || typeof payload !== "object" || !("credentials" in payload) ||
-			!Array.isArray(payload.credentials) || payload.credentials.length > 100) {
+		if (!payload || typeof payload !== "object" || !("credentials" in payload) || !Array.isArray(payload.credentials) || payload.credentials.length > 100) {
 			throw new Exception(502, "The logger returned invalid credentials.");
 		}
 		return payload.credentials.map((credential: unknown) => {
-			if (!credential || typeof credential !== "object" || !("id" in credential) ||
-				typeof credential.id !== "string" || !/^[0-9a-f]{32}$/.test(credential.id) ||
-				!("scope" in credential) || (credential.scope !== "ingest" && credential.scope !== "query") ||
-				!("expires_at" in credential) || typeof credential.expires_at !== "string" ||
-				!Number.isFinite(Date.parse(credential.expires_at))) {
+			if (!credential || typeof credential !== "object" || !("id" in credential) || typeof credential.id !== "string" || !/^[0-9a-f]{32}$/.test(credential.id) || !("scope" in credential) || (credential.scope !== "ingest" && credential.scope !== "query") || !("expires_at" in credential) || typeof credential.expires_at !== "string" || !Number.isFinite(Date.parse(credential.expires_at))) {
 				throw new Exception(502, "The logger returned invalid credentials.");
 			}
 			const app = "app" in credential ? credential.app : undefined;
@@ -818,11 +792,14 @@ export class LoggerService {
 			request = this.loadProducerIngestConfiguration(app);
 			this.producerRequests.set(app, request);
 			const pending = request;
-			void request.then(() => {
-				if (this.producerRequests.get(app) === pending) this.producerRequests.delete(app);
-			}, () => {
-				if (this.producerRequests.get(app) === pending) this.producerRequests.delete(app);
-			});
+			void request.then(
+				() => {
+					if (this.producerRequests.get(app) === pending) this.producerRequests.delete(app);
+				},
+				() => {
+					if (this.producerRequests.get(app) === pending) this.producerRequests.delete(app);
+				},
+			);
 		}
 		return request;
 	}
@@ -840,27 +817,21 @@ export class LoggerService {
 		}
 		const generation = this.producerRevocationGeneration;
 		const issued = await this.issueCredential(endpoint, management, "ingest", 364 * 86_400_000, app);
-		if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== management ||
-			store.get(tokenKey) !== existing || store.get(expiryKey) !== expiry || store.get(idKey) !== id ||
-			generation !== this.producerRevocationGeneration) {
+		if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== management || store.get(tokenKey) !== existing || store.get(expiryKey) !== expiry || store.get(idKey) !== id || generation !== this.producerRevocationGeneration) {
 			throw new Exception(409, "Logger configuration changed during producer enrollment.");
 		}
-		store.setMany({ [tokenKey]: issued.token, [expiryKey]: issued.expiresAt, ...(issued.id ? { [idKey]: issued.id } : {}) },
-			issued.id ? [] : [idKey]);
+		store.setMany({ [tokenKey]: issued.token, [expiryKey]: issued.expiresAt, ...(issued.id ? { [idKey]: issued.id } : {}) }, issued.id ? [] : [idKey]);
 		return { endpoint, token: issued.token, expiresAt: issued.expiresAt };
 	}
 
 	private async issueCredential(endpoint: string, token: string, scope: "query" | "ingest", lifetime: number, app = "flixer") {
 		const expiresAt = new Date(Date.now() + lifetime).toISOString();
 		const payload = await this.request(endpoint, token, "POST", "/api/logger/credentials", {
-			scope, expires_at: expiresAt, ...(scope === "ingest" ? { app } : {}),
+			scope,
+			expires_at: expiresAt,
+			...(scope === "ingest" ? { app } : {}),
 		});
-		if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" ||
-			payload.token.length < 32 || payload.token.length > 1024 || !("credential" in payload) ||
-			!payload.credential || typeof payload.credential !== "object" ||
-			!("scope" in payload.credential) || payload.credential.scope !== scope ||
-			!("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" ||
-			(scope === "ingest" && (!("app" in payload.credential) || payload.credential.app !== app))) {
+		if (!payload || typeof payload !== "object" || !("token" in payload) || typeof payload.token !== "string" || payload.token.length < 32 || payload.token.length > 1024 || !("credential" in payload) || !payload.credential || typeof payload.credential !== "object" || !("scope" in payload.credential) || payload.credential.scope !== scope || !("expires_at" in payload.credential) || typeof payload.credential.expires_at !== "string" || (scope === "ingest" && (!("app" in payload.credential) || payload.credential.app !== app))) {
 			throw new Exception(502, "The logger returned an invalid credential.");
 		}
 		const actualExpiry = Date.parse(payload.credential.expires_at);

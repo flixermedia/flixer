@@ -4,15 +4,12 @@ import { appConfig } from "../config/store/appConfig.js";
 import { CallService, derivedTurnSecret } from "./callService.js";
 
 function serviceWith(settings: Record<string, unknown>, members: string[] = []) {
+
 	const dataSource = {
-		query: async (sql: string, params: string[]) =>
-			sql.includes("chat_members")
-				? members.map((user_id) => ({ user_id }))
-				: params[0] in settings
-					? [{ value: settings[params[0]] }]
-					: [],
+		query: async (sql: string, params: string[]) => (sql.includes("chat_members") ? members.map((user_id) => ({ user_id })) : params[0] in settings ? [{ value: settings[params[0]] }] : []),
 	};
 	return new CallService(dataSource as never);
+
 }
 
 describe("CallService", () => {

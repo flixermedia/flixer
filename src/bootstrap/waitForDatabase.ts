@@ -10,16 +10,20 @@ let wakeUp: (() => void) | undefined;
 
 /** Skips the current wait; the setup steps call this right after saving a database connection. */
 export function retryDatabaseNow(): void {
+
 	wakeUp?.();
+
 }
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => {
 		const timer = setTimeout(done, ms);
 		function done() {
+
 			clearTimeout(timer);
 			wakeUp = undefined;
 			resolve();
+
 		}
 		wakeUp = done;
 	});
@@ -30,6 +34,7 @@ function sleep(ms: number): Promise<void> {
  * runtime state. It never changes a completed setup: an unreachable database just means "keep waiting".
  */
 export async function waitForDatabase(log: (message: string) => void, probe: (url: string | undefined) => Promise<DatabaseProbe> = probeDatabase): Promise<void> {
+
 	adoptEnvironmentInstall();
 	let delay = MIN_DELAY_MS;
 	let lastMessage = "";
@@ -39,8 +44,7 @@ export async function waitForDatabase(log: (message: string) => void, probe: (ur
 			adoptExistingUsers(result.hasUsers);
 			const config = appConfig();
 			const store = config.persistent;
-			if (store?.setupState() === "in_progress" && store.wizardProgress().flow === "quick" &&
-				!result.hasUsers && !config.get("redisUrl")) {
+			if (store?.setupState() === "in_progress" && store.wizardProgress().flow === "quick" && !result.hasUsers && !config.get("redisUrl")) {
 				store.setMany({ redisUrl: suggestedRedisUrl() });
 				log("Restored the bundled Redis setting for incomplete quick setup.");
 			}
@@ -55,4 +59,5 @@ export async function waitForDatabase(log: (message: string) => void, probe: (ur
 		await sleep(delay);
 		delay = Math.min(delay * 2, MAX_DELAY_MS);
 	}
+
 }

@@ -21,6 +21,7 @@ function isPortFree(port: number): Promise<boolean> {
  * using scripts/kill-port.mjs. Does nothing in production or when the script is not present.
  */
 export async function freePortIfBusy(port: number, log: (message: string) => void): Promise<void> {
+
 	if (process.env.NODE_ENV === "production" || !Number.isInteger(port) || (await isPortFree(port))) {
 		return;
 	}
@@ -42,4 +43,5 @@ export async function freePortIfBusy(port: number, log: (message: string) => voi
 		}
 		await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 	}
+
 }

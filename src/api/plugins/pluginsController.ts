@@ -8,22 +8,19 @@ import { Delete, Get, Post, Property, Put, Required, Returns, Security } from "@
 import { AuthService } from "../auth/authService.js";
 import { ExternalOAuthProfilesService } from "../auth/oauth/externalOAuthProfilesService.js";
 import { oauthCallbackUrl } from "../auth/oauth/externalOAuthProfiles.js";
-import {
-	type AddPluginRepositoryRequest,
-	type InstallPluginRequest,
-	PluginCatalogFilter,
-	PluginManagerService,
-} from "./pluginManagerService.js";
+import { type AddPluginRepositoryRequest, type InstallPluginRequest, PluginCatalogFilter, PluginManagerService } from "./pluginManagerService.js";
 import { MAX_LOCAL_PLUGIN_ARCHIVE_BYTES } from "./pluginManagerService.js";
 import { PluginSettingsService, type PluginSettingsUpdate } from "./pluginSettingsService.js";
 
 class LocalPluginImportRequest {
+
 	@Property()
 	@Required()
 	approvedPermissions!: string;
 }
 
 class OAuthProfileSettingsRequest {
+
 	@Property() @Required() authorizationUrl!: string;
 	@Property() @Required() tokenUrl!: string;
 	@Property() @Required() userInfoUrl!: string;
@@ -35,6 +32,7 @@ class OAuthProfileSettingsRequest {
 }
 
 class OAuthProfileRequest {
+
 	@Property() @Required() name!: string;
 	@Property() @Required() enabled!: boolean;
 	@Property() @Required() settings!: OAuthProfileSettingsRequest;
@@ -43,6 +41,7 @@ class OAuthProfileRequest {
 
 @Middleware({ priority: -100 })
 class RequirePluginAdmin {
+
 	constructor(private readonly authService: AuthService) {}
 	async use(@HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdminSession(authorization);
@@ -52,6 +51,7 @@ class RequirePluginAdmin {
 @Controller("/admin/plugins")
 @Security("BearerAuth")
 export class PluginsController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly plugins: PluginManagerService,
@@ -76,17 +76,18 @@ export class PluginsController {
 	@Post("/local-import")
 	@UseBefore(RequirePluginAdmin)
 	@MulterOptions({ limits: { fileSize: MAX_LOCAL_PLUGIN_ARCHIVE_BYTES, files: 1, fields: 1 } })
-	async importLocalPackage(
-		@MultipartFile("package") file: PlatformMulterFile | undefined,
-		@BodyParams() request: LocalPluginImportRequest,
-	) {
+	async importLocalPackage(@MultipartFile("package") file: PlatformMulterFile | undefined, @BodyParams() request: LocalPluginImportRequest) {
 		if (!file?.buffer) throw new BadRequest("Choose a plugin package to import.");
 		const approvedPermissionsJson = request?.approvedPermissions;
 		if (typeof approvedPermissionsJson !== "string" || approvedPermissionsJson.length > 16_384) {
 			throw new BadRequest("Approved permissions must be a JSON list.");
 		}
 		let approvedPermissions: unknown;
-		try { approvedPermissions = JSON.parse(approvedPermissionsJson); } catch { throw new BadRequest("Approved permissions must be a JSON list."); }
+		try {
+			approvedPermissions = JSON.parse(approvedPermissionsJson);
+		} catch {
+			throw new BadRequest("Approved permissions must be a JSON list.");
+		}
 		if (!Array.isArray(approvedPermissions) || !approvedPermissions.every((permission) => typeof permission === "string")) {
 			throw new BadRequest("Approved permissions must be a JSON list.");
 		}
@@ -106,12 +107,7 @@ export class PluginsController {
 	}
 
 	@Get("/catalog")
-	async catalog(
-		@QueryParams("q", String) query: string | undefined,
-		@QueryParams("target", String) target: string | undefined,
-		@QueryParams("capability", String) capability: string | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async catalog(@QueryParams("q", String) query: string | undefined, @QueryParams("target", String) target: string | undefined, @QueryParams("capability", String) capability: string | undefined, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		const filter: PluginCatalogFilter = { query, target, capability };
 		return this.plugins.discover(filter);
@@ -167,31 +163,19 @@ export class PluginsController {
 	}
 
 	@Get("/:id/history")
-	async pluginUpdateHistory(
-		@PathParams("id") id: string,
-		@QueryParams("limit", Number) limit: number | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async pluginUpdateHistory(@PathParams("id") id: string, @QueryParams("limit", Number) limit: number | undefined, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.plugins.updateHistory(id, limit ?? 20);
 	}
 
 	@Put("/:id/settings")
-	async updatePluginSettings(
-		@PathParams("id") id: string,
-		@BodyParams() request: PluginSettingsUpdate,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async updatePluginSettings(@PathParams("id") id: string, @BodyParams() request: PluginSettingsUpdate, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.pluginSettings.update(id, request);
 	}
 
 	@Post("/:id/install")
-	async install(
-		@PathParams("id") id: string,
-		@BodyParams() request: InstallPluginRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async install(@PathParams("id") id: string, @BodyParams() request: InstallPluginRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.plugins.install(id, request);
 	}
@@ -210,19 +194,13 @@ export class PluginsController {
 
 	@Delete("/:id")
 	@Returns(204)
-	async uninstall(
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-	): Promise<void> {
+	async uninstall(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string): Promise<void> {
 		await this.authService.requireAdmin(authorization);
 		return this.plugins.uninstall(id);
 	}
 
 	@Post("/repositories")
-	async addRepository(
-		@BodyParams() request: AddPluginRepositoryRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async addRepository(@BodyParams() request: AddPluginRepositoryRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.plugins.addRepository(request);
 	}
@@ -235,10 +213,7 @@ export class PluginsController {
 
 	@Delete("/repositories/:id")
 	@Returns(204)
-	async removeRepository(
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-	): Promise<void> {
+	async removeRepository(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string): Promise<void> {
 		await this.authService.requireAdmin(authorization);
 		return this.plugins.removeRepository(id);
 	}

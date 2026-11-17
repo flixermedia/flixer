@@ -10,16 +10,13 @@ export type FlixerApiOperationData<Name extends FlixerApiOperationName> = Awaite
 export type FlixerApiOperationParameters<Name extends FlixerApiOperationName> = Parameters<GeneratedOperations[Name]>;
 type RouteFor<Method extends Route["method"], Path extends RoutePath> = Extract<Route, {
     method: Method;
-}> extends infer Candidate ? Candidate extends Route ? NormalizeRoutePath<Candidate["path"]> extends Path ? Candidate : never : never : never;
+}> extends infer Candidate ? (Candidate extends Route ? (NormalizeRoutePath<Candidate["path"]> extends Path ? Candidate : never) : never) : never;
 type OperationForRoute<Method extends Route["method"], Path extends RoutePath> = RouteFor<Method, Path> extends {
     operationId: infer Name extends FlixerApiOperationName;
 } ? Name : never;
 type RouteArguments<Method extends Route["method"], Path extends RoutePath> = FlixerApiOperationParameters<OperationForRoute<Method, Path>>;
 type TupleOfLength<Length extends number, Tuple extends unknown[] = []> = Tuple["length"] extends Length ? Tuple : TupleOfLength<Length, [...Tuple, unknown]>;
-type Add<Left extends number, Right extends number> = [
-    ...TupleOfLength<Left>,
-    ...TupleOfLength<Right>
-]["length"];
+type Add<Left extends number, Right extends number> = [...TupleOfLength<Left>, ...TupleOfLength<Right>]["length"];
 type PathParameterCount<Method extends Route["method"], Path extends RoutePath> = RouteFor<Method, Path>["pathParameters"]["length"];
 type QueryParameterIndex<Method extends Route["method"], Path extends RoutePath> = Add<PathParameterCount<Method, Path>, RouteFor<Method, Path>["hasBody"] extends true ? 1 : 0>;
 /** Response data inferred from the generated operation for a method and OpenAPI path. */

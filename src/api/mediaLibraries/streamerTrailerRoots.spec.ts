@@ -42,7 +42,11 @@ describe("streamer trailer root", () => {
 			const roots = { list: () => [{ id: "media", name: "Media", path: "/media" }] } as unknown as MediaRootsService;
 			const controller = new StreamerRootsController(roots, {} as DataSource);
 			await expect(controller.list(timestamp, signature)).resolves.toEqual({
-				roots: [{ id: "media", path: "/media" }, { id: "flixer-advertisements", path: join(directory, "advertisements") }, { id: "flixer-trailers", path: join(directory, "cache", "trailers") }],
+				roots: [
+					{ id: "media", path: "/media" },
+					{ id: "flixer-advertisements", path: join(directory, "advertisements") },
+					{ id: "flixer-trailers", path: join(directory, "cache", "trailers") },
+				],
 			});
 			await expect(controller.list(timestamp, "00")).rejects.toThrow("Invalid streamer signature");
 

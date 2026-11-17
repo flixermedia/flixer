@@ -22,51 +22,31 @@ export class JobsController {
 	}
 
 	@Get("/queues/:queueName/jobs")
-	async findJobs(
-		@PathParams("queueName") queueName: string,
-		@QueryParams("limit", Number) limit?: number,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async findJobs(@PathParams("queueName") queueName: string, @QueryParams("limit", Number) limit?: number, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.jobScheduler.findJobs(queueName, limit);
 	}
 
 	@Get("/queues/:queueName/jobs/:jobId")
-	async getJob(
-		@PathParams("queueName") queueName: string,
-		@PathParams("jobId") jobId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async getJob(@PathParams("queueName") queueName: string, @PathParams("jobId") jobId: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.jobScheduler.getJob(queueName, jobId);
 	}
 
 	@Post("/queues/:queueName/jobs")
-	async enqueue(
-		@PathParams("queueName") queueName: string,
-		@BodyParams() request: EnqueueJobRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async enqueue(@PathParams("queueName") queueName: string, @BodyParams() request: EnqueueJobRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return { id: await this.jobScheduler.enqueue(queueName, request.data) };
 	}
 
 	@Post("/queues/:queueName/jobs/:jobId/retry")
-	async retryJob(
-		@PathParams("queueName") queueName: string,
-		@PathParams("jobId") jobId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async retryJob(@PathParams("queueName") queueName: string, @PathParams("jobId") jobId: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.jobScheduler.retryJob(queueName, jobId);
 	}
 
 	@Delete("/queues/:queueName/jobs/:jobId")
-	async cancelJob(
-		@PathParams("queueName") queueName: string,
-		@PathParams("jobId") jobId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async cancelJob(@PathParams("queueName") queueName: string, @PathParams("jobId") jobId: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.jobScheduler.cancelJob(queueName, jobId);
 	}
@@ -78,21 +58,14 @@ export class JobsController {
 	}
 
 	@Put("/schedules/:queueName")
-	async schedule(
-		@PathParams("queueName") queueName: string,
-		@BodyParams() request: ScheduleJobRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async schedule(@PathParams("queueName") queueName: string, @BodyParams() request: ScheduleJobRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		await this.jobScheduler.schedule(queueName, request.cron, request.data);
 		return { queueName, cron: request.cron, scheduled: true };
 	}
 
 	@Delete("/schedules/:queueName")
-	async unschedule(
-		@PathParams("queueName") queueName: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async unschedule(@PathParams("queueName") queueName: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		await this.jobScheduler.unschedule(queueName);
 		return { queueName, scheduled: false };

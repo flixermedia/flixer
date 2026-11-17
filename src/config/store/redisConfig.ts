@@ -10,6 +10,7 @@ const DEFAULT_PORT = "6379";
 
 /** Splits a redis:// or rediss:// URL into the pieces clients take. Assumes the URL passed validateRedisUrl. */
 export function parseRedisUrl(value: string): RedisConnection {
+
 	const url = new URL(value);
 	const db = url.pathname.replace(/^\//, "");
 	return {
@@ -19,4 +20,5 @@ export function parseRedisUrl(value: string): RedisConnection {
 		db: db === "" ? 0 : Number(db),
 		tls: url.protocol === "rediss:",
 	};
+
 }

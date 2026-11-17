@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** Remove the legacy subscription claim and its stored authorizations. */
 export class RemoveOidcSubscriptionClaim1798300000020 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			DELETE FROM "oidc_artifacts"

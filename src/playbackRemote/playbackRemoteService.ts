@@ -6,6 +6,7 @@ import { PLAYBACK_REMOTE_PATH, PlaybackRemoteSocketServer } from "./playbackRemo
 
 @Injectable()
 export class PlaybackRemoteService {
+
 	private socketServer?: PlaybackRemoteSocketServer;
 
 	constructor(

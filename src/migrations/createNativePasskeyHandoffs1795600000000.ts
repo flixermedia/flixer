@@ -17,9 +17,7 @@ export class CreateNativePasskeyHandoffs1795600000000 implements MigrationInterf
           REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
       )
     `);
-		await queryRunner.query(
-			'CREATE INDEX "IDX_native_passkey_handoffs_expires_at" ON "native_passkey_handoffs" ("expires_at")',
-		);
+		await queryRunner.query('CREATE INDEX "IDX_native_passkey_handoffs_expires_at" ON "native_passkey_handoffs" ("expires_at")');
 	}
 
 	async down(queryRunner: QueryRunner): Promise<void> {

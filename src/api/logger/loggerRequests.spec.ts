@@ -10,7 +10,6 @@ describe("logger retention request", () => {
 		expect(getJsonSchema(LoggerRetentionRequest)).toMatchObject({
 			properties: { severityDays: expect.any(Object) },
 		});
-
 	});
 });
 

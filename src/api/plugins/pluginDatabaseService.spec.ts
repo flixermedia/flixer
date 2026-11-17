@@ -25,8 +25,10 @@ const installation = {
 } as unknown as PluginInstallation;
 
 function setup(rows: unknown[] = []) {
+
 	const query = vi.fn(async (sql: string) => (sql.includes("information_schema") ? [] : rows));
 	return { query, service: new PluginDatabaseService({ query } as unknown as DataSource) };
+
 }
 
 describe("PluginDatabaseService", () => {
@@ -69,15 +71,9 @@ describe("http.request host calls", () => {
 	it("needs a host or any-host permission and filters headers", async () => {
 		const http = vi.fn(async () => ({ status: 200, body: "ok" }));
 		expect((await executeHostCalls([call], new Set(), http))[0]).toMatchObject({ error: "permission_denied" });
-		const results = await executeHostCalls(
-			[{ ...call, headers: { "X-Api-Key": "k" } }],
-			new Set(["network.http.any"]),
-			http,
-		);
+		const results = await executeHostCalls([{ ...call, headers: { "X-Api-Key": "k" } }], new Set(["network.http.any"]), http);
 		expect(results[0]).toMatchObject({ ok: true });
 		expect(http).toHaveBeenCalledWith(expect.any(URL), { method: "PUT", headers: { "x-api-key": "k" }, body: "{}" });
-		expect(
-			(await executeHostCalls([{ ...call, headers: { cookie: "x" } }], new Set(["network.http.any"]), http))[0],
-		).toMatchObject({ error: "invalid_url" });
+		expect((await executeHostCalls([{ ...call, headers: { cookie: "x" } }], new Set(["network.http.any"]), http))[0]).toMatchObject({ error: "invalid_url" });
 	});
 });

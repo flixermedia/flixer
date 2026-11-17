@@ -9,6 +9,7 @@ import { CreateFriendInviteRequest } from "./socialRequests.js";
 @Controller("/friends")
 @Security("BearerAuth")
 export class FriendsController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly friends: FriendsService,
@@ -21,11 +22,7 @@ export class FriendsController {
 	}
 
 	@Post("/invites/:username")
-	async createInvite(
-		@PathParams("username") username: string,
-		@BodyParams() request: CreateFriendInviteRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async createInvite(@PathParams("username") username: string, @BodyParams() request: CreateFriendInviteRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.friends.createInvite(user.id, username, request);
 	}

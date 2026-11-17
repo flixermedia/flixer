@@ -3,19 +3,30 @@ import { PageBuilderService } from "./pageBuilderService.js";
 import { LOGIN_LAYOUT_SETTING } from "./appearanceService.js";
 
 function setup() {
+
 	const values = new Map<string, unknown>();
 	const repository = {
 		findBy: vi.fn(async () => [...values].map(([key, value]) => ({ key, value: structuredClone(value) }))),
-		findOneBy: vi.fn(async ({ key }: { key: string }) => values.has(key) ? { key, value: structuredClone(values.get(key)) } : null),
-		findOne: vi.fn(async ({ where }: { where: { key: string } }) => values.has(where.key) ? { key: where.key, value: structuredClone(values.get(where.key)) } : null),
-		upsert: vi.fn(async ({ key, value }: { key: string; value: unknown }) => { values.set(key, structuredClone(value)); }),
-		delete: vi.fn(async ({ key }: { key: string }) => { values.delete(key); }),
+		findOneBy: vi.fn(async ({ key }: { key: string }) => (values.has(key) ? { key, value: structuredClone(values.get(key)) } : null)),
+		findOne: vi.fn(async ({ where }: { where: { key: string } }) => (values.has(where.key) ? { key: where.key, value: structuredClone(values.get(where.key)) } : null)),
+		upsert: vi.fn(async ({ key, value }: { key: string; value: unknown }) => {
+			values.set(key, structuredClone(value));
+		}),
+		delete: vi.fn(async ({ key }: { key: string }) => {
+			values.delete(key);
+		}),
 	};
-	const requireAdmin = vi.fn(async (authorization?: string) => { if (authorization !== "admin") throw new Error("forbidden"); });
-	const getAuthenticatedUser = vi.fn(async (authorization?: string) => { if (!authorization) throw new Error("unauthorized"); return { id: "user" }; });
+	const requireAdmin = vi.fn(async (authorization?: string) => {
+		if (authorization !== "admin") throw new Error("forbidden");
+	});
+	const getAuthenticatedUser = vi.fn(async (authorization?: string) => {
+		if (!authorization) throw new Error("unauthorized");
+		return { id: "user" };
+	});
 	const source = { getRepository: () => repository, transaction: async (run: (manager: { getRepository: () => typeof repository }) => Promise<unknown>) => run({ getRepository: () => repository }) };
 	const service = new PageBuilderService(source as never, { requireAdmin, getAuthenticatedUser } as never);
 	return { service, requireAdmin, values };
+
 }
 
 describe("page builder publishing", () => {

@@ -14,7 +14,9 @@ test("installer AI selection and management commands preserve profiles and versi
 		const bin = join(temp, "bin");
 		mkdirSync(bin);
 		const log = join(temp, "docker.log");
-		writeFileSync(join(bin, "docker"), `#!/bin/bash
+		writeFileSync(
+			join(bin, "docker"),
+			`#!/bin/bash
 printf '%s\\n' "$*" >> "$TEST_LOG"
 if [ "\${REAL_CONFIG:-}" = yes ]; then
   case "$*" in "compose config --environment" | "compose -f "*" config --environment") exec "$REAL_DOCKER" "$@" ;; esac
@@ -26,8 +28,11 @@ if [ "\${FAIL_DOWN:-}" = yes ]; then
   case "$*" in "compose --profile * down" | "compose -f "*" --profile * down") exit 8 ;; esac
 fi
 if [ "\${FAIL_PULL:-}" = yes ] && [ "$*" = "compose --env-file .env --env-file $TEST_DATA/updater-state/versions.env pull" ]; then exit 7; fi
-`);
-		writeFileSync(join(bin, "curl"), `#!/bin/bash
+`,
+		);
+		writeFileSync(
+			join(bin, "curl"),
+			`#!/bin/bash
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -o) out=$2; shift 2 ;;
@@ -38,7 +43,8 @@ while [ "$#" -gt 0 ]; do
 done
 file=\${url#*"/main/"}
 cp "$TEST_ROOT/$file" "$out"
-`);
+`,
+		);
 		chmodSync(join(bin, "docker"), 0o755);
 		chmodSync(join(bin, "curl"), 0o755);
 		const dir = join(temp, "install with spaces");
@@ -162,7 +168,9 @@ cp "$TEST_ROOT/$file" "$out"
 		assert.ok(!readdirSync(dir).some((name) => name.startsWith(".flixer-reset-compose.")));
 		if (spawnSync("docker", ["compose", "version"], { encoding: "utf8" }).status === 0) {
 			const config = spawnSync("docker", ["compose", "config", "--format", "json"], {
-				cwd: dir, encoding: "utf8", env: { ...process.env, MEILISEARCH_STORAGE: "meilisearch-data" },
+				cwd: dir,
+				encoding: "utf8",
+				env: { ...process.env, MEILISEARCH_STORAGE: "meilisearch-data" },
 			});
 			assert.equal(config.status, 0, config.stderr);
 			const resolved = JSON.parse(config.stdout);
@@ -201,7 +209,9 @@ test("PowerShell WSL bridge runs the Linux installer and manager through a nativ
 		const managerDir = join(temp, "windows manager");
 		mkdirSync(bin);
 		mkdirSync(linuxHome);
-		writeFileSync(join(bin, "wsl.exe"), `#!/bin/bash
+		writeFileSync(
+			join(bin, "wsl.exe"),
+			`#!/bin/bash
 export HOME="$TEST_WSL_HOME"
 export WSL_DISTRO_NAME=Ubuntu
 if [ "\${1:-}" = --distribution ]; then shift 2; fi
@@ -213,16 +223,22 @@ if [ "\${1:-}" = bash ] && [ "\${2:-}" = -s ]; then
   exit $?
 fi
 exec "$@"
-`);
-		writeFileSync(join(bin, "docker"), `#!/bin/bash
+`,
+		);
+		writeFileSync(
+			join(bin, "docker"),
+			`#!/bin/bash
 printf '%s\\n' "$*" >> "$TEST_LOG"
 case "$*" in
   "context inspect "*) echo unix:///var/run/docker.sock ;;
   "info --format "*) echo "Ubuntu Linux" ;;
   "compose config --environment") printf 'DATA_DIR=%s\\nHTTP_PORT=8080\\n' "$TEST_WSL_HOME/flixer/data" ;;
 esac
-`);
-		writeFileSync(join(bin, "curl"), `#!/bin/bash
+`,
+		);
+		writeFileSync(
+			join(bin, "curl"),
+			`#!/bin/bash
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -o) out=$2; shift 2 ;;
@@ -232,10 +248,13 @@ while [ "$#" -gt 0 ]; do
 done
 file=\${url#*"/main/"}
 if [ -n "\${out:-}" ]; then cp "$TEST_ROOT/$file" "$out"; else cat "$TEST_ROOT/$file"; fi
-`);
+`,
+		);
 		for (const name of ["wsl.exe", "docker", "curl"]) chmodSync(join(bin, name), 0o755);
 		const driver = join(temp, "driver.ps1");
-		writeFileSync(driver, `function global:Invoke-WebRequest {
+		writeFileSync(
+			driver,
+			`function global:Invoke-WebRequest {
     param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
     Copy-Item (Join-Path $env:TEST_ROOT 'manage.ps1') $OutFile
 }
@@ -243,7 +262,8 @@ if [ -n "\${out:-}" ]; then cp "$TEST_ROOT/$file" "$out"; else cat "$TEST_ROOT/$
 & (Join-Path $env:TEST_ROOT 'install.ps1') -Yes -Update -ManagementDir $env:TEST_MANAGER
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') start
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') stop
-`);
+`,
+		);
 		const log = join(temp, "docker.log");
 		const result = spawnSync(process.env.FLIXER_TEST_PWSH, ["-NoProfile", "-File", driver], {
 			encoding: "utf8",

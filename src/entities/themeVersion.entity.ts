@@ -4,6 +4,7 @@ import type { ThemeConfig } from "../api/appearance/themeSchema.js";
 /** A snapshot of a custom theme taken just before it was changed, so an admin can roll back. */
 @Entity("theme_versions")
 export class ThemeVersion {
+
 	@PrimaryColumn({ type: "uuid" })
 	id!: string;
 

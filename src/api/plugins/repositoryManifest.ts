@@ -29,30 +29,19 @@ export interface PluginRepositoryManifest {
 	}>;
 }
 
-export function pluginCatalogMatchesManifest(
-	catalogEntry: PluginRepositoryManifest["plugins"][number],
-	manifest: PluginManifest,
-): boolean {
-	const sameSet = (left: string[], right: string[]) =>
-		left.length === right.length && left.every((value) => right.includes(value));
-	return (
-		manifest.id === catalogEntry.id &&
-		manifest.name === catalogEntry.name &&
-		manifest.description === catalogEntry.description &&
-		manifest.author === catalogEntry.author &&
-		sameSet(Object.keys(manifest.targets), catalogEntry.targets) &&
-		sameSet(manifest.capabilities, catalogEntry.capabilities ?? []) &&
-		sameSet(manifest.permissions, catalogEntry.permissions)
-	);
+export function pluginCatalogMatchesManifest(catalogEntry: PluginRepositoryManifest["plugins"][number], manifest: PluginManifest): boolean {
+
+	const sameSet = (left: string[], right: string[]) => left.length === right.length && left.every((value) => right.includes(value));
+	return manifest.id === catalogEntry.id && manifest.name === catalogEntry.name && manifest.description === catalogEntry.description && manifest.author === catalogEntry.author && sameSet(Object.keys(manifest.targets), catalogEntry.targets) && sameSet(manifest.capabilities, catalogEntry.capabilities ?? []) && sameSet(manifest.permissions, catalogEntry.permissions);
+
 }
 
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile<PluginRepositoryManifest>(schema);
 
 export function parsePluginRepositoryManifest(value: unknown): PluginRepositoryManifest {
+
 	if (!validate(value)) {
-		const details = (validate.errors ?? [])
-			.map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`)
-			.join("; ");
+		const details = (validate.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`).join("; ");
 		throw new Error(`Invalid plugin repository manifest: ${details}`);
 	}
 
@@ -66,13 +55,12 @@ export function parsePluginRepositoryManifest(value: unknown): PluginRepositoryM
 		const versions = new Set<string>();
 		for (const release of plugin.versions) {
 			if (versions.has(release.version)) {
-				throw new Error(
-					`Invalid plugin repository manifest: duplicate version ${release.version} for ${plugin.id}.`,
-				);
+				throw new Error(`Invalid plugin repository manifest: duplicate version ${release.version} for ${plugin.id}.`);
 			}
 			versions.add(release.version);
 		}
 	}
 
 	return value as PluginRepositoryManifest;
+
 }

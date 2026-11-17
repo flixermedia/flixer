@@ -6,6 +6,7 @@ export type PluginUpdateOutcome = "succeeded" | "failed";
 @Entity("plugin_update_history")
 @Index("idx_plugin_update_history_plugin_created", ["pluginId", "createdAt"])
 export class PluginUpdateHistory {
+
 	@PrimaryGeneratedColumn("uuid")
 	id!: string;
 

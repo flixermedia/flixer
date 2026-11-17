@@ -62,9 +62,7 @@ describe("IndexerIntroSegmentsService", () => {
 		await service.replace(parseIntroSegmentUpdate({ itemId, segments: { intro: { startMs: 10, endMs: 20 } } }));
 
 		expect(segments.delete).toHaveBeenCalledWith({ itemId, source: "theintrodb" });
-		expect(segments.save).toHaveBeenCalledWith([
-			{ itemId, type: "intro", source: "theintrodb", startMs: 10, endMs: 20, submissions: 0 },
-		]);
+		expect(segments.save).toHaveBeenCalledWith([{ itemId, type: "intro", source: "theintrodb", startMs: 10, endMs: 20, submissions: 0 }]);
 	});
 
 	it("uses a series TVDB id and episode numbers for episode backfill candidates", async () => {

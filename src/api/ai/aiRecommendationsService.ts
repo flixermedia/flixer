@@ -19,6 +19,7 @@ interface RecommendationResponse {
 const AI_RECOMMENDATION_TIMEOUT_MS = 120_000;
 
 function isRecommendationResponse(value: unknown): value is RecommendationResponse {
+
 	if (typeof value !== "object" || value === null || !("items" in value) || !Array.isArray(value.items)) {
 		return false;
 	}
@@ -28,10 +29,12 @@ function isRecommendationResponse(value: unknown): value is RecommendationRespon
 		}
 		return typeof item.id === "string" && typeof item.score === "number" && Number.isFinite(item.score) && item.score >= 0 && item.score <= 1 && (!("reason" in item) || item.reason === null || typeof item.reason === "string");
 	});
+
 }
 
 @Injectable()
 export class AiRecommendationsService {
+
 	constructor(private readonly aiAdmin: AiAdminService) {}
 
 	async recommend(userId: string, request: RecommendationRequest): Promise<RecommendationResponse> {

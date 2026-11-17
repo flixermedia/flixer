@@ -218,7 +218,9 @@ function lastSegment(path: string): string {
 }
 
 function sourceKey(type: MediaItemType, path: string): string {
-	return `source:${createHash("sha256").update(JSON.stringify([type, path])).digest("hex")}`;
+	return `source:${createHash("sha256")
+		.update(JSON.stringify([type, path]))
+		.digest("hex")}`;
 }
 
 function matchesManualProviderIds(item: MediaItem, incoming: Record<string, string>): boolean {
@@ -231,6 +233,7 @@ function matchesManualProviderIds(item: MediaItem, incoming: Record<string, stri
 }
 
 async function pathMissing(path: string): Promise<boolean> {
+
 	try {
 		await stat(path);
 		return false;
@@ -238,9 +241,11 @@ async function pathMissing(path: string): Promise<boolean> {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
 		throw error;
 	}
+
 }
 
 async function sameAvailableRoot(item: MediaItem, payload: IndexerItemPayload): Promise<boolean> {
+
 	if (!item.rootId || item.rootId !== payload.rootId || !item.relativePath || !payload.relativePath) return false;
 	const rootOf = (path: string, relativePath: string): string | null => {
 		if (!isAbsolute(path) || isAbsolute(relativePath)) return null;
@@ -259,6 +264,7 @@ async function sameAvailableRoot(item: MediaItem, payload: IndexerItemPayload): 
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
 		throw error;
 	}
+
 }
 
 /** Stores what flixer-indexer finds and keeps the series → season → episode (and album → track) tree linked. */
@@ -303,22 +309,17 @@ export class MediaItemsService {
 				type: payload.type,
 			});
 			let item = byPath;
-			const moved = byKey?.type === payload.type && !byKey.isPlaceholder && byKey.path !== payload.path &&
-				!payload.updateFields?.length && (!byPath || byPath.isPlaceholder) &&
-				matchesManualProviderIds(byKey, payload.providerIds) &&
-				await sameAvailableRoot(byKey, payload) &&
-				!(await pathMissing(payload.path)) && await pathMissing(byKey.path);
+			const moved = byKey?.type === payload.type && !byKey.isPlaceholder && byKey.path !== payload.path && !payload.updateFields?.length && (!byPath || byPath.isPlaceholder) && matchesManualProviderIds(byKey, payload.providerIds) && (await sameAvailableRoot(byKey, payload)) && !(await pathMissing(payload.path)) && (await pathMissing(byKey.path));
 			if (moved && byPath && byKey) {
 				await manager.update(MediaItem, { parentId: byPath.id }, { parentId: byKey.id });
 				await manager.delete(MediaItem, { id: byPath.id });
 				item = byKey;
-			} else if (!item && byKey?.type === payload.type &&
-				(!byKey.path || byKey.path === payload.path || moved)) {
+			} else if (!item && byKey?.type === payload.type && (!byKey.path || byKey.path === payload.path || moved)) {
 				item = byKey;
 			}
 			if (!item && !byKey && !payload.updateFields?.length) {
 				item = await this.findByRelativeKey(manager, payload.libraryId, payload.type, payload.externalKey);
-				if (item && (item.isPlaceholder || !matchesManualProviderIds(item, payload.providerIds) || !(await sameAvailableRoot(item, payload)) || await pathMissing(payload.path) || !(await pathMissing(item.path)))) item = null;
+				if (item && (item.isPlaceholder || !matchesManualProviderIds(item, payload.providerIds) || !(await sameAvailableRoot(item, payload)) || (await pathMissing(payload.path)) || !(await pathMissing(item.path)))) item = null;
 			}
 			if (payload.updateFields?.length) {
 				if (!item || item.isPlaceholder) {
@@ -348,7 +349,7 @@ export class MediaItemsService {
 			const keptAdminChapters = edited.has("chapters") ? item.metadata?.adminChapters : undefined;
 
 			item.type = payload.type;
-			item.externalKey = byKey && byKey.id !== item.id ? (item.externalKey || sourceKey(payload.type, payload.path)) : payload.externalKey;
+			item.externalKey = byKey && byKey.id !== item.id ? item.externalKey || sourceKey(payload.type, payload.path) : payload.externalKey;
 			item.path = payload.path;
 			item.parentId = parentId !== item.id ? parentId : null;
 			item.rootId = payload.rootId ?? null;
@@ -436,8 +437,7 @@ export class MediaItemsService {
 			await this.syncCredits(manager, item);
 		}
 		if (fields.has("fileData")) {
-			const fileStatsChanged = (payload.sizeBytes !== undefined && item.sizeBytes !== payload.sizeBytes) ||
-				(payload.modifiedAt !== undefined && item.modifiedAt?.getTime() !== payload.modifiedAt.getTime());
+			const fileStatsChanged = (payload.sizeBytes !== undefined && item.sizeBytes !== payload.sizeBytes) || (payload.modifiedAt !== undefined && item.modifiedAt?.getTime() !== payload.modifiedAt.getTime());
 			if (fileStatsChanged) item.contentHash = null;
 			if (payload.rootId !== undefined) item.rootId = payload.rootId;
 			if (payload.relativePath !== undefined) item.relativePath = payload.relativePath;
@@ -546,12 +546,7 @@ export class MediaItemsService {
 	}
 
 	async scanState(libraryId: string, afterId: string | undefined, limit: number): Promise<IndexerScanState[]> {
-		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-			.select(["item.id", "item.path", "item.sizeBytes", "item.modifiedAt", "item.nfoPresent", "item.localImagesUsed", "item.matchConfidence"])
-			.where("item.libraryId = :libraryId", { libraryId })
-			.andWhere("item.isPlaceholder = false")
-			.orderBy("item.id", "ASC")
-			.take(limit);
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.path", "item.sizeBytes", "item.modifiedAt", "item.nfoPresent", "item.localImagesUsed", "item.matchConfidence"]).where("item.libraryId = :libraryId", { libraryId }).andWhere("item.isPlaceholder = false").orderBy("item.id", "ASC").take(limit);
 		if (afterId) query.andWhere("item.id > :afterId", { afterId });
 		return query.getMany();
 	}
@@ -599,20 +594,24 @@ export class MediaItemsService {
 			}
 			const byKey = await manager.findOneBy(MediaItem, { libraryId, externalKey: key });
 			const placeholder = manager.create(MediaItem, {
-				id: randomUUID(), libraryId, type, path, parentId,
+				id: randomUUID(),
+				libraryId,
+				type,
+				path,
+				parentId,
 				externalKey: byKey ? sourceKey(type, path) : key,
 				title: lastSegment(path),
 				seasonNumber: type === "season" ? (payload.seasonNumber ?? null) : null,
 				providerIds: type === "series" ? payload.parentProviderIds : {},
-				metadata: {}, images: [], isPlaceholder: true,
+				metadata: {},
+				images: [],
+				isPlaceholder: true,
 			});
 			return manager.save(placeholder);
 		};
 		let seriesId: string | null = null;
 		if (parentType === "season" && payload.seriesPath) {
-			const seriesKey = parentExternalKey && /:s\d+$/.test(parentExternalKey)
-				? parentExternalKey.replace(/:s\d+$/, "")
-				: sourceKey("series", payload.seriesPath);
+			const seriesKey = parentExternalKey && /:s\d+$/.test(parentExternalKey) ? parentExternalKey.replace(/:s\d+$/, "") : sourceKey("series", payload.seriesPath);
 			seriesId = (await ensure("series", payload.seriesPath, seriesKey, null)).id;
 		}
 		return (await ensure(parentType, parentPath, parentExternalKey || sourceKey(parentType, parentPath), seriesId)).id;

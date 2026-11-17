@@ -5,11 +5,7 @@ import { Get, Post, Put, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
 import { IndexerClient } from "./indexerClient.js";
 import { INDEXER_TASK_QUEUES, type IndexerTaskQueueName } from "./indexerSettingsService.js";
-import {
-	AdminIndexerService,
-	INDEXER_TASK_STATES,
-	type IndexerTaskPage,
-} from "./adminIndexerService.js";
+import { AdminIndexerService, INDEXER_TASK_STATES, type IndexerTaskPage } from "./adminIndexerService.js";
 import { MEDIA_ITEM_TYPES } from "../../entities/mediaItem.entity.js";
 import { LibrarySegmentScanRequest, RefreshItemRequest, ScanLibraryRequest } from "./indexerRequests.js";
 import { LiveService } from "../../live/liveService.js";
@@ -25,6 +21,7 @@ function isIndexerTaskQueue(queue: string): queue is IndexerTaskQueueName {
 @Controller("/admin/indexer")
 @Security("BearerAuth")
 export class AdminIndexerController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly indexer: IndexerClient,
@@ -41,22 +38,14 @@ export class AdminIndexerController {
 	}
 
 	@Post("/libraries/:id/scan")
-	async scan(
-		@PathParams("id") id: string,
-		@BodyParams() request: ScanLibraryRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async scan(@PathParams("id") id: string, @BodyParams() request: ScanLibraryRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media library not found.");
 		}
 		const jobs = request?.jobs ?? [];
 		const supportedJobs = ["images", "descriptions", "fileData", "lyrics", "hashes"];
-		if (
-			!Array.isArray(jobs) ||
-			jobs.some((job) => !supportedJobs.includes(job)) ||
-			new Set(jobs).size !== jobs.length
-		) {
+		if (!Array.isArray(jobs) || jobs.some((job) => !supportedJobs.includes(job)) || new Set(jobs).size !== jobs.length) {
 			throw new BadRequest("jobs must contain unique supported scan stages.");
 		}
 		if (jobs.length > 0 && request?.trickplayOnly) {
@@ -80,11 +69,7 @@ export class AdminIndexerController {
 	}
 
 	@Post("/libraries/:id/segments")
-	async queueSegments(
-		@PathParams("id") id: string,
-		@BodyParams() request: LibrarySegmentScanRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async queueSegments(@PathParams("id") id: string, @BodyParams() request: LibrarySegmentScanRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media library not found.");
@@ -99,10 +84,7 @@ export class AdminIndexerController {
 	@Post("/refresh")
 	async refresh(@BodyParams() request: RefreshItemRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
-		if (
-			!AuthService.isUuid(request.libraryId) ||
-			!(MEDIA_ITEM_TYPES as readonly string[]).includes(request.itemType)
-		) {
+		if (!AuthService.isUuid(request.libraryId) || !(MEDIA_ITEM_TYPES as readonly string[]).includes(request.itemType)) {
 			throw new BadRequest("A library id, path and item type are required.");
 		}
 		return this.indexer.request("POST", "/internal/refresh", {
@@ -111,13 +93,7 @@ export class AdminIndexerController {
 	}
 
 	@Get("/tasks")
-	async tasks(
-		@QueryParams("queue", String) queue: string,
-		@QueryParams("state", String) state?: string,
-		@QueryParams("page", Number) page?: number,
-		@QueryParams("size", Number) size?: number,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async tasks(@QueryParams("queue", String) queue: string, @QueryParams("state", String) state?: string, @QueryParams("page", Number) page?: number, @QueryParams("size", Number) size?: number, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		this.requireTaskQueue(queue);
 		if (state !== undefined && !INDEXER_TASK_STATES.some((taskState) => taskState === state)) {
@@ -127,40 +103,23 @@ export class AdminIndexerController {
 	}
 
 	@Post("/tasks/:queue/:id/cancel")
-	async cancelTask(
-		@PathParams("queue") queue: string,
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async cancelTask(@PathParams("queue") queue: string, @PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
-		const result = await this.indexer.request(
-			"POST",
-			`/internal/tasks/${this.requireTaskQueue(queue)}/${this.requireTaskId(id)}/cancel`,
-		);
+		const result = await this.indexer.request("POST", `/internal/tasks/${this.requireTaskQueue(queue)}/${this.requireTaskId(id)}/cancel`);
 		this.live.invalidate("indexer");
 		return result;
 	}
 
 	@Post("/tasks/:queue/:id/retry")
-	async retryTask(
-		@PathParams("queue") queue: string,
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async retryTask(@PathParams("queue") queue: string, @PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
-		const result = await this.indexer.request(
-			"POST",
-			`/internal/tasks/${this.requireTaskQueue(queue)}/${this.requireTaskId(id)}/retry`,
-		);
+		const result = await this.indexer.request("POST", `/internal/tasks/${this.requireTaskQueue(queue)}/${this.requireTaskId(id)}/retry`);
 		this.live.invalidate("indexer");
 		return result;
 	}
 
 	@Post("/queues/:queue/cancel-active")
-	async cancelActive(
-		@PathParams("queue") queue: string,
-		@HeaderParams("authorization") authorization?: string,
-	): Promise<{ queue: IndexerTaskQueueName; cancelled: number; pending: number; running: number }> {
+	async cancelActive(@PathParams("queue") queue: string, @HeaderParams("authorization") authorization?: string): Promise<{ queue: IndexerTaskQueueName; cancelled: number; pending: number; running: number }> {
 		await this.authService.requireAdmin(authorization);
 		const result = await this.indexer.request<{
 			queue: IndexerTaskQueueName;
@@ -173,15 +132,9 @@ export class AdminIndexerController {
 	}
 
 	@Post("/queues/:queue/clear-failed")
-	async clearFailed(
-		@PathParams("queue") queue: string,
-		@HeaderParams("authorization") authorization?: string,
-	): Promise<{ queue: IndexerTaskQueueName; cleared: number }> {
+	async clearFailed(@PathParams("queue") queue: string, @HeaderParams("authorization") authorization?: string): Promise<{ queue: IndexerTaskQueueName; cleared: number }> {
 		await this.authService.requireAdmin(authorization);
-		const result = await this.indexer.request<{ queue: IndexerTaskQueueName; cleared: number }>(
-			"POST",
-			`/internal/queues/${this.requireTaskQueue(queue)}/clear-failed`,
-		);
+		const result = await this.indexer.request<{ queue: IndexerTaskQueueName; cleared: number }>("POST", `/internal/queues/${this.requireTaskQueue(queue)}/clear-failed`);
 		this.live.invalidate("indexer");
 		return result;
 	}
@@ -204,10 +157,7 @@ export class AdminIndexerController {
 
 	/** Sets worker counts per queue, e.g. `{ "identify": 8 }`. Saved in flixer so they survive restarts. */
 	@Put("/concurrency")
-	async setConcurrency(
-		@BodyParams() request: Record<string, unknown>,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async setConcurrency(@BodyParams() request: Record<string, unknown>, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		const status = await this.admin.setConcurrency(request);
 		this.live.invalidate("indexer");

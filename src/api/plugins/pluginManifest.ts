@@ -4,16 +4,13 @@ import type { PluginInstallation } from "../../entities/pluginInstallation.entit
 
 type PluginTargetName = "flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web";
 
-export function updatePluginTargetHealth(
-	installation: Pick<PluginInstallation, "targetStatus" | "status" | "lastError">,
-	target: PluginTargetName,
-	state: "running" | "error" | "missing",
-	error?: string,
-): void {
+export function updatePluginTargetHealth(installation: Pick<PluginInstallation, "targetStatus" | "status" | "lastError">, target: PluginTargetName, state: "running" | "error" | "missing", error?: string): void {
+
 	installation.targetStatus = { ...installation.targetStatus, [target]: state };
 	const failed = Object.values(installation.targetStatus).some((value) => value === "error" || value === "missing");
 	installation.status = failed ? "error" : "running";
-	installation.lastError = failed ? (state === "running" ? "One or more plugin targets are unavailable." : error ?? "Plugin target is unavailable.") : null;
+	installation.lastError = failed ? (state === "running" ? "One or more plugin targets are unavailable." : (error ?? "Plugin target is unavailable.")) : null;
+
 }
 
 export interface PluginManifest {
@@ -77,12 +74,12 @@ interface PluginUiSlot {
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile<PluginManifest>(schema);
 
 export function parsePluginManifest(value: unknown): PluginManifest {
+
 	if (!validate(value)) {
-		const details = (validate.errors ?? [])
-			.map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`)
-			.join("; ");
+		const details = (validate.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`).join("; ");
 		throw new Error(`Invalid plugin manifest: ${details}`);
 	}
 
 	return value as PluginManifest;
+
 }

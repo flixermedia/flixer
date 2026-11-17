@@ -16,9 +16,7 @@ describe("logger exporter lifecycle", () => {
 		vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 		const logger = new LoggerService({ requireAdmin: async () => undefined });
 		vi.spyOn(logger, "restoreExporter").mockImplementation(() => undefined);
-		const renew = vi.spyOn(logger, "renewIngestCredential")
-			.mockRejectedValueOnce(new Error("offline"))
-			.mockResolvedValue(undefined);
+		const renew = vi.spyOn(logger, "renewIngestCredential").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
 		const lifecycle = new LoggerExportService(logger);
 		lifecycle.$onReady();
 		await vi.advanceTimersByTimeAsync(59_999);
@@ -37,7 +35,12 @@ describe("logger exporter lifecycle", () => {
 		const logger = new LoggerService({ requireAdmin: async () => undefined });
 		vi.spyOn(logger, "restoreExporter").mockImplementation(() => undefined);
 		let resolveRenewal!: () => void;
-		const renew = vi.spyOn(logger, "renewIngestCredential").mockImplementation(() => new Promise<void>((resolve) => { resolveRenewal = resolve; }));
+		const renew = vi.spyOn(logger, "renewIngestCredential").mockImplementation(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveRenewal = resolve;
+				}),
+		);
 		const lifecycle = new LoggerExportService(logger);
 		lifecycle.$onReady();
 		await lifecycle.$onDestroy();

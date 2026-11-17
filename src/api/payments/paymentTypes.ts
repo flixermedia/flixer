@@ -98,6 +98,7 @@ export function kindForItemType(type: string): ContentKind {
 }
 
 export function scopeCovers(scope: ContentScope, context: ItemContext): boolean {
+
 	switch (scope.type) {
 		case "all":
 			return true;
@@ -110,6 +111,7 @@ export function scopeCovers(scope: ContentScope, context: ItemContext): boolean 
 		default:
 			return false;
 	}
+
 }
 
 export function anyScopeCovers(scopes: ContentScope[], context: ItemContext): boolean {
@@ -125,14 +127,17 @@ export function isUuid(value: unknown): value is string {
 }
 
 export function normalizeCurrency(value: unknown): string {
+
 	const code = typeof value === "string" ? value.trim().toUpperCase() : "";
 	if (!CURRENCY_PATTERN.test(code)) {
 		throw new BadRequest("Currency must be a three-letter ISO code such as USD.");
 	}
 	return code;
+
 }
 
 export function parsePrices(value: unknown, { allowEmpty }: { allowEmpty: boolean }): Price[] {
+
 	if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) {
 		throw new BadRequest("Add at least one price.");
 	}
@@ -150,9 +155,11 @@ export function parsePrices(value: unknown, { allowEmpty }: { allowEmpty: boolea
 		seen.add(currency);
 		return { currency, amountMinor: amount };
 	});
+
 }
 
 export function parseScope(value: unknown): ContentScope {
+
 	const raw = (value ?? {}) as Record<string, unknown>;
 	const type = raw.type;
 	if (typeof type !== "string" || !(SCOPE_TYPES as readonly string[]).includes(type)) {
@@ -178,13 +185,16 @@ export function parseScope(value: unknown): ContentScope {
 		throw new BadRequest("Enter an artist name.");
 	}
 	return { type: "artist", ref: raw.ref.trim(), label };
+
 }
 
 export function parseScopes(value: unknown, { allowEmpty }: { allowEmpty: boolean }): ContentScope[] {
+
 	if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) {
 		throw new BadRequest("Choose what this unlocks.");
 	}
 	return value.map(parseScope);
+
 }
 
 /** The price to charge in the requested currency, else the server currency, else the first price listed. */
@@ -205,6 +215,7 @@ interface DiscountCoupon {
 }
 
 export function couponDiscount(subtotalMinor: number, currency: string, coupon: DiscountCoupon | null): number {
+
 	if (!coupon) {
 		return 0;
 	}
@@ -213,9 +224,11 @@ export function couponDiscount(subtotalMinor: number, currency: string, coupon: 
 	}
 	const fixed = coupon.amountOff?.find((price) => price.currency === currency);
 	return fixed ? Math.min(subtotalMinor, fixed.amountMinor) : 0;
+
 }
 
 export function computeTotals(subtotalMinor: number, discountMinor: number, tax: PaymentConfig["tax"]): Totals {
+
 	const taxable = Math.max(0, subtotalMinor - discountMinor);
 	const percent = tax.enabled ? tax.rates.reduce((sum, rate) => sum + rate.percent, 0) : 0;
 	if (percent <= 0) {
@@ -226,6 +239,7 @@ export function computeTotals(subtotalMinor: number, discountMinor: number, tax:
 	}
 	const taxMinor = Math.round((taxable * percent) / 100);
 	return { subtotalMinor, discountMinor, taxMinor, totalMinor: taxable + taxMinor };
+
 }
 
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "expired";
@@ -238,6 +252,7 @@ interface AccessWindowSubscription {
 
 /** A paid period always grants access; once it ends, only a past-due subscription still inside its grace window does. */
 export function subscriptionGrantsAccess(sub: AccessWindowSubscription, now: Date): boolean {
+
 	if (sub.status === "expired") {
 		return false;
 	}
@@ -245,9 +260,11 @@ export function subscriptionGrantsAccess(sub: AccessWindowSubscription, now: Dat
 		return true;
 	}
 	return sub.status === "past_due" && sub.graceUntil !== null && sub.graceUntil.getTime() > now.getTime();
+
 }
 
 export function addInterval(from: Date, interval: PlanInterval): Date {
+
 	const next = new Date(from);
 	if (interval === "year") {
 		next.setUTCFullYear(next.getUTCFullYear() + 1);
@@ -255,13 +272,16 @@ export function addInterval(from: Date, interval: PlanInterval): Date {
 		next.setUTCMonth(next.getUTCMonth() + 1);
 	}
 	return next;
+
 }
 
 export function formatMinor(amountMinor: number, currency: string): string {
+
 	try {
 		const format = new Intl.NumberFormat("en", { style: "currency", currency });
 		return format.format(amountMinor / 10 ** (format.resolvedOptions().maximumFractionDigits ?? 2));
 	} catch {
 		return `${(amountMinor / 100).toFixed(2)} ${currency}`;
 	}
+
 }

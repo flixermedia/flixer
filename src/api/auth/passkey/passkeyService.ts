@@ -30,6 +30,7 @@ export interface PublicPasskey {
 
 @Injectable()
 export class PasskeyService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,

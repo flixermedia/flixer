@@ -7,25 +7,30 @@ import { ExternalAuthService } from "./externalAuthService.js";
 import { ExternalOAuthService } from "./externalOAuthService.js";
 
 class ExternalCredentials {
+
 	@Property() @Required() @MaxLength(254) username!: string;
 	@Property() @Required() @MaxLength(1024) password!: string;
 }
 
 class LinkExternalCredentials extends ExternalCredentials {
+
 	@Property() @Required() @MaxLength(128) accountPassword!: string;
 }
 
 class UnlinkExternalCredentials {
+
 	@Property() @Required() @MaxLength(128) accountPassword!: string;
 }
 
 class OAuthStartRequest {
+
 	@Property() @Required() @MaxLength(43) browserSecret!: string;
 	@Property() @Required() link!: boolean;
 	@Property() @MaxLength(128) accountPassword?: string;
 }
 
 class OAuthFinishRequest {
+
 	@Property() @Required() @MaxLength(43) state!: string;
 	@Property() @Required() @MaxLength(43) browserSecret!: string;
 	@Property() @Required() @MaxLength(4096) code!: string;
@@ -33,6 +38,7 @@ class OAuthFinishRequest {
 
 @Controller("/auth/providers")
 export class ExternalAuthController {
+
 	constructor(
 		private readonly service: ExternalAuthService,
 		private readonly oauth: ExternalOAuthService,

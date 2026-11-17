@@ -61,38 +61,47 @@ const RADIUS_MAX = 1.5;
 const COLOR_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 function plainObject(value: unknown, label: string): Record<string, unknown> {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest(`${label} must be an object.`);
 	}
 	return value as Record<string, unknown>;
+
 }
 
 function member<const T extends readonly string[]>(value: unknown, options: T, label: string): T[number] {
+
 	if (typeof value !== "string" || !(options as readonly string[]).includes(value)) {
 		throw new BadRequest(`${label} must be one of: ${options.join(", ")}.`);
 	}
 	return value;
+
 }
 
 function color(value: unknown, label: string): string {
+
 	if (typeof value !== "string" || !COLOR_PATTERN.test(value)) {
 		throw new BadRequest(`${label} must be a hex colour such as #7645d7.`);
 	}
 	const hex = value.toLowerCase();
 	return hex.length === 4 ? `#${[...hex.slice(1)].map((digit) => digit + digit).join("")}` : hex;
+
 }
 
 function palette(value: unknown, label: string): ThemePalette {
+
 	const source = plainObject(value, label);
 	const result = {} as ThemePalette;
 	for (const key of PALETTE_KEYS) {
 		result[key] = color(source[key], `${label}.${key}`);
 	}
 	return result;
+
 }
 
 /** Trims text and removes control characters and angle brackets, which have no place in a name or label. */
 export function cleanText(value: unknown, label: string, max: number, required: boolean): string {
+
 	if (typeof value !== "string") {
 		if (required) {
 			throw new BadRequest(`${label} is required.`);
@@ -108,6 +117,7 @@ export function cleanText(value: unknown, label: string, max: number, required: 
 		throw new BadRequest(`${label} can be at most ${max} characters.`);
 	}
 	return text;
+
 }
 
 const ICO_HEADER = (bytes: Buffer) => bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0;
@@ -125,6 +135,7 @@ const SVG_FORBIDDEN = /<\s*(script|foreignObject|iframe|object|embed|style|anima
 
 /** Accepts only a base64 data URI of a real raster image (verified by its header bytes) or a script-free SVG. */
 export function sanitizeImage(value: unknown, label: string, options: { maxBytes?: number; rasterOnly?: boolean } = {}): string | null {
+
 	const maxBytes = options.maxBytes ?? IMAGE_MAX_BYTES;
 	if (value === null || value === undefined || value === "") {
 		return null;
@@ -156,6 +167,7 @@ export function sanitizeImage(value: unknown, label: string, options: { maxBytes
 		throw new BadRequest(`${label} is not a valid PNG, JPEG, WebP, GIF or ICO image.`);
 	}
 	return value;
+
 }
 
 const CSS_FORBIDDEN_AT_RULES = /@(import|charset|namespace|font-face|font-feature-values|document|-moz-document)\b/i;
@@ -168,6 +180,7 @@ const CSS_DATA_URL = /^url\(\s*(["']?)data:image\/(png|jpeg|webp|gif);base64,[A-
  * constructs. Backslash escapes outside strings are refused so a forbidden word cannot be spelled around the checks.
  */
 export function sanitizeCustomCss(value: unknown): string {
+
 	if (value === null || value === undefined) {
 		return "";
 	}
@@ -233,9 +246,11 @@ export function sanitizeCustomCss(value: unknown): string {
 		}
 	}
 	return value.replace(/\r\n?/g, "\n");
+
 }
 
 export function sanitizeThemeConfig(input: unknown): ThemeConfig {
+
 	const source = plainObject(input, "Theme");
 	const colors = plainObject(source.colors, "colors");
 	const shape = plainObject(source.shape, "shape");
@@ -281,6 +296,7 @@ export function sanitizeThemeConfig(input: unknown): ThemeConfig {
 		},
 		customCss: sanitizeCustomCss(source.customCss),
 	};
+
 }
 
 export const THEME_FILE_FORMAT = "flixer-theme";
@@ -296,6 +312,7 @@ export interface ThemeFile {
 
 /** Validates an imported theme file. The result contains only whitelisted, re-validated fields. */
 export function parseThemeFile(raw: unknown): { name: string; description: string; config: ThemeConfig } {
+
 	const file = plainObject(raw, "Theme file");
 	if (file.format !== THEME_FILE_FORMAT) {
 		throw new BadRequest("This is not a Flixer theme file.");
@@ -309,6 +326,7 @@ export function parseThemeFile(raw: unknown): { name: string; description: strin
 		description: cleanText(theme.description, "Theme description", THEME_DESCRIPTION_MAX, false),
 		config: sanitizeThemeConfig(theme.config),
 	};
+
 }
 
 export interface ThemeSchedule {
@@ -327,6 +345,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 function monthDay(value: unknown, label: string): string {
+
 	const match = typeof value === "string" ? /^(\d{2})-(\d{2})$/.exec(value) : null;
 	const month = match ? Number(match[1]) : 0;
 	const day = match ? Number(match[2]) : 0;
@@ -334,9 +353,11 @@ function monthDay(value: unknown, label: string): string {
 		throw new BadRequest(`${label} must be a valid date written as MM-DD.`);
 	}
 	return value as string;
+
 }
 
 export function sanitizeSchedules(input: unknown): ThemeSchedule[] {
+
 	if (!Array.isArray(input) || input.length > MAX_SCHEDULES) {
 		throw new BadRequest(`Schedules must be a list of at most ${MAX_SCHEDULES} entries.`);
 	}
@@ -355,10 +376,12 @@ export function sanitizeSchedules(input: unknown): ThemeSchedule[] {
 			enabled: item.enabled !== false,
 		};
 	});
+
 }
 
 /** The theme a schedule selects for the given day, or null when none applies. The first matching schedule wins. */
 export function scheduledThemeId(schedules: readonly ThemeSchedule[], now: Date): string | null {
+
 	const today = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 	for (const schedule of schedules) {
 		if (!schedule.enabled) {
@@ -370,10 +393,12 @@ export function scheduledThemeId(schedules: readonly ThemeSchedule[], now: Date)
 		}
 	}
 	return null;
+
 }
 
 /** Library id to accent colour. Only hex colours and uuids are accepted. */
 export function sanitizeLibraryAccents(input: unknown): Record<string, string> {
+
 	const source = plainObject(input, "Library accents");
 	const entries = Object.entries(source);
 	if (entries.length > 200) {
@@ -393,4 +418,5 @@ export function sanitizeLibraryAccents(input: unknown): Record<string, string> {
 		result[libraryId] = color.toLowerCase();
 	}
 	return result;
+
 }

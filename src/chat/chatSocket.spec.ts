@@ -6,6 +6,7 @@ import { ChatSocketServer } from "./chatSocketServer.js";
 import type { ChatEvent } from "./chatService.js";
 
 function fakeChat() {
+
 	const listeners = new Set<(ids: string[], event: ChatEvent) => void>();
 	return {
 		onEvent: (listener: (ids: string[], event: ChatEvent) => void) => {
@@ -14,9 +15,11 @@ function fakeChat() {
 		},
 		emit: (ids: string[], event: ChatEvent) => listeners.forEach((listener) => listener(ids, event)),
 	};
+
 }
 
 async function open(port: number, token: string): Promise<{ ws: WebSocket; received: unknown[] }> {
+
 	const ws = new WebSocket(`ws://127.0.0.1:${port}/api/chat/live`);
 	const received: unknown[] = [];
 	ws.on("message", (raw) => received.push(JSON.parse(raw.toString())));
@@ -31,6 +34,7 @@ async function open(port: number, token: string): Promise<{ ws: WebSocket; recei
 		}, 10);
 	});
 	return { ws, received };
+
 }
 
 describe("ChatSocketServer", () => {
@@ -104,10 +108,14 @@ describe("ChatSocketServer", () => {
 		const revoked = new Set<string>();
 		const calls = { recipients: async () => ["bob"] };
 		server = createServer();
-		sockets = new ChatSocketServer(async (token) => {
-			if (revoked.has(token)) throw new Error("revoked");
-			return token;
-		}, chat as never, calls as never);
+		sockets = new ChatSocketServer(
+			async (token) => {
+				if (revoked.has(token)) throw new Error("revoked");
+				return token;
+			},
+			chat as never,
+			calls as never,
+		);
 		sockets.attach(server);
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		const port = (server.address() as AddressInfo).port;
@@ -153,18 +161,26 @@ describe("ChatSocketServer", () => {
 		let revoked = false;
 		let finishLookup!: (recipients: string[]) => void;
 		let lookupStarted!: () => void;
-		const started = new Promise<void>((resolve) => { lookupStarted = resolve; });
+		const started = new Promise<void>((resolve) => {
+			lookupStarted = resolve;
+		});
 		const calls = {
 			recipients: () => {
 				lookupStarted();
-				return new Promise<string[]>((resolve) => { finishLookup = resolve; });
+				return new Promise<string[]>((resolve) => {
+					finishLookup = resolve;
+				});
 			},
 		};
 		server = createServer();
-		sockets = new ChatSocketServer(async (token) => {
-			if (token === "alice" && revoked) throw new Error("revoked");
-			return token;
-		}, chat as never, calls as never);
+		sockets = new ChatSocketServer(
+			async (token) => {
+				if (token === "alice" && revoked) throw new Error("revoked");
+				return token;
+			},
+			chat as never,
+			calls as never,
+		);
 		sockets.attach(server);
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		const port = (server.address() as AddressInfo).port;
@@ -187,12 +203,16 @@ describe("ChatSocketServer", () => {
 		let checks = 0;
 		let finishCheck!: () => void;
 		let checkStarted!: () => void;
-		const started = new Promise<void>((resolve) => { checkStarted = resolve; });
+		const started = new Promise<void>((resolve) => {
+			checkStarted = resolve;
+		});
 		server = createServer();
 		sockets = new ChatSocketServer(async (token) => {
 			if (++checks === 2) {
 				checkStarted();
-				await new Promise<void>((resolve) => { finishCheck = resolve; });
+				await new Promise<void>((resolve) => {
+					finishCheck = resolve;
+				});
 			}
 			return token;
 		}, chat as never);
@@ -208,11 +228,7 @@ describe("ChatSocketServer", () => {
 		expect(alice.received).toEqual([{ type: "ready" }]);
 		finishCheck();
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(alice.received).toEqual([
-			{ type: "ready" },
-			{ type: "changed", conversationId: "first" },
-			{ type: "changed", conversationId: "second" },
-		]);
+		expect(alice.received).toEqual([{ type: "ready" }, { type: "changed", conversationId: "first" }, { type: "changed", conversationId: "second" }]);
 		alice.ws.close();
 	});
 
@@ -221,12 +237,16 @@ describe("ChatSocketServer", () => {
 		let checks = 0;
 		let finishCheck!: () => void;
 		let checkStarted!: () => void;
-		const started = new Promise<void>((resolve) => { checkStarted = resolve; });
+		const started = new Promise<void>((resolve) => {
+			checkStarted = resolve;
+		});
 		server = createServer();
 		sockets = new ChatSocketServer(async (token) => {
 			if (++checks === 2) {
 				checkStarted();
-				await new Promise<void>((resolve) => { finishCheck = resolve; });
+				await new Promise<void>((resolve) => {
+					finishCheck = resolve;
+				});
 			}
 			return token;
 		}, chat as never);

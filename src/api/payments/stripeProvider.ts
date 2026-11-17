@@ -28,6 +28,7 @@ interface StripePaymentMethod {
 }
 
 function encode(form: Form): string {
+
 	const body = new URLSearchParams();
 	for (const [name, value] of Object.entries(form)) {
 		if (value !== undefined) {
@@ -35,9 +36,11 @@ function encode(form: Form): string {
 		}
 	}
 	return body.toString();
+
 }
 
 function toCard(method: StripePaymentMethod): ProviderCard {
+
 	if (!method.card) {
 		throw new PaymentProviderError("Only card payment methods are supported.");
 	}
@@ -48,10 +51,12 @@ function toCard(method: StripePaymentMethod): ProviderCard {
 		expMonth: method.card.exp_month,
 		expYear: method.card.exp_year,
 	};
+
 }
 
 /** Stripe over its REST API. Amounts are ad-hoc, so nothing needs to be configured in the Stripe dashboard. */
 export class StripeProvider implements PaymentProvider {
+
 	readonly id = "stripe" as const;
 
 	constructor(private readonly secretKey: string) {}
@@ -187,12 +192,7 @@ export class StripeProvider implements PaymentProvider {
 }
 
 // Flixer only supports cards; the account's dashboard may enable other methods (wallets, bank redirects) that Flixer cannot complete.
-const NON_CARD_METHODS = [
-	"acss_debit", "affirm", "afterpay_clearpay", "alipay", "alma", "amazon_pay", "au_becs_debit", "bacs_debit", "bancontact", "billie", "bizum",
-	"blik", "boleto", "cashapp", "crypto", "customer_balance", "eps", "fpx", "giropay", "grabpay", "ideal", "kakao_pay", "klarna", "konbini", "kr_card",
-	"mb_way", "mobilepay", "multibanco", "naver_pay", "nz_bank_account", "oxxo", "p24", "pay_by_bank", "payco", "paynow", "paypal", "paypay", "payto", "pix",
-	"promptpay", "revolut_pay", "samsung_pay", "satispay", "scalapay", "sepa_debit", "sequra", "sofort", "sunbit", "swish", "twint", "upi", "us_bank_account", "wechat_pay", "wero", "zip",
-];
+const NON_CARD_METHODS = ["acss_debit", "affirm", "afterpay_clearpay", "alipay", "alma", "amazon_pay", "au_becs_debit", "bacs_debit", "bancontact", "billie", "bizum", "blik", "boleto", "cashapp", "crypto", "customer_balance", "eps", "fpx", "giropay", "grabpay", "ideal", "kakao_pay", "klarna", "konbini", "kr_card", "mb_way", "mobilepay", "multibanco", "naver_pay", "nz_bank_account", "oxxo", "p24", "pay_by_bank", "payco", "paynow", "paypal", "paypay", "payto", "pix", "promptpay", "revolut_pay", "samsung_pay", "satispay", "scalapay", "sepa_debit", "sequra", "sofort", "sunbit", "swish", "twint", "upi", "us_bank_account", "wechat_pay", "wero", "zip"];
 
 function cardOnlyParams(): Record<string, string> {
 	return Object.fromEntries(NON_CARD_METHODS.map((type, index) => [`excluded_payment_method_types[${index}]`, type]));

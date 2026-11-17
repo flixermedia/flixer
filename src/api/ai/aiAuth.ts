@@ -8,11 +8,14 @@ export const AI_SIGNATURE_HEADER = "x-flixer-ai-signature";
 const MAX_CLOCK_SKEW_SECONDS = 5 * 60;
 
 export function aiSignature(secret: string, timestamp: string, method: string, path: string, body: Uint8Array): string {
+
 	const bodyHash = createHash("sha256").update(body).digest("hex");
 	return createHmac("sha256", secret).update(`flixer-ai:v1:${timestamp}:${method.toUpperCase()}:${path}:${bodyHash}`).digest("hex");
+
 }
 
 export function canonicalAiJson(value: unknown): Uint8Array {
+
 	if (value === null || typeof value !== "object") {
 		const serialized = JSON.stringify(value);
 		if (serialized === undefined) throw new Error("Cannot sign an undefined AI request body.");
@@ -23,14 +26,17 @@ export function canonicalAiJson(value: unknown): Uint8Array {
 	}
 	const entries = Object.entries(value).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
 	return Buffer.from(`{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalAiJson(entry).toString()}`).join(",")}}`);
+
 }
 
 function aiSecret(): string {
+
 	const secret = appConfig().get("appSecret") ?? "";
 	if (Buffer.byteLength(secret) < 32) {
 		throw new Error("APP_SECRET must be set to at least 32 bytes to talk to flixer-ai.");
 	}
 	return secret;
+
 }
 
 export function verifyAiRequest(
@@ -43,6 +49,7 @@ export function verifyAiRequest(
 	},
 	now = Date.now(),
 ): void {
+
 	let secret: string;
 	try {
 		secret = aiSecret();
@@ -63,4 +70,5 @@ export function verifyAiRequest(
 	if (provided.length !== expected.length || !timingSafeEqual(expected, provided)) {
 		throw new Unauthorized("Invalid flixer-ai signature.");
 	}
+
 }

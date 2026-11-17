@@ -38,9 +38,6 @@ describe("logger log clearing", () => {
 		await expect(service.clearLogs("invalid")).rejects.toThrow("forbidden");
 		expect(fetcher).not.toHaveBeenCalled();
 		await expect(service.clearLogs("admin")).resolves.toEqual({ cleared: 12 });
-		expect(fetcher).toHaveBeenCalledWith(
-			"https://logger.example/api/logs/clear",
-			expect.objectContaining({ method: "POST" }),
-		);
+		expect(fetcher).toHaveBeenCalledWith("https://logger.example/api/logs/clear", expect.objectContaining({ method: "POST" }));
 	});
 });

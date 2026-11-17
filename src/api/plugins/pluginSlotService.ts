@@ -14,6 +14,7 @@ const LOCATIONS = ["media.detail", "player.controls"] as const;
 
 @Injectable()
 export class PluginSlotService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async canControl(pluginId: string, slotId: string, role: string): Promise<boolean> {

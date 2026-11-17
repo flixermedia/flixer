@@ -1,6 +1,7 @@
 import { MaxLength, MinLength, Property, Required } from "@tsed/schema";
 
 export class LoggerConfigurationRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(2048)
@@ -14,6 +15,7 @@ export class LoggerConfigurationRequest {
 }
 
 class LoggerSeverityRetention {
+
 	@Property()
 	trace?: number;
 
@@ -34,6 +36,7 @@ class LoggerSeverityRetention {
 }
 
 export class LoggerRetentionRequest {
+
 	@Property()
 	@Required()
 	enabled!: boolean;
@@ -47,6 +50,7 @@ export class LoggerRetentionRequest {
 }
 
 export class LoggerIngestionPolicyRequest {
+
 	@Property()
 	@Required()
 	eventsPerSecond!: number;
@@ -69,12 +73,14 @@ export class LoggerIngestionPolicyRequest {
 }
 
 export class LoggerQuotaRequest {
+
 	@Property()
 	@Required()
 	maxBytes!: number;
 }
 
 export class LoggerOwnerConfigurationRequest {
+
 	@Property()
 	@Required()
 	@MinLength(32)
@@ -83,6 +89,7 @@ export class LoggerOwnerConfigurationRequest {
 }
 
 export class LoggerPairingRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(2048)
@@ -101,6 +108,7 @@ export class LoggerPairingRequest {
 }
 
 export class LoggerOwnerPairingRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(128)
@@ -116,6 +124,7 @@ export class LoggerOwnerPairingRequest {
 }
 
 export class LoggerCapacityPolicyRequest {
+
 	@Property()
 	@Required()
 	maxDatabaseBytes!: number;

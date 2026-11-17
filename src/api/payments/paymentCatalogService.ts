@@ -17,20 +17,25 @@ const MAX_RENTAL_HOURS = 24 * 365;
 const SEARCHABLE_TYPES = ["movie", "series", "season", "episode", "album", "track", "video"];
 
 function requireBody(value: unknown): Body {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest("The request body is invalid.");
 	}
 	return value as Body;
+
 }
 
 function name(value: unknown): string {
+
 	if (typeof value !== "string" || !value.trim() || value.length > 200) {
 		throw new BadRequest("Enter a name of up to 200 characters.");
 	}
 	return value.trim();
+
 }
 
 function description(value: unknown): string | null {
+
 	if (value === undefined || value === null || value === "") {
 		return null;
 	}
@@ -38,6 +43,7 @@ function description(value: unknown): string | null {
 		throw new BadRequest("The description is too long.");
 	}
 	return value.trim();
+
 }
 
 function sortOrder(value: unknown): number {
@@ -46,6 +52,7 @@ function sortOrder(value: unknown): number {
 
 @Injectable()
 export class PaymentCatalogService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly entitlements: EntitlementService,

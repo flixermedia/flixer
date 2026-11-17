@@ -5,6 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 /** Manages an account's approved third-party applications. */
 @Injectable()
 export class OidcConsentService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(accountId: string): Promise<Array<{ id: string; name: string; scopes: string[] }>> {

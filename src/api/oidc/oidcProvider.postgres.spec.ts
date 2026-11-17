@@ -133,21 +133,28 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		const configuration = await service.setPublicUrl(`http://localhost:${address.port}`);
 		issuer = configuration.issuer;
 		await service.getProvider();
-		const auth = { requireAuthenticatedSession: async (authorization?: string) => {
-			if (!authorization) throw new Unauthorized("Authentication required.");
-			return { user: { id: activeUserId, username: "testuser" } };
-		} } as AuthService;
+		const auth = {
+			requireAuthenticatedSession: async (authorization?: string) => {
+				if (!authorization) throw new Unauthorized("Authentication required.");
+				return { user: { id: activeUserId, username: "testuser" } };
+			},
+		} as AuthService;
 		interactionController = new OidcInteractionController(auth, service, db);
 		consentsController = new OidcConsentsController(auth, new OidcConsentService(db));
-		resourceController = new OidcResourceController(db, service, {
-			forUser: async () => ({ enforced: false }),
-			visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids),
-			blockReason: async () => null,
-			restrictionSql: () => ({ sql: "TRUE", params: {} }),
-		} as unknown as MediaAccessService, {
-			contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }),
-			lockState: async () => ({ locked: false }),
-		} as EntitlementService);
+		resourceController = new OidcResourceController(
+			db,
+			service,
+			{
+				forUser: async () => ({ enforced: false }),
+				visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids),
+				blockReason: async () => null,
+				restrictionSql: () => ({ sql: "TRUE", params: {} }),
+			} as unknown as MediaAccessService,
+			{
+				contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }),
+				lockState: async () => ({ locked: false }),
+			} as EntitlementService,
+		);
 	}, 30_000);
 
 	afterAll(async () => {
@@ -215,7 +222,10 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		const access = { forUser: async () => ({ enforced: false }), visibleIds: async (_policy: unknown, ids: string[]) => new Set(ids), blockReason, restrictionSql: () => ({ sql: "TRUE", params: {} }) } as unknown as MediaAccessService;
 		const entitlement = { contextFor: async (id: string) => ({ ids: [id], kind: "movies", artists: [] }), lockState } as EntitlementService;
 		const controller = new OidcResourceController(db, service, access, entitlement);
-		const item = randomUUID(), library = randomUUID(), playlist = randomUUID(), plan = randomUUID();
+		const item = randomUUID(),
+			library = randomUUID(),
+			playlist = randomUUID(),
+			plan = randomUUID();
 		await db.getRepository(MediaItem).save({ id: item, libraryId: library, title: "Test title", type: "movie", path: "/private/path", externalKey: "test" });
 		await db.getRepository(PaymentPlan).save({ id: plan, name: "Plan", interval: "month", scopes: [{ type: "all", ref: null }] });
 		const subscription = await db.getRepository(PaymentSubscription).save({ id: randomUUID(), userId, planId: plan, status: "active", currency: "USD", amountMinor: 100, periodEnd: new Date(Date.now() + 60_000) });
@@ -266,44 +276,47 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		expect(await db.query(`SELECT account_id FROM oidc_consents WHERE account_id <> $1`, [importedUserId])).toEqual([]);
 	});
 
-	it.each(["public", "confidential"] as const)("issues rotating refresh tokens and consented claims for a %s client", async (type) => {
-		const client = await clients.create({ name: `Claims ${type}`, type, redirectUris: ["https://client.example/callback"] });
-		const agent = request.agent(app.server);
-		const verifier = randomBytes(32).toString("base64url");
-		const challenge = createHash("sha256").update(verifier).digest("base64url");
-		const query = { client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback", scope: "openid offline_access roles groups", prompt: "consent", code_challenge_method: "S256", code_challenge: challenge };
-		const authorization = await agent.get("/api/oidc/auth").query(query).expect(303);
-		let path = new URL(authorization.headers.location, issuer).pathname;
-		const login = await agent.post(path).send({ action: "login" }).expect(200);
-		let resume = new URL(login.body.redirect);
-		const consentRedirect = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
-		path = new URL(consentRedirect.headers.location, issuer).pathname;
-		expect((await agent.get(`${path}/details`).expect(200)).body).toMatchObject({ prompt: "consent", scope: query.scope });
-		const consent = await agent.post(path).send({ action: "approve" }).expect(200);
-		resume = new URL(consent.body.redirect);
-		const result = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
-		const code = new URL(result.headers.location).searchParams.get("code");
-		const tokenRequest = () => {
-			const req = agent.post("/api/oidc/token").type("form");
-			return client.secret ? req.auth(client.id, client.secret) : req;
-		};
-		const token = await tokenRequest().send({ grant_type: "authorization_code", client_id: client.id, redirect_uri: query.redirect_uri, code, code_verifier: verifier }).expect(200);
-		expect(token.body.refresh_token).toBeTruthy();
-		const info = () => agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`);
-		const userInfo = (await info().expect(200)).body;
-		expect(userInfo).toMatchObject({ roles: ["user"], groups: ["flixer:user"] });
-		expect(userInfo).not.toHaveProperty("flixer_subscription_active");
-		await db.getRepository(User).update(userId, { disabledAt: new Date() });
-		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
-		await db.getRepository(User).update(userId, { disabledAt: null });
-		const refreshed = await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(200);
-		expect(refreshed.body.refresh_token).toBeTruthy();
-		expect(refreshed.body.refresh_token).not.toBe(token.body.refresh_token);
-		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
-		await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: refreshed.body.refresh_token }).expect(400);
-		await clients.remove(client.id);
-	}, 15_000);
-
+	it.each(["public", "confidential"] as const)(
+		"issues rotating refresh tokens and consented claims for a %s client",
+		async (type) => {
+			const client = await clients.create({ name: `Claims ${type}`, type, redirectUris: ["https://client.example/callback"] });
+			const agent = request.agent(app.server);
+			const verifier = randomBytes(32).toString("base64url");
+			const challenge = createHash("sha256").update(verifier).digest("base64url");
+			const query = { client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback", scope: "openid offline_access roles groups", prompt: "consent", code_challenge_method: "S256", code_challenge: challenge };
+			const authorization = await agent.get("/api/oidc/auth").query(query).expect(303);
+			let path = new URL(authorization.headers.location, issuer).pathname;
+			const login = await agent.post(path).send({ action: "login" }).expect(200);
+			let resume = new URL(login.body.redirect);
+			const consentRedirect = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+			path = new URL(consentRedirect.headers.location, issuer).pathname;
+			expect((await agent.get(`${path}/details`).expect(200)).body).toMatchObject({ prompt: "consent", scope: query.scope });
+			const consent = await agent.post(path).send({ action: "approve" }).expect(200);
+			resume = new URL(consent.body.redirect);
+			const result = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
+			const code = new URL(result.headers.location).searchParams.get("code");
+			const tokenRequest = () => {
+				const req = agent.post("/api/oidc/token").type("form");
+				return client.secret ? req.auth(client.id, client.secret) : req;
+			};
+			const token = await tokenRequest().send({ grant_type: "authorization_code", client_id: client.id, redirect_uri: query.redirect_uri, code, code_verifier: verifier }).expect(200);
+			expect(token.body.refresh_token).toBeTruthy();
+			const info = () => agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`);
+			const userInfo = (await info().expect(200)).body;
+			expect(userInfo).toMatchObject({ roles: ["user"], groups: ["flixer:user"] });
+			expect(userInfo).not.toHaveProperty("flixer_subscription_active");
+			await db.getRepository(User).update(userId, { disabledAt: new Date() });
+			await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+			await db.getRepository(User).update(userId, { disabledAt: null });
+			const refreshed = await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(200);
+			expect(refreshed.body.refresh_token).toBeTruthy();
+			expect(refreshed.body.refresh_token).not.toBe(token.body.refresh_token);
+			await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
+			await tokenRequest().send({ grant_type: "refresh_token", client_id: client.id, refresh_token: refreshed.body.refresh_token }).expect(400);
+			await clients.remove(client.id);
+		},
+		15_000,
+	);
 
 	it("persists admin configuration and reloads the provider when the public URL changes", async () => {
 		const secondInstance = new OidcProviderService(db);
@@ -438,7 +451,11 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		expect(pendingCode).toBeTruthy();
 		await request(app.server).delete(`/api/account/oidc-apps/${client.id}`).set("Authorization", "Bearer test").expect(204);
 		await agent.get("/api/oidc/me").set("Authorization", `Bearer ${token.body.access_token}`).expect(401);
-		await agent.post("/api/oidc/token").type("form").send({ ...exchange, code: pendingCode }).expect(400);
+		await agent
+			.post("/api/oidc/token")
+			.type("form")
+			.send({ ...exchange, code: pendingCode })
+			.expect(400);
 		await agent.post("/api/oidc/token").type("form").send({ grant_type: "refresh_token", client_id: client.id, refresh_token: token.body.refresh_token }).expect(400);
 		expect((await request(app.server).get("/api/account/oidc-apps").set("Authorization", "Bearer test").expect(200)).body).toEqual([]);
 		activeUserId = otherUserId;
@@ -487,10 +504,17 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		await db.query(`INSERT INTO oidc_consents (account_id, client_id, scopes, claims) VALUES ($1, $2, ARRAY['openid'], ARRAY[]::text[])`, [userId, client.id]);
 		const agent = request.agent(app.server);
 		const challenge = createHash("sha256").update(randomBytes(32).toString("base64url")).digest("base64url");
-		const start = await agent.get("/api/oidc/auth").query({
-			client_id: client.id, response_type: "code", redirect_uri: "https://client.example/callback",
-			scope: "openid", code_challenge_method: "S256", code_challenge: challenge,
-		}).expect(303);
+		const start = await agent
+			.get("/api/oidc/auth")
+			.query({
+				client_id: client.id,
+				response_type: "code",
+				redirect_uri: "https://client.example/callback",
+				scope: "openid",
+				code_challenge_method: "S256",
+				code_challenge: challenge,
+			})
+			.expect(303);
 		const path = new URL(start.headers.location, issuer).pathname;
 		const login = await agent.post(path).send({ action: "login" }).expect(200);
 		const resume = new URL(login.body.redirect);

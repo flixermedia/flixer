@@ -9,6 +9,7 @@ import { deleteAvatarFile, detectAvatarType, MAX_AVATAR_BYTES, mimeForAvatarFile
 
 @Injectable()
 export class AvatarService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,

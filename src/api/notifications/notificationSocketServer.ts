@@ -31,8 +31,7 @@ export class NotificationSocketServer {
 	private heartbeat?: NodeJS.Timeout;
 	private revalidation?: NodeJS.Timeout;
 	private unsubscribe?: () => void;
-	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) =>
-		this.handleUpgrade(request, socket, head);
+	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
 
 	constructor(
 		private readonly authenticate: NotificationAuthenticator,
@@ -166,9 +165,7 @@ function parseAuthMessage(raw: RawData): string | null {
 
 	try {
 		const message = JSON.parse(raw.toString()) as { type?: unknown; token?: unknown };
-		return message.type === "auth" && typeof message.token === "string" && message.token !== ""
-			? message.token
-			: null;
+		return message.type === "auth" && typeof message.token === "string" && message.token !== "" ? message.token : null;
 	} catch {
 		return null;
 	}

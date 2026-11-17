@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddChatMls1797000000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`ALTER TABLE "chat_messages" ALTER COLUMN "body" TYPE text`);
 		await queryRunner.query(`ALTER TABLE "chat_messages" ADD COLUMN "sequence" bigserial NOT NULL`);

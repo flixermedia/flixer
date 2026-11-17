@@ -1,6 +1,7 @@
 import { CollectionOf, Enum, MaxItems, MaxLength, Max, Min, MinLength, Nullable, Property, Required } from "@tsed/schema";
 
 export class UpdateMailSettingsRequest {
+
 	@Property() inboundEnabled?: boolean;
 
 	@Property() @Min(1) @Max(65535) inboundPort?: number;
@@ -25,28 +26,33 @@ export class UpdateMailSettingsRequest {
 }
 
 export class CreateMailDomainRequest {
+
 	@Property() @Required() @MinLength(3) @MaxLength(253) domain!: string;
 
 	@Property() allowSubdomains?: boolean;
 }
 
 export class UpdateMailDomainRequest {
+
 	@Property() allowSubdomains?: boolean;
 }
 
 export class CreateMailboxRequest {
+
 	@Property() @Required() @MinLength(3) @MaxLength(320) address!: string;
 
 	@Property() @Nullable(String) @MaxLength(100) displayName?: string | null;
 }
 
 export class UpdateMailboxRequest {
+
 	@Property() @Nullable(String) @MaxLength(100) displayName?: string | null;
 
 	@Property() enabled?: boolean;
 }
 
 export class SendMailRequest {
+
 	@Property() @Required() @MinLength(3) @MaxLength(320) from!: string;
 
 	@Property() @Required() @CollectionOf(String) @MaxItems(20) to!: string[];
@@ -61,6 +67,7 @@ export class SendMailRequest {
 }
 
 export class SaveMailTemplateRequest {
+
 	@Property() @MaxLength(100) label?: string;
 
 	@Property() @MaxLength(300) description?: string;
@@ -73,6 +80,7 @@ export class SaveMailTemplateRequest {
 }
 
 export class PreviewMailTemplateRequest {
+
 	@Property() @Required() @MaxLength(200) subject!: string;
 
 	@Property() @Required() @MaxLength(262_144) html!: string;
@@ -83,5 +91,6 @@ export class PreviewMailTemplateRequest {
 }
 
 export class SendTestMailRequest {
+
 	@Property() @Required() @MaxLength(320) to!: string;
 }

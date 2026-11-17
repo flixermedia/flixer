@@ -59,6 +59,7 @@ const base64Url = (value: Buffer | string) => Buffer.from(value).toString("base6
  */
 @Injectable()
 export class PlaybackService {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly libraries: MediaLibrariesService,
@@ -77,24 +78,35 @@ export class PlaybackService {
 
 	/** Issues a streamer token after the trailer service has checked item visibility. */
 	async issueTrailer(userId: string, item: MediaItem, filename: string): Promise<PlaybackInfo> {
-		return this.issue(userId, {
-			id: item.id,
-			title: item.title,
-			container: "mp4",
-			directPlay: true,
-			rootId: TRAILER_ROOT_ID,
-			relativePath: filename,
-		}, await this.originalAllowed(userId));
+		return this.issue(
+			userId,
+			{
+				id: item.id,
+				title: item.title,
+				container: "mp4",
+				directPlay: true,
+				rootId: TRAILER_ROOT_ID,
+				relativePath: filename,
+			},
+			await this.originalAllowed(userId),
+		);
 	}
 
 	issueRemoteTrailer(userId: string, item: MediaItem, url: string): string {
 		const secret = this.getSecret();
 		const now = Math.floor(Date.now() / 1000);
 		const claims = {
-			iss: "flixer", aud: "flixer-streamer", sub: userId, userId,
-			mediaItemId: item.id, mediaSourceId: item.id, playSessionId: randomUUID(),
+			iss: "flixer",
+			aud: "flixer-streamer",
+			sub: userId,
+			userId,
+			mediaItemId: item.id,
+			mediaSourceId: item.id,
+			playSessionId: randomUUID(),
 			mediaLocator: this.encryptLocator({ type: "trailer", url }, secret),
-			iat: now, exp: now + TOKEN_LIFETIME_SECONDS, jti: randomUUID(),
+			iat: now,
+			exp: now + TOKEN_LIFETIME_SECONDS,
+			jti: randomUUID(),
 		};
 		const signingInput = `${base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${base64Url(JSON.stringify(claims))}`;
 		const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
@@ -120,10 +132,7 @@ export class PlaybackService {
 	}
 
 	/** Playback for an indexed media item, using the root and path the indexer recorded for its file. */
-	async createItemPlaybackInfo(
-		itemId: string,
-		authorization?: string,
-	): Promise<PlaybackInfo & { title: string; itemType: MediaItemType; nextEpisode: NextEpisode | null; advertisements: { id: string; name: string; targetUrl: string; atSeconds: number; skipAfterSeconds: number | null; streamUrl: string }[] } & ItemSegments> {
+	async createItemPlaybackInfo(itemId: string, authorization?: string): Promise<PlaybackInfo & { title: string; itemType: MediaItemType; nextEpisode: NextEpisode | null; advertisements: { id: string; name: string; targetUrl: string; atSeconds: number; skipAfterSeconds: number | null; streamUrl: string }[] } & ItemSegments> {
 		const policy = await this.access.resolve(authorization);
 		const user = { id: policy.userId };
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id: itemId });
@@ -143,25 +152,31 @@ export class PlaybackService {
 		if (!SAMPLE_EXTENSIONS.has(extension) && !AUDIO_EXTENSIONS.has(extension)) {
 			throw new BadRequest("This file type can't be played in the browser yet.");
 		}
-		const info = this.issue(user.id, {
-			id: item.id,
-			title: item.title,
-			container: extension.slice(1),
-			directPlay: extension !== ".mkv",
-			rootId: item.rootId,
-			relativePath: item.relativePath,
-		}, await this.originalAllowed(user.id));
+		const info = this.issue(
+			user.id,
+			{
+				id: item.id,
+				title: item.title,
+				container: extension.slice(1),
+				directPlay: extension !== ".mkv",
+				rootId: item.rootId,
+				relativePath: item.relativePath,
+			},
+			await this.originalAllowed(user.id),
+		);
 		const settings = await this.dataSource.getRepository(AdvertisementSettings).findOneByOrFail({ id: 1 });
-		const ads = item.type !== "track" && settings.enabled && context && !(await this.entitlements.isAdExempt(user.id, context))
-			? scheduleAdvertisements(await this.dataSource.getRepository(Advertisement).findBy({ enabled: true }), settings, context)
-			: [];
+		const ads = item.type !== "track" && settings.enabled && context && !(await this.entitlements.isAdExempt(user.id, context)) ? scheduleAdvertisements(await this.dataSource.getRepository(Advertisement).findBy({ enabled: true }), settings, context) : [];
 		return {
 			...info,
 			title: item.title,
 			itemType: item.type,
 			nextEpisode: await this.visibleNext(policy, await this.findNextEpisode(item)),
 			advertisements: ads.map(({ ad, atSeconds }) => ({
-				id: ad.id, name: ad.name, targetUrl: ad.targetUrl, atSeconds, skipAfterSeconds: ad.skipAfterSeconds,
+				id: ad.id,
+				name: ad.name,
+				targetUrl: ad.targetUrl,
+				atSeconds,
+				skipAfterSeconds: ad.skipAfterSeconds,
 				streamUrl: this.issue(user.id, { id: ad.id, title: ad.name, container: "mp4", directPlay: true, rootId: AD_ROOT_ID, relativePath: ad.filename }, true).mediaSource.streamUrl,
 			})),
 			...(await this.segments.forItem(item)),
@@ -179,11 +194,7 @@ export class PlaybackService {
 		}
 		const repository = this.dataSource.getRepository(MediaItem);
 		const season = await repository.findOneBy({ id: item.parentId });
-		const seasons = season?.parentId
-			? await repository.findBy({ parentId: season.parentId, type: "season" })
-			: season
-				? [season]
-				: [];
+		const seasons = season?.parentId ? await repository.findBy({ parentId: season.parentId, type: "season" }) : season ? [season] : [];
 		const episodes = await repository.findBy({
 			parentId: In(seasons.map((entry) => entry.id)),
 			type: "episode",
@@ -197,9 +208,7 @@ export class PlaybackService {
 				.map((episode) => ({
 					id: episode.id,
 					title: episode.title,
-					seasonNumber:
-						episode.seasonNumber ??
-						(episode.parentId ? (seasonNumbers.get(episode.parentId) ?? null) : null),
+					seasonNumber: episode.seasonNumber ?? (episode.parentId ? (seasonNumbers.get(episode.parentId) ?? null) : null),
 					episodeNumber: episode.episodeNumber,
 				})),
 		);
@@ -259,10 +268,7 @@ export class PlaybackService {
 		return secret;
 	}
 
-	private issueLive(
-		userId: string,
-		channel: { id: string; name: string; url: string; container: LiveStreamContainer },
-	): PlaybackInfo {
+	private issueLive(userId: string, channel: { id: string; name: string; url: string; container: LiveStreamContainer }): PlaybackInfo {
 		const secret = this.getSecret();
 		const now = Math.floor(Date.now() / 1000);
 		const playSessionId = randomUUID();
@@ -296,10 +302,7 @@ export class PlaybackService {
 		};
 	}
 
-	private encryptLocator(
-		locator: { rootId: string; relativePath: string } | { type: "iptv" | "trailer"; url: string },
-		secret: Buffer,
-	): string {
+	private encryptLocator(locator: { rootId: string; relativePath: string } | { type: "iptv" | "trailer"; url: string }, secret: Buffer): string {
 		const key = createHash("sha256")
 			.update(Buffer.concat([Buffer.from(`${LOCATOR_AAD}\0`), secret]))
 			.digest();

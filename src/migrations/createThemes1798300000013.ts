@@ -3,6 +3,7 @@ import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from "../api/appearance/builtInThem
 
 /** Creates the themes table, installs the five built-in themes and selects Flixer Default for everyone. */
 export class CreateThemes1798300000013 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE themes (
@@ -16,10 +17,7 @@ export class CreateThemes1798300000013 implements MigrationInterface {
 			)
 		`);
 		for (const theme of BUILT_IN_THEMES) {
-			await queryRunner.query(
-				`INSERT INTO themes (id, name, description, is_built_in, config) VALUES ($1, $2, $3, true, $4::jsonb)`,
-				[theme.id, theme.name, theme.description, JSON.stringify(theme.config)],
-			);
+			await queryRunner.query(`INSERT INTO themes (id, name, description, is_built_in, config) VALUES ($1, $2, $3, true, $4::jsonb)`, [theme.id, theme.name, theme.description, JSON.stringify(theme.config)]);
 		}
 		await queryRunner.query(
 			`INSERT INTO settings ("key", "value", "is_public") VALUES

@@ -12,6 +12,7 @@ import { MediaTrailerService } from "./mediaTrailerService.js";
 import { imageCacheResponse } from "./imageCacheResponse.js";
 
 class TrailerView {
+
 	@Nullable(String)
 	@Required()
 	key!: string | null;
@@ -25,18 +26,21 @@ class TrailerView {
 }
 
 class TrailerResponse {
+
 	@Nullable(TrailerView)
 	@Required()
 	trailer!: TrailerView | null;
 }
 
 class ArtistCover {
+
 	@Property() @Required() itemId!: string;
 	@Property() @Required() index!: number;
 	@Property() @Required() version!: Date;
 }
 
 class ArtistBrowseItem {
+
 	@Property() @Required() id!: string;
 	@Property() @Required() name!: string;
 	@Property() @Required() albumCount!: number;
@@ -44,6 +48,7 @@ class ArtistBrowseItem {
 }
 
 class ArtistBrowseResponse {
+
 	@Property() @Required() total!: number;
 	@CollectionOf(ArtistBrowseItem) @Required() items!: ArtistBrowseItem[];
 }
@@ -52,6 +57,7 @@ class ArtistBrowseResponse {
 @Controller("/media")
 @Security("BearerAuth")
 export class MediaHomeController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly access: MediaAccessService,
@@ -78,11 +84,7 @@ export class MediaHomeController {
 
 	@Put("/items/:id/progress")
 	@Returns(204)
-	async saveProgress(
-		@PathParams("id") id: string,
-		@BodyParams() request: WatchProgressRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async saveProgress(@PathParams("id") id: string, @BodyParams() request: WatchProgressRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
@@ -93,11 +95,7 @@ export class MediaHomeController {
 
 	@Put("/items/:id/watched")
 	@Returns(204)
-	async setWatched(
-		@PathParams("id") id: string,
-		@BodyParams() request: WatchedRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async setWatched(@PathParams("id") id: string, @BodyParams() request: WatchedRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Media item not found.");
@@ -132,29 +130,33 @@ export class MediaHomeController {
 		@QueryParams("audioLanguage", String) audioLanguage?: string,
 	) {
 		const policy = await this.access.resolve(authorization);
-		const result = await this.home.search(policy.userId, typeof q === "string" ? q : "", {
-			type: typeof type === "string" ? type : undefined,
-			genre: typeof genre === "string" ? genre : undefined,
-			yearFrom: Number.isInteger(yearFrom) ? yearFrom : undefined,
-			yearTo: Number.isInteger(yearTo) ? yearTo : undefined,
-			sort: typeof sort === "string" ? sort : undefined,
-			unwatched: unwatched === "true",
-			includeChildren: includeChildren === true,
-			cast, studio, runtimeFrom, runtimeTo, hdr, resolution, audioLanguage,
-		}, policy);
+		const result = await this.home.search(
+			policy.userId,
+			typeof q === "string" ? q : "",
+			{
+				type: typeof type === "string" ? type : undefined,
+				genre: typeof genre === "string" ? genre : undefined,
+				yearFrom: Number.isInteger(yearFrom) ? yearFrom : undefined,
+				yearTo: Number.isInteger(yearTo) ? yearTo : undefined,
+				sort: typeof sort === "string" ? sort : undefined,
+				unwatched: unwatched === "true",
+				includeChildren: includeChildren === true,
+				cast,
+				studio,
+				runtimeFrom,
+				runtimeTo,
+				hdr,
+				resolution,
+				audioLanguage,
+			},
+			policy,
+		);
 		ctx.response.setHeader("X-Flixer-Search-Engine", result.engine);
 		return result.items;
 	}
 
 	@Get("/people/:id/image")
-	async personImage(
-		@PathParams("id") id: string,
-		@QueryParams("w", Number) width: number | undefined,
-		@Context() ctx: PlatformContext,
-		@HeaderParams("authorization") authorization?: string,
-		@HeaderParams("x-flixer-app-image-cache") appCache?: string,
-		@HeaderParams("if-none-match") validator?: string,
-	) {
+	async personImage(@PathParams("id") id: string, @QueryParams("w", Number) width: number | undefined, @Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string, @HeaderParams("x-flixer-app-image-cache") appCache?: string, @HeaderParams("if-none-match") validator?: string) {
 		await this.authService.getAuthenticatedUser(authorization);
 		const image = await this.home.personImage(id, width);
 		return imageCacheResponse(ctx, image, "private, max-age=86400", appCache, validator);
@@ -167,12 +169,7 @@ export class MediaHomeController {
 
 	@Get("/browse-artists")
 	@Returns(200, ArtistBrowseResponse)
-	async browseArtists(
-		@QueryParams("sort", String) sort: string | undefined,
-		@QueryParams("offset", Number) offset: number | undefined,
-		@QueryParams("limit", Number) limit: number | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async browseArtists(@QueryParams("sort", String) sort: string | undefined, @QueryParams("offset", Number) offset: number | undefined, @QueryParams("limit", Number) limit: number | undefined, @HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? (offset as number) : 0;
 		const safeLimit = Number.isInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, 100) : 48;
@@ -180,29 +177,22 @@ export class MediaHomeController {
 	}
 
 	@Get("/browse/:kind")
-	async browse(
-		@PathParams("kind") kind: string,
-		@QueryParams("sort", String) sort: string | undefined,
-		@QueryParams("offset", Number) offset: number | undefined,
-		@QueryParams("limit", Number) limit: number | undefined,
-		@HeaderParams("authorization") authorization?: string,
-		@QueryParams("genre", String) genre?: string,
-		@QueryParams("yearFrom", Number) yearFrom?: number,
-		@QueryParams("yearTo", Number) yearTo?: number,
-		@QueryParams("unwatched", String) unwatched?: string,
-		@QueryParams("cast", String) cast?: string,
-		@QueryParams("studio", String) studio?: string,
-		@QueryParams("runtimeFrom", Number) runtimeFrom?: number,
-		@QueryParams("runtimeTo", Number) runtimeTo?: number,
-		@QueryParams("hdr", String) hdr?: string,
-		@QueryParams("resolution", Number) resolution?: number,
-		@QueryParams("audioLanguage", String) audioLanguage?: string,
-	) {
+	async browse(@PathParams("kind") kind: string, @QueryParams("sort", String) sort: string | undefined, @QueryParams("offset", Number) offset: number | undefined, @QueryParams("limit", Number) limit: number | undefined, @HeaderParams("authorization") authorization?: string, @QueryParams("genre", String) genre?: string, @QueryParams("yearFrom", Number) yearFrom?: number, @QueryParams("yearTo", Number) yearTo?: number, @QueryParams("unwatched", String) unwatched?: string, @QueryParams("cast", String) cast?: string, @QueryParams("studio", String) studio?: string, @QueryParams("runtimeFrom", Number) runtimeFrom?: number, @QueryParams("runtimeTo", Number) runtimeTo?: number, @QueryParams("hdr", String) hdr?: string, @QueryParams("resolution", Number) resolution?: number, @QueryParams("audioLanguage", String) audioLanguage?: string) {
 		const policy = await this.access.resolve(authorization);
 		const safeOffset = Number.isInteger(offset) && (offset as number) > 0 ? (offset as number) : 0;
 		const safeLimit = Number.isInteger(limit) && (limit as number) > 0 ? Math.min(limit as number, 100) : 48;
 		return this.home.browse(kind, typeof sort === "string" ? sort : "added", safeOffset, safeLimit, policy, {
-			genre, yearFrom, yearTo, unwatched: unwatched === "true", cast, studio, runtimeFrom, runtimeTo, hdr, resolution, audioLanguage,
+			genre,
+			yearFrom,
+			yearTo,
+			unwatched: unwatched === "true",
+			cast,
+			studio,
+			runtimeFrom,
+			runtimeTo,
+			hdr,
+			resolution,
+			audioLanguage,
 		});
 	}
 
@@ -240,15 +230,7 @@ export class MediaHomeController {
 
 	/** An image's bytes. Authenticated, so the web app fetches it with its token rather than using a plain img src. */
 	@Get("/items/:id/images/:index")
-	async image(
-		@PathParams("id") id: string,
-		@PathParams("index", Number) index: number,
-		@QueryParams("w", Number) width: number | undefined,
-		@Context() ctx: PlatformContext,
-		@HeaderParams("authorization") authorization?: string,
-		@HeaderParams("x-flixer-app-image-cache") appCache?: string,
-		@HeaderParams("if-none-match") validator?: string,
-	) {
+	async image(@PathParams("id") id: string, @PathParams("index", Number) index: number, @QueryParams("w", Number) width: number | undefined, @Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string, @HeaderParams("x-flixer-app-image-cache") appCache?: string, @HeaderParams("if-none-match") validator?: string) {
 		const policy = await this.access.resolve(authorization);
 		if (!AuthService.isUuid(id) || !Number.isInteger(index) || index < 0) {
 			throw new NotFound("Image not found.");

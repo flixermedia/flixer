@@ -7,9 +7,11 @@ import { ChunkUploadStore } from "./chunkUploadStore.js";
 const directories: string[] = [];
 
 async function setup() {
+
 	const root = await mkdtemp(join(tmpdir(), "flixer-upload-test-"));
 	directories.push(root);
 	return new ChunkUploadStore(root, 10, 4, 60_000);
+
 }
 
 afterEach(async () => {

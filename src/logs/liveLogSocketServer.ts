@@ -173,11 +173,12 @@ export class LiveLogSocketServer {
 }
 
 function parseAuthMessage(raw: RawData): string | null {
+
 	try {
 		const message = JSON.parse(raw.toString()) as { type?: unknown; token?: unknown };
 		return message.type === "auth" && typeof message.token === "string" && message.token !== "" ? message.token : null;
 	} catch {
 		return null;
 	}
-}
 
+}

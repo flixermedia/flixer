@@ -3,6 +3,7 @@ import { loggerExporter } from "./loggerExporter.js";
 import { toUnifiedRecord } from "./unifiedLog.js";
 
 export class LoggerAppender extends BaseAppender {
+
 	write(event: LogEvent): void {
 		try {
 			loggerExporter.enqueue(toUnifiedRecord(event));

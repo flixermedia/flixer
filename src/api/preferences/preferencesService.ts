@@ -70,6 +70,7 @@ const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 };
 
 export function publicPreferences(data: Record<string, unknown>): Preferences {
+
 	const preferences: Preferences = {
 		autoSkipIntroCredits: isAutoSkipIntroCredits(data.autoSkipIntroCredits) ? data.autoSkipIntroCredits : true,
 	};
@@ -89,6 +90,7 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 		preferences.themeId = data.themeId;
 	}
 	return preferences;
+
 }
 
 @Injectable()

@@ -99,10 +99,7 @@ export class OidcProviderService {
 				if (!accountId) return undefined;
 				const submittedId = ctx.oidc.result?.consent?.grantId;
 				if (submittedId) return ctx.oidc.provider.Grant.find(submittedId);
-				const rows: Array<{ scopes: string[]; claims: string[] }> = await dataSource.query(
-					`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2`,
-					[accountId, clientId],
-				);
+				const rows: Array<{ scopes: string[]; claims: string[] }> = await dataSource.query(`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2`, [accountId, clientId]);
 				const consent = rows[0];
 				if (!consent) return undefined;
 				const grant = new ctx.oidc.provider.Grant({ accountId, clientId });
@@ -111,10 +108,7 @@ export class OidcProviderService {
 				grant.addOIDCClaims(consent.claims);
 				const grantId = await grant.save();
 				return dataSource.transaction(async (manager) => {
-					const current: Array<{ scopes: string[]; claims: string[] }> = await manager.query(
-						`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2 FOR UPDATE`,
-						[accountId, clientId],
-					);
+					const current: Array<{ scopes: string[]; claims: string[] }> = await manager.query(`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2 FOR UPDATE`, [accountId, clientId]);
 					const same = (left: string[], right: string[]) => left.length === right.length && left.every((item) => right.includes(item));
 					if (current[0] && same(consent.scopes, current[0].scopes) && same(consent.claims, current[0].claims)) return grant;
 					await manager.query(`DELETE FROM "oidc_artifacts" WHERE kind = 'Grant' AND id = $1`, [grantId]);

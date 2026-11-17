@@ -9,7 +9,12 @@ import { probeRedis, type RedisProbe } from "./redisProbe.js";
 import { resolveUrls, type FieldErrors } from "./urlRules.js";
 
 export class SetupError extends Error {
-	constructor(readonly status: number, message: string, readonly fields?: FieldErrors) {
+
+	constructor(
+		readonly status: number,
+		message: string,
+		readonly fields?: FieldErrors,
+	) {
 		super(message);
 	}
 }
@@ -53,12 +58,15 @@ function record(input: unknown): Record<string, unknown> {
 }
 
 function text(input: Record<string, unknown>, field: string): string {
+
 	const value = input[field];
 	return typeof value === "string" ? value.trim() : "";
+
 }
 
 /** A value from an environment variable wins over the store, so saving a different one here would silently do nothing. */
 function environmentConflicts(values: Partial<Record<ConfigName, string>>, config: AppConfig): FieldErrors {
+
 	const errors: FieldErrors = {};
 	for (const [name, value] of Object.entries(values) as [ConfigName, string][]) {
 		if (config.source(name) === "env" && config.get(name) !== value) {
@@ -66,23 +74,28 @@ function environmentConflicts(values: Partial<Record<ConfigName, string>>, confi
 		}
 	}
 	return errors;
+
 }
 
 function requiredUrl(input: Record<string, unknown>, field: string, validate: (value: string) => string | null, errors: FieldErrors): string {
+
 	const value = text(input, field);
 	const problem = value ? validate(value) : "Required.";
 	if (problem) {
 		errors[field] = problem;
 	}
 	return value;
+
 }
 
 function save(values: Partial<Record<ConfigName, string>>, context: StepContext): void {
+
 	const conflicts = environmentConflicts(values, context.config);
 	if (Object.keys(conflicts).length > 0) {
 		throw new SetupError(409, "Some values are set by environment variables.", conflicts);
 	}
 	context.store.setMany(values);
+
 }
 
 const databaseStep: SetupStep = {

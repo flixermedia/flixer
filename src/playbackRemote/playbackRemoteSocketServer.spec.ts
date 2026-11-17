@@ -19,6 +19,7 @@ describe("PlaybackRemoteSocketServer", () => {
 	});
 
 	async function setup() {
+
 		server = createServer();
 		sockets = new PlaybackRemoteSocketServer(async (token) => {
 			if (token === "revoked" || token === "bad") throw new Error("invalid session");
@@ -27,9 +28,11 @@ describe("PlaybackRemoteSocketServer", () => {
 		sockets.attach(server);
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		return (server.address() as AddressInfo).port;
+
 	}
 
 	async function connect(port: number, token: string): Promise<Client> {
+
 		const ws = new WebSocket(`ws://127.0.0.1:${port}/api/playback/remote`);
 		const messages: Array<Record<string, unknown>> = [];
 		ws.on("message", (raw) => messages.push(JSON.parse(raw.toString()) as Record<string, unknown>));
@@ -40,26 +43,43 @@ describe("PlaybackRemoteSocketServer", () => {
 		ws.send(JSON.stringify({ type: "auth", token }));
 		await waitFor(() => messages.some((message) => message.type === "ready"));
 		return { ws, messages };
+
 	}
 
 	async function waitFor(predicate: () => boolean): Promise<void> {
+
 		const start = Date.now();
 		while (!predicate()) {
 			if (Date.now() - start > 2_000) throw new Error("Timed out waiting for WebSocket message");
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
+
 	}
 
 	function publish(client: Client, clientId = "device-alice") {
-		client.ws.send(JSON.stringify({
-			type: "state", clientId, deviceName: "Living room", player: {
-				kind: "video", title: "A film", itemId: "media-1", playing: true, position: 15, duration: 100,
-			},
-		}));
+
+		client.ws.send(
+			JSON.stringify({
+				type: "state",
+				clientId,
+				deviceName: "Living room",
+				player: {
+					kind: "video",
+					title: "A film",
+					itemId: "media-1",
+					playing: true,
+					position: 15,
+					duration: 100,
+				},
+			}),
+		);
+
 	}
 
 	function publishIdle(client: Client, clientId = "device-idle") {
+
 		client.ws.send(JSON.stringify({ type: "state", clientId, deviceName: "Bedroom TV", player: null }));
+
 	}
 
 	it("lists and routes commands to another client owned by the same user", async () => {

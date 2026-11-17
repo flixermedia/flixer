@@ -11,9 +11,7 @@ describe("FriendsService", () => {
 		let statusLookups = 0;
 		const query = vi.fn(async (sql: string, values: unknown[] = []) => {
 			if (sql.includes("lower(u.username)")) {
-				return values[0] === "sam"
-					? [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }]
-					: [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
+				return values[0] === "sam" ? [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }] : [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
 			}
 			if (sql.includes("WHERE u.id = $1")) {
 				return [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
@@ -23,9 +21,7 @@ describe("FriendsService", () => {
 				return statusLookups === 1 ? [] : [{ requested_by: USER, accepted_at: null }];
 			}
 			if (sql.includes("INSERT INTO social_friendships")) {
-				return values[2] === OTHER
-					? [{ requested_by: USER, accepted_at: new Date() }]
-					: [{ requested_by: USER, accepted_at: null }];
+				return values[2] === OTHER ? [{ requested_by: USER, accepted_at: new Date() }] : [{ requested_by: USER, accepted_at: null }];
 			}
 			return [];
 		});
@@ -114,9 +110,7 @@ describe("FriendsService", () => {
 		});
 		const service = new FriendsService({ query } as unknown as DataSource, {} as never);
 
-		await expect(service.createInvite(USER, "alex", { mode: "expires", expiresInHours: 9000 })).rejects.toThrow(
-			/expiration/,
-		);
+		await expect(service.createInvite(USER, "alex", { mode: "expires", expiresInHours: 9000 })).rejects.toThrow(/expiration/);
 		expect(query).toHaveBeenCalledTimes(1);
 	});
 
@@ -143,9 +137,7 @@ describe("FriendsService", () => {
 		const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 		const query = vi.fn(async (sql: string, values: unknown[] = []) => {
 			if (sql.includes("lower(u.username)")) {
-				return values[0] === "sam"
-					? [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }]
-					: [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
+				return values[0] === "sam" ? [{ id: OTHER, username: "sam", display_name: "Sam", avatar_file: null }] : [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
 			}
 			if (sql.includes("INSERT INTO social_friend_invites")) return [{ token, expires_at: null }];
 			return [];

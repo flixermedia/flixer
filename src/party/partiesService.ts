@@ -75,10 +75,7 @@ export type PartyMessage =
 	/** Ephemeral, MLS-encrypted voice signalling between members. Never stored. */
 	| { type: "call-signal"; callId: string; from: string; to?: string; payload: string };
 
-type PartyCommand =
-	| { action: "play" | "pause"; commandId: string; itemId?: string }
-	| { action: "seek"; commandId: string; itemId?: string; position: number }
-	| { action: "change-item"; commandId: string; itemId: string };
+type PartyCommand = { action: "play" | "pause"; commandId: string; itemId?: string } | { action: "seek"; commandId: string; itemId?: string; position: number } | { action: "change-item"; commandId: string; itemId: string };
 
 interface PartyEvent {
 	partyId: string;
@@ -98,19 +95,23 @@ interface ScriptResult<T> {
 }
 
 function parseJson<T>(value: unknown): T {
+
 	if (typeof value !== "string") {
 		throw new Error("Redis returned an invalid party response.");
 	}
 	return JSON.parse(value) as T;
+
 }
 
 function normalizeParty(party: PartySnapshot): PartySnapshot {
+
 	const members: unknown = party.members;
 	if (Array.isArray(members)) return party;
 	if (members !== null && typeof members === "object" && Object.keys(members).length === 0) {
 		return { ...party, members: [] };
 	}
 	throw new Error("Redis returned invalid party members.");
+
 }
 
 function stateKey(id: string): string {
@@ -131,6 +132,7 @@ function chatKey(id: string): string {
 
 @Injectable()
 export class PartiesService {
+
 	private readonly connections = new Map<string, Set<LocalConnection>>();
 	private readonly hostTimers = new Map<string, NodeJS.Timeout>();
 	private sweepTimer?: NodeJS.Timeout;
@@ -154,11 +156,7 @@ export class PartiesService {
 		await this.partyRedis.stop();
 	}
 
-	async create(
-		host: PartyPerson,
-		itemId: string,
-		visibility: "public" | "friends" | "private" = "public",
-	): Promise<PartySnapshot> {
+	async create(host: PartyPerson, itemId: string, visibility: "public" | "friends" | "private" = "public"): Promise<PartySnapshot> {
 		const item = await this.loadItem(itemId);
 		const client = this.partyRedis.commands;
 		const currentId = await client.get(this.hostKey(host.id));
@@ -181,12 +179,7 @@ export class PartiesService {
 		const id = party.id;
 		const result = await client.set(stateKey(id), JSON.stringify(party), { EX: PARTY_TTL_SECONDS, NX: true });
 		if (result !== "OK") throw new Error("Could not reserve a unique party identifier.");
-		await client
-			.multi()
-			.set(this.hostKey(host.id), id, { EX: PARTY_TTL_SECONDS })
-			.set(this.usernameKey(host.username), id, { EX: PARTY_TTL_SECONDS })
-			.sAdd(this.activeKey(), id)
-			.exec();
+		await client.multi().set(this.hostKey(host.id), id, { EX: PARTY_TTL_SECONDS }).set(this.usernameKey(host.username), id, { EX: PARTY_TTL_SECONDS }).sAdd(this.activeKey(), id).exec();
 		return party;
 	}
 
@@ -209,11 +202,7 @@ export class PartiesService {
 		const party = await this.read(id);
 		if (!party) return null;
 		if (party.visibility === "private") return null;
-		if (
-			party.visibility === "friends" &&
-			viewerId !== party.host.id &&
-			!(await this.friends.areFriends(viewerId, party.host.id))
-		) {
+		if (party.visibility === "friends" && viewerId !== party.host.id && !(await this.friends.areFriends(viewerId, party.host.id))) {
 			return null;
 		}
 		return this.summary(await this.refreshMembers(id));
@@ -274,14 +263,7 @@ export class PartiesService {
 		const result = parseJson<ScriptResult<PartySnapshot>>(
 			await this.partyRedis.commands.eval(CONTROL_SCRIPT, {
 				keys: [stateKey(id), `flixer:party:${id}:control:${userId}`, PARTY_EVENTS_CHANNEL],
-				arguments: [
-					userId,
-					JSON.stringify(command),
-					String(COMMAND_LEAD_MS),
-					item ? JSON.stringify(item) : "",
-					String(MAX_POSITION_SECONDS),
-					String(PARTY_TTL_SECONDS),
-				],
+				arguments: [userId, JSON.stringify(command), String(COMMAND_LEAD_MS), item ? JSON.stringify(item) : "", String(MAX_POSITION_SECONDS), String(PARTY_TTL_SECONDS)],
 			}),
 		);
 		this.throwScriptError(result.error);
@@ -315,13 +297,7 @@ export class PartiesService {
 			at: 0,
 		};
 		const result = await this.partyRedis.commands.eval(CHAT_SCRIPT, {
-			keys: [
-				stateKey(id),
-				peopleKey(id),
-				`flixer:party:${id}:chat-rate:${person.id}`,
-				chatKey(id),
-				PARTY_EVENTS_CHANNEL,
-			],
+			keys: [stateKey(id), peopleKey(id), `flixer:party:${id}:chat-rate:${person.id}`, chatKey(id), PARTY_EVENTS_CHANNEL],
 			arguments: [person.id, JSON.stringify(message), id, String(CHAT_HISTORY), String(PARTY_TTL_SECONDS)],
 		});
 		const parsed = parseJson<ScriptResult<PartyChatMessage>>(result);
@@ -339,15 +315,7 @@ export class PartiesService {
 		if (!party) return;
 		const result = parseJson<ScriptResult<PartySnapshot>>(
 			await this.partyRedis.commands.eval(END_SCRIPT, {
-				keys: [
-					stateKey(id),
-					this.hostKey(party.host.id),
-					this.usernameKey(party.host.username),
-					this.activeKey(),
-					presenceKey(id),
-					peopleKey(id),
-					PARTY_EVENTS_CHANNEL,
-				],
+				keys: [stateKey(id), this.hostKey(party.host.id), this.usernameKey(party.host.username), this.activeKey(), presenceKey(id), peopleKey(id), PARTY_EVENTS_CHANNEL],
 				arguments: [party.host.id, reason],
 			}),
 		);
@@ -375,26 +343,13 @@ export class PartiesService {
 		await this.presence(id, "renew", connection);
 	}
 
-	private async presence(
-		id: string,
-		action: "join" | "leave" | "renew" | "sweep",
-		connection?: LocalConnection,
-	): Promise<{ party: PartySnapshot; serverTime: number }> {
+	private async presence(id: string, action: "join" | "leave" | "renew" | "sweep", connection?: LocalConnection): Promise<{ party: PartySnapshot; serverTime: number }> {
 		const person = connection?.person;
 		const connectionId = connection?.presenceId ?? "";
 		const result = parseJson<ScriptResult<PartySnapshot> & { serverTime: number }>(
 			await this.partyRedis.commands.eval(PRESENCE_SCRIPT, {
 				keys: [stateKey(id), presenceKey(id), peopleKey(id), PARTY_EVENTS_CHANNEL],
-				arguments: [
-					action === "sweep" ? "renew" : action,
-					connectionId,
-					person?.id ?? "",
-					String(PRESENCE_TTL_MS),
-					String(MAX_PARTY_MEMBERS),
-					person ? JSON.stringify(person) : "",
-					action,
-					String(PARTY_TTL_SECONDS),
-				],
+				arguments: [action === "sweep" ? "renew" : action, connectionId, person?.id ?? "", String(PRESENCE_TTL_MS), String(MAX_PARTY_MEMBERS), person ? JSON.stringify(person) : "", action, String(PARTY_TTL_SECONDS)],
 			}),
 		);
 		this.throwScriptError(result.error);
@@ -420,11 +375,7 @@ export class PartiesService {
 	}
 
 	private async requireAccess(party: PartySnapshot, viewerId: string, allowPrivateLink: boolean): Promise<void> {
-		if (
-			party.host.id === viewerId ||
-			party.visibility === "public" ||
-			(allowPrivateLink && party.visibility === "private")
-		) {
+		if (party.host.id === viewerId || party.visibility === "public" || (allowPrivateLink && party.visibility === "private")) {
 			return;
 		}
 		if (party.visibility === "friends" && (await this.friends.areFriends(viewerId, party.host.id))) return;

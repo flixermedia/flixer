@@ -28,9 +28,9 @@ describe("registration profile metadata", () => {
 	});
 	it("stores accepted fields with the new account and rejects unknown fields before saving", async () => {
 		const users = { create: vi.fn((value) => value), count: vi.fn(async () => 1), save: vi.fn(async () => undefined) };
-		const settings = { findOneBy: vi.fn(async ({ key }: { key: string }) => key === "registration_enabled" ? { value: true } : { value: { published } }) };
+		const settings = { findOneBy: vi.fn(async ({ key }: { key: string }) => (key === "registration_enabled" ? { value: true } : { value: { published } })) };
 		const preferences = { save: vi.fn(async () => undefined) };
-		const getRepository = (entity: unknown) => entity === User ? users : entity === Setting ? settings : entity === UserPreference ? preferences : null;
+		const getRepository = (entity: unknown) => (entity === User ? users : entity === Setting ? settings : entity === UserPreference ? preferences : null);
 		const source = { getRepository, transaction: async (run: (manager: unknown) => Promise<unknown>) => run({ getRepository, query: async () => undefined }) };
 		const service = new AuthService(source as never, { isRequired: async () => false } as never, {} as never, {} as never, { cardRequiredForSignup: async () => false } as never);
 		const internal = service as unknown as { getTokenSecret: () => string; createAuthResult: () => Promise<unknown> };

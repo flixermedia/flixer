@@ -26,6 +26,7 @@ const APPS: Array<[RegExp, string]> = [
 
 /** Derives a readable device and app name from a User-Agent header. */
 export function describeClient(userAgent: string | null | undefined): ClientDescription {
+
 	const agent = userAgent?.trim();
 	if (!agent) {
 		return { device: "Unknown device", app: "Unknown app" };
@@ -46,4 +47,5 @@ export function describeClient(userAgent: string | null | undefined): ClientDesc
 		device: device ?? "Unknown device",
 		app: product ? [product[1], product[2]?.split(".")[0]].filter(Boolean).join(" ") : "Unknown app",
 	};
+
 }

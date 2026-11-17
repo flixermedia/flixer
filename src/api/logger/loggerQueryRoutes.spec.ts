@@ -24,7 +24,9 @@ describe("logger query routes", () => {
 		if (header !== "Bearer admin") throw new Unauthorized("Admin required.");
 	});
 	const issueQueryToken = vi.fn(async () => ({
-		endpoint: "https://logger.example", token: "query-secret", expiresAt: new Date(Date.now() + 60_000).toISOString(),
+		endpoint: "https://logger.example",
+		token: "query-secret",
+		expiresAt: new Date(Date.now() + 60_000).toISOString(),
 	}));
 	let platform: Awaited<ReturnType<typeof PlatformFastify.bootstrap>>;
 
@@ -32,13 +34,10 @@ describe("logger query routes", () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: "m".repeat(43) });
 		setAppConfig(new AppConfig(store));
 		platform = await PlatformFastify.bootstrap(TestServer, {
-			httpPort: false, httpsPort: false, mount: { "/api": [LoggerController] },
-			imports: [
-				{ token: DefaultDataSource, use: {} },
-				{ token: AuthService, use: { requireAdmin } },
-				{ token: LoggerService, use: { issueQueryToken } },
-				LoggerQueryProxy,
-			],
+			httpPort: false,
+			httpsPort: false,
+			mount: { "/api": [LoggerController] },
+			imports: [{ token: DefaultDataSource, use: {} }, { token: AuthService, use: { requireAdmin } }, { token: LoggerService, use: { issueQueryToken } }, LoggerQueryProxy],
 		});
 		await platform.listen(false);
 	});
@@ -52,8 +51,7 @@ describe("logger query routes", () => {
 	});
 
 	it("authorizes requests and streams search results without disclosing logger credentials", async () => {
-		const fetcher = vi.fn(async (_url: string, _options: RequestInit) =>
-			new Response(JSON.stringify({ events: [{ message: "route test" }] }), { headers: { "content-type": "application/json" } }));
+		const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response(JSON.stringify({ events: [{ message: "route test" }] }), { headers: { "content-type": "application/json" } }));
 		vi.stubGlobal("fetch", fetcher);
 		const app = platform.adapter.app.getApp();
 		const denied = await app.inject({ method: "GET", url: "/api/admin/logger/data/recent" });
@@ -65,7 +63,9 @@ describe("logger query routes", () => {
 		expect(recent.json()).toEqual({ events: [{ message: "route test" }] });
 		expect(recent.body).not.toContain("query-secret");
 		const search = await app.inject({
-			method: "POST", url: "/api/admin/logger/data/search", headers: { authorization: "Bearer admin" },
+			method: "POST",
+			url: "/api/admin/logger/data/search",
+			headers: { authorization: "Bearer admin" },
 			payload: { query: "route test", limit: 5 },
 		});
 		expect(search.statusCode).toBe(200);
@@ -76,11 +76,11 @@ describe("logger query routes", () => {
 	});
 
 	it("forwards live stream filters and replay cursors with SSE response headers", async () => {
-		const fetcher = vi.fn(async (_url: string, _options: RequestInit) =>
-			new Response("id: resume-next\nevent: log\ndata: {\"message\":\"live\"}\n\n"));
+		const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response('id: resume-next\nevent: log\ndata: {"message":"live"}\n\n'));
 		vi.stubGlobal("fetch", fetcher);
 		const response = await platform.adapter.app.getApp().inject({
-			method: "GET", url: "/api/admin/logger/data/stream?app=flixer",
+			method: "GET",
+			url: "/api/admin/logger/data/stream?app=flixer",
 			headers: { authorization: "Bearer admin", "last-event-id": "resume-before" },
 		});
 		expect(response.statusCode).toBe(200);

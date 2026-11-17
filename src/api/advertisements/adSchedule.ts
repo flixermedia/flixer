@@ -9,6 +9,7 @@ interface ScheduledAdvertisement {
 
 /** Selects at most one ad per break and applies the configured per-playback limits. */
 export function scheduleAdvertisements(ads: Advertisement[], settings: AdvertisementSettings, context: ItemContext): ScheduledAdvertisement[] {
+
 	if (!settings.enabled || settings.maxPerPlayback <= 0) return [];
 	const eligible = ads.filter((ad) => ad.enabled && anyScopeCovers(ad.scopes, context)).sort((a, b) => a.id.localeCompare(b.id));
 	const byPosition = new Map<number, Advertisement[]>();
@@ -27,4 +28,5 @@ export function scheduleAdvertisements(ads: Advertisement[], settings: Advertise
 		result.push({ atSeconds, ad: choices[result.length % choices.length] });
 	}
 	return result;
+
 }

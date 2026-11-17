@@ -14,7 +14,9 @@ describe("logger query relay", () => {
 		if (header !== "Bearer admin") throw new Unauthorized("Admin required.");
 	});
 	const issueQueryToken = vi.fn(async () => ({
-		endpoint: "https://logger.example", token: "query-secret", expiresAt: new Date(Date.now() + 60_000).toISOString(),
+		endpoint: "https://logger.example",
+		token: "query-secret",
+		expiresAt: new Date(Date.now() + 60_000).toISOString(),
 	}));
 	let proxy: LoggerQueryProxy;
 
@@ -40,15 +42,10 @@ describe("logger query relay", () => {
 		vi.stubGlobal("fetch", fetcher);
 		await expect(proxy.query("recent", "?limit=100", undefined, undefined)).rejects.toThrow("Admin required");
 		expect(issueQueryToken).not.toHaveBeenCalled();
-		const results = await Promise.all([
-			proxy.query("recent", "?limit=100", undefined, undefined, "Bearer admin"),
-			proxy.query("stats", "?start=a&end=b", undefined, undefined, "Bearer admin"),
-		]);
+		const results = await Promise.all([proxy.query("recent", "?limit=100", undefined, undefined, "Bearer admin"), proxy.query("stats", "?start=a&end=b", undefined, undefined, "Bearer admin")]);
 		expect(issueQueryToken).toHaveBeenCalledOnce();
 		expect(requireAdmin).toHaveBeenCalledTimes(3);
-		expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
-			"https://logger.example/api/logs?limit=100", "https://logger.example/api/logs/stats?start=a&end=b",
-		]);
+		expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["https://logger.example/api/logs?limit=100", "https://logger.example/api/logs/stats?start=a&end=b"]);
 		for (const result of results) {
 			let value = "";
 			for await (const chunk of result.stream) value += chunk.toString();
@@ -64,7 +61,8 @@ describe("logger query relay", () => {
 		const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response("sensitive details", { status: 410 }));
 		vi.stubGlobal("fetch", fetcher);
 		await expect(proxy.query("stream", "?app=flixer", undefined, "cursor", "Bearer admin")).rejects.toMatchObject({
-			status: 410, message: "The logger rejected the query.",
+			status: 410,
+			message: "The logger rejected the query.",
 		});
 		const [url, options] = fetcher.mock.calls[0]!;
 		expect(url).toBe("https://logger.example/api/logs/stream?app=flixer");
@@ -97,17 +95,29 @@ describe("logger query relay", () => {
 				controller.close();
 			},
 		});
-		vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(body)),
+		);
 		const result = await proxy.query("recent", "", undefined, undefined, "Bearer admin");
 		await expect(async () => {
-			for await (const _chunk of result.stream) { /* consume */ }
+			for await (const _chunk of result.stream) {
+				/* consume */
+			}
 		}).rejects.toThrow("size limit");
 	});
 
 	it("does not relay records from a replaced logger connection", async () => {
 		let source!: ReadableStreamDefaultController<Uint8Array>;
-		const body = new ReadableStream<Uint8Array>({ start(controller) { source = controller; } });
-		vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				source = controller;
+			},
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(body)),
+		);
 		const result = await proxy.query("stream", "", undefined, undefined, "Bearer admin");
 		const received: string[] = [];
 		const consume = (async () => {
@@ -123,7 +133,12 @@ describe("logger query relay", () => {
 
 	it("refuses to cache a credential if the connection changes during issuance", async () => {
 		let resolve!: (value: { endpoint: string; token: string; expiresAt: string }) => void;
-		issueQueryToken.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+		issueQueryToken.mockImplementationOnce(
+			() =>
+				new Promise((done) => {
+					resolve = done;
+				}),
+		);
 		const fetcher = vi.fn();
 		vi.stubGlobal("fetch", fetcher);
 		const pending = proxy.query("recent", "", undefined, undefined, "Bearer admin");
@@ -136,7 +151,12 @@ describe("logger query relay", () => {
 
 	it("does not start an upstream query after the client disconnects during credential issuance", async () => {
 		let resolve!: (value: { endpoint: string; token: string; expiresAt: string }) => void;
-		issueQueryToken.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+		issueQueryToken.mockImplementationOnce(
+			() =>
+				new Promise((done) => {
+					resolve = done;
+				}),
+		);
 		const fetcher = vi.fn();
 		vi.stubGlobal("fetch", fetcher);
 		const controller = new AbortController();
@@ -149,9 +169,12 @@ describe("logger query relay", () => {
 	});
 
 	it("cancels a request waiting for upstream response headers on disconnect", async () => {
-		const fetcher = vi.fn((_url: string, options: RequestInit) => new Promise<Response>((_resolve, reject) => {
-			options.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-		}));
+		const fetcher = vi.fn(
+			(_url: string, options: RequestInit) =>
+				new Promise<Response>((_resolve, reject) => {
+					options.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+				}),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		const controller = new AbortController();
 		const pending = proxy.query("recent", "", undefined, undefined, "Bearer admin", controller.signal);

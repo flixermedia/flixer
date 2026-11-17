@@ -47,13 +47,16 @@ function identifier(value: unknown): string | undefined {
 }
 
 function retryAfter(value: string | null): number {
+
 	if (!value) return 0;
 	const seconds = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
 	return Number.isFinite(seconds) ? Math.min(30_000, Math.max(0, seconds)) : 0;
+
 }
 
 /** Bounded asynchronous delivery; the normal Ts.ED appenders remain unchanged. */
 export class LoggerExporter {
+
 	constructor(private readonly app: "flixer" | "flixer-web" = "flixer") {}
 
 	private configuration?: Configuration;
@@ -144,10 +147,8 @@ export class LoggerExporter {
 			task_id: identifier(record.task_id ?? record.taskId),
 			request_id: identifier(record.request_id ?? record.requestId),
 			trace_id: identifier(record.trace_id ?? record.traceId),
-			duration_ms: typeof record.duration_ms === "number" && Number.isFinite(record.duration_ms) &&
-				record.duration_ms >= 0 && record.duration_ms <= 86_400_000 ? record.duration_ms : undefined,
-			fields: typeof record.status_code === "number" && Number.isInteger(record.status_code) &&
-				record.status_code >= 100 && record.status_code <= 599 ? { status_code: record.status_code } : undefined,
+			duration_ms: typeof record.duration_ms === "number" && Number.isFinite(record.duration_ms) && record.duration_ms >= 0 && record.duration_ms <= 86_400_000 ? record.duration_ms : undefined,
+			fields: typeof record.status_code === "number" && Number.isInteger(record.status_code) && record.status_code >= 100 && record.status_code <= 599 ? { status_code: record.status_code } : undefined,
 		};
 		this.queue.push(event);
 		this.schedule(this.queue.length >= BATCH_LIMIT ? 0 : INTERVAL_MS);
@@ -166,12 +167,15 @@ export class LoggerExporter {
 		if (this.inFlight) return this.inFlight;
 		const task = this.flush();
 		this.inFlight = task;
-		void task.then(() => {
-			if (this.inFlight === task) this.inFlight = undefined;
-		}, () => {
-			if (this.inFlight === task) this.inFlight = undefined;
-			this.report("export worker failed");
-		});
+		void task.then(
+			() => {
+				if (this.inFlight === task) this.inFlight = undefined;
+			},
+			() => {
+				if (this.inFlight === task) this.inFlight = undefined;
+				this.report("export worker failed");
+			},
+		);
 		return task;
 	}
 
@@ -190,7 +194,10 @@ export class LoggerExporter {
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		let expired = false;
 		const deadline = new Promise<void>((resolve) => {
-			timeout = setTimeout(() => { expired = true; resolve(); }, timeoutMs);
+			timeout = setTimeout(() => {
+				expired = true;
+				resolve();
+			}, timeoutMs);
 		});
 		try {
 			while (!expired && (this.inFlight || (this.configuration && this.queue.length))) {
@@ -268,8 +275,7 @@ export class LoggerExporter {
 					const left = await this.deliver(batch.slice(0, middle), generation);
 					const right = await this.deliver(batch.slice(middle), generation);
 					return { failed: left.failed + right.failed, transient: left.transient || right.transient };
-				} else if (response.status === 401 && generation === this.generation &&
-					this.configuration?.token !== current.token && attempt + 1 < MAX_ATTEMPTS) {
+				} else if (response.status === 401 && generation === this.generation && this.configuration?.token !== current.token && attempt + 1 < MAX_ATTEMPTS) {
 					await response.body?.cancel();
 					continue;
 				} else if (response.status !== 429 && response.status < 500) {
@@ -283,7 +289,7 @@ export class LoggerExporter {
 				// Retrying is bounded and does not affect the caller.
 			}
 			if (attempt + 1 < MAX_ATTEMPTS && generation === this.generation) {
-				const delay = Math.max(serverDelay, (250 * 2 ** attempt) + Math.floor(Math.random() * 250));
+				const delay = Math.max(serverDelay, 250 * 2 ** attempt + Math.floor(Math.random() * 250));
 				await new Promise<void>((resolve) => {
 					const signal = this.controller!.signal;
 					const finish = () => {

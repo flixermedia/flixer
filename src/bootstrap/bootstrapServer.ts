@@ -45,6 +45,7 @@ function readJson(request: IncomingMessage): Promise<unknown> {
 }
 
 async function handleSetup(request: IncomingMessage, response: ServerResponse, path: string): Promise<boolean> {
+
 	if (request.method !== "GET" && request.method !== "POST") {
 		return false;
 	}
@@ -65,17 +66,21 @@ async function handleSetup(request: IncomingMessage, response: ServerResponse, p
 	}
 	send(response, result.status, result.body);
 	return true;
+
 }
 
 const HEADERS = { "content-type": "application/json", "cache-control": "no-store" } as const;
 
 function send(response: ServerResponse, status: number, body: unknown): void {
+
 	response.writeHead(status, HEADERS);
 	response.end(JSON.stringify(body));
+
 }
 
 /** Routes served before the full application is running. Everything else answers 503 so clients show "unavailable". */
 async function handleBootstrapRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+
 	const origin = request.headers.origin;
 	const allowedOrigin = typeof origin === "string" && CORS_ORIGINS.some((allowed) => allowed === origin);
 	if (allowedOrigin) {
@@ -124,6 +129,7 @@ async function handleBootstrapRequest(request: IncomingMessage, response: Server
 	}
 	response.setHeader("retry-after", "5");
 	send(response, 503, { error: "service_unavailable", message: "Flixer is starting. Try again in a moment." });
+
 }
 
 export function startBootstrapServer(port: number): Promise<Server> {

@@ -70,12 +70,15 @@ export interface UpdateStatus {
 }
 
 export function parseVersion(value: string | null | undefined): number[] | null {
+
 	const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec((value ?? "").trim());
 	return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+
 }
 
 /** True when `latest` is a newer release than `installed`; development builds never count as outdated. */
 export function isNewer(latest: string | null | undefined, installed: string | null | undefined): boolean {
+
 	const a = parseVersion(latest);
 	const b = parseVersion(installed);
 	if (!a || !b) {
@@ -87,6 +90,7 @@ export function isNewer(latest: string | null | undefined, installed: string | n
 		}
 	}
 	return false;
+
 }
 
 /**
@@ -164,10 +168,12 @@ export class UpdateService {
 			throw new BadRequest("Everything is already up to date.");
 		}
 		const targets = Object.fromEntries(outdated.map((component) => [component.id, component.latest as string]));
-		const current = Object.fromEntries(status.components.flatMap((component) => {
-			const parsed = parseVersion(component.installed);
-			return parsed ? [[component.id, parsed.join(".")]] : [];
-		}));
+		const current = Object.fromEntries(
+			status.components.flatMap((component) => {
+				const parsed = parseVersion(component.installed);
+				return parsed ? [[component.id, parsed.join(".")]] : [];
+			}),
+		);
 		logger().info(`Starting update: ${outdated.map((component) => `${component.id} ${component.installed} -> ${component.latest}`).join(", ")}.`);
 		const databaseUrl = appConfig().get("databaseUrl");
 		if (!databaseUrl) {
@@ -233,7 +239,10 @@ export class UpdateService {
 		}
 		const list = outdated.map((component) => `${component.label} ${component.latest}`).join(", ");
 		await this.notifications
-			.send({ kind: "admin", title: "Flixer update available", body: list, url: "/admin?tab=updates" }, admins.map((admin) => admin.id))
+			.send(
+				{ kind: "admin", title: "Flixer update available", body: list, url: "/admin?tab=updates" },
+				admins.map((admin) => admin.id),
+			)
 			.catch((error) => logger().warn("Could not notify admins about an update.", error));
 	}
 
@@ -250,19 +259,8 @@ export class UpdateService {
 			}
 		};
 		const aiUrl = config.get("aiUrl")?.replace(/\/+$/, "");
-		const loggerUrl = (
-			process.env.FLIXER_LOGGER_LOCAL_ENDPOINT?.trim() ||
-			(process.env.FLIXER_LOGGER_LOCAL_OWNER_FILE?.trim() ? "http://127.0.0.1:8098" : "")
-		).replace(/\/+$/, "");
-		const [web, streamer, indexer, ai, loggerVersion] = await Promise.all([
-			read(`${webUrl}/version.json`),
-			config.get("streamerInternalUrl")
-				? read(`${config.get("streamerInternalUrl")!.replace(/\/+$/, "")}/streamer/healthz`)
-				: Promise.resolve(undefined),
-			read(`${config.get("indexerUrl")}/health`),
-			aiUrl ? read(`${aiUrl}/healthz`) : Promise.resolve(undefined),
-			loggerUrl ? read(`${loggerUrl}/api/health/live`) : Promise.resolve(undefined),
-		]);
+		const loggerUrl = (process.env.FLIXER_LOGGER_LOCAL_ENDPOINT?.trim() || (process.env.FLIXER_LOGGER_LOCAL_OWNER_FILE?.trim() ? "http://127.0.0.1:8098" : "")).replace(/\/+$/, "");
+		const [web, streamer, indexer, ai, loggerVersion] = await Promise.all([read(`${webUrl}/version.json`), config.get("streamerInternalUrl") ? read(`${config.get("streamerInternalUrl")!.replace(/\/+$/, "")}/streamer/healthz`) : Promise.resolve(undefined), read(`${config.get("indexerUrl")}/health`), aiUrl ? read(`${aiUrl}/healthz`) : Promise.resolve(undefined), loggerUrl ? read(`${loggerUrl}/api/health/live`) : Promise.resolve(undefined)]);
 		return { flixer: runtimeVersion(), ...(web ? { web } : {}), ...(streamer ? { streamer } : {}), ...(indexer ? { indexer } : {}), ...(ai ? { ai } : {}), ...(loggerVersion ? { logger: loggerVersion } : {}) };
 	}
 
@@ -339,7 +337,10 @@ export class UpdateService {
 	private async listBackups(): Promise<UpdateStatus["backups"]> {
 		try {
 			const directory = this.backupDirectory();
-			const names = (await readdir(directory)).filter((entry) => BACKUP_PATTERN.test(entry)).sort().reverse();
+			const names = (await readdir(directory))
+				.filter((entry) => BACKUP_PATTERN.test(entry))
+				.sort()
+				.reverse();
 			return await Promise.all(
 				names.map(async (name) => {
 					const info = await stat(join(directory, name));

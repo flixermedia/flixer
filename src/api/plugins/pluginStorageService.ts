@@ -3,11 +3,7 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import {
-	PluginStorageEntry,
-	type PluginStorageJsonValue,
-	type PluginStorageScope,
-} from "../../entities/pluginStorageEntry.entity.js";
+import { PluginStorageEntry, type PluginStorageJsonValue, type PluginStorageScope } from "../../entities/pluginStorageEntry.entity.js";
 
 const MAX_STORAGE_BYTES = 256 * 1024;
 const MAX_STORAGE_KEYS = 1024;
@@ -24,13 +20,7 @@ type PluginStoragePermissions = ReadonlySet<string>;
 type PluginStorageSnapshot = Partial<Record<PluginStorageScope, Record<string, PluginStorageJsonValue>>>;
 
 function permissionFor(scope: PluginStorageScope, mode: "read" | "write"): string {
-	return scope === "plugin"
-		? mode === "read"
-			? PLUGIN_STORAGE_PERMISSIONS.pluginRead
-			: PLUGIN_STORAGE_PERMISSIONS.pluginWrite
-		: mode === "read"
-			? PLUGIN_STORAGE_PERMISSIONS.userRead
-			: PLUGIN_STORAGE_PERMISSIONS.userWrite;
+	return scope === "plugin" ? (mode === "read" ? PLUGIN_STORAGE_PERMISSIONS.pluginRead : PLUGIN_STORAGE_PERMISSIONS.pluginWrite) : mode === "read" ? PLUGIN_STORAGE_PERMISSIONS.userRead : PLUGIN_STORAGE_PERMISSIONS.userWrite;
 }
 
 function ownerIdFor(scope: PluginStorageScope, pluginId: string, userId: string): string {
@@ -38,18 +28,14 @@ function ownerIdFor(scope: PluginStorageScope, pluginId: string, userId: string)
 }
 
 function isJsonValue(value: unknown): value is PluginStorageJsonValue {
+
 	const pending = [value];
 	let visited = 0;
 	while (pending.length > 0) {
 		const current = pending.pop();
 		visited += 1;
 		if (visited > 100_000) return false;
-		if (
-			current === null ||
-			typeof current === "string" ||
-			typeof current === "boolean" ||
-			(typeof current === "number" && Number.isFinite(current))
-		) {
+		if (current === null || typeof current === "string" || typeof current === "boolean" || (typeof current === "number" && Number.isFinite(current))) {
 			continue;
 		}
 		if (Array.isArray(current)) {
@@ -63,17 +49,15 @@ function isJsonValue(value: unknown): value is PluginStorageJsonValue {
 		return false;
 	}
 	return true;
+
 }
 
 @Injectable()
 export class PluginStorageService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
-	async load(
-		pluginId: string,
-		userId: string,
-		permissions: PluginStoragePermissions,
-	): Promise<PluginStorageSnapshot> {
+	async load(pluginId: string, userId: string, permissions: PluginStoragePermissions): Promise<PluginStorageSnapshot> {
 		const scopes = (["plugin", "user"] as const).filter((scope) => permissions.has(permissionFor(scope, "read")));
 		if (scopes.length === 0) return {};
 
@@ -94,12 +78,7 @@ export class PluginStorageService {
 		return snapshot;
 	}
 
-	async save(
-		pluginId: string,
-		userId: string,
-		storage: unknown,
-		permissions: PluginStoragePermissions,
-	): Promise<void> {
+	async save(pluginId: string, userId: string, storage: unknown, permissions: PluginStoragePermissions): Promise<void> {
 		if (!isRecord(storage)) throw new Error("Plugin storage response must be an object.");
 		const writes: Array<{
 			scope: PluginStorageScope;
@@ -155,9 +134,7 @@ export class PluginStorageService {
 		});
 	}
 
-	private validateDocument(
-		values: Record<string, unknown>,
-	): asserts values is Record<string, PluginStorageJsonValue> {
+	private validateDocument(values: Record<string, unknown>): asserts values is Record<string, PluginStorageJsonValue> {
 		if (Object.keys(values).length > MAX_STORAGE_KEYS) {
 			throw new BadRequest(`Plugin storage cannot contain more than ${MAX_STORAGE_KEYS} keys.`);
 		}
@@ -170,24 +147,12 @@ export class PluginStorageService {
 		}
 	}
 
-	private async applyPatch(
-		manager: EntityManager,
-		pluginId: string,
-		userId: string,
-		scope: PluginStorageScope,
-		values: Record<string, PluginStorageJsonValue>,
-		deleteKeys: string[],
-	): Promise<void> {
+	private async applyPatch(manager: EntityManager, pluginId: string, userId: string, scope: PluginStorageScope, values: Record<string, PluginStorageJsonValue>, deleteKeys: string[]): Promise<void> {
 		const ownerId = ownerIdFor(scope, pluginId, userId);
-		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [
-			`${pluginId}:${scope}`,
-			ownerId,
-		]);
+		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [`${pluginId}:${scope}`, ownerId]);
 		const repository = manager.getRepository(PluginStorageEntry);
 		const currentEntries = await repository.find({ where: { pluginId, scope, ownerId } });
-		const current: Record<string, PluginStorageJsonValue> = Object.fromEntries(
-			currentEntries.map((entry) => [entry.key, entry.value]),
-		);
+		const current: Record<string, PluginStorageJsonValue> = Object.fromEntries(currentEntries.map((entry) => [entry.key, entry.value]));
 		for (const key of deleteKeys) delete current[key];
 		Object.assign(current, values);
 		this.validateDocument(current);

@@ -13,6 +13,7 @@ import { TrailerCacheService } from "./trailerCacheService.js";
 /** Resolves trailers only for media accessible to the current viewer. */
 @Injectable()
 export class MediaTrailerService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly access: MediaAccessService,

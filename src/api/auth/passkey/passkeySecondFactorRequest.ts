@@ -1,6 +1,7 @@
 import { Any, MaxLength, Property, Required } from "@tsed/schema";
 
 export class PasskeySecondFactorRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(1024)

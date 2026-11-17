@@ -1,6 +1,7 @@
 import { Optional, Property, Required } from "@tsed/schema";
 
 export class SetPasskeyRequiredRequest {
+
 	@Property()
 	@Required()
 	enabled!: boolean;

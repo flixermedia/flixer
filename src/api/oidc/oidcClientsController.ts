@@ -11,7 +11,12 @@ import { OidcProviderService } from "./oidcProviderService.js";
 @Controller("/admin/oidc/clients")
 @Security("BearerAuth")
 export class OidcClientsController {
-	constructor(private readonly auth: AuthService, private readonly clients: OidcClientService, private readonly provider: OidcProviderService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly clients: OidcClientService,
+		private readonly provider: OidcProviderService,
+	) {}
 
 	@Get("/configuration")
 	async configuration(@HeaderParams("authorization") authorization?: string) {

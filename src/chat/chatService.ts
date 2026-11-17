@@ -80,27 +80,21 @@ export function cleanMessage(text: unknown): string {
 }
 
 function cleanEncryptedMessage(value: unknown): string {
-	if (
-		typeof value !== "string" ||
-		value.length === 0 ||
-		value.length > MAX_ENCRYPTED_MESSAGE_LENGTH ||
-		!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
-	) {
+
+	if (typeof value !== "string" || value.length === 0 || value.length > MAX_ENCRYPTED_MESSAGE_LENGTH || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
 		throw new BadRequest(`Encrypted messages must be valid base64 up to ${MAX_ENCRYPTED_MESSAGE_LENGTH} characters.`);
 	}
 	return value;
+
 }
 
 function cleanMlsPayload(value: unknown, label: string): string {
-	if (
-		typeof value !== "string" ||
-		value.length === 0 ||
-		value.length > MAX_MLS_PAYLOAD_LENGTH ||
-		!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
-	) {
+
+	if (typeof value !== "string" || value.length === 0 || value.length > MAX_MLS_PAYLOAD_LENGTH || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
 		throw new BadRequest(`${label} must be valid base64 up to ${MAX_MLS_PAYLOAD_LENGTH} characters.`);
 	}
 	return value;
+
 }
 
 export function cleanName(text: unknown): string {
@@ -225,11 +219,7 @@ export class ChatService {
 		return this.conversation(userId, id);
 	}
 
-	private async setEncryptionMode(
-		userId: string,
-		id: string,
-		encryptionMode: "encrypted" | "plaintext",
-	): Promise<boolean> {
+	private async setEncryptionMode(userId: string, id: string, encryptionMode: "encrypted" | "plaintext"): Promise<boolean> {
 		return this.dataSource.transaction(async (manager) => {
 			const rows = (await manager.query(
 				`SELECT c.encryption_mode${encryptionMode === "plaintext" ? ", s.value AS downgrade_enabled" : ""}
@@ -247,9 +237,7 @@ export class ChatService {
 			}
 			if (conversation.encryption_mode === encryptionMode) return false;
 			await manager.query(`UPDATE chat_conversations SET encryption_mode = $2 WHERE id = $1`, [id, encryptionMode]);
-			const notice = encryptionMode === "plaintext"
-				? "Switched this conversation to plaintext. Future messages are readable by the server."
-				: "Switched this conversation to end-to-end encryption. Earlier plaintext messages remain readable by the server.";
+			const notice = encryptionMode === "plaintext" ? "Switched this conversation to plaintext. Future messages are readable by the server." : "Switched this conversation to end-to-end encryption. Earlier plaintext messages remain readable by the server.";
 			await manager.query(
 				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted)
 				VALUES ($1, $2, $3, 'system', $4, false)`,
@@ -278,13 +266,7 @@ export class ChatService {
 		return (await this.summaries(userId, [id]))[0];
 	}
 
-	async registerMlsDevice(
-		userId: string,
-		deviceId: string,
-		name: unknown,
-		keyPackage: unknown,
-		pairingPublicKey: unknown,
-	): Promise<{ deviceId: string; keyPackageId: string; status: "active" | "pending"; approvalChallenge: string | null }> {
+	async registerMlsDevice(userId: string, deviceId: string, name: unknown, keyPackage: unknown, pairingPublicKey: unknown): Promise<{ deviceId: string; keyPackageId: string; status: "active" | "pending"; approvalChallenge: string | null }> {
 		const label = typeof name === "string" ? name.trim().replace(/\s+/g, " ") : "";
 		if (!label || label.length > 80) throw new BadRequest("Device names are 1 to 80 characters.");
 		const serializedKeyPackage = cleanMlsPayload(keyPackage, "The MLS key package");
@@ -299,10 +281,7 @@ export class ChatService {
 
 		return this.dataSource.transaction(async (manager) => {
 			await manager.query(`SELECT id FROM users WHERE id = $1 FOR UPDATE`, [userId]);
-			const existing = (await manager.query(
-				`SELECT user_id, status, pairing_public_key, approval_challenge FROM chat_mls_devices WHERE id = $1 FOR UPDATE`,
-				[deviceId],
-			)) as Array<{ user_id: string; status: string; pairing_public_key: string; approval_challenge: string | null }>;
+			const existing = (await manager.query(`SELECT user_id, status, pairing_public_key, approval_challenge FROM chat_mls_devices WHERE id = $1 FOR UPDATE`, [deviceId])) as Array<{ user_id: string; status: string; pairing_public_key: string; approval_challenge: string | null }>;
 			if (existing[0] && existing[0].user_id !== userId) {
 				throw new Conflict("That chat device is already registered to another account.");
 			}
@@ -315,10 +294,7 @@ export class ChatService {
 
 			const status = "active";
 			if (existing[0]) {
-				await manager.query(
-					`UPDATE chat_mls_devices SET name = $2, status = 'active', approval_challenge = NULL, approved_at = COALESCE(approved_at, now()), pairing_public_key = COALESCE(pairing_public_key, $3) WHERE id = $1`,
-					[deviceId, label, pairingPublicKey],
-				);
+				await manager.query(`UPDATE chat_mls_devices SET name = $2, status = 'active', approval_challenge = NULL, approved_at = COALESCE(approved_at, now()), pairing_public_key = COALESCE(pairing_public_key, $3) WHERE id = $1`, [deviceId, label, pairingPublicKey]);
 			} else {
 				const approvalChallenge = null;
 				await manager.query(
@@ -327,16 +303,10 @@ export class ChatService {
 					[deviceId, userId, label, status, pairingPublicKey, approvalChallenge, status === "active"],
 				);
 			}
-			const existingPackage = (await manager.query(
-				`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`,
-				[deviceId, serializedKeyPackage],
-			)) as Array<{ id: string }>;
+			const existingPackage = (await manager.query(`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`, [deviceId, serializedKeyPackage])) as Array<{ id: string }>;
 			const keyPackageId = existingPackage[0]?.id ?? randomUUID();
 			if (!existingPackage[0]) {
-				await manager.query(
-					`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`,
-					[keyPackageId, deviceId, serializedKeyPackage],
-				);
+				await manager.query(`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`, [keyPackageId, deviceId, serializedKeyPackage]);
 			}
 			return { deviceId, keyPackageId, status, approvalChallenge: null };
 		});
@@ -359,10 +329,7 @@ export class ChatService {
 	}
 
 	async chatHistoryBackup(userId: string): Promise<string | null> {
-		const rows = (await this.dataSource.query(
-			`SELECT backup FROM chat_mls_history_backups WHERE user_id = $1`,
-			[userId],
-		)) as Array<{ backup: string }>;
+		const rows = (await this.dataSource.query(`SELECT backup FROM chat_mls_history_backups WHERE user_id = $1`, [userId])) as Array<{ backup: string }>;
 		return rows[0]?.backup ?? null;
 	}
 
@@ -387,17 +354,11 @@ export class ChatService {
 				[deviceId, userId],
 			)) as Array<{ id: string }>;
 			if (!rows.length) {
-				const existing = (await manager.query(
-					`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2`,
-					[deviceId, userId],
-				)) as Array<{ id: string }>;
+				const existing = (await manager.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2`, [deviceId, userId])) as Array<{ id: string }>;
 				if (!existing.length) throw new NotFound("Chat device not found.");
 				return;
 			}
-			await manager.query(
-				`UPDATE chat_mls_key_packages SET used_at = COALESCE(used_at, now()) WHERE device_id = $1`,
-				[deviceId],
-			);
+			await manager.query(`UPDATE chat_mls_key_packages SET used_at = COALESCE(used_at, now()) WHERE device_id = $1`, [deviceId]);
 		});
 	}
 
@@ -420,47 +381,27 @@ export class ChatService {
 			const payload = Buffer.from(`flixer-chat-device-approval:v1:${targetDeviceId}:${target.approval_challenge}`);
 			let valid = false;
 			try {
-				valid = verify(
-					"sha256",
-					payload,
-					{ key: Buffer.from(target.pairing_public_key, "base64"), format: "der", type: "spki", dsaEncoding: "ieee-p1363" },
-					Buffer.from(signature, "base64"),
-				);
+				valid = verify("sha256", payload, { key: Buffer.from(target.pairing_public_key, "base64"), format: "der", type: "spki", dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64"));
 			} catch {
 				throw new BadRequest("The device approval signature could not be verified.");
 			}
 			if (!valid) throw new Forbidden("Approval must be signed by a trusted device on this account.");
-			await manager.query(
-				`UPDATE chat_mls_devices SET status = 'active', approved_at = now(), approval_challenge = NULL WHERE id = $1`,
-				[targetDeviceId],
-			);
+			await manager.query(`UPDATE chat_mls_devices SET status = 'active', approved_at = now(), approval_challenge = NULL WHERE id = $1`, [targetDeviceId]);
 		});
 	}
 
 	async addMlsKeyPackage(userId: string, deviceId: string, keyPackage: unknown): Promise<{ keyPackageId: string }> {
 		const serializedKeyPackage = cleanMlsPayload(keyPackage, "The MLS key package");
-		const device = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-			[deviceId, userId],
-		)) as Array<{ id: string }>;
+		const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 		if (!device[0]) throw new NotFound("Active chat device not found.");
-		const duplicate = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`,
-			[deviceId, serializedKeyPackage],
-		)) as Array<{ id: string }>;
+		const duplicate = (await this.dataSource.query(`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`, [deviceId, serializedKeyPackage])) as Array<{ id: string }>;
 		if (duplicate[0]) return { keyPackageId: duplicate[0].id };
 		const keyPackageId = randomUUID();
-		await this.dataSource.query(
-			`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`,
-			[keyPackageId, deviceId, serializedKeyPackage],
-		);
+		await this.dataSource.query(`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`, [keyPackageId, deviceId, serializedKeyPackage]);
 		return { keyPackageId };
 	}
 
-	async deviceMlsKeyPackages(
-		userId: string,
-		deviceId: string,
-	): Promise<Array<{ keyPackageId: string; keyPackage: string; available: boolean }>> {
+	async deviceMlsKeyPackages(userId: string, deviceId: string): Promise<Array<{ keyPackageId: string; keyPackage: string; available: boolean }>> {
 		const rows = (await this.dataSource.query(
 			`SELECT k.id, k.key_package, (k.used_at IS NULL) AS available
 			FROM chat_mls_devices d JOIN chat_mls_key_packages k ON k.device_id = d.id
@@ -469,31 +410,23 @@ export class ChatService {
 			[deviceId, userId],
 		)) as Array<{ id: string; key_package: string; available: boolean }>;
 		if (!rows.length) {
-			const device = (await this.dataSource.query(
-				`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-				[deviceId, userId],
-			)) as Array<{ id: string }>;
+			const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 			if (!device[0]) throw new NotFound("Active chat device not found.");
 		}
 		return rows.map((row) => ({ keyPackageId: row.id, keyPackage: row.key_package, available: row.available }));
 	}
 
-	async conversationMlsKeyPackages(
-		userId: string,
-		conversationId: string,
-		lenient = false,
-	): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
+	async conversationMlsKeyPackages(userId: string, conversationId: string, lenient = false): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
 		const member = await this.assertMember(userId, conversationId);
 		if (member.kind === "group") {
-			const support = (await this.dataSource.query(
-				`SELECT user_id FROM issue_reports WHERE conversation_id = $1`,
-				[conversationId],
-			)) as Array<{ user_id: string }>;
+			const support = (await this.dataSource.query(`SELECT user_id FROM issue_reports WHERE conversation_id = $1`, [conversationId])) as Array<{ user_id: string }>;
 			if (support[0]) await this.ensureSupportRequester(conversationId, support[0].user_id);
 		}
 		// Joiners only need the identity directory, so they skip the "everyone has a spare key package" check.
-		const unready = lenient ? [] : (await this.dataSource.query(
-			`SELECT m.user_id
+		const unready = lenient
+			? []
+			: ((await this.dataSource.query(
+					`SELECT m.user_id
 			FROM chat_members m
 			LEFT JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
 			LEFT JOIN chat_mls_key_packages k ON k.device_id = d.id AND k.used_at IS NULL
@@ -501,20 +434,22 @@ export class ChatService {
 			GROUP BY m.user_id
 			HAVING count(DISTINCT d.id) = 0
 				OR count(DISTINCT d.id) FILTER (WHERE k.id IS NOT NULL) < count(DISTINCT d.id)`,
-			[conversationId],
-		)) as Array<{ user_id: string }>;
+					[conversationId],
+				)) as Array<{ user_id: string }>);
 		if (unready.length > 0) {
 			throw new Conflict("Every active chat device needs an unused MLS key package. Ask each member to open Flixer and try again.");
 		}
-		return (await this.dataSource.query(
-			`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
+		return (
+			(await this.dataSource.query(
+				`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
 			FROM chat_members m
 			JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
 			JOIN chat_mls_key_packages k ON k.device_id = d.id
 			WHERE m.conversation_id = $1
 			ORDER BY d.user_id, d.created_at, k.created_at`,
-			[conversationId],
-		) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>).map((row) => ({
+				[conversationId],
+			)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>
+		).map((row) => ({
 			userId: row.user_id,
 			deviceId: row.device_id,
 			keyPackageId: row.key_package_id,
@@ -523,7 +458,11 @@ export class ChatService {
 		}));
 	}
 
-	async claimMlsKeyPackage(userId: string, conversationId: string, keyPackageId: string): Promise<{
+	async claimMlsKeyPackage(
+		userId: string,
+		conversationId: string,
+		keyPackageId: string,
+	): Promise<{
 		userId: string;
 		deviceId: string;
 		keyPackageId: string;
@@ -547,29 +486,12 @@ export class ChatService {
 		});
 	}
 
-	async storeMlsWelcome(
-		userId: string,
-		conversationId: string,
-		messageId: string,
-		recipients: Array<{ deviceId: string; keyPackageId: string }>,
-		welcome: unknown,
-		ratchetTree: unknown,
-	): Promise<void> {
+	async storeMlsWelcome(userId: string, conversationId: string, messageId: string, recipients: Array<{ deviceId: string; keyPackageId: string }>, welcome: unknown, ratchetTree: unknown): Promise<void> {
 		await this.assertMember(userId, conversationId);
-		await this.dataSource.transaction((manager) =>
-			this.storeMlsWelcomeRows(manager, userId, conversationId, messageId, recipients, welcome, ratchetTree),
-		);
+		await this.dataSource.transaction((manager) => this.storeMlsWelcomeRows(manager, userId, conversationId, messageId, recipients, welcome, ratchetTree));
 	}
 
-	private async storeMlsWelcomeRows(
-		manager: { query: (sql: string, parameters?: unknown[]) => Promise<unknown[]> },
-		userId: string,
-		conversationId: string,
-		messageId: string,
-		recipients: Array<{ deviceId: string; keyPackageId: string }>,
-		welcome: unknown,
-		ratchetTree: unknown,
-	): Promise<void> {
+	private async storeMlsWelcomeRows(manager: { query: (sql: string, parameters?: unknown[]) => Promise<unknown[]> }, userId: string, conversationId: string, messageId: string, recipients: Array<{ deviceId: string; keyPackageId: string }>, welcome: unknown, ratchetTree: unknown): Promise<void> {
 		const serializedWelcome = cleanMlsPayload(welcome, "The MLS Welcome message");
 		const serializedTree = cleanMlsPayload(ratchetTree, "The MLS ratchet tree");
 		if (!UUID_PATTERN.test(messageId) || !Array.isArray(recipients) || recipients.length === 0 || recipients.length > 200) {
@@ -579,10 +501,7 @@ export class ChatService {
 		if (uniqueRecipients.size !== recipients.length || recipients.some(({ deviceId, keyPackageId }) => !UUID_PATTERN.test(deviceId) || !UUID_PATTERN.test(keyPackageId))) {
 			throw new BadRequest("The MLS Welcome recipients are invalid.");
 		}
-		const message = (await manager.query(
-			`SELECT id FROM chat_messages WHERE id = $1 AND conversation_id = $2 AND user_id = $3 AND kind = 'text'`,
-			[messageId, conversationId, userId],
-		)) as Array<{ id: string }>;
+		const message = (await manager.query(`SELECT id FROM chat_messages WHERE id = $1 AND conversation_id = $2 AND user_id = $3 AND kind = 'text'`, [messageId, conversationId, userId])) as Array<{ id: string }>;
 		if (!message[0]) throw new NotFound("The encrypted chat message was not found.");
 		const packageIds = recipients.map(({ keyPackageId }) => keyPackageId);
 		const deviceIds = recipients.map(({ deviceId }) => deviceId);
@@ -610,24 +529,14 @@ export class ChatService {
 				WHERE conversation_id = $1 AND key_package_id = ANY($2::uuid[])`,
 			[conversationId, packageIds],
 		)) as Array<{ message_id: string; welcome: string; ratchet_tree: string }>;
-		if (
-			rows.length !== recipients.length ||
-			rows.some((row) => row.message_id !== messageId || row.welcome !== serializedWelcome || row.ratchet_tree !== serializedTree)
-		) {
+		if (rows.length !== recipients.length || rows.some((row) => row.message_id !== messageId || row.welcome !== serializedWelcome || row.ratchet_tree !== serializedTree)) {
 			throw new Conflict("A different MLS Welcome is already stored for one of these key packages.");
 		}
 	}
 
-	async pendingMlsWelcomes(
-		userId: string,
-		conversationId: string,
-		deviceId: string,
-	): Promise<Array<{ id: string; messageId: string; keyPackageId: string; welcome: string; ratchetTree: string; createdAt: string }>> {
+	async pendingMlsWelcomes(userId: string, conversationId: string, deviceId: string): Promise<Array<{ id: string; messageId: string; keyPackageId: string; welcome: string; ratchetTree: string; createdAt: string }>> {
 		await this.assertMember(userId, conversationId);
-		const device = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-			[deviceId, userId],
-		)) as Array<{ id: string }>;
+		const device = (await this.dataSource.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [deviceId, userId])) as Array<{ id: string }>;
 		if (!device[0]) throw new NotFound("Chat device not found.");
 		const rows = (await this.dataSource.query(
 			`SELECT id, message_id, key_package_id, welcome, ratchet_tree, created_at FROM chat_mls_welcomes
@@ -815,11 +724,7 @@ export class ChatService {
 	}
 
 	/** Messages oldest first. `before` pages back through history, `after` fetches what arrived since. Fetching marks the thread read. */
-	async messages(
-		userId: string,
-		id: string,
-		options: { before?: string; after?: string; beforeSequence?: string; afterSequence?: string },
-	): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+	async messages(userId: string, id: string, options: { before?: string; after?: string; beforeSequence?: string; afterSequence?: string }): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
 		await this.assertMember(userId, id);
 		const before = this.date(options.before);
 		const after = this.date(options.after);
@@ -841,10 +746,7 @@ export class ChatService {
 			params.push(after);
 			where += ` AND m.created_at > $${params.length}`;
 		}
-		const rows = (await this.dataSource.query(
-			`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.sequence ${after || afterSequence ? "ASC" : "DESC"} LIMIT ${PAGE_SIZE + 1}`,
-			params,
-		)) as MessageRow[];
+		const rows = (await this.dataSource.query(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.sequence ${after || afterSequence ? "ASC" : "DESC"} LIMIT ${PAGE_SIZE + 1}`, params)) as MessageRow[];
 		const hasMore = rows.length > PAGE_SIZE;
 		const page = rows.slice(0, PAGE_SIZE).map(messageOf);
 		await this.markRead(userId, id, false);
@@ -916,33 +818,15 @@ export class ChatService {
 			}>;
 			if (!rows[0]) throw new NotFound("Conversation not found.");
 			if ((rows[0].encryption_mode === "encrypted") !== encrypted) {
-				throw new BadRequest(
-					rows[0].encryption_mode === "encrypted"
-						? "This conversation requires end-to-end encrypted messages."
-						: "This conversation has been switched to plaintext messages.",
-				);
+				throw new BadRequest(rows[0].encryption_mode === "encrypted" ? "This conversation requires end-to-end encrypted messages." : "This conversation has been switched to plaintext messages.");
 			}
 			if (encrypted) {
-				const device = (await manager.query(
-					`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-					[mlsDeviceId, userId],
-				)) as Array<{ id: string }>;
+				const device = (await manager.query(`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`, [mlsDeviceId, userId])) as Array<{ id: string }>;
 				if (!device[0]) throw new Forbidden("This chat device is not active.");
 			}
-			await manager.query(
-				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted) VALUES ($1, $2, $3, 'text', $4, $5)`,
-				[messageId, id, userId, body, encrypted],
-			);
+			await manager.query(`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted) VALUES ($1, $2, $3, 'text', $4, $5)`, [messageId, id, userId, body, encrypted]);
 			if (mlsWelcome) {
-				await this.storeMlsWelcomeRows(
-					manager,
-					userId,
-					id,
-					messageId,
-					mlsWelcome.recipients,
-					mlsWelcome.welcome,
-					mlsWelcome.ratchetTree,
-				);
+				await this.storeMlsWelcomeRows(manager, userId, id, messageId, mlsWelcome.recipients, mlsWelcome.welcome, mlsWelcome.ratchetTree);
 			}
 			if (encrypted) {
 				const activeDevices = (await manager.query(
@@ -951,10 +835,7 @@ export class ChatService {
 					WHERE m.conversation_id = $1 AND d.id <> $2`,
 					[id, mlsDeviceId],
 				)) as Array<{ device_id: string }>;
-				const deliveries = (await manager.query(
-					`SELECT device_id FROM chat_mls_welcomes WHERE message_id = $1`,
-					[messageId],
-				)) as Array<{ device_id: string }>;
+				const deliveries = (await manager.query(`SELECT device_id FROM chat_mls_welcomes WHERE message_id = $1`, [messageId])) as Array<{ device_id: string }>;
 				const expectedDevices = new Set(activeDevices.map(({ device_id }) => device_id));
 				const deliveredDevices = new Set(deliveries.map(({ device_id }) => device_id));
 				if (deliveredDevices.size !== deliveries.length || expectedDevices.size !== deliveredDevices.size || [...expectedDevices].some((deviceId) => !deliveredDevices.has(deviceId))) {
@@ -1046,18 +927,12 @@ export class ChatService {
 
 	private async system(conversationId: string, userId: string | null, body: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`SELECT value FROM settings WHERE key = $1 FOR SHARE`,
-				["chat_e2ee_enabled"],
-			)) as Array<{ value: unknown }>;
+			const rows = (await manager.query(`SELECT value FROM settings WHERE key = $1 FOR SHARE`, ["chat_e2ee_enabled"])) as Array<{ value: unknown }>;
 			if (!rows[0] || typeof rows[0].value !== "boolean") {
 				throw new Error("The chat_e2ee_enabled setting is missing or invalid.");
 			}
 			if (rows[0].value) return;
-			await manager.query(
-				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body) VALUES ($1, $2, $3, 'system', $4)`,
-				[randomUUID(), conversationId, userId, body.slice(0, MAX_MESSAGE_LENGTH)],
-			);
+			await manager.query(`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body) VALUES ($1, $2, $3, 'system', $4)`, [randomUUID(), conversationId, userId, body.slice(0, MAX_MESSAGE_LENGTH)]);
 			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [conversationId]);
 		});
 	}

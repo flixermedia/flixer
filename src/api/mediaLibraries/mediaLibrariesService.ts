@@ -173,7 +173,12 @@ export class MediaLibrariesService {
 		const folders = await Promise.all(
 			library.folders.map(async (folder) => {
 				const root = roots.find((entry) => entry.id === folder.rootId);
-				const available = root ? await this.roots.resolveDirectory(root.id, folder.path).then(() => true, () => false) : false;
+				const available = root
+					? await this.roots.resolveDirectory(root.id, folder.path).then(
+							() => true,
+							() => false,
+						)
+					: false;
 				return {
 					...folder,
 					rootName: root?.name ?? "",

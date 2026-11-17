@@ -57,7 +57,7 @@ const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 		label: "Account deleted",
 		description: "Sent after a user's account has been permanently deleted.",
 		subject: "Your Flixer account was deleted",
-		text: "Goodbye, {{displayName}}.\n\nYour Flixer account \"{{username}}\" was permanently deleted on {{deletedAt}}. Your passkeys and sessions have been removed.\n\nDidn't delete your account? Contact your server administrator right away.",
+		text: 'Goodbye, {{displayName}}.\n\nYour Flixer account "{{username}}" was permanently deleted on {{deletedAt}}. Your passkeys and sessions have been removed.\n\nDidn\'t delete your account? Contact your server administrator right away.',
 		variables: { displayName: "Alex", username: "alex", deletedAt: "Mon, 01 Jan 2029 12:00:00 GMT", appUrl: "https://flixer.example.com" },
 	},
 };
@@ -135,11 +135,13 @@ function escapeHtml(value: string): string {
 }
 
 export function templateVariables(...sources: string[]): string[] {
+
 	const found = new Set<string>();
 	for (const source of sources) {
 		for (const match of source.matchAll(PLACEHOLDER)) found.add(match[1]);
 	}
 	return [...found].sort();
+
 }
 
 const CONDITIONAL = /{{#if\s+(\w+)\s*}}([\s\S]*?){{\/if}}/g;
@@ -228,7 +230,10 @@ export class MailTemplateService {
 	renderTemplate(template: Pick<MailTemplate, "subject" | "html" | "text">, provided: Record<string, string>): RenderedMail {
 		const values = { ...globalValues(), ...provided };
 		return {
-			subject: headerSafe(fillTemplate(template.subject, values, (value) => value), 200),
+			subject: headerSafe(
+				fillTemplate(template.subject, values, (value) => value),
+				200,
+			),
 			html: fillTemplate(template.html, values, escapeHtml),
 			text: fillTemplate(template.text, values, (value) => value),
 		};

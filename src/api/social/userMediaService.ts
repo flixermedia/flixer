@@ -66,7 +66,11 @@ interface CollectionRow {
 
 @Injectable()
 export class UserMediaService {
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource, private readonly access: MediaAccessService) {}
+
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly access: MediaAccessService,
+	) {}
 
 	async history(userId: string, offset = 0, limit = MAX_HISTORY_PAGE_SIZE + 1) {
 		const rows = (await this.dataSource.query(
@@ -79,7 +83,7 @@ export class UserMediaService {
 			ORDER BY group_number LIMIT $2 OFFSET $3`,
 			[userId, limit, offset],
 		)) as HistoryRow[];
-		const ids = rows.flatMap((row) => row.item_id ? [row.item_id] : []);
+		const ids = rows.flatMap((row) => (row.item_id ? [row.item_id] : []));
 		const items = await loadSocialItems(this.dataSource, ids);
 		const byId = new Map(items.map((item) => [item.id, toSocialItem(item)]));
 		return rows.map((row) => ({
@@ -88,23 +92,27 @@ export class UserMediaService {
 			watchedSeconds: row.watched_seconds,
 			startedAt: row.started_at,
 			updatedAt: row.updated_at,
-			item: row.item_id ? byId.get(row.item_id) ?? null : null,
+			item: row.item_id ? (byId.get(row.item_id) ?? null) : null,
 			sourceItemIds: row.source_item_ids,
 			channelName: row.channel_name,
 		}));
 	}
 
 	async clearHistory(userId: string): Promise<void> {
-		await this.dataSource.query(`
+		await this.dataSource.query(
+			`
 			WITH hidden AS (
 				INSERT INTO playback_history_hidden_sessions (user_id, id)
 				SELECT user_id, id FROM playback_history WHERE user_id = $1 ON CONFLICT DO NOTHING
 			)
-			DELETE FROM playback_history WHERE user_id = $1`, [userId]);
+			DELETE FROM playback_history WHERE user_id = $1`,
+			[userId],
+		);
 	}
 
 	async removeHistory(userId: string, id: string): Promise<void> {
-		await this.dataSource.query(`
+		await this.dataSource.query(
+			`
 			${HISTORY_GROUPS_SQL}, target_group AS (
 				SELECT group_number FROM grouped_history WHERE id = $2
 			), hidden AS (
@@ -113,16 +121,21 @@ export class UserMediaService {
 				ON CONFLICT DO NOTHING
 			)
 			DELETE FROM playback_history WHERE user_id = $1
-			AND id IN (SELECT id FROM grouped_history WHERE group_number = (SELECT group_number FROM target_group))`, [userId, id]);
+			AND id IN (SELECT id FROM grouped_history WHERE group_number = (SELECT group_number FROM target_group))`,
+			[userId, id],
+		);
 	}
 
 	async watchLater(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(
-			"SELECT item_id, added_at FROM watch_later_items WHERE user_id = $1 ORDER BY added_at DESC LIMIT 500",
-			[userId],
-		)) as Array<{ item_id: string; added_at: Date }>;
+		const rows = (await this.dataSource.query("SELECT item_id, added_at FROM watch_later_items WHERE user_id = $1 ORDER BY added_at DESC LIMIT 500", [userId])) as Array<{ item_id: string; added_at: Date }>;
 		const at = new Map(rows.map((row) => [row.item_id, row.added_at]));
-		return (await loadSocialItems(this.dataSource, rows.map((row) => row.item_id), at)).map(toSocialItem);
+		return (
+			await loadSocialItems(
+				this.dataSource,
+				rows.map((row) => row.item_id),
+				at,
+			)
+		).map(toSocialItem);
 	}
 
 	async watchLaterIds(userId: string): Promise<string[]> {
@@ -149,18 +162,13 @@ export class UserMediaService {
 			)) as Array<CollectionRow & { item_count: number }>,
 		);
 		if (!collections.length) return collections;
-		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-			.innerJoin("video_collection_items", "entry", "entry.item_id = item.id")
-			.innerJoin("video_collections", "collection", "collection.id = entry.collection_id")
-			.where("collection.user_id = :userId", { userId })
-			.andWhere("item.is_placeholder = false")
-			.select("entry.collection_id", "collectionId")
-			.addSelect("count(*)::int", "visibleItemCount")
-			.addSelect("(array_agg(item.id ORDER BY entry.position ASC))[1:8]", "itemIds")
-			.groupBy("entry.collection_id");
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").innerJoin("video_collection_items", "entry", "entry.item_id = item.id").innerJoin("video_collections", "collection", "collection.id = entry.collection_id").where("collection.user_id = :userId", { userId }).andWhere("item.is_placeholder = false").select("entry.collection_id", "collectionId").addSelect("count(*)::int", "visibleItemCount").addSelect("(array_agg(item.id ORDER BY entry.position ASC))[1:8]", "itemIds").groupBy("entry.collection_id");
 		this.access.restrict(query, "item", policy, { content: true });
 		const previews = await query.getRawMany<{ collectionId: string; itemIds: string[]; visibleItemCount: number }>();
-		const cards = await loadSocialItems(this.dataSource, previews.flatMap((preview) => preview.itemIds));
+		const cards = await loadSocialItems(
+			this.dataSource,
+			previews.flatMap((preview) => preview.itemIds),
+		);
 		const cardsById = new Map(cards.map((card) => [card.id, card]));
 		const previewsById = new Map(previews.map((preview) => [preview.collectionId, preview]));
 		return collections.map((collection) => {
@@ -215,11 +223,12 @@ export class UserMediaService {
 		if (!collection) throw new NotFound("Collection not found.");
 		const isOwner = collection.user_id === viewerId;
 		if (!isOwner && (!collection.is_public || !(await this.ownerVisible(viewerId, collection.user_id)))) throw new NotFound("Collection not found.");
-		const entries = (await this.dataSource.query(
-			"SELECT item_id, added_at FROM video_collection_items WHERE collection_id = $1 ORDER BY position ASC",
-			[id],
-		)) as Array<{ item_id: string; added_at: Date }>;
-		const cards = await loadSocialItems(this.dataSource, entries.map((entry) => entry.item_id), new Map(entries.map((entry) => [entry.item_id, entry.added_at])));
+		const entries = (await this.dataSource.query("SELECT item_id, added_at FROM video_collection_items WHERE collection_id = $1 ORDER BY position ASC", [id])) as Array<{ item_id: string; added_at: Date }>;
+		const cards = await loadSocialItems(
+			this.dataSource,
+			entries.map((entry) => entry.item_id),
+			new Map(entries.map((entry) => [entry.item_id, entry.added_at])),
+		);
 		return { ...this.collectionRows([collection])[0], isOwner, items: cards.map(toSocialItem) };
 	}
 
@@ -229,15 +238,9 @@ export class UserMediaService {
 		await this.dataSource.transaction(async (manager) => {
 			const owned = await manager.query("SELECT id FROM video_collections WHERE id = $1 AND user_id = $2 FOR UPDATE", [id, userId]);
 			if (!owned.length) throw new NotFound("Collection not found.");
-			const rows = (await manager.query(
-				"SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM video_collection_items WHERE collection_id = $1",
-				[id],
-			)) as Array<{ count: number; next: number }>;
+			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM video_collection_items WHERE collection_id = $1", [id])) as Array<{ count: number; next: number }>;
 			if (rows[0].count >= MAX_COLLECTION_ITEMS) throw new BadRequest(`A collection can hold up to ${MAX_COLLECTION_ITEMS} items.`);
-			await manager.query(
-				"INSERT INTO video_collection_items (collection_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-				[id, itemId, rows[0].next],
-			);
+			await manager.query("INSERT INTO video_collection_items (collection_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", [id, itemId, rows[0].next]);
 			await manager.query("UPDATE video_collections SET updated_at = now() WHERE id = $1", [id]);
 		});
 	}
@@ -265,26 +268,23 @@ export class UserMediaService {
 	}
 
 	async queue(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(
-			"SELECT item_id, added_at FROM up_next_queue_items WHERE user_id = $1 ORDER BY position ASC",
-			[userId],
-		)) as Array<{ item_id: string; added_at: Date }>;
-		return (await loadSocialItems(this.dataSource, rows.map((row) => row.item_id), new Map(rows.map((row) => [row.item_id, row.added_at])))).map(toSocialItem);
+		const rows = (await this.dataSource.query("SELECT item_id, added_at FROM up_next_queue_items WHERE user_id = $1 ORDER BY position ASC", [userId])) as Array<{ item_id: string; added_at: Date }>;
+		return (
+			await loadSocialItems(
+				this.dataSource,
+				rows.map((row) => row.item_id),
+				new Map(rows.map((row) => [row.item_id, row.added_at])),
+			)
+		).map(toSocialItem);
 	}
 
 	async addToQueue(userId: string, itemId: string): Promise<void> {
 		await this.requireVideoItem(itemId, PLAYABLE_VIDEO_TYPES);
 		await this.dataSource.transaction(async (manager) => {
 			await manager.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
-			const rows = (await manager.query(
-				"SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM up_next_queue_items WHERE user_id = $1",
-				[userId],
-			)) as Array<{ count: number; next: number }>;
+			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM up_next_queue_items WHERE user_id = $1", [userId])) as Array<{ count: number; next: number }>;
 			if (rows[0].count >= MAX_QUEUE_ITEMS) throw new BadRequest(`Up Next can hold up to ${MAX_QUEUE_ITEMS} items.`);
-			await manager.query(
-				"INSERT INTO up_next_queue_items (user_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-				[userId, itemId, rows[0].next],
-			);
+			await manager.query("INSERT INTO up_next_queue_items (user_id, item_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", [userId, itemId, rows[0].next]);
 		});
 	}
 
@@ -331,19 +331,19 @@ export class UserMediaService {
 	}
 
 	async dismissedRecommendations(userId: string): Promise<string[]> {
-		const rows = (await this.dataSource.query(
-			"SELECT item_id FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss'",
-			[userId],
-		)) as Array<{ item_id: string }>;
+		const rows = (await this.dataSource.query("SELECT item_id FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss'", [userId])) as Array<{ item_id: string }>;
 		return rows.map((row) => row.item_id);
 	}
 
 	async dismissedRecommendationItems(userId: string): Promise<SocialItem[]> {
-		const rows = (await this.dataSource.query(
-			"SELECT item_id, updated_at FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss' ORDER BY updated_at DESC",
-			[userId],
-		)) as Array<{ item_id: string; updated_at: Date }>;
-		return (await loadSocialItems(this.dataSource, rows.map((row) => row.item_id), new Map(rows.map((row) => [row.item_id, row.updated_at])))).map(toSocialItem);
+		const rows = (await this.dataSource.query("SELECT item_id, updated_at FROM recommendation_feedback WHERE user_id = $1 AND feedback = 'dismiss' ORDER BY updated_at DESC", [userId])) as Array<{ item_id: string; updated_at: Date }>;
+		return (
+			await loadSocialItems(
+				this.dataSource,
+				rows.map((row) => row.item_id),
+				new Map(rows.map((row) => [row.item_id, row.updated_at])),
+			)
+		).map(toSocialItem);
 	}
 
 	private async requireVideoItem(itemId: string, allowedTypes = VIDEO_TYPES): Promise<void> {
@@ -362,10 +362,7 @@ export class UserMediaService {
 	}
 
 	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
-		const rows = (await this.dataSource.query(
-			"SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1",
-			[ownerId],
-		)) as Array<{ visibility: "public" | "hidden" | "friends" }>;
+		const rows = (await this.dataSource.query("SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1", [ownerId])) as Array<{ visibility: "public" | "hidden" | "friends" }>;
 		const visibility = rows[0]?.visibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;

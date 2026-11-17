@@ -41,6 +41,7 @@ interface RequestContextLike {
 
 /** Reads the caller's User-Agent and address from the current request, if there is one. */
 function readClientInfo(): { userAgent: string | null; ipAddress: string | null } {
+
 	const request = getContext<RequestContextLike>()?.request;
 	if (!request) {
 		return { userAgent: null, ipAddress: null };
@@ -54,6 +55,7 @@ function readClientInfo(): { userAgent: string | null; ipAddress: string | null 
 		userAgent: typeof userAgent === "string" && userAgent ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
 		ipAddress: (forwardedFor || request.raw?.ip || "").slice(0, 64) || null,
 	};
+
 }
 
 export interface AuthResult {
@@ -117,12 +119,12 @@ export interface AuthenticatedSession {
 function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
 		scrypt(password, salt, PASSWORD_KEY_LENGTH, { N: PASSWORD_SCRYPT_COST, maxmem: 64 * 1024 * 1024 }, (error, key) => {
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(key);
-			},
+			if (error) {
+				reject(error);
+				return;
+			}
+			resolve(key);
+		},
 		);
 	});
 }
@@ -303,9 +305,7 @@ export class AuthService {
 				await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:first-user-admin"]);
 				const users = manager.getRepository(User);
 				const userCount = await users.count();
-				const registrationSetting = await manager
-					.getRepository(Setting)
-					.findOneBy({ key: "registration_enabled" });
+				const registrationSetting = await manager.getRepository(Setting).findOneBy({ key: "registration_enabled" });
 				if (!registrationSetting || typeof registrationSetting.value !== "boolean") {
 					throw new Error("The registration_enabled setting is missing or invalid.");
 				}
@@ -348,13 +348,13 @@ export class AuthService {
 		const user = await this.getAuthenticatedUser(authorization);
 		const preference = await this.dataSource.getRepository(UserPreference).findOneBy({ userId: user.id });
 		const fields = preference?.data?.registrationFields;
-		return Array.isArray(fields) ? fields as RegistrationFieldValue[] : [];
+		return Array.isArray(fields) ? (fields as RegistrationFieldValue[]) : [];
 	}
 
 	/** Finishes a registration that is waiting for payment, then signs the account in (or asks for email verification). */
 	async completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<AuthResult | VerificationPending | SignupAction> {
 		const user = await this.payments.completePendingSignup(token, payment, orderId);
-		if ('requiresAction' in user) return user
+		if ("requiresAction" in user) return user;
 		if (await this.emailVerification.isRequired()) {
 			await this.trySendVerification(user);
 			return { verificationRequired: true, email: user.email ?? "" };
@@ -490,10 +490,7 @@ export class AuthService {
 		const expectedSignature = createHmac("sha256", secret).update(`${encodedHeader}.${encodedClaims}`).digest();
 		const actualSignature = Buffer.from(encodedSignature, "base64url");
 
-		if (
-			actualSignature.length !== expectedSignature.length ||
-			!timingSafeEqual(actualSignature, expectedSignature)
-		) {
+		if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature)) {
 			throw new Unauthorized("Invalid access token.");
 		}
 
@@ -506,21 +503,7 @@ export class AuthService {
 		}
 		const { header, claims } = token;
 
-		if (
-			typeof header !== "object" ||
-			header === null ||
-			!("alg" in header) ||
-			header.alg !== "HS256" ||
-			typeof claims !== "object" ||
-			claims === null ||
-			!("sub" in claims) ||
-			typeof claims.sub !== "string" ||
-			!("sid" in claims) ||
-			typeof claims.sid !== "string" ||
-			!("exp" in claims) ||
-			typeof claims.exp !== "number" ||
-			claims.exp <= Math.floor(Date.now() / 1000)
-		) {
+		if (typeof header !== "object" || header === null || !("alg" in header) || header.alg !== "HS256" || typeof claims !== "object" || claims === null || !("sub" in claims) || typeof claims.sub !== "string" || !("sid" in claims) || typeof claims.sid !== "string" || !("exp" in claims) || typeof claims.exp !== "number" || claims.exp <= Math.floor(Date.now() / 1000)) {
 			throw new Unauthorized("Invalid or expired access token.");
 		}
 

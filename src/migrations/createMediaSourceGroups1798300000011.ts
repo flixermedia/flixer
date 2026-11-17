@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** Stores deliberate source groupings without changing media rows or their hierarchy. */
 export class CreateMediaSourceGroups1798300000011 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE media_source_groups (

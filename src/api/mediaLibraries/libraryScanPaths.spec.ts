@@ -33,8 +33,12 @@ describe("library scan paths", () => {
 	});
 
 	it("resolves and deduplicates selected library directories", async () => {
-		await expect(service.scanPaths("id", [{ rootId, path: "Movies/Selected" }, { rootId, path: "/Movies/Selected/" }]))
-			.resolves.toEqual([join(directory, "Movies", "Selected")]);
+		await expect(
+			service.scanPaths("id", [
+				{ rootId, path: "Movies/Selected" },
+				{ rootId, path: "/Movies/Selected/" },
+			]),
+		).resolves.toEqual([join(directory, "Movies", "Selected")]);
 		await expect(service.scanPaths("id", [{ rootId, path: "Movies" }])).resolves.toEqual([join(directory, "Movies")]);
 	});
 
@@ -49,8 +53,14 @@ describe("library scan paths", () => {
 	it("retains unresolved roots so the indexer cannot prune a partial library", async () => {
 		const library = new MediaLibrary();
 		Object.assign(library, {
-			id: "id", name: "Movies", type: "movies", imageStorage: "cache",
-			folders: [{ rootId, path: "Movies" }, { rootId: "missing", path: "More" }],
+			id: "id",
+			name: "Movies",
+			type: "movies",
+			imageStorage: "cache",
+			folders: [
+				{ rootId, path: "Movies" },
+				{ rootId: "missing", path: "More" },
+			],
 		});
 		vi.spyOn(service, "entities").mockResolvedValue([library]);
 		const [result] = await service.forIndexer();

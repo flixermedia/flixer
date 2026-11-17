@@ -15,13 +15,13 @@ interface ArtifactRow {
 
 /** PostgreSQL-backed storage for OpenID Connect clients and provider artifacts. */
 export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter {
+
 	async function findArtifact(column: "id" | "uid" | "userCode", value: string): Promise<AdapterPayload | undefined> {
+
 		const predicate = column === "id" ? `"id" = $2` : `"payload"->>'${column}' = $2`;
-		const rows: ArtifactRow[] = await dataSource.query(
-			`SELECT "payload" FROM "oidc_artifacts" WHERE "kind" = $1 AND ${predicate} AND ("expires_at" IS NULL OR "expires_at" > now()) LIMIT 1`,
-			[kind, value],
-		);
+		const rows: ArtifactRow[] = await dataSource.query(`SELECT "payload" FROM "oidc_artifacts" WHERE "kind" = $1 AND ${predicate} AND ("expires_at" IS NULL OR "expires_at" > now()) LIMIT 1`, [kind, value]);
 		return rows[0]?.payload;
+
 	}
 
 	return {
@@ -77,4 +77,5 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'grantId' = $1`, [grantId]);
 		},
 	};
+
 }

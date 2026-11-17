@@ -17,12 +17,12 @@ const validCatalog = {
 			targets: ["flixer", "flixer-web"],
 			versions: [
 				{
-				version: "1.0.0",
-				manifest: "plugins/example/1.0.0/plugin.json",
-				package: "plugins/example/1.0.0/plugin.tar.gz",
-				sha256: "a".repeat(64),
-				size: 1024,
-			},
+					version: "1.0.0",
+					manifest: "plugins/example/1.0.0/plugin.json",
+					package: "plugins/example/1.0.0/plugin.tar.gz",
+					sha256: "a".repeat(64),
+					size: 1024,
+				},
 			],
 		},
 	],
@@ -58,9 +58,7 @@ describe("parsePluginRepositoryManifest", () => {
 	});
 
 	it("rejects duplicate plugin IDs and versions", () => {
-		expect(() => parsePluginRepositoryManifest({ ...validCatalog, plugins: [...validCatalog.plugins, ...validCatalog.plugins] })).toThrow(
-			"duplicate plugin id",
-		);
+		expect(() => parsePluginRepositoryManifest({ ...validCatalog, plugins: [...validCatalog.plugins, ...validCatalog.plugins] })).toThrow("duplicate plugin id");
 		const plugin = validCatalog.plugins[0];
 		expect(() =>
 			parsePluginRepositoryManifest({

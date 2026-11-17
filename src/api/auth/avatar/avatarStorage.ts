@@ -19,6 +19,7 @@ export function getAvatarDirectory(): string {
 
 /** Identifies the image type from its magic bytes instead of trusting the client's MIME type. */
 export function detectAvatarType(buffer: Buffer): AvatarType | null {
+
 	if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
 		return { ext: "png", mime: "image/png" };
 	}
@@ -32,11 +33,14 @@ export function detectAvatarType(buffer: Buffer): AvatarType | null {
 		return { ext: "gif", mime: "image/gif" };
 	}
 	return null;
+
 }
 
 export function mimeForAvatarFile(filename: string): string | null {
+
 	const ext = filename.slice(filename.lastIndexOf(".") + 1);
 	return { png: "image/png", jpg: "image/jpeg", webp: "image/webp", gif: "image/gif" }[ext] ?? null;
+
 }
 
 export function isAvatarFilename(filename: string): boolean {
@@ -44,14 +48,17 @@ export function isAvatarFilename(filename: string): boolean {
 }
 
 export async function saveAvatarFile(userId: string, buffer: Buffer, type: AvatarType): Promise<string> {
+
 	const directory = getAvatarDirectory();
 	await mkdir(directory, { recursive: true });
 	const filename = `${userId}-${randomBytes(8).toString("hex")}.${type.ext}`;
 	await writeFile(join(directory, filename), buffer, { flag: "wx" });
 	return filename;
+
 }
 
 export async function readAvatarFile(filename: string): Promise<Buffer | null> {
+
 	if (!isAvatarFilename(filename)) {
 		return null;
 	}
@@ -60,9 +67,11 @@ export async function readAvatarFile(filename: string): Promise<Buffer | null> {
 	} catch {
 		return null;
 	}
+
 }
 
 export async function deleteAvatarFile(filename: string | null | undefined): Promise<void> {
+
 	if (!filename || !isAvatarFilename(filename)) {
 		return;
 	}
@@ -71,4 +80,5 @@ export async function deleteAvatarFile(filename: string | null | undefined): Pro
 	} catch {
 		// Already gone; nothing to clean up.
 	}
+
 }

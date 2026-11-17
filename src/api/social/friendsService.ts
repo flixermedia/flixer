@@ -34,6 +34,7 @@ const pair = (a: string, b: string): [string, string] => (a < b ? [a, b] : [b, a
 
 @Injectable()
 export class FriendsService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
@@ -65,10 +66,7 @@ export class FriendsService {
 	async status(viewerId: string, otherId: string): Promise<FriendshipStatus> {
 		if (viewerId === otherId) return "self";
 		const [low, high] = pair(viewerId, otherId);
-		const rows = (await this.dataSource.query(
-			`SELECT requested_by, accepted_at FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`,
-			[low, high],
-		)) as Array<Pick<FriendshipRow, "requested_by" | "accepted_at">>;
+		const rows = (await this.dataSource.query(`SELECT requested_by, accepted_at FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`, [low, high])) as Array<Pick<FriendshipRow, "requested_by" | "accepted_at">>;
 		const row = rows[0];
 		if (!row) return "none";
 		if (row.accepted_at) return "friends";
@@ -78,10 +76,7 @@ export class FriendsService {
 	async areFriends(firstId: string, secondId: string): Promise<boolean> {
 		if (firstId === secondId) return true;
 		const [low, high] = pair(firstId, secondId);
-		const rows = (await this.dataSource.query(
-			`SELECT 1 FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2 AND accepted_at IS NOT NULL`,
-			[low, high],
-		)) as unknown[];
+		const rows = (await this.dataSource.query(`SELECT 1 FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2 AND accepted_at IS NOT NULL`, [low, high])) as unknown[];
 		return rows.length > 0;
 	}
 
@@ -96,19 +91,10 @@ export class FriendsService {
 		if (!target || target.id !== viewerId) throw new NotFound("Person not found.");
 
 		const expiresInHours = options.expiresInHours;
-		if (
-			options.mode === "expires" &&
-			(typeof expiresInHours !== "number" ||
-				!Number.isInteger(expiresInHours) ||
-				expiresInHours < 1 ||
-				expiresInHours > 8760)
-		) {
+		if (options.mode === "expires" && (typeof expiresInHours !== "number" || !Number.isInteger(expiresInHours) || expiresInHours < 1 || expiresInHours > 8760)) {
 			throw new BadRequest("Choose a valid invite expiration.");
 		}
-		const expiresAt =
-			options.mode === "expires" && expiresInHours
-				? new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
-				: null;
+		const expiresAt = options.mode === "expires" && expiresInHours ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000) : null;
 		const maxUses = options.mode === "once" ? 1 : null;
 		const rows = (await this.dataSource.query(
 			`INSERT INTO social_friend_invites (token, owner_id, max_uses, expires_at)
@@ -157,9 +143,7 @@ export class FriendsService {
 					SET accepted_at = COALESCE(social_friendships.accepted_at, now())`,
 				[low, high, userId],
 			);
-			await manager.query(`UPDATE social_friend_invites SET use_count = use_count + 1 WHERE token = $1`, [
-				token.toLowerCase(),
-			]);
+			await manager.query(`UPDATE social_friend_invites SET use_count = use_count + 1 WHERE token = $1`, [token.toLowerCase()]);
 			return { status: "friends" as const };
 		});
 	}
@@ -222,10 +206,7 @@ export class FriendsService {
 		const target = await this.findUser(username);
 		if (!target) throw new NotFound("Person not found.");
 		const [low, high] = pair(userId, target.id);
-		await this.dataSource.query(`DELETE FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`, [
-			low,
-			high,
-		]);
+		await this.dataSource.query(`DELETE FROM social_friendships WHERE user_low_id = $1 AND user_high_id = $2`, [low, high]);
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {

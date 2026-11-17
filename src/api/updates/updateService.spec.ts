@@ -47,19 +47,20 @@ describe("update versions", () => {
 	it("uses validated public release redirects when GitHub rate limits the API", async () => {
 		const repository = { findOneBy: vi.fn().mockResolvedValue(null), update: vi.fn().mockResolvedValue(undefined) };
 		const updater = { token: () => undefined };
-		vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-			if (url.startsWith("https://api.github.com/")) {
-				return new Response("", { status: 403, headers: { "x-ratelimit-remaining": "0" } });
-			}
-			if (url.startsWith("https://github.com/")) {
-				const repo = new URL(url).pathname.split("/")[2];
-				const target = repo === "flixer-ai" ? `/flixermedia/${repo}/releases`
-					: repo === "flixer-logger" ? "https://example.com/flixermedia/flixer-logger/releases/tag/v9.0.0"
-						: `/flixermedia/${repo}/releases/tag/v1.2.3`;
-				return new Response(null, { status: 302, headers: { location: target } });
-			}
-			return Response.json({});
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string) => {
+				if (url.startsWith("https://api.github.com/")) {
+					return new Response("", { status: 403, headers: { "x-ratelimit-remaining": "0" } });
+				}
+				if (url.startsWith("https://github.com/")) {
+					const repo = new URL(url).pathname.split("/")[2];
+					const target = repo === "flixer-ai" ? `/flixermedia/${repo}/releases` : repo === "flixer-logger" ? "https://example.com/flixermedia/flixer-logger/releases/tag/v9.0.0" : `/flixermedia/${repo}/releases/tag/v1.2.3`;
+					return new Response(null, { status: 302, headers: { location: target } });
+				}
+				return Response.json({});
+			}),
+		);
 		try {
 			const service = new UpdateService({ getRepository: () => repository } as never, {} as never, updater as never);
 			const status = await service.status(true);
@@ -75,13 +76,16 @@ describe("update versions", () => {
 		const repository = { findOneBy: vi.fn().mockResolvedValue(null), update: vi.fn().mockResolvedValue(undefined) };
 		const updater = { token: () => undefined };
 		let failing = false;
-		vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-			if (url.includes("flixer-ai/releases/latest")) {
-				return failing ? new Response("", { status: 503 }) : Response.json({ tag_name: "v1.2.3" });
-			}
-			if (url.startsWith("https://api.github.com/")) return new Response("", { status: 404 });
-			return Response.json({});
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string) => {
+				if (url.includes("flixer-ai/releases/latest")) {
+					return failing ? new Response("", { status: 503 }) : Response.json({ tag_name: "v1.2.3" });
+				}
+				if (url.startsWith("https://api.github.com/")) return new Response("", { status: 404 });
+				return Response.json({});
+			}),
+		);
 		try {
 			const service = new UpdateService({ getRepository: () => repository } as never, {} as never, updater as never);
 			expect((await service.status(true)).components).toContainEqual(expect.objectContaining({ id: "ai", latest: "1.2.3" }));

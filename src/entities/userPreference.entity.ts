@@ -7,6 +7,7 @@ import { User } from "./user.entity.js";
  */
 @Entity("user_preferences")
 export class UserPreference {
+
 	@PrimaryColumn({ name: "user_id", type: "uuid" })
 	userId!: string;
 

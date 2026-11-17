@@ -28,10 +28,15 @@ export class PartyGateway {
 			logger().warn("Watch parties are unavailable: the HTTP server could not be located.");
 			return;
 		}
-		this.socketServer = new PartySocketServer(async (token) => personFrom(await this.authService.getAuthenticatedUser(`Bearer ${token}`)), this.parties, async (token, itemId) => {
-			const policy = await this.access.resolve(`Bearer ${token}`);
-			return this.access.isVisible(policy, itemId);
-		}, this.calls);
+		this.socketServer = new PartySocketServer(
+			async (token) => personFrom(await this.authService.getAuthenticatedUser(`Bearer ${token}`)),
+			this.parties,
+			async (token, itemId) => {
+				const policy = await this.access.resolve(`Bearer ${token}`);
+				return this.access.isVisible(policy, itemId);
+			},
+			this.calls,
+		);
 		this.socketServer.attach(server);
 		logger().info(`Watch and listen parties are available on ${PARTY_PATH}.`);
 	}

@@ -22,17 +22,12 @@ vi.mock("../api/social/socialItems.js", () => ({
 	toSocialItem: ({ raw: _raw, album: _album, ...card }: Record<string, unknown>) => card,
 }));
 
-import {
-	HOST_GRACE_MS,
-	PartiesService,
-	type PartyMessage,
-	type PartyPerson,
-	type PartySnapshot,
-} from "./partiesService.js";
+import { HOST_GRACE_MS, PartiesService, type PartyMessage, type PartyPerson, type PartySnapshot } from "./partiesService.js";
 
 const person = (id: string): PartyPerson => ({ id, username: id, displayName: id.toUpperCase(), avatarUrl: null });
 
 class FakeRedis {
+
 	private readonly values = new Map<string, string>();
 	private readonly sets = new Map<string, Set<string>>();
 	private readonly people = new Map<string, Map<string, string>>();
@@ -171,9 +166,7 @@ class FakeRedis {
 
 	private chat({ keys, arguments: args }: { keys: string[]; arguments: string[] }): string {
 		if (!this.values.has(keys[0])) return JSON.stringify({ error: "missing" });
-		const isMember = [...(this.people.get(keys[1]) ?? new Map()).values()].some(
-			(value) => (JSON.parse(value) as PartyPerson).id === args[0],
-		);
+		const isMember = [...(this.people.get(keys[1]) ?? new Map()).values()].some((value) => (JSON.parse(value) as PartyPerson).id === args[0]);
 		if (!isMember) return JSON.stringify({ error: "not-member" });
 		const count = (this.rates.get(keys[2]) ?? 0) + 1;
 		this.rates.set(keys[2], count);
@@ -210,6 +203,7 @@ class FakeRedis {
 const activeServices: PartiesService[] = [];
 
 async function createService(redis = new FakeRedis()) {
+
 	const friends = new FriendsService({} as DataSource, {} as NotificationService);
 	vi.spyOn(friends, "areFriends").mockResolvedValue(false);
 	const partyRedis = {
@@ -223,6 +217,7 @@ async function createService(redis = new FakeRedis()) {
 	await service.$onInit();
 	activeServices.push(service);
 	return service;
+
 }
 
 describe("PartiesService", () => {
@@ -255,12 +250,8 @@ describe("PartiesService", () => {
 	it("only lets the host control or end a party and validates commands", async () => {
 		const service = await createService();
 		const { id } = await service.create(person("host"), "m1");
-		await expect(service.control(id, "guest", { action: "pause", commandId: "pause-1" })).rejects.toThrow(
-			/Only the host/,
-		);
-		await expect(
-			service.control(id, "host", { action: "change-item", commandId: "change-1", itemId: "" }),
-		).rejects.toThrow(/item is required/);
+		await expect(service.control(id, "guest", { action: "pause", commandId: "pause-1" })).rejects.toThrow(/Only the host/);
+		await expect(service.control(id, "host", { action: "change-item", commandId: "change-1", itemId: "" })).rejects.toThrow(/item is required/);
 		await expect(service.endBy(id, "guest")).rejects.toThrow(/Only the host/);
 	});
 
@@ -271,9 +262,7 @@ describe("PartiesService", () => {
 		await service.join(first.id, person("guest"), (message) => messages.push(message));
 		await service.control(first.id, "host", { action: "change-item", commandId: "change-1", itemId: "m2" });
 		expect((await service.get(first.id, "host")).item.id).toBe("m2");
-		await expect(
-			service.control(first.id, "host", { action: "change-item", commandId: "change-2", itemId: "t1" }),
-		).rejects.toThrow(/switch/);
+		await expect(service.control(first.id, "host", { action: "change-item", commandId: "change-2", itemId: "t1" })).rejects.toThrow(/switch/);
 		await service.create(person("host"), "m3");
 		expect(messages.at(-1)).toEqual({ type: "ended", reason: "host-ended" });
 	});
@@ -298,10 +287,13 @@ describe("PartiesService", () => {
 
 		const messages: PartyMessage[] = [];
 		await service.join(party.id, person("guest"), (message) => messages.push(message));
-		await redis.publish("flixer:parties:events", JSON.stringify({
-			partyId: party.id,
-			message: { type: "state", party: { ...party, members: {} }, serverTime: 1000 },
-		}));
+		await redis.publish(
+			"flixer:parties:events",
+			JSON.stringify({
+				partyId: party.id,
+				message: { type: "state", party: { ...party, members: {} }, serverTime: 1000 },
+			}),
+		);
 		expect(messages.at(-1)).toMatchObject({ type: "state", party: { members: [] } });
 		await vi.advanceTimersByTimeAsync(HOST_GRACE_MS + 1);
 		await expect(service.get(party.id, "host")).rejects.toThrow(/ended/);

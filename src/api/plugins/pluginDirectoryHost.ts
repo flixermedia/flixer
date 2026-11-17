@@ -7,6 +7,7 @@ type DirectoryBind = (url: URL, bindDN: string, password: string, signal: AbortS
 type DirectorySearch = (url: URL, bindDN: string, password: string, baseDN: string, filter: string, attributes: string[], signal: AbortSignal) => Promise<Array<Record<string, unknown>>>;
 
 async function directoryClient(url: URL, signal: AbortSignal): Promise<Client> {
+
 	const hostname = url.hostname.replace(/^\[|\]$/g, "");
 	const addresses = await lookup(hostname, { all: true, verbatim: true });
 	if (signal.aborted) throw new Error("Directory request timed out.");
@@ -14,6 +15,7 @@ async function directoryClient(url: URL, signal: AbortSignal): Promise<Client> {
 	const address = addresses[0].address;
 	const host = isIP(address) === 6 ? `[${address}]` : address;
 	return new Client({ url: `ldaps://${host}:${url.port || "636"}`, timeout: 4000, connectTimeout: 4000, tlsOptions: { servername: hostname, minVersion: "TLSv1.2", rejectUnauthorized: true } });
+
 }
 
 const bindDirectory: DirectoryBind = async (url, bindDN, password, signal) => {
@@ -31,24 +33,51 @@ const searchDirectory: DirectorySearch = async (url, bindDN, password, baseDN, f
 		await client.bind(bindDN, password);
 		if (signal.aborted) throw new Error("Directory request timed out.");
 		const result = await client.search(baseDN, { scope: "sub", filter, attributes, sizeLimit: 2, timeLimit: 3 });
-		return result.searchEntries.map((entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => key === "dn" || attributes.includes(key)).map(([key, value]) => [key, typeof value === "string" ? value.slice(0, 1024) : Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 10).map((item) => item.slice(0, 1024)) : null])));
+		return result.searchEntries.map((entry) =>
+			Object.fromEntries(
+				Object.entries(entry)
+					.filter(([key]) => key === "dn" || attributes.includes(key))
+					.map(([key, value]) => [
+						key,
+						typeof value === "string"
+							? value.slice(0, 1024)
+							: Array.isArray(value)
+								? value
+										.filter((item): item is string => typeof item === "string")
+										.slice(0, 10)
+										.map((item) => item.slice(0, 1024))
+								: null,
+					]),
+			),
+		);
 	} finally {
 		await client.unbind().catch(() => undefined);
 	}
 };
 
 function directoryUrl(value: unknown, approved: ReadonlySet<string>): URL | null {
+
 	if (typeof value !== "string" || value.length > 2048) return null;
 	let url: URL;
-	try { url = new URL(value); } catch { return null; }
+	try {
+		url = new URL(value);
+	} catch {
+		return null;
+	}
 	if (url.protocol !== "ldaps:" || url.username || url.password || url.pathname !== "" || url.search || url.hash || !url.hostname || (url.port && (Number(url.port) < 1 || Number(url.port) > 65535))) return null;
 	return approved.has(`network.ldaps.${url.hostname.toLowerCase()}`) ? url : null;
+
 }
 
 export async function executeDirectoryBind(call: HostCall, approved: ReadonlySet<string>, password: unknown, bind: DirectoryBind = bindDirectory): Promise<HostResult> {
+
 	if (call.op !== "ldap.bind" || typeof call.url !== "string" || call.url.length > 2048 || typeof call.bindDN !== "string" || !call.bindDN.trim() || call.bindDN.length > 1024 || /[\u0000-\u001f]/.test(call.bindDN) || typeof password !== "string" || !password || password.length > 1024) return { id: call.id, ok: false, error: "invalid_request" };
 	let parsed: URL;
-	try { parsed = new URL(call.url); } catch { return { id: call.id, ok: false, error: "invalid_request" }; }
+	try {
+		parsed = new URL(call.url);
+	} catch {
+		return { id: call.id, ok: false, error: "invalid_request" };
+	}
 	if (parsed.protocol !== "ldaps:") return { id: call.id, ok: false, error: "invalid_request" };
 	const url = directoryUrl(call.url, approved);
 	if (!url) return { id: call.id, ok: false, error: "permission_denied" };
@@ -63,9 +92,11 @@ export async function executeDirectoryBind(call: HostCall, approved: ReadonlySet
 	} finally {
 		clearTimeout(timeout);
 	}
+
 }
 
 export async function executeDirectorySearch(call: HostCall, approved: ReadonlySet<string>, search: DirectorySearch = searchDirectory): Promise<HostResult> {
+
 	if (call.op !== "ldap.search" || !approved.has("directory.search")) return { id: call.id, ok: false, error: "permission_denied" };
 	const url = directoryUrl(call.url, approved);
 	if (!url) return { id: call.id, ok: false, error: "permission_denied" };
@@ -82,4 +113,5 @@ export async function executeDirectorySearch(call: HostCall, approved: ReadonlyS
 	} finally {
 		clearTimeout(timeout);
 	}
+
 }

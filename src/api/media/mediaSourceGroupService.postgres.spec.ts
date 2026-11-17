@@ -16,10 +16,7 @@ describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
 
 	const item = async (type = "series", libraryId = library, placeholder = false) => {
 		const id = randomUUID();
-		await database.query(
-			"INSERT INTO media_items (id, library_id, type, is_placeholder) VALUES ($1, $2, $3, $4)",
-			[id, libraryId, type, placeholder],
-		);
+		await database.query("INSERT INTO media_items (id, library_id, type, is_placeholder) VALUES ($1, $2, $3, $4)", [id, libraryId, type, placeholder]);
 		return id;
 	};
 	const groups = async () => database.query("SELECT primary_id, source_id FROM media_source_groups ORDER BY primary_id, source_id");
@@ -138,16 +135,20 @@ describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
 		await service.split(source);
 		const descendants = await database.query("SELECT id, parent_id FROM media_items WHERE id = ANY($1::uuid[]) ORDER BY id", [[firstSeason, secondSeason, firstEpisode, secondEpisode]]);
 		expect(descendants).toHaveLength(4);
-		expect(descendants).toEqual(expect.arrayContaining([
-			{ id: firstSeason, parent_id: primary },
-			{ id: secondSeason, parent_id: source },
-			{ id: firstEpisode, parent_id: firstSeason },
-			{ id: secondEpisode, parent_id: secondSeason },
-		]));
-		expect(await database.query("SELECT item_id, completed FROM watch_progress WHERE user_id = $1 ORDER BY item_id", [user])).toEqual(expect.arrayContaining([
-			{ item_id: firstEpisode, completed: true },
-			{ item_id: secondEpisode, completed: false },
-		]));
+		expect(descendants).toEqual(
+			expect.arrayContaining([
+				{ id: firstSeason, parent_id: primary },
+				{ id: secondSeason, parent_id: source },
+				{ id: firstEpisode, parent_id: firstSeason },
+				{ id: secondEpisode, parent_id: secondSeason },
+			]),
+		);
+		expect(await database.query("SELECT item_id, completed FROM watch_progress WHERE user_id = $1 ORDER BY item_id", [user])).toEqual(
+			expect.arrayContaining([
+				{ item_id: firstEpisode, completed: true },
+				{ item_id: secondEpisode, completed: false },
+			]),
+		);
 	});
 
 	it("returns not found for missing sources", async () => {

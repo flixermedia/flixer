@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateSocialFriendInvites1795900000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE "social_friend_invites" (
@@ -36,9 +37,7 @@ export class CreateSocialFriendInvites1795900000000 implements MigrationInterfac
 				ORDER BY invite."created_at" DESC LIMIT 1
 			)
 		`);
-		await queryRunner.query(
-			`CREATE UNIQUE INDEX "uq_user_preferences_friend_invite_token" ON "user_preferences" ("friend_invite_token") WHERE "friend_invite_token" IS NOT NULL`,
-		);
+		await queryRunner.query(`CREATE UNIQUE INDEX "uq_user_preferences_friend_invite_token" ON "user_preferences" ("friend_invite_token") WHERE "friend_invite_token" IS NOT NULL`);
 		await queryRunner.query(`DROP TABLE "social_friend_invites"`);
 	}
 }

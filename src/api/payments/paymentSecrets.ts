@@ -27,11 +27,14 @@ function sign(payload: string): string {
 
 /** Proves a provider customer was created by this server for a signup in progress, without storing anything. */
 export function signSetupToken(provider: string, customerId: string, now = Date.now()): string {
+
 	const payload = Buffer.from(JSON.stringify({ p: provider, c: customerId, e: now + SETUP_TOKEN_TTL_MS })).toString("base64url");
 	return `${payload}.${sign(payload)}`;
+
 }
 
 export function verifySetupToken(token: string, provider: string, now = Date.now()): string | null {
+
 	const [payload, signature] = token.split(".");
 	if (!payload || !signature) {
 		return null;
@@ -50,6 +53,7 @@ export function verifySetupToken(token: string, provider: string, now = Date.now
 	} catch {
 		return null;
 	}
+
 }
 
 const PENDING_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -60,11 +64,14 @@ function signPending(payload: string): string {
 
 /** Lets someone who registered but has not paid come back and finish, without a session. Only issued after the password was checked. */
 export function signPendingSignupToken(userId: string, now = Date.now()): string {
+
 	const payload = Buffer.from(JSON.stringify({ u: userId, e: now + PENDING_TOKEN_TTL_MS })).toString("base64url");
 	return `${payload}.${signPending(payload)}`;
+
 }
 
 export function verifyPendingSignupToken(token: string, now = Date.now()): string | null {
+
 	const [payload, signature] = token.split(".");
 	if (!payload || !signature) {
 		return null;
@@ -80,6 +87,7 @@ export function verifyPendingSignupToken(token: string, now = Date.now()): strin
 	} catch {
 		return null;
 	}
+
 }
 
 /** Receipt emails embed a poster, so the image URL carries a signature instead of needing a login. */
@@ -88,7 +96,9 @@ export function signReceiptArt(itemId: string): string {
 }
 
 export function verifyReceiptArt(itemId: string, signature: string): boolean {
+
 	const expected = Buffer.from(signReceiptArt(itemId));
 	const received = Buffer.from(signature);
 	return received.length === expected.length && timingSafeEqual(received, expected);
+
 }

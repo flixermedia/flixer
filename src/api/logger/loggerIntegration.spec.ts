@@ -29,7 +29,9 @@ describe("logger control-plane integration", () => {
 			expect(await service.setIngestionPolicy(ratePolicy, "admin")).toEqual(ratePolicy);
 			expect(await service.getIngestionPolicy("admin")).toEqual(ratePolicy);
 			expect(await service.setRetention({ enabled: false, days: 14, severityDays: { error: 30, trace: 2 } }, "admin")).toEqual({
-				enabled: false, days: 14, severityDays: { error: 30, trace: 2 },
+				enabled: false,
+				days: 14,
+				severityDays: { error: 30, trace: 2 },
 			});
 			expect(await service.getRetention("admin")).toEqual({ enabled: false, days: 14, severityDays: { error: 30, trace: 2 } });
 			expect(await service.getQuota("admin")).toEqual({ maxBytes: 4096, usedBytes: 0 });
@@ -54,7 +56,7 @@ describe("logger control-plane integration", () => {
 					headers: { authorization: `Bearer ${ticket.token}` },
 					signal: AbortSignal.timeout(5_000),
 				});
-				const payload = await result.json() as { events: { source: string; message: string }[] };
+				const payload = (await result.json()) as { events: { source: string; message: string }[] };
 				const event = payload.events.find((item) => item.source === "logger-integration");
 				if (event) {
 					expect(event.message).not.toContain("supersecret");
@@ -74,9 +76,7 @@ describe("logger control-plane integration", () => {
 			store.setMany({ loggerIngestApp: "" });
 			await service.renewIngestCredential();
 			expect(store.get("loggerIngestApp")).toBe("flixer");
-			expect((await service.listCredentials("admin")).filter((credential) =>
-				credential.scope === "ingest" && credential.app === "flixer",
-			)).toHaveLength(2);
+			expect((await service.listCredentials("admin")).filter((credential) => credential.scope === "ingest" && credential.app === "flixer")).toHaveLength(2);
 			expect(queryCredential).toBeDefined();
 			if (!queryCredential) throw new Error("Missing query credential.");
 			expect(await service.revokeCredential(queryCredential.id, "admin")).toEqual({ revoked: true });

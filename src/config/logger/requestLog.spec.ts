@@ -33,9 +33,13 @@ describe("logger administration request logs", () => {
 	it("does not include owner credentials or exception data", () => {
 		const ctx = new DIContext({ id: "owner-test" });
 		ctx.request = {
-			method: "PUT", url: "/api/admin/logger/owner/configuration?secret=hidden",
+			method: "PUT",
+			url: "/api/admin/logger/owner/configuration?secret=hidden",
 			route: "/api/admin/logger/owner/configuration",
-			headers: {}, body: { ownerToken: "private-owner-value" }, query: { secret: "hidden" }, params: {},
+			headers: {},
+			body: { ownerToken: "private-owner-value" },
+			query: { secret: "hidden" },
+			params: {},
 		};
 		const result = alterRequestLog("error", { event: "request.end", status: 400, error_body: "private-owner-value" }, ctx);
 		expect(result).toMatchObject({ url: "/api/admin/logger/owner/configuration", status: 400 });
@@ -72,13 +76,25 @@ describe("logger administration request logs", () => {
 	])("does not log credentials or payloads for $url", ({ url, status, level }) => {
 		const ctx = new DIContext({ id: "sensitive-request" });
 		ctx.request = {
-			method: "POST", url, route: url.split("?")[0],
+			method: "POST",
+			url,
+			route: url.split("?")[0],
 			headers: { authorization: "Bearer private-bearer", cookie: "private-cookie", "x-api-key": "private-key" },
-			body: { password: "private-password" }, query: { access_token: "private-query" }, params: {},
+			body: { password: "private-password" },
+			query: { access_token: "private-query" },
+			params: {},
 		};
-		const result = alterRequestLog(level, {
-			event: "request.end", status, state: "KO", error_body: "private-error", response: { token: "private-response" },
-		}, ctx);
+		const result = alterRequestLog(
+			level,
+			{
+				event: "request.end",
+				status,
+				state: "KO",
+				error_body: "private-error",
+				response: { token: "private-response" },
+			},
+			ctx,
+		);
 		expect(result).toMatchObject({ method: "POST", url: url.split("?")[0], event: "request.end", status });
 		expect(JSON.stringify(result)).not.toContain("private-");
 	});
@@ -86,8 +102,13 @@ describe("logger administration request logs", () => {
 	it.each(["/api/admin/oidc/clients", "/api/oidc/interaction/example/details", "/api/oauth/me/subscriptions"])("does not log OAuth credentials or interaction cookies at %s", (url) => {
 		const ctx = new DIContext({ id: "oauth-test" });
 		ctx.request = {
-			method: "POST", url: `${url}?private-query=value`, route: url, headers: { authorization: "private-token", cookie: "private-cookie" },
-			body: { secret: "private-secret" }, query: { "private-query": "value" }, params: {},
+			method: "POST",
+			url: `${url}?private-query=value`,
+			route: url,
+			headers: { authorization: "private-token", cookie: "private-cookie" },
+			body: { secret: "private-secret" },
+			query: { "private-query": "value" },
+			params: {},
 		};
 		const result = alterRequestLog("error", { event: "request.end", status: 400, error_body: "private-error" }, ctx);
 		expect(result).toMatchObject({ url, status: 400 });
@@ -111,9 +132,14 @@ describe("logger administration request logs", () => {
 	it("adds valid trace context to request logs", () => {
 		const ctx = new DIContext({ id: "test" });
 		ctx.request = {
-			method: "GET", url: "/api/internal/ai/library-context", headers: {
+			method: "GET",
+			url: "/api/internal/ai/library-context",
+			headers: {
 				traceparent: `00-${"a".repeat(32)}-${"1".repeat(16)}-01`,
-			}, body: {}, query: {}, params: {},
+			},
+			body: {},
+			query: {},
+			params: {},
 		};
 		expect(alterRequestLog("info", { event: "request.end" }, ctx)).toMatchObject({ trace_id: "a".repeat(32) });
 	});
@@ -121,10 +147,16 @@ describe("logger administration request logs", () => {
 	it("keeps credential-bearing request logs sanitized when they have trace context", () => {
 		const ctx = new DIContext({ id: "test" });
 		ctx.request = {
-			method: "PUT", url: "/api/admin/logger/configuration?secret=hidden", route: "/api/admin/logger/configuration", headers: {
-				traceparent: `00-${"a".repeat(32)}-${"1".repeat(16)}-01`, authorization: "private",
+			method: "PUT",
+			url: "/api/admin/logger/configuration?secret=hidden",
+			route: "/api/admin/logger/configuration",
+			headers: {
+				traceparent: `00-${"a".repeat(32)}-${"1".repeat(16)}-01`,
+				authorization: "private",
 			},
-			body: { token: "private" }, query: { secret: "hidden" }, params: {},
+			body: { token: "private" },
+			query: { secret: "hidden" },
+			params: {},
 		};
 		const result = alterRequestLog("error", { event: "request.end", status: 400, error_body: "private" }, ctx);
 		expect(result).toMatchObject({ trace_id: "a".repeat(32), url: "/api/admin/logger/configuration" });
@@ -135,8 +167,13 @@ describe("logger administration request logs", () => {
 	it("logs a route template instead of secret path parameters", () => {
 		const ctx = new DIContext({ id: "token-path" });
 		ctx.request = {
-			method: "POST", url: "/api/friends/invites/private-token/accept", route: "/api/friends/invites/:token/accept",
-			headers: {}, body: {}, query: {}, params: { token: "private-token" },
+			method: "POST",
+			url: "/api/friends/invites/private-token/accept",
+			route: "/api/friends/invites/:token/accept",
+			headers: {},
+			body: {},
+			query: {},
+			params: { token: "private-token" },
 		};
 		const result = alterRequestLog("error", { event: "request.end", status: 400 }, ctx);
 		expect(result.url).toBe("/api/friends/invites/:token/accept");
@@ -157,9 +194,13 @@ describe("logger administration request logs", () => {
 		const logRequest = (secret: string) => {
 			const ctx = new DIContext({ id: "live-request-test", logger });
 			ctx.request = {
-				method: "POST", url: `/api/media?token=${secret}`, route: "/api/media",
-				headers: { authorization: `Bearer ${secret}`, cookie: secret }, body: { password: secret },
-				query: { token: secret }, params: {},
+				method: "POST",
+				url: `/api/media?token=${secret}`,
+				route: "/api/media",
+				headers: { authorization: `Bearer ${secret}`, cookie: secret },
+				body: { password: secret },
+				query: { token: secret },
+				params: {},
 			};
 			ctx.response = { statusCode: 500 };
 			ctx.error = { message: secret, body: { token: secret } };
@@ -180,9 +221,7 @@ describe("logger administration request logs", () => {
 			const snapshot = new Promise<string>((resolve) => ws.once("message", (data) => resolve(data.toString())));
 			ws.send(JSON.stringify({ type: "auth", token: "admin" }));
 			const snapshotJson = await snapshot;
-			expect(JSON.parse(snapshotJson)).toMatchObject({ type: "snapshot", entries: expect.arrayContaining([
-				expect.objectContaining({ fields: expect.objectContaining({ event: "request.end", url: "/api/media", status: 500, duration: expect.any(Number) }) }),
-			]) });
+			expect(JSON.parse(snapshotJson)).toMatchObject({ type: "snapshot", entries: expect.arrayContaining([expect.objectContaining({ fields: expect.objectContaining({ event: "request.end", url: "/api/media", status: 500, duration: expect.any(Number) }) })]) });
 			expect(snapshotJson).not.toContain("snapshot-private-bearer");
 
 			const live = new Promise<string>((resolve) => ws.once("message", (data) => resolve(data.toString())));
@@ -198,12 +237,7 @@ describe("logger administration request logs", () => {
 		}
 	});
 
-	it.each([
-		`00-${"0".repeat(32)}-${"1".repeat(16)}-01`,
-		`00-${"a".repeat(32)}-${"0".repeat(16)}-01`,
-		`00-${"a".repeat(32)}-${"1".repeat(16)}-01,00-${"b".repeat(32)}-${"2".repeat(16)}-01`,
-		"invalid",
-	])("does not accept invalid traceparent %s", (traceparent) => {
+	it.each([`00-${"0".repeat(32)}-${"1".repeat(16)}-01`, `00-${"a".repeat(32)}-${"0".repeat(16)}-01`, `00-${"a".repeat(32)}-${"1".repeat(16)}-01,00-${"b".repeat(32)}-${"2".repeat(16)}-01`, "invalid"])("does not accept invalid traceparent %s", (traceparent) => {
 		const ctx = new DIContext({ id: "test" });
 		ctx.request = { method: "GET", url: "/api/other", headers: { traceparent }, body: {}, query: {}, params: {} };
 		expect(alterRequestLog("info", { event: "request.end" }, ctx)).not.toHaveProperty("trace_id");

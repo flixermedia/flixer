@@ -8,6 +8,7 @@ interface Bucket {
 }
 
 export class LoginThrottle {
+
 	private readonly addresses = new Map<string, Bucket>();
 	private readonly usernames = new Map<string, Bucket>();
 

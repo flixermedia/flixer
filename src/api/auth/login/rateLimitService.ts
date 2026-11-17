@@ -8,6 +8,7 @@ interface RequestContextLike {
 
 @Injectable()
 export class RateLimitService {
+
 	private readonly policies = {
 		quickConnectStart: new RateLimiterMemory({ points: 5, duration: 600 }),
 		quickConnectDecision: new RateLimiterMemory({ points: 20, duration: 600 }),

@@ -21,6 +21,7 @@ describe("media organization service", () => {
 	let savedSettings: Partial<MediaOrganizationSettings> | null;
 
 	function setup(itemPaths: string[]) {
+
 		const library = Object.assign(new MediaLibrary(), {
 			id: "00000000-0000-4000-8000-000000000001",
 			name: "Movies",
@@ -113,6 +114,7 @@ describe("media organization service", () => {
 		} as unknown as DataSource;
 		const roots = new MediaRootsService({ roots: () => [] } as unknown as NetworkSharesService);
 		service = new MediaOrganizationService(source, roots);
+
 	}
 
 	beforeEach(async () => {

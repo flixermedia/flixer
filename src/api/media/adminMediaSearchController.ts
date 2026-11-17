@@ -28,10 +28,7 @@ export class AdminMediaSearchController {
 	}
 
 	@Put("/settings")
-	async saveSettings(
-		@BodyParams() request: MediaSearchSettingsRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async saveSettings(@BodyParams() request: MediaSearchSettingsRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.search.saveAdminSettings(request);
 	}

@@ -37,15 +37,7 @@ export class OverviewService {
 	) {}
 
 	async get() {
-		const [counts, libraries, activity, disks, streamer, indexer, users] = await Promise.all([
-			this.counts(),
-			this.libraries(),
-			this.activity(),
-			this.disks(),
-			this.streamerStatus(),
-			this.indexer.status(),
-			this.dataSource.getRepository(User).count(),
-		]);
+		const [counts, libraries, activity, disks, streamer, indexer, users] = await Promise.all([this.counts(), this.libraries(), this.activity(), this.disks(), this.streamerStatus(), this.indexer.status(), this.dataSource.getRepository(User).count()]);
 
 		return {
 			counts: { ...counts, users },
@@ -80,13 +72,7 @@ export class OverviewService {
 	}
 
 	private async libraries() {
-		const [entities, rows] = await Promise.all([
-			this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } }),
-			this.dataSource.query(
-				`SELECT library_id, COUNT(*)::text AS items, SUM(size_bytes)::text AS size FROM media_items WHERE is_placeholder = false AND type = ANY($1) GROUP BY library_id`,
-				[FILE_TYPES],
-			) as Promise<LibraryRow[]>,
-		]);
+		const [entities, rows] = await Promise.all([this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } }), this.dataSource.query(`SELECT library_id, COUNT(*)::text AS items, SUM(size_bytes)::text AS size FROM media_items WHERE is_placeholder = false AND type = ANY($1) GROUP BY library_id`, [FILE_TYPES]) as Promise<LibraryRow[]>]);
 		const byLibrary = new Map(rows.map((row) => [row.library_id, row]));
 		return entities.map((library) => {
 			const row = byLibrary.get(library.id);

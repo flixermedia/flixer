@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateExternalOAuthProviders1798300000026 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`CREATE TABLE "external_oauth_providers" (
 			"id" uuid NOT NULL,

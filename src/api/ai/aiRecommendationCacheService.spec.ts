@@ -9,13 +9,16 @@ import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js"
 describe("AiRecommendationCacheService", () => {
 	it("selects the exact persisted home cache and keeps movie and music scopes separate", async () => {
 		const types = ["movie", "series", "video"];
-		const key = createHash("sha256").update(JSON.stringify({ limit: 20, filters: { types } })).digest("hex");
+		const key = createHash("sha256")
+			.update(JSON.stringify({ limit: 20, filters: { types } }))
+			.digest("hex");
 		const fallbackKey = "a".repeat(64);
 		const musicKey = "b".repeat(64);
 		const state = {
 			entries: { [key]: { items: [] }, [fallbackKey]: { items: [{ id: "movie", score: 0.8 }] }, [musicKey]: { items: [{ id: "album", score: 0.9 }] } },
 			entryScopes: { [key]: "movies", [fallbackKey]: "movies", [musicKey]: "music" },
-			refreshTimes: {}, lastRefreshAt: null,
+			refreshTimes: {},
+			lastRefreshAt: null,
 		};
 		const dataSource = { getRepository: vi.fn(() => ({ findOneBy: vi.fn().mockResolvedValue(state) })) } as unknown as DataSource;
 		const service = new AiRecommendationCacheService(dataSource);

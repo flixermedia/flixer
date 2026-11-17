@@ -90,12 +90,7 @@ export class BackupDownloadController {
 	constructor(private readonly backups: BackupService) {}
 
 	@Get("/download/:name")
-	async download(
-		@PathParams("name") name: string,
-		@QueryParams("expires", String) expires: string | undefined,
-		@QueryParams("signature", String) signature: string | undefined,
-		@Context() ctx: PlatformContext,
-	) {
+	async download(@PathParams("name") name: string, @QueryParams("expires", String) expires: string | undefined, @QueryParams("signature", String) signature: string | undefined, @Context() ctx: PlatformContext) {
 		const { stream, size } = await this.backups.openDownload(name, expires, signature);
 		ctx.response.setHeader("Content-Type", "application/octet-stream");
 		ctx.response.setHeader("Content-Length", String(size));

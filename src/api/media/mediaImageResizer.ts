@@ -7,10 +7,12 @@ const MAX_INPUT_PIXELS = 100_000_000;
 
 /** Rounds a requested width up to an allowed one; undefined (or invalid) means the original size. */
 export function normalizeWidth(width: unknown): number | undefined {
+
 	if (typeof width !== "number" || !Number.isFinite(width) || width <= 0) {
 		return undefined;
 	}
 	return IMAGE_WIDTHS.find((allowed) => allowed >= width) ?? IMAGE_WIDTHS[IMAGE_WIDTHS.length - 1];
+
 }
 
 interface CachedImage {
@@ -22,6 +24,7 @@ const cache = new Map<string, CachedImage>();
 let cachedBytes = 0;
 
 function remember(key: string, value: CachedImage): void {
+
 	cache.set(key, value);
 	cachedBytes += value.data.length;
 	// Map keeps insertion order, so the first key is the least recently used.
@@ -32,6 +35,7 @@ function remember(key: string, value: CachedImage): void {
 		cachedBytes -= cache.get(oldest)?.data.length ?? 0;
 		cache.delete(oldest);
 	}
+
 }
 
 /**
@@ -39,6 +43,7 @@ function remember(key: string, value: CachedImage): void {
  * cannot read (or vector images) is returned untouched. `cacheKey` must change whenever the source image does.
  */
 export async function resizeImage(source: () => Promise<CachedImage>, cacheKey: string, width: number | undefined): Promise<CachedImage> {
+
 	if (width === undefined) {
 		return source();
 	}
@@ -54,15 +59,12 @@ export async function resizeImage(source: () => Promise<CachedImage>, cacheKey: 
 		return original;
 	}
 	try {
-		const data = await sharp(original.data, { failOn: "none", limitInputPixels: MAX_INPUT_PIXELS, animated: false })
-			.rotate()
-			.resize({ width, withoutEnlargement: true })
-			.webp({ quality: 80 })
-			.toBuffer();
+		const data = await sharp(original.data, { failOn: "none", limitInputPixels: MAX_INPUT_PIXELS, animated: false }).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
 		const resized = data.length < original.data.length ? { data, mime: "image/webp" } : original;
 		remember(key, resized);
 		return resized;
 	} catch {
 		return original;
 	}
+
 }

@@ -102,7 +102,10 @@ export class ActivityService {
 			}
 			where.push(query.status === "finished" ? "w.completed = true" : "w.completed = false");
 		}
-		for (const [name, sql] of [["from", "w.updated_at >= ?::date"], ["to", "w.updated_at < (?::date + 1)"]] as const) {
+		for (const [name, sql] of [
+			["from", "w.updated_at >= ?::date"],
+			["to", "w.updated_at < (?::date + 1)"],
+		] as const) {
 			const value = query[name];
 			if (value) {
 				if (!DATE_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
@@ -120,17 +123,7 @@ export class ActivityService {
 		const page = Math.max(1, Number.parseInt(query.page ?? "", 10) || 1);
 		const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
-		const [summary, rows, users] = await Promise.all([
-			this.dataSource.query(
-				`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE w.completed)::int AS finished, COUNT(DISTINCT w.user_id)::int AS users ${ACTIVITY_FROM} ${clause}`,
-				params,
-			) as Promise<Array<{ total: number; finished: number; users: number }>>,
-			this.dataSource.query(
-				`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ${clause} ORDER BY ${SORTS[sort]} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-				[...params, pageSize, (page - 1) * pageSize],
-			) as Promise<ActivityRow[]>,
-			this.dataSource.query(`SELECT id, COALESCE(display_name, username) AS name FROM users ORDER BY name ASC`) as Promise<Array<{ id: string; name: string }>>,
-		]);
+		const [summary, rows, users] = await Promise.all([this.dataSource.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE w.completed)::int AS finished, COUNT(DISTINCT w.user_id)::int AS users ${ACTIVITY_FROM} ${clause}`, params) as Promise<Array<{ total: number; finished: number; users: number }>>, this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ${clause} ORDER BY ${SORTS[sort]} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, (page - 1) * pageSize]) as Promise<ActivityRow[]>, this.dataSource.query(`SELECT id, COALESCE(display_name, username) AS name FROM users ORDER BY name ASC`) as Promise<Array<{ id: string; name: string }>>]);
 
 		const { total, finished, users: activeUsers } = summary[0] ?? { total: 0, finished: 0, users: 0 };
 		return {

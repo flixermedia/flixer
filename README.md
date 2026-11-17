@@ -139,10 +139,10 @@ major changes.
 
 The installer offers **update** or **fresh**:
 
-| Choice | What happens |
-| --- | --- |
-| **Update** | Keeps the existing `.env`, Compose files and data; pulls configured images and starts services. |
-| **Fresh** | Starts a new installation. For an existing installation, it first asks for confirmation and backs up the old data directory. |
+| Choice     | What happens                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Update** | Keeps the existing `.env`, Compose files and data; pulls configured images and starts services.                              |
+| **Fresh**  | Starts a new installation. For an existing installation, it first asks for confirmation and backs up the old data directory. |
 
 For unattended use, select `--update` or `--fresh` on macOS/Linux, or `-Update`
 or `-Fresh` on Windows. `--no-start` / `-NoStart` pulls update images without
@@ -167,12 +167,12 @@ starting services.
 
 ## Where is my data?
 
-| Location | Contents |
-| --- | --- |
-| `DATA_DIR` | Flixer settings, the bundled PostgreSQL database, cache, avatars, backups, logs and other application data. |
-| `MEDIA_PATH` | Your media library root. Choose folders inside it when creating libraries. |
-| `DATA_DIR/meilisearch` | The bundled Meilisearch search index. |
-| `DATA_DIR/logs/logger` | Private Flixer Logger storage. |
+| Location               | Contents                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `DATA_DIR`             | Flixer settings, the bundled PostgreSQL database, cache, avatars, backups, logs and other application data. |
+| `MEDIA_PATH`           | Your media library root. Choose folders inside it when creating libraries.                                  |
+| `DATA_DIR/meilisearch` | The bundled Meilisearch search index.                                                                       |
+| `DATA_DIR/logs/logger` | Private Flixer Logger storage.                                                                              |
 
 The setup wizard stores settings in SQLite; explicitly supplied environment
 values take precedence. PostgreSQL stores the main application data. See
@@ -368,18 +368,18 @@ Logger, and updater. AI recommendations and the Coturn-based TURN relay for
 audio/video calls are optional Compose services. Plugins are installed through
 Flixer, while Flixer Cloud is a separate website.
 
-| Repository | Purpose |
-| --- | --- |
-| [Flixer](https://github.com/flixermedia/flixer) | Backend API, authentication, libraries, and administration. |
-| [Flixer Web](https://github.com/flixermedia/flixer-web) | Browsing, sign-in, discovery, and playback interface. |
-| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | Media delivery and FFmpeg processing. |
-| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | Media discovery, identification, probing, and enrichment. |
-| [Flixer Logger](https://github.com/flixermedia/flixer-logger) | Structured service logs and event search. |
-| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | In-dashboard updates, backups, and rollback. |
-| [Flixer AI](https://github.com/flixermedia/flixer-ai) | Optional recommendation service. |
-| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins) | Official plugin catalogue and schemas. |
-| [Flixer Cloud](https://github.com/flixermedia/flixer-cloud) | Independent Flixer-branded marketing and account website. |
-| [Flixer Docs](https://github.com/flixermedia/flixer-docs) | Platform documentation. |
+| Repository                                                        | Purpose                                                     |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| [Flixer](https://github.com/flixermedia/flixer)                   | Backend API, authentication, libraries, and administration. |
+| [Flixer Web](https://github.com/flixermedia/flixer-web)           | Browsing, sign-in, discovery, and playback interface.       |
+| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | Media delivery and FFmpeg processing.                       |
+| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer)   | Media discovery, identification, probing, and enrichment.   |
+| [Flixer Logger](https://github.com/flixermedia/flixer-logger)     | Structured service logs and event search.                   |
+| [Flixer Updater](https://github.com/flixermedia/flixer-updater)   | In-dashboard updates, backups, and rollback.                |
+| [Flixer AI](https://github.com/flixermedia/flixer-ai)             | Optional recommendation service.                            |
+| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins)   | Official plugin catalogue and schemas.                      |
+| [Flixer Cloud](https://github.com/flixermedia/flixer-cloud)       | Independent Flixer-branded marketing and account website.   |
+| [Flixer Docs](https://github.com/flixermedia/flixer-docs)         | Platform documentation.                                     |
 
 See the [ecosystem guide](https://docs.flixer.dev/ecosystem) for which
 projects are part of the server installation.

@@ -10,11 +10,7 @@ import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerReques
 export class InternalConfigController {
 
 	@Get("/:service")
-	get(
-		@PathParams("service") service: string,
-		@HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string,
-		@HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string,
-	) {
+	get(@PathParams("service") service: string, @HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string, @HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string) {
 		if (!isInternalConfigService(service)) {
 			throw new NotFound("Unknown service.");
 		}

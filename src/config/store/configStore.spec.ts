@@ -7,15 +7,7 @@ import { ConfigStore, ConfigValidationError } from "./configStore.js";
 import { SecretBox } from "./secretBox.js";
 
 const SECRET = "a".repeat(40);
-const ENV_KEYS = [
-	"DATABASE_URL",
-	"APP_SECRET",
-	"INDEXER_URL",
-	"INDEXER_INTERNAL_URL",
-	"PASSKEY_RP_NAME",
-	"APP_URL",
-	"DATA_PATH",
-];
+const ENV_KEYS = ["DATABASE_URL", "APP_SECRET", "INDEXER_URL", "INDEXER_INTERNAL_URL", "PASSKEY_RP_NAME", "APP_URL", "DATA_PATH"];
 
 describe("config store", () => {
 	let directory: string;
@@ -102,9 +94,7 @@ describe("config store", () => {
 
 	it("rejects invalid values without writing any of them", () => {
 		const store = new ConfigStore(directory);
-		expect(() => store.setMany({ publicUrl: "https://ok.example.com", appSecret: "short" })).toThrow(
-			ConfigValidationError,
-		);
+		expect(() => store.setMany({ publicUrl: "https://ok.example.com", appSecret: "short" })).toThrow(ConfigValidationError);
 		expect(store.has("publicUrl")).toBe(false);
 		expect(store.version()).toBe(0);
 		store.close();

@@ -47,6 +47,7 @@ export type GuideSourceCache = EpgSourceCache | IptvSourceCache;
 @Entity("guide_sources")
 @Index("UQ_guide_sources_kind_url", ["kind", "url"], { unique: true })
 export class GuideSource {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 
@@ -89,6 +90,7 @@ export class GuideSource {
 
 @Entity("guide_settings")
 export class GuideSettings {
+
 	@PrimaryColumn({ type: "smallint", default: 1 })
 	id!: number;
 

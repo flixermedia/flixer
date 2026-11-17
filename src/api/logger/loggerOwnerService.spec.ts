@@ -13,8 +13,11 @@ describe("logger owner control plane", () => {
 	const owner = "o".repeat(40);
 	const manage = "m".repeat(40);
 	const sample = {
-		filesystem_total_bytes: 10000, filesystem_available_bytes: 8000, database_bytes: 200,
-		compaction_debt_bytes: 50, compactions_in_progress: 1,
+		filesystem_total_bytes: 10000,
+		filesystem_available_bytes: 8000,
+		database_bytes: 200,
+		compaction_debt_bytes: 50,
+		compactions_in_progress: 1,
 	};
 	const requireAdmin = vi.fn(async (authorization?: string) => {
 		if (authorization !== "admin") throw new Error("forbidden");
@@ -38,8 +41,7 @@ describe("logger owner control plane", () => {
 	it("requires an admin, verifies and encrypts the owner credential, and manages thresholds", async () => {
 		const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
 			expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${owner}`);
-			return new Response(JSON.stringify(url.endsWith("/capacity")
-				? sample : { max_database_bytes: 1000, min_free_bytes: 500 }), { status: 200 });
+			return new Response(JSON.stringify(url.endsWith("/capacity") ? sample : { max_database_bytes: 1000, min_free_bytes: 500 }), { status: 200 });
 		});
 		vi.stubGlobal("fetch", fetcher);
 		const service = new LoggerService({ requireAdmin });
@@ -51,8 +53,7 @@ describe("logger owner control plane", () => {
 		expect(await service.ownerConfiguration("admin")).toEqual({ configured: true });
 		expect(await service.ownerCapacity("admin")).toEqual(sample);
 		expect(await service.getCapacityPolicy("admin")).toEqual({ maxDatabaseBytes: 1000, minFreeBytes: 500 });
-		expect(await service.setCapacityPolicy({ maxDatabaseBytes: 1000, minFreeBytes: 500 }, "admin"))
-			.toEqual({ maxDatabaseBytes: 1000, minFreeBytes: 500 });
+		expect(await service.setCapacityPolicy({ maxDatabaseBytes: 1000, minFreeBytes: 500 }, "admin")).toEqual({ maxDatabaseBytes: 1000, minFreeBytes: 500 });
 		expect(JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body))).toEqual({ max_database_bytes: 1000, min_free_bytes: 500 });
 		await expect(service.setCapacityPolicy({ maxDatabaseBytes: -1, minFreeBytes: 0 }, "admin")).rejects.toThrow();
 	});
@@ -69,13 +70,19 @@ describe("logger owner control plane", () => {
 
 	it("does not save an invalid credential or one checked against a changed configuration", async () => {
 		const service = new LoggerService({ requireAdmin });
-		vi.stubGlobal("fetch", vi.fn(async () => new Response("denied", { status: 401 })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("denied", { status: 401 })),
+		);
 		await expect(service.configureOwner({ ownerToken: owner }, "admin")).rejects.toThrow();
 		expect(store.get("loggerOwnerToken")).toBeUndefined();
-		vi.stubGlobal("fetch", vi.fn(async () => {
-			store.setMany({ loggerManageToken: "n".repeat(40) });
-			return new Response(JSON.stringify(sample), { status: 200 });
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				store.setMany({ loggerManageToken: "n".repeat(40) });
+				return new Response(JSON.stringify(sample), { status: 200 });
+			}),
+		);
 		await expect(service.configureOwner({ ownerToken: owner }, "admin")).rejects.toThrow("configuration changed");
 		expect(store.get("loggerOwnerToken")).toBeUndefined();
 	});

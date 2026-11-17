@@ -17,7 +17,9 @@ describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated Po
 		const server = createServer((request, response) => {
 			let body = "";
 			request.setEncoding("utf8");
-			request.on("data", (chunk: string) => { body += chunk; });
+			request.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			request.on("end", () => {
 				received.push(JSON.parse(body) as { event: string; userId: string });
 				response.writeHead(204).end();
@@ -66,7 +68,7 @@ describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated Po
 			await migration.down(runner);
 			expect((await runner.query("SELECT to_regclass('user_webhooks') AS name"))[0].name).toBeNull();
 		} finally {
-			await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+			await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 			await runner.query("DROP TABLE IF EXISTS user_webhooks; DROP TABLE IF EXISTS user_webhook_config; DROP TABLE IF EXISTS media_items; DROP TABLE IF EXISTS users");
 			await runner.release();
 			await source.destroy();

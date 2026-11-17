@@ -37,6 +37,7 @@ function ok(body: unknown, status = 200): SetupResponse {
  * exists. After that, changing configuration takes an administrator, in either flow.
  */
 async function authorize(context: SetupRequestContext, route: string): Promise<void> {
+
 	if (needsRecovery()) {
 		// Only the database can be reconnected this way; everything else waits for a signed-in administrator.
 		if (route !== "/progress" && !/^\/steps\/database(\/test)?$/.test(route)) {
@@ -78,14 +79,17 @@ async function authorize(context: SetupRequestContext, route: string): Promise<v
 	if (!(await context.isAdmin())) {
 		throw new SetupError(403, "Administrator access is required.");
 	}
+
 }
 
 function requireStore(): NonNullable<ReturnType<typeof appConfig>["persistent"]> {
+
 	const store = appConfig().persistent;
 	if (!store) {
 		throw new SetupError(503, "The configuration directory under DATA_PATH/config is not writable, so setup cannot save anything.");
 	}
 	return store;
+
 }
 
 function stepContext(context: SetupRequestContext): StepContext {
@@ -95,6 +99,7 @@ function stepContext(context: SetupRequestContext): StepContext {
 /** What the wizard may pre-fill: values for plain settings, and only whether a secret is set, never the secret. */
 /** Connection strings are secrets only because of the password, so the rest is safe to show for editing. */
 function withoutPassword(value: string | undefined): string | undefined {
+
 	if (!value) {
 		return undefined;
 	}
@@ -105,11 +110,13 @@ function withoutPassword(value: string | undefined): string | undefined {
 	} catch {
 		return undefined;
 	}
+
 }
 
 const CONNECTION_STRINGS = new Set<ConfigName>(["databaseUrl", "redisUrl"]);
 
 function describeConfig() {
+
 	const config = appConfig();
 	return Object.fromEntries(
 		(Object.keys(CONFIG_KEYS) as ConfigName[]).map((name) => {
@@ -118,9 +125,11 @@ function describeConfig() {
 			return [name, { source: config.source(name), locked: config.source(name) === "env", set: config.get(name) !== undefined && config.get(name) !== "", value: CONNECTION_STRINGS.has(name) ? withoutPassword(config.get(name)) : definition.secret ? undefined : config.get(name), default: defaultValue }];
 		}),
 	);
+
 }
 
 async function progress(context: SetupRequestContext) {
+
 	const store = requireStore();
 	const wizard = store.wizardProgress();
 	return {
@@ -131,10 +140,12 @@ async function progress(context: SetupRequestContext) {
 		adminExists: await context.adminExists(),
 		config: describeConfig(),
 	};
+
 }
 
 /** What is still missing before setup can be marked complete. */
 async function completionBlockers(context: Pick<SetupRequestContext, "adminExists">): Promise<string[]> {
+
 	const config = appConfig();
 	const blockers: string[] = [];
 	if (!config.get("databaseUrl") || runtimeState().database !== "ok" || runtimeState().mode !== "ready") {
@@ -149,6 +160,7 @@ async function completionBlockers(context: Pick<SetupRequestContext, "adminExist
 		blockers.push("The public address is not configured.");
 	}
 	return blockers;
+
 }
 
 /**
@@ -156,6 +168,7 @@ async function completionBlockers(context: Pick<SetupRequestContext, "adminExist
  * Returns null for paths that are not setup routes.
  */
 export async function handleSetupRequest(method: string, path: string, body: unknown, context: SetupRequestContext): Promise<SetupResponse | null> {
+
 	const route = /^\/api\/setup(\/.*)?$/.exec(path)?.[1] ?? "";
 	const stepRoute = /^\/steps\/([a-z]+)(\/test)?$/.exec(route);
 	const handled = (method === "GET" && route === "/progress") || (method === "POST" && (stepRoute !== null || route === "/flow" || route === "/complete" || route === "/reset"));
@@ -250,11 +263,14 @@ export async function handleSetupRequest(method: string, path: string, body: unk
 		}
 		throw error;
 	}
+
 }
 
 function markStarted(): void {
+
 	const store = appConfig().persistent;
 	if (store?.setupState() === "not_started") {
 		store.setSetupState("in_progress");
 	}
+
 }

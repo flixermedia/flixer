@@ -10,6 +10,7 @@ import { PlaybackService } from "./playbackService.js";
 const secret = "advertisement-test-secret-not-for-production";
 
 function setup(enabled = true, exempt = false, type = "movie") {
+
 	vi.stubEnv("APP_SECRET", secret);
 	setAppConfig(new AppConfig(null));
 	const item = { id: "movie", title: "Movie", type, rootId: "movies", relativePath: "movie.mp4", isPlaceholder: false };
@@ -29,6 +30,7 @@ function setup(enabled = true, exempt = false, type = "movie") {
 	const segments = { forItem: vi.fn().mockResolvedValue({ chapters: [], segments: [] }) };
 	const service = new PlaybackService({} as never, {} as never, {} as never, segments as never, source as never, {} as never, access as never, entitlements as never);
 	return { service, entitlements };
+
 }
 
 afterEach(() => {
@@ -50,7 +52,9 @@ describe("advertisements in item playback", () => {
 		expect(claims.exp - claims.iat).toBe(3600);
 		const encoded = Buffer.from(claims.mediaLocator, "base64url");
 		const context = "flixer-streamer:media-locator:v1";
-		const key = createHash("sha256").update(Buffer.concat([Buffer.from(`${context}\0`), Buffer.from(secret)])).digest();
+		const key = createHash("sha256")
+			.update(Buffer.concat([Buffer.from(`${context}\0`), Buffer.from(secret)]))
+			.digest();
 		const decipher = createDecipheriv("aes-256-gcm", key, encoded.subarray(0, 12));
 		decipher.setAAD(Buffer.from(context));
 		decipher.setAuthTag(encoded.subarray(-16));

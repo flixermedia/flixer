@@ -10,6 +10,7 @@ import { PluginSlotService } from "./pluginSlotService.js";
 @Controller("/plugins")
 @Security("BearerAuth")
 export class PluginRuntimeController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly runtime: PluginWasiRuntime,
@@ -39,22 +40,13 @@ export class PluginRuntimeController {
 
 	/** Result sections contributed by enabled plugins (for example requestable titles not in the library). */
 	@Get("/search")
-	async searchSections(
-		@QueryParams("q") q: string,
-		@QueryParams("type") type?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async searchSections(@QueryParams("q") q: string, @QueryParams("type") type?: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getUserFromKeyOrSession(authorization);
 		return { sections: await this.search.search({ id: user.id, role: user.role }, typeof q === "string" ? q : "", type) };
 	}
 
 	@Post("/:pluginId/:operation")
-	async invoke(
-		@PathParams("pluginId") pluginId: string,
-		@PathParams("operation") operation: string,
-		@BodyParams() body: unknown,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async invoke(@PathParams("pluginId") pluginId: string, @PathParams("operation") operation: string, @BodyParams() body: unknown, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getUserFromKeyOrSession(authorization);
 		return this.runtime.invoke(pluginId, operation, { id: user.id, role: user.role }, body);
 	}

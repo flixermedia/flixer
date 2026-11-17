@@ -16,6 +16,7 @@ let timingService: AuthService | undefined;
 
 @Controller("/auth")
 class TestAuthController {
+
 	@Post("/login")
 	login(@BodyParams() request: LoginRequest) {
 		if (!timingService) throw new Unauthorized("Invalid username or password.");

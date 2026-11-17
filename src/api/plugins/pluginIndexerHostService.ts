@@ -8,7 +8,11 @@ import { PluginSettingsService } from "./pluginSettingsService.js";
 
 @Injectable()
 export class PluginIndexerHostService {
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource, private readonly settings: PluginSettingsService) {}
+
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly settings: PluginSettingsService,
+	) {}
 
 	httpGet: HttpRequest | undefined;
 

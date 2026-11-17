@@ -9,6 +9,7 @@ import { IssueReportsService } from "./issueReportsService.js";
 @Controller("/issues")
 @Security("BearerAuth")
 export class IssueReportsController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly issues: IssueReportsService,
@@ -41,6 +42,7 @@ export class IssueReportsController {
 @Controller("/admin/issues")
 @Security("BearerAuth")
 export class AdminIssueReportsController {
+
 	constructor(private readonly issues: IssueReportsService) {}
 
 	@Get("/")
@@ -60,29 +62,17 @@ export class AdminIssueReportsController {
 	}
 
 	@Patch("/:id/status")
-	updateStatus(
-		@PathParams("id") id: string,
-		@BodyParams() request: UpdateIssueReportStatusRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	updateStatus(@PathParams("id") id: string, @BodyParams() request: UpdateIssueReportStatusRequest, @HeaderParams("authorization") authorization?: string) {
 		return this.issues.setStatus(id, request.status, authorization);
 	}
 
 	@Post("/:id/updates")
-	addUpdate(
-		@PathParams("id") id: string,
-		@BodyParams() request: AddIssueReportUpdateRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	addUpdate(@PathParams("id") id: string, @BodyParams() request: AddIssueReportUpdateRequest, @HeaderParams("authorization") authorization?: string) {
 		return this.issues.addUpdate(id, request.body, request.isInternal, authorization);
 	}
 
 	@Patch("/:id/chat")
-	setChat(
-		@PathParams("id") id: string,
-		@BodyParams() request: SetIssueReportChatRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	setChat(@PathParams("id") id: string, @BodyParams() request: SetIssueReportChatRequest, @HeaderParams("authorization") authorization?: string) {
 		return this.issues.setChat(id, request.open, authorization);
 	}
 }

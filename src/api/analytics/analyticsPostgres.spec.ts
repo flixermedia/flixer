@@ -11,8 +11,11 @@ import { applyBrowseFilters } from "../media/mediaHomeService.js";
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("analytics (isolated PostgreSQL)", () => {
 	it("migrates, stores idempotent and user-bound reports, aggregates and rolls back", async () => {
 		const source = new DataSource({
-			type: "postgres", host: process.env.ANALYTICS_TEST_PG_SOCKET, port: 55441,
-			username: process.env.USER, database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			type: "postgres",
+			host: process.env.ANALYTICS_TEST_PG_SOCKET,
+			port: 55441,
+			username: process.env.USER,
+			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();

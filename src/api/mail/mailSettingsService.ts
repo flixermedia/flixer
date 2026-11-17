@@ -109,19 +109,22 @@ export class MailSettingsService {
 			throw new BadRequest("Choose a domain for user addresses before turning the feature on.");
 		}
 
-		await this.dataSource.getRepository(MailServerSettings).update({ id: 1 }, {
-			inboundEnabled: next.inboundEnabled,
-			inboundPort: next.inboundPort,
-			hostname: next.hostname,
-			maxMessageMb: next.maxMessageMb,
-			outboundEnabled: next.outboundEnabled,
-			relayFallback: next.relayFallback,
-			noreplyAddress: next.noreplyAddress,
-			noreplyName: next.noreplyName,
-			userAddressesEnabled: next.userAddressesEnabled,
-			userAddressMode: next.userAddressMode,
-			userAddressDomain: next.userAddressDomain,
-		});
+		await this.dataSource.getRepository(MailServerSettings).update(
+			{ id: 1 },
+			{
+				inboundEnabled: next.inboundEnabled,
+				inboundPort: next.inboundPort,
+				hostname: next.hostname,
+				maxMessageMb: next.maxMessageMb,
+				outboundEnabled: next.outboundEnabled,
+				relayFallback: next.relayFallback,
+				noreplyAddress: next.noreplyAddress,
+				noreplyName: next.noreplyName,
+				userAddressesEnabled: next.userAddressesEnabled,
+				userAddressMode: next.userAddressMode,
+				userAddressDomain: next.userAddressDomain,
+			},
+		);
 		for (const listener of this.listeners) listener(next);
 		return next;
 	}

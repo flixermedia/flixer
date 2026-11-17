@@ -34,10 +34,7 @@ export class StreamerRootsController {
 	) {}
 
 	@Get("/media-roots")
-	async list(
-		@HeaderParams("x-streamer-timestamp") timestamp?: string,
-		@HeaderParams("x-streamer-signature") signature?: string,
-	) {
+	async list(@HeaderParams("x-streamer-timestamp") timestamp?: string, @HeaderParams("x-streamer-signature") signature?: string) {
 		this.verify(STREAMER_ROOTS_CONTEXT, timestamp, signature);
 		const roots = this.roots.list().map(({ id, path }) => ({ id, path }));
 		try {
@@ -68,7 +65,11 @@ export class StreamerRootsController {
 		this.verify(`${STREAMER_HOOK_CONTEXT}:${hash}`, timestamp, signature);
 		if (body.length > 16 * 1024) throw new BadRequest("Invalid streamer hook request.");
 		let value: unknown;
-		try { value = JSON.parse(body.toString("utf8")); } catch { throw new BadRequest("Invalid streamer hook request."); }
+		try {
+			value = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("Invalid streamer hook request.");
+		}
 		if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadRequest("Invalid streamer hook request.");
 		const request = value as Record<string, unknown>;
 		if (!["authorize", "manifest", "processing"].includes(String(request.hook)) || ![request.userId, request.itemId, request.sessionId].every((field) => typeof field === "string" && /^[a-zA-Z0-9._:-]{1,128}$/.test(field))) throw new BadRequest("Invalid streamer hook request.");
@@ -79,10 +80,7 @@ export class StreamerRootsController {
 
 	/** The video encoder settings an admin chose, so the streamer can apply them without a restart. */
 	@Get("/transcoding")
-	async transcoding(
-		@HeaderParams("x-streamer-timestamp") timestamp?: string,
-		@HeaderParams("x-streamer-signature") signature?: string,
-	) {
+	async transcoding(@HeaderParams("x-streamer-timestamp") timestamp?: string, @HeaderParams("x-streamer-signature") signature?: string) {
 		this.verify(STREAMER_TRANSCODING_CONTEXT, timestamp, signature);
 		const rows = await this.dataSource.getRepository(Setting).find();
 		const value = new Map(rows.map((row) => [row.key, row.value]));

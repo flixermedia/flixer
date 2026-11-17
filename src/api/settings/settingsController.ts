@@ -28,11 +28,7 @@ export class SettingsController {
 
 	@Put("/:key")
 	@Security("BearerAuth")
-	update(
-		@PathParams("key") key: string,
-		@BodyParams() request: SettingRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	update(@PathParams("key") key: string, @BodyParams() request: SettingRequest, @HeaderParams("authorization") authorization?: string) {
 		return this.settingsService.update(key, request, authorization);
 	}
 }

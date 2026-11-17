@@ -4,6 +4,7 @@ import type { OrganizationTemplates } from "../api/mediaOrganization/organizatio
 
 @Entity("media_organization_settings")
 export class MediaOrganizationSettings {
+
 	@PrimaryColumn({ name: "library_id", type: "uuid" })
 	libraryId!: string;
 
@@ -23,6 +24,7 @@ export class MediaOrganizationSettings {
 @Entity("media_organization_plans")
 @Index("IDX_media_organization_plans_library_created", ["libraryId", "createdAt"])
 export class MediaOrganizationPlan {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 
@@ -63,6 +65,7 @@ export class MediaOrganizationPlan {
 @Entity("media_organization_plan_audit")
 @Index("IDX_media_organization_plan_audit_plan_created", ["planId", "createdAt"])
 export class MediaOrganizationPlanAudit {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

@@ -4,13 +4,16 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const STRIPE_TOLERANCE_SECONDS = 5 * 60;
 
 function safeEqual(a: string, b: string): boolean {
+
 	const left = Buffer.from(a);
 	const right = Buffer.from(b);
 	return left.length === right.length && timingSafeEqual(left, right);
+
 }
 
 /** Verifies a `Stripe-Signature` header (`t=...,v1=...`) over `${t}.${rawBody}`. */
 export function verifyStripeSignature(rawBody: string, header: string | undefined, secret: string, nowSeconds = Math.floor(Date.now() / 1000)): boolean {
+
 	if (!header || !secret) {
 		return false;
 	}
@@ -30,10 +33,12 @@ export function verifyStripeSignature(rawBody: string, header: string | undefine
 	}
 	const expected = createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
 	return signatures.some((signature) => safeEqual(signature, expected));
+
 }
 
 /** Verifies `x-square-hmacsha256-signature`: base64 HMAC-SHA256 over the notification URL followed by the raw body. */
 export function verifySquareSignature(rawBody: string, header: string | undefined, signatureKey: string, notificationUrl: string): boolean {
+
 	if (!header || !signatureKey || !notificationUrl) {
 		return false;
 	}
@@ -41,4 +46,5 @@ export function verifySquareSignature(rawBody: string, header: string | undefine
 		.update(notificationUrl + rawBody)
 		.digest("base64");
 	return safeEqual(header.trim(), expected);
+
 }

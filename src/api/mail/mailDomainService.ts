@@ -63,16 +63,18 @@ export class MailDomainService {
 			publicKeyEncoding: { type: "spki", format: "pem" },
 			privateKeyEncoding: { type: "pkcs8", format: "pem" },
 		});
-		const created = await repo.save(repo.create({
-			id: randomUUID(),
-			domain,
-			allowSubdomains,
-			verificationToken: randomBytes(24).toString("hex"),
-			dkimSelector: "flixer",
-			dkimPublicKey: publicKey,
-			dkimPrivateKey: encryptMailSecret(privateKey),
-			dnsChecks: {},
-		}));
+		const created = await repo.save(
+			repo.create({
+				id: randomUUID(),
+				domain,
+				allowSubdomains,
+				verificationToken: randomBytes(24).toString("hex"),
+				dkimSelector: "flixer",
+				dkimPublicKey: publicKey,
+				dkimPrivateKey: encryptMailSecret(privateKey),
+				dnsChecks: {},
+			}),
+		);
 		return this.get(created.id);
 	}
 
@@ -119,7 +121,7 @@ export class MailDomainService {
 
 		const ownership = await this.lookupTxt(`_flixer-challenge.${domain.domain}`);
 		const ownershipOk = ownership.records.some((record) => record.trim() === `${OWNERSHIP_PREFIX}${domain.verificationToken}`);
-		checks.ownership = { ok: ownershipOk, detail: ownershipOk ? "Ownership TXT record found." : ownership.error ?? "The ownership TXT record was not found or does not match." };
+		checks.ownership = { ok: ownershipOk, detail: ownershipOk ? "Ownership TXT record found." : (ownership.error ?? "The ownership TXT record was not found or does not match.") };
 		if (ownershipOk && !domain.verifiedAt) domain.verifiedAt = new Date();
 		if (!ownershipOk) domain.verifiedAt = null;
 
@@ -151,9 +153,7 @@ export class MailDomainService {
 	/** The verified domain that covers `host`, preferring an exact match over a wildcard parent. */
 	async findForHost(host: string, options: { verifiedOnly?: boolean } = {}): Promise<MailDomain | null> {
 		const domains = await this.dataSource.getRepository(MailDomain).find();
-		const matches = domains
-			.filter((domain) => (!options.verifiedOnly || domain.verifiedAt) && domainCovers(domain.domain, domain.allowSubdomains, host))
-			.sort((a, b) => b.domain.length - a.domain.length);
+		const matches = domains.filter((domain) => (!options.verifiedOnly || domain.verifiedAt) && domainCovers(domain.domain, domain.allowSubdomains, host)).sort((a, b) => b.domain.length - a.domain.length);
 		return matches[0] ?? null;
 	}
 

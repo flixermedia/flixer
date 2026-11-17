@@ -1,6 +1,7 @@
 import { MaxLength, MinLength, Pattern, Property, Required } from "@tsed/schema";
 
 export class LoginRequest {
+
 	@Property()
 	@Required()
 	@MinLength(3)

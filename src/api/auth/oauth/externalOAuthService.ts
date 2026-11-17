@@ -19,6 +19,7 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 
 @Injectable()
 export class ExternalOAuthService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly auth: AuthService,

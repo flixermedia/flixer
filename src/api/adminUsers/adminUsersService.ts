@@ -48,22 +48,8 @@ export class AdminUsersService {
 
 	async list(currentUserId: string): Promise<AdminUser[]> {
 		const users = await this.dataSource.getRepository(User).find({ order: { createdAt: "ASC" } });
-		const passkeys = await this.dataSource
-			.getRepository(PasskeyCredential)
-			.createQueryBuilder("passkey")
-			.select("passkey.user_id", "userId")
-			.addSelect("COUNT(*)", "count")
-			.groupBy("passkey.user_id")
-			.getRawMany<{ userId: string; count: string }>();
-		const sessions = await this.dataSource
-			.getRepository(UserSession)
-			.createQueryBuilder("session")
-			.select("session.user_id", "userId")
-			.addSelect("COUNT(*)", "count")
-			.addSelect("MAX(session.last_seen_at)", "lastSeenAt")
-			.where("session.expires_at > now()")
-			.groupBy("session.user_id")
-			.getRawMany<{ userId: string; count: string; lastSeenAt: Date | string }>();
+		const passkeys = await this.dataSource.getRepository(PasskeyCredential).createQueryBuilder("passkey").select("passkey.user_id", "userId").addSelect("COUNT(*)", "count").groupBy("passkey.user_id").getRawMany<{ userId: string; count: string }>();
+		const sessions = await this.dataSource.getRepository(UserSession).createQueryBuilder("session").select("session.user_id", "userId").addSelect("COUNT(*)", "count").addSelect("MAX(session.last_seen_at)", "lastSeenAt").where("session.expires_at > now()").groupBy("session.user_id").getRawMany<{ userId: string; count: string; lastSeenAt: Date | string }>();
 
 		const passkeyCounts = new Map(passkeys.map((row) => [row.userId, Number(row.count)]));
 		const sessionStats = new Map(sessions.map((row) => [row.userId, row]));
@@ -214,10 +200,7 @@ export class AdminUsersService {
 	}
 
 	private async describe(user: User, currentUserId: string): Promise<AdminUser> {
-		const [passkeys, sessions] = await Promise.all([
-			this.dataSource.getRepository(PasskeyCredential).countBy({ userId: user.id }),
-			this.dataSource.getRepository(UserSession).find({ where: { userId: user.id, expiresAt: MoreThan(new Date()) } }),
-		]);
+		const [passkeys, sessions] = await Promise.all([this.dataSource.getRepository(PasskeyCredential).countBy({ userId: user.id }), this.dataSource.getRepository(UserSession).find({ where: { userId: user.id, expiresAt: MoreThan(new Date()) } })]);
 		const lastActiveAt = sessions.reduce<Date | null>((latest, session) => (!latest || session.lastSeenAt > latest ? session.lastSeenAt : latest), null);
 
 		return this.toAdminUser(user, { passkeys, activeSessions: sessions.length, lastActiveAt, currentUserId });

@@ -8,6 +8,7 @@ import { MAX_AVATAR_BYTES } from "./avatarStorage.js";
 
 @Controller("/auth")
 export class AvatarController {
+
 	constructor(private readonly avatarService: AvatarService) {}
 
 	@Post("/me/avatar")

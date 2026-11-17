@@ -25,12 +25,14 @@ export const COMPONENTS = ["database", "config", "secrets", "cache"] as const;
 type BackupComponent = (typeof COMPONENTS)[number];
 
 export class BackupCorruptError extends Error {
+
 	constructor(message = "Backup is corrupt or unsupported.") {
 		super(message);
 	}
 }
 
 export class BackupPassphraseError extends Error {
+
 	constructor() {
 		super("The backup passphrase is incorrect.");
 	}
@@ -94,22 +96,27 @@ function passphraseCheck(key: Buffer): Buffer {
 }
 
 function nonceFor(prefix: Buffer, counter: number): Buffer {
+
 	const nonce = Buffer.alloc(12);
 	prefix.copy(nonce, 0);
 	nonce.writeBigUInt64BE(BigInt(counter), 4);
 	return nonce;
+
 }
 
 function decodeBase64(value: unknown, length: number): Buffer | null {
+
 	if (typeof value !== "string") {
 		return null;
 	}
 	const bytes = Buffer.from(value, "base64");
 	return bytes.length === length && bytes.toString("base64") === value ? bytes : null;
+
 }
 
 /** Validates a parsed header exactly like the updater does. */
 function validateHeader(parsed: unknown): BackupHeader {
+
 	if (typeof parsed !== "object" || parsed === null) {
 		throw new BackupCorruptError();
 	}
@@ -134,6 +141,7 @@ function validateHeader(parsed: unknown): BackupHeader {
 		}
 	}
 	return { ...(h as BackupHeader), versions: { ...versions } };
+
 }
 
 interface ReadHeaderResult {
@@ -146,6 +154,7 @@ interface ReadHeaderResult {
 
 /** Reads only the unencrypted prefix of an archive. Never reads the body. */
 export async function readArchiveHeader(file: string): Promise<ReadHeaderResult> {
+
 	const handle = await open(file, "r");
 	try {
 		const prefix = Buffer.alloc(MAGIC.length + 4);
@@ -172,10 +181,12 @@ export async function readArchiveHeader(file: string): Promise<ReadHeaderResult>
 	} finally {
 		await handle.close();
 	}
+
 }
 
 /** Buffers into 64 KiB plaintext chunks and seals each one; the last chunk (possibly empty) carries the final flag. */
 class EncryptChunks extends Transform {
+
 	private pending: Buffer[] = [];
 	private pendingBytes = 0;
 	private counter = 0;
@@ -230,6 +241,7 @@ class EncryptChunks extends Transform {
 
 /** Parses and authenticates the chunk framing; fails on tampering, reordering, truncation and trailing bytes. */
 class DecryptChunks extends Transform {
+
 	private buffer: Buffer = Buffer.alloc(0);
 	private counter = 0;
 	private finished = false;
@@ -293,6 +305,7 @@ class DecryptChunks extends Transform {
 
 /** Opens the tar.gz body of an archive, decrypting it when needed. Throws BackupPassphraseError before reading any data. */
 async function openArchiveBody(file: string, passphrase?: string): Promise<{ header: BackupHeader; body: Readable }> {
+
 	const { header, raw, bodyOffset } = await readArchiveHeader(file);
 	const source = createReadStream(file, { start: bodyOffset });
 	if (!header.encrypted) {
@@ -309,14 +322,17 @@ async function openArchiveBody(file: string, passphrase?: string): Promise<{ hea
 	const decrypt = new DecryptChunks(key, decodeBase64(kdf.noncePrefix, 4)!, raw);
 	source.on("error", (error) => decrypt.destroy(error));
 	return { header, body: source.pipe(decrypt) };
+
 }
 
 function safeEntryName(name: string): string {
+
 	const clean = posix.normalize(name);
 	if (name === "" || name.includes("\\") || name.startsWith("/") || /^[A-Za-z]:/.test(name) || clean !== name || clean === "." || clean === ".." || clean.startsWith("../")) {
 		throw new BackupCorruptError();
 	}
 	return clean;
+
 }
 
 /**
@@ -324,6 +340,7 @@ function safeEntryName(name: string): string {
  * tooling; production restores are done by the updater.
  */
 export async function extractArchive(source: string, destination: string, passphrase?: string): Promise<{ header: BackupHeader; manifest: BackupManifest }> {
+
 	const { header, body } = await openArchiveBody(source, passphrase);
 	const root = resolve(destination);
 	await mkdir(root, { recursive: true });
@@ -361,13 +378,17 @@ export async function extractArchive(source: string, destination: string, passph
 			await pipeline(entry as unknown as Readable, createWriteStream(target, { flags: "wx", mode: (entry.header.mode ?? 0o600) & 0o600 || 0o600 }));
 		}
 	})();
-	await Promise.all([pipeline(body, createGunzip(), extract as unknown as NodeJS.WritableStream).catch((error) => {
-		throw error instanceof BackupCorruptError || error instanceof BackupPassphraseError ? error : new BackupCorruptError();
-	}), work]);
+	await Promise.all([
+		pipeline(body, createGunzip(), extract as unknown as NodeJS.WritableStream).catch((error) => {
+			throw error instanceof BackupCorruptError || error instanceof BackupPassphraseError ? error : new BackupCorruptError();
+		}),
+		work,
+	]);
 	if (!manifest || manifest.version !== 1 || manifest.createdAt !== header.createdAt) {
 		throw new BackupCorruptError();
 	}
 	return { header, manifest };
+
 }
 
 type Pack = ReturnType<typeof tar.pack>;
@@ -395,6 +416,7 @@ function drained(stream: Evented): Promise<void> {
 
 /** Reads exactly `size` bytes: zero padded if the file shrank, truncated if it grew, so the tar framing stays valid. */
 async function* exactBytes(file: string, name: string, size: number, warn: (message: string) => void): AsyncGenerator<Buffer> {
+
 	const handle = await open(file, "r");
 	try {
 		let remaining = size;
@@ -420,9 +442,11 @@ async function* exactBytes(file: string, name: string, size: number, warn: (mess
 	} finally {
 		await handle.close();
 	}
+
 }
 
 async function addFile(pack: Pack, file: string, name: string, warn: (message: string) => void): Promise<void> {
+
 	safeEntryName(name);
 	const handle = await open(file, "r");
 	let info;
@@ -443,6 +467,7 @@ async function addFile(pack: Pack, file: string, name: string, warn: (message: s
 		await new Promise<void>((done) => (entry.once("finish", () => done()), entry.end(Buffer.alloc(0))));
 	})();
 	await Promise.race([writing, failed]);
+
 }
 
 interface WalkItem {
@@ -453,6 +478,7 @@ interface WalkItem {
 
 /** Depth first, sorted; regular files and directories only. Symlinks and special files are skipped. */
 async function* walk(root: string, relative = "", skipped: (relative: string) => void = () => {}): AsyncGenerator<WalkItem> {
+
 	const entries = (await readdir(join(root, relative), { withFileTypes: true })).sort((a, b) => (a.name < b.name ? -1 : 1));
 	for (const entry of entries) {
 		const rel = relative ? `${relative}/${entry.name}` : entry.name;
@@ -465,9 +491,11 @@ async function* walk(root: string, relative = "", skipped: (relative: string) =>
 			skipped(rel);
 		}
 	}
+
 }
 
 async function countFiles(source: DirectorySource | undefined): Promise<number> {
+
 	if (!source) {
 		return 0;
 	}
@@ -478,9 +506,11 @@ async function countFiles(source: DirectorySource | undefined): Promise<number> 
 		}
 	}
 	return count;
+
 }
 
 async function addDirectory(pack: Pack, source: DirectorySource, prefix: string, warn: (message: string) => void): Promise<void> {
+
 	const skipped = (rel: string) => warn(`Skipped ${prefix}/${rel}: not a regular file or directory.`);
 	const extras = new Map((source.extra ?? []).map((extra) => [extra.name, extra.file]));
 	for await (const item of walk(source.dir, "", skipped)) {
@@ -496,6 +526,7 @@ async function addDirectory(pack: Pack, source: DirectorySource, prefix: string,
 	for (const [relative, file] of extras) {
 		await addFile(pack, file, `${prefix}/${relative}`, warn);
 	}
+
 }
 
 /**
@@ -503,6 +534,7 @@ async function addDirectory(pack: Pack, source: DirectorySource, prefix: string,
  * backpressure: files are read in 64 KiB pieces through tar, gzip and the optional encryption into the output file.
  */
 export async function writeArchive(options: WriteArchiveOptions): Promise<BackupHeader> {
+
 	const { destination, sources, passphrase } = options;
 	const warn = options.warn ?? (() => {});
 	const components = COMPONENTS.filter((component) => sources[component] !== undefined);
@@ -567,4 +599,5 @@ export async function writeArchive(options: WriteArchiveOptions): Promise<Backup
 		await handle.close();
 	}
 	return header;
+
 }

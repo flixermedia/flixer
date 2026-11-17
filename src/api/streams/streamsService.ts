@@ -76,7 +76,7 @@ export class StreamsService {
 
 		return {
 			...data,
-			sessions: data.sessions.map((session) => ({ ...session, user: session.userId ? names.get(session.userId) ?? null : null })),
+			sessions: data.sessions.map((session) => ({ ...session, user: session.userId ? (names.get(session.userId) ?? null) : null })),
 		};
 	}
 

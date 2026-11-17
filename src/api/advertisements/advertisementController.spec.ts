@@ -27,7 +27,11 @@ describe("advertisement upload endpoint", () => {
 			httpPort: false,
 			httpsPort: false,
 			mount: { "/api": [AdvertisementController] },
-			imports: [{ token: DefaultDataSource, use: {} }, { token: AuthService, use: auth }, { token: AdvertisementService, use: ads }],
+			imports: [
+				{ token: DefaultDataSource, use: {} },
+				{ token: AuthService, use: auth },
+				{ token: AdvertisementService, use: ads },
+			],
 		});
 		await platform.listen(false);
 	});
@@ -52,30 +56,26 @@ describe("advertisement upload endpoint", () => {
 
 	it("rejects multipart chunks exceeding the configured limit", async () => {
 		const app = platform.adapter.app.getApp();
-		const payload = Buffer.concat([
-			Buffer.from('--test-boundary\r\nContent-Disposition: form-data; name="chunk"; filename="chunk"\r\nContent-Type: application/octet-stream\r\n\r\n'),
-			Buffer.alloc(AD_CHUNK_BYTES + 1),
-			Buffer.from("\r\n--test-boundary--\r\n"),
-		]);
+		const payload = Buffer.concat([Buffer.from('--test-boundary\r\nContent-Disposition: form-data; name="chunk"; filename="chunk"\r\nContent-Type: application/octet-stream\r\n\r\n'), Buffer.alloc(AD_CHUNK_BYTES + 1), Buffer.from("\r\n--test-boundary--\r\n")]);
 		ads.putChunk.mockClear();
 		const response = await app.inject({
-			method: "PUT", url: "/api/admin/advertisements/uploads/session/chunks/0",
-			headers: { "content-type": "multipart/form-data; boundary=test-boundary", authorization: "Bearer admin" }, payload,
+			method: "PUT",
+			url: "/api/admin/advertisements/uploads/session/chunks/0",
+			headers: { "content-type": "multipart/form-data; boundary=test-boundary", authorization: "Bearer admin" },
+			payload,
 		});
 		expect(response.statusCode).toBeGreaterThanOrEqual(400);
 		expect(ads.putChunk).not.toHaveBeenCalled();
 	});
 
 	it("accepts a chunk at the exact configured limit", async () => {
-		const payload = Buffer.concat([
-			Buffer.from('--test-boundary\r\nContent-Disposition: form-data; name="chunk"; filename="chunk"\r\nContent-Type: application/octet-stream\r\n\r\n'),
-			Buffer.alloc(AD_CHUNK_BYTES),
-			Buffer.from("\r\n--test-boundary--\r\n"),
-		]);
+		const payload = Buffer.concat([Buffer.from('--test-boundary\r\nContent-Disposition: form-data; name="chunk"; filename="chunk"\r\nContent-Type: application/octet-stream\r\n\r\n'), Buffer.alloc(AD_CHUNK_BYTES), Buffer.from("\r\n--test-boundary--\r\n")]);
 		ads.putChunk.mockClear();
 		const response = await platform.adapter.app.getApp().inject({
-			method: "PUT", url: "/api/admin/advertisements/uploads/session/chunks/0",
-			headers: { "content-type": "multipart/form-data; boundary=test-boundary", authorization: "Bearer admin" }, payload,
+			method: "PUT",
+			url: "/api/admin/advertisements/uploads/session/chunks/0",
+			headers: { "content-type": "multipart/form-data; boundary=test-boundary", authorization: "Bearer admin" },
+			payload,
 		});
 		expect(response.statusCode).toBe(200);
 		expect(ads.putChunk.mock.calls[0]?.[3].length).toBe(AD_CHUNK_BYTES);
