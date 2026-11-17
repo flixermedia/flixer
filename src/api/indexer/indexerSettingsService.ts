@@ -5,11 +5,12 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { Setting } from "../../entities/setting.entity.ts";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
 import { SECRET_MASK } from "../settings/secretMask.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 
 export const INDEXER_LANGUAGE_KEY = "indexer_language";
 export const INDEXER_PROVIDERS_KEY = "indexer_providers";
 export const INDEXER_CONCURRENCY_KEY = "indexer_concurrency";
-export const INDEXER_SUBTITLES_KEY = "indexer_subtitles";
+const INDEXER_SUBTITLES_KEY = "indexer_subtitles";
 export const INDEXER_SETTING_KEYS = [
 	INDEXER_LANGUAGE_KEY,
 	INDEXER_PROVIDERS_KEY,
@@ -18,12 +19,12 @@ export const INDEXER_SETTING_KEYS = [
 ];
 
 /** Providers that need an API key (or client name) and the ones that work without one. */
-export const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
-export const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
-export const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
+const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
+const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
+const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
-export const INDEXER_QUEUES = [
+const INDEXER_QUEUES = [
 	"scan",
 	"identify",
 	"metadata",
@@ -46,7 +47,7 @@ export const INDEXER_TASK_QUEUES = [
 	"refresh-priority",
 ] as const;
 export type IndexerTaskQueueName = (typeof INDEXER_TASK_QUEUES)[number];
-export const INDEXER_MAX_CONCURRENCY = 64;
+const INDEXER_MAX_CONCURRENCY = 64;
 
 export interface IndexerProviderSetting {
 	enabled: boolean;
@@ -61,7 +62,7 @@ export interface IndexerSubtitleSetting {
 	autoFetch: boolean;
 }
 
-export interface IndexerSettings {
+interface IndexerSettings {
 	providers: Record<string, IndexerProviderSetting>;
 	concurrency: Record<string, number>;
 	language: string;
@@ -71,10 +72,6 @@ export interface IndexerSettings {
 }
 
 const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()

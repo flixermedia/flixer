@@ -11,10 +11,11 @@ import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit
 import { allowedPersonImage } from "../media/personImages.ts";
 import { normalizeChapterField } from "../media/chapterTitles.ts";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 
 const CREDITED_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
 /** What flixer-indexer sends to POST /api/indexer/media/items. */
-export interface IndexerItemPayload {
+interface IndexerItemPayload {
 	libraryId: string;
 	type: MediaItemType;
 	path: string;
@@ -92,10 +93,6 @@ const PATH_KEY_PREFIX = "path:";
 const CLOCK_SKEW_MS = 60_000;
 type IndexerUpdateField = "images" | "descriptions" | "fileData" | "lyrics" | "hashes";
 const INDEXER_UPDATE_FIELDS: ReadonlySet<string> = new Set(["images", "descriptions", "fileData", "lyrics", "hashes"]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function optionalText(value: unknown, field: string, maxLength = 4096): string | undefined {
 

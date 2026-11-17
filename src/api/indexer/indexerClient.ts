@@ -15,7 +15,7 @@ function imageConnectionFailure(error: unknown, timedOut: boolean): string {
 		: "unknown";
 }
 
-export interface IndexerRequestOptions {
+interface IndexerRequestOptions {
 	query?: Record<string, string | number | undefined>;
 	body?: unknown;
 	timeoutMs?: number;

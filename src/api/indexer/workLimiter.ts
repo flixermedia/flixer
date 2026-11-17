@@ -5,7 +5,7 @@ import { TooManyRequests } from "@tsed/exceptions";
  * the rest of flixer needs. Extra requests wait their turn; past maxQueued they are turned away with a
  * 429, which flixer-indexer retries with backoff.
  */
-export class WorkLimiter {
+class WorkLimiter {
 
 	private active = 0;
 	private readonly waiting: Array<() => void> = [];

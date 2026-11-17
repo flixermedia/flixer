@@ -4,12 +4,13 @@ import { DataSource, In, MoreThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 import { MediaItem } from "../../entities/mediaItem.entity.ts";
 import { MediaSegment } from "../../entities/mediaSegment.entity.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 
 const INTRO_TYPES = ["intro", "credits"] as const;
 type IntroType = (typeof INTRO_TYPES)[number];
 type TimedSegment = { startMs: number; endMs: number };
 
-export interface IntroSyncCandidate {
+interface IntroSyncCandidate {
 	id: string;
 	type: "movie" | "episode";
 	providerIds: Record<string, string>;
@@ -18,19 +19,15 @@ export interface IntroSyncCandidate {
 	episode?: number;
 }
 
-export interface IntroSegmentUpdate {
+interface IntroSegmentUpdate {
 	itemId: string;
 	segments: Partial<Record<IntroType, TimedSegment | null>>;
 }
 
-export type ExistingIntroSegments = Partial<Record<IntroType, true>>;
+type ExistingIntroSegments = Partial<Record<IntroType, true>>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SEGMENT_MS = 7 * 24 * 60 * 60 * 1000;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function parseIntroSegmentUpdate(value: unknown): IntroSegmentUpdate {
 	if (

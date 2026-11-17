@@ -16,7 +16,7 @@ export function indexerSignature(secret: string, timestamp: string, method: stri
 	return createHmac("sha256", secret).update(`flixer-indexer:v1:${timestamp}:${method.toUpperCase()}:${path}:${bodyHash}`).digest("hex");
 }
 
-export function indexerSecret(): string {
+function indexerSecret(): string {
 	const secret = appConfig().get("appSecret") ?? "";
 	if (Buffer.byteLength(secret) < 32) {
 		throw new Error("APP_SECRET must be set to at least 32 bytes to talk to flixer-indexer.");
