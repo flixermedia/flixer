@@ -1,11 +1,12 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource } from "typeorm";
+import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { SocialFriendship } from "../../entities/social.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
@@ -222,13 +223,10 @@ export class PlaylistsService {
 		const visibility = preferences?.profileVisibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;
-		// RAW SQL: no entity for social_friendships
-		const friendship = (await this.dataSource.query(
-			`SELECT 1 FROM social_friendships WHERE accepted_at IS NOT NULL
-			AND ((user_low_id = $1 AND user_high_id = $2) OR (user_low_id = $2 AND user_high_id = $1))`,
-			[viewerId, ownerId],
-		)) as unknown[];
-		return friendship.length > 0;
+		return this.dataSource.getRepository(SocialFriendship).existsBy([
+			{ userLowId: viewerId, userHighId: ownerId, acceptedAt: Not(IsNull()) },
+			{ userLowId: ownerId, userHighId: viewerId, acceptedAt: Not(IsNull()) },
+		]);
 	}
 
 	/** Song counts, total length, cover and owner for a set of playlists, using a handful of queries however many there are. */

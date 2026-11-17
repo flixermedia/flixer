@@ -4,6 +4,7 @@ import { CreateViewingAnalytics1798300000007 } from "../../migrations/createView
 import { CreateListeningAnalytics1798300000008 } from "../../migrations/createListeningAnalytics1798300000008.js";
 import { CreatePlaybackHistory1798300000027 } from "../../migrations/createPlaybackHistory1798300000027.js";
 import { CreateUserMediaFeatures1798300000028 } from "../../migrations/createUserMediaFeatures1798300000028.js";
+import { ENTITIES } from "../../datasources/entityList.js";
 import { AnalyticsService } from "./analyticsService.js";
 import { UserMediaService } from "../social/userMediaService.js";
 import { applyBrowseFilters } from "../media/mediaHomeService.js";
@@ -16,6 +17,7 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("analytics (isolated Post
 			port: 55441,
 			username: process.env.USER,
 			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			entities: ENTITIES,
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();

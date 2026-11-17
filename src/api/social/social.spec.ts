@@ -3,6 +3,7 @@ import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
+import { UpNextQueueItem } from "../../entities/userMediaQueue.entity.js";
 import { FavoritesService } from "./favoritesService.js";
 import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
@@ -86,15 +87,16 @@ describe("personal media", () => {
 	});
 
 	it("removes a queue item only for its owner", async () => {
-		const { source, query } = dataSource();
-		const { manager } = lockingManager({ query });
+		const { source } = dataSource();
+		const remove = vi.fn(async () => ({}));
+		const { manager } = lockingManager({ delete: remove });
 		source.transaction = vi.fn(async (callback) => callback(manager)) as never;
 		await new UserMediaService(source, {} as never).removeFromQueue(USER, TRACK);
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE user_id = $1 AND item_id = $2"), [USER, TRACK]);
+		expect(remove).toHaveBeenCalledWith(UpNextQueueItem, { userId: USER, itemId: TRACK });
 	});
 
 	it("rejects duplicate or incomplete queue orders and locks the owner row", async () => {
-		const { manager, builder } = lockingManager({ query: vi.fn(async (sql: string) => (sql.includes("SELECT item_id") ? [{ item_id: TRACK }] : [])) });
+		const { manager, builder } = lockingManager({ query: vi.fn(async () => []), find: vi.fn(async () => [{ itemId: TRACK }]) });
 		const source = { transaction: vi.fn(async (callback) => callback(manager)) } as unknown as DataSource;
 		const service = new UserMediaService(source, {} as never);
 		await expect(service.reorderQueue(USER, [TRACK, TRACK])).rejects.toThrow(/invalid queue order/i);

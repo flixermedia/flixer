@@ -139,7 +139,7 @@ export class AiDataService {
 				LIMIT $2`,
 				[userId, FAVORITE_LIMIT],
 			) as Promise<ItemRow[]>,
-			// RAW SQL: jsonb operators; no entity for recommendation_feedback
+			// RAW SQL: jsonb operators
 			this.dataSource.query(
 				`SELECT f.feedback, i.id, i.type, i.title, i.year,
 					i.metadata ->> 'overview' AS overview,
