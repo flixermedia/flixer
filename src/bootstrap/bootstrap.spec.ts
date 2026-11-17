@@ -88,7 +88,7 @@ describe("bootstrap", () => {
 		try {
 			const status = await fetch(`http://127.0.0.1:${port}/api/setup/status`);
 			expect(status.status).toBe(200);
-			expect((await status.json()).state).toBe("not_started");
+			expect(((await status.json()) as { state: string }).state).toBe("not_started");
 			const capacitorStatus = await fetch(`http://127.0.0.1:${port}/api/setup/status`, {
 				headers: { origin: "capacitor://localhost" },
 			});

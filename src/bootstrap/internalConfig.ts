@@ -4,7 +4,7 @@ import { parseRedisUrl, type RedisConnection } from "../config/store/redisConfig
 const INTERNAL_CONFIG_SERVICES = ["indexer"] as const;
 type InternalConfigService = (typeof INTERNAL_CONFIG_SERVICES)[number];
 
-interface IndexerRuntimeConfig {
+export interface IndexerRuntimeConfig {
 	/** Increases on every saved change; a service that sees a new number should reload. */
 	version: number;
 	/** Null when Redis is not configured here, so the service keeps its own setting. */
