@@ -10,7 +10,7 @@ import { loggerExporter, webLoggerExporter } from "../../logs/loggerExporter.js"
 import { AuthService } from "../auth/authService.js";
 import type { LoggerCapacityPolicyRequest, LoggerConfigurationRequest, LoggerIngestionPolicyRequest, LoggerOwnerConfigurationRequest, LoggerOwnerPairingRequest, LoggerPairingRequest, LoggerQuotaRequest, LoggerRetentionRequest } from "./loggerRequests.js";
 
-interface RetentionPolicy {
+export interface RetentionPolicy {
 	enabled: boolean;
 	days: number;
 	severityDays?: Record<string, number>;
@@ -161,10 +161,11 @@ function capacity(value: unknown) {
 	const numbers = ["filesystem_total_bytes", "filesystem_available_bytes", "database_bytes", "compaction_debt_bytes", "compactions_in_progress"] as const;
 	const result = {} as Record<(typeof numbers)[number], number>;
 	for (const key of numbers) {
-		if (!(key in value) || !nonnegativeNumber(value[key], Number.MAX_SAFE_INTEGER)) {
+		const field = (value as Record<string, unknown>)[key];
+		if (!(key in value) || !nonnegativeNumber(field, Number.MAX_SAFE_INTEGER)) {
 			throw new Exception(502, "The logger returned invalid capacity.");
 		}
-		result[key] = value[key];
+		result[key] = field;
 	}
 	if (result.filesystem_available_bytes > result.filesystem_total_bytes) throw new Exception(502, "The logger returned invalid capacity.");
 	return result;
@@ -632,10 +633,11 @@ export class LoggerService {
 			throw new Exception(502, "The logger returned an invalid status.");
 		}
 		const count = (key: string): number => {
-			if (!(key in payload) || typeof payload[key] !== "number" || !Number.isSafeInteger(payload[key]) || payload[key] < 0) {
+			const field = (payload as Record<string, unknown>)[key];
+			if (!(key in payload) || typeof field !== "number" || !Number.isSafeInteger(field) || field < 0) {
 				throw new Exception(502, "The logger returned an invalid status.");
 			}
-			return payload[key];
+			return field;
 		};
 		let retention: { completed_at: string; deleted: number; batch_full: boolean; failed: boolean } | null = null;
 		if ("retention" in payload && payload.retention !== null) {

@@ -40,7 +40,7 @@ export class LoggerQueryProxy {
 		if (this.cached?.ticket.endpoint === endpoint && this.cached.management === management && Date.parse(this.cached.ticket.expiresAt) > Date.now() + 10_000) return this.cached.ticket;
 		if (!this.pending || this.pending.endpoint !== endpoint || this.pending.management !== management) {
 			const promise = this.logger.issueQueryToken(authorization).then((ticket) => {
-				if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== management || ticket.endpoint !== endpoint) {
+				if (store!.get("loggerUrl") !== endpoint || store!.get("loggerManageToken") !== management || ticket.endpoint !== endpoint) {
 					throw new Exception(409, "Logger configuration changed during query authorization.");
 				}
 				this.cached = { ticket, management };
