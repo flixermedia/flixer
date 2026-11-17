@@ -1,4 +1,4 @@
-export interface ClientDescription {
+interface ClientDescription {
 	/** Operating system or hardware, e.g. "Windows" or "iPhone". */
 	device: string;
 	/** Browser or client application, e.g. "Chrome 126". */

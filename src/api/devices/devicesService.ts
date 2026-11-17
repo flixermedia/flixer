@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { UserSession } from "../../entities/userSession.entity.ts";
 import { describeClient } from "./userAgent.ts";
 
-export interface PublicDevice {
+interface PublicDevice {
 	id: string;
 	device: string;
 	app: string;
