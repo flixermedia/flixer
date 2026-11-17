@@ -3,7 +3,7 @@ import { ActivityService } from "./activityService.js";
 
 function setup() {
 
-	const query = vi.fn(async (sql: string) => {
+	const query = vi.fn(async (sql: string, _params?: unknown[]) => {
 		if (sql.includes("COUNT(*)")) {
 			return [{ total: 7, finished: 3, users: 2 }];
 		}
