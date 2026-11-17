@@ -2,10 +2,10 @@ import { appConfig, type AppConfig } from "../config/store/appConfig.ts";
 import type { SetupState } from "../config/store/configStore.ts";
 import { needsRecovery } from "../setup/recovery.ts";
 
-export type DatabaseStatus = "ok" | "unconfigured" | "unavailable";
+type DatabaseStatus = "ok" | "unconfigured" | "unavailable";
 
 /** What the process is doing right now: "bootstrap" serves only setup endpoints, "ready" is the full application. */
-export interface RuntimeState {
+interface RuntimeState {
 	mode: "bootstrap" | "ready";
 	database: DatabaseStatus;
 }

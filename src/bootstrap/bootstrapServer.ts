@@ -75,7 +75,7 @@ function send(response: ServerResponse, status: number, body: unknown): void {
 }
 
 /** Routes served before the full application is running. Everything else answers 503 so clients show "unavailable". */
-export async function handleBootstrapRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+async function handleBootstrapRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
 	const origin = request.headers.origin;
 	const allowedOrigin = typeof origin === "string" && CORS_ORIGINS.some((allowed) => allowed === origin);
 	if (allowedOrigin) {

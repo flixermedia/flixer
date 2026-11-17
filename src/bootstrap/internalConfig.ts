@@ -1,10 +1,10 @@
 import { appConfig, type AppConfig } from "../config/store/appConfig.ts";
 import { parseRedisUrl, type RedisConnection } from "../config/store/redisConfig.ts";
 
-export const INTERNAL_CONFIG_SERVICES = ["indexer"] as const;
-export type InternalConfigService = (typeof INTERNAL_CONFIG_SERVICES)[number];
+const INTERNAL_CONFIG_SERVICES = ["indexer"] as const;
+type InternalConfigService = (typeof INTERNAL_CONFIG_SERVICES)[number];
 
-export interface IndexerRuntimeConfig {
+interface IndexerRuntimeConfig {
 	/** Increases on every saved change; a service that sees a new number should reload. */
 	version: number;
 	/** Null when Redis is not configured here, so the service keeps its own setting. */
