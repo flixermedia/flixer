@@ -12,11 +12,11 @@ const PREFIX = "page-builder:";
 const LOGIN_ID = "login";
 const SITE_SETTING = "page-builder-site";
 const TEMPLATES_SETTING = "page-builder-templates";
-interface PageSiteSettings {
+export interface PageSiteSettings {
 	homePageId: string | null;
 	navigationIds: string[];
 }
-interface ReusablePageBlock {
+export interface ReusablePageBlock {
 	id: string;
 	name: string;
 	block: PageBlock;

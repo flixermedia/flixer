@@ -24,7 +24,7 @@ const MAX_VERSIONS = 20;
 
 type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
 
-interface ThemeView {
+export interface ThemeView {
 	id: string;
 	name: string;
 	description: string;
@@ -34,7 +34,7 @@ interface ThemeView {
 	updatedAt: Date;
 }
 
-interface ThemeVersionView {
+export interface ThemeVersionView {
 	id: string;
 	name: string;
 	description: string;
@@ -42,7 +42,7 @@ interface ThemeVersionView {
 	createdAt: Date;
 }
 
-interface AppearanceState {
+export interface AppearanceState {
 	/** The theme chosen by the admin. */
 	activeThemeId: string;
 	/** The theme visitors actually get today: the active theme unless a schedule overrides it. */
@@ -55,7 +55,7 @@ interface AppearanceState {
 	themes: ThemeView[];
 }
 
-interface PublicAppearance {
+export interface PublicAppearance {
 	activeThemeId: string;
 	userSelectionEnabled: boolean;
 	libraryAccents: Record<string, string>;
