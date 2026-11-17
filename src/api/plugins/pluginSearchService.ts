@@ -1,4 +1,4 @@
-import { isRecord } from "./isRecord.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";

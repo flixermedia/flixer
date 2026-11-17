@@ -33,7 +33,7 @@ export interface RequestServiceView {
 }
 
 /** Library types each kind of server can fill. */
-export const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
+const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
 	radarr: ["movies", "mixed"],
 	sonarr: ["tvshows", "mixed"],
 	lidarr: ["music", "mixed"],
@@ -41,7 +41,7 @@ export const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
 
 const MIN_AVAILABILITY = ["announced", "inCinemas", "released"];
 
-export function toServiceView(service: RequestService, libraries: Map<string, string> = new Map()): RequestServiceView {
+function toServiceView(service: RequestService, libraries: Map<string, string> = new Map()): RequestServiceView {
 	return {
 		id: service.id,
 		kind: service.kind,

@@ -1,4 +1,4 @@
-import { isRecord } from "./isRecord.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";

@@ -12,7 +12,7 @@ export interface ExternalMediaCard {
 	requestId: string | null;
 }
 
-export interface ExternalSeason {
+interface ExternalSeason {
 	number: number;
 	name: string;
 	episodeCount: number;

@@ -63,7 +63,7 @@ export interface RequestsConfig {
 	discogsConfigured: boolean;
 }
 
-export interface RequestUserLimitView {
+interface RequestUserLimitView {
 	id: string;
 	username: string;
 	displayName: string | null;

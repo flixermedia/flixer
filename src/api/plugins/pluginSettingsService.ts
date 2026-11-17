@@ -1,4 +1,4 @@
-import { isRecord } from "./isRecord.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { Ajv2020 } from "ajv/dist/2020.js";

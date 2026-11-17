@@ -5,12 +5,12 @@ const TIMEOUT_MS = 20_000;
 
 type Json = Record<string, unknown>;
 
-export interface ArrProfile {
+interface ArrProfile {
 	id: number;
 	name: string;
 }
 
-export interface ArrRootFolder {
+interface ArrRootFolder {
 	path: string;
 	freeSpace: number | null;
 }

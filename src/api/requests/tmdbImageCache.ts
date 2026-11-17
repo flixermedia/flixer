@@ -10,7 +10,7 @@ const TMDB_IMAGE_HOST = "https://image.tmdb.org/t/p";
 const TIMEOUT_MS = 10_000;
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export const TMDB_IMAGE_SIZES = ["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"] as const;
+const TMDB_IMAGE_SIZES = ["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"] as const;
 const FILE_PATTERN = /^[A-Za-z0-9_-]{5,64}\.(jpg|png|webp)$/;
 const URL_PATTERN = /^https:\/\/image\.tmdb\.org\/t\/p\/([a-z0-9]+)\/([A-Za-z0-9_-]{5,64}\.(?:jpg|png|webp))$/;
 

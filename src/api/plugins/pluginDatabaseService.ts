@@ -1,4 +1,4 @@
-import { isRecord } from "./isRecord.ts";
+import { isRecord } from "../../utils/isRecord.ts";
 import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
