@@ -9,6 +9,7 @@ export class OidcConsentService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(accountId: string): Promise<Array<{ id: string; name: string; scopes: string[] }>> {
+		// RAW SQL: no entity for oidc_consents/oidc_clients
 		return this.dataSource.query(
 			`SELECT c.id, c.name, consent.scopes FROM "oidc_consents" consent
 			 JOIN "oidc_clients" c ON c.id = consent.client_id
@@ -19,7 +20,9 @@ export class OidcConsentService {
 
 	async revoke(accountId: string, clientId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for oidc_consents
 			await manager.query(`DELETE FROM "oidc_consents" WHERE account_id = $1 AND client_id = $2`, [accountId, clientId]);
+			// RAW SQL: no entity for oidc_artifacts; jsonb payload operators
 			await manager.query(
 				`DELETE FROM "oidc_artifacts" WHERE
 					("payload"->>'accountId' = $1 AND "payload"->>'clientId' = $2)

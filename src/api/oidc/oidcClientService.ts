@@ -48,6 +48,7 @@ export class OidcClientService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list() {
+		// RAW SQL: no entity for oidc_clients
 		const rows: ClientRow[] = await this.dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "resource_scopes", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`);
 		return rows.map(publicClient);
 	}
@@ -59,6 +60,7 @@ export class OidcClientService {
 		validateOidcRedirectUris(request.redirectUris);
 		const id = randomBytes(24).toString("base64url");
 		const secret = request.type === "confidential" ? randomBytes(48).toString("base64url") : undefined;
+		// RAW SQL: no entity for oidc_clients
 		const rows: ClientRow[] = await this.dataSource.query(
 			`INSERT INTO "oidc_clients" ("id", "name", "redirect_uris", "secret_encrypted")
 			 VALUES ($1, $2, $3::jsonb, $4)
@@ -71,12 +73,16 @@ export class OidcClientService {
 	async setResourceScopes(id: string, scopes: string[]): Promise<void> {
 		if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== "string" || !isOidcResourceScope(scope)) || new Set(scopes).size !== scopes.length) throw new BadRequest("Invalid resource permissions.");
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for oidc_clients; row lock inside transaction
 			const rows: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR UPDATE`, [id]);
 			if (!rows.length) throw new NotFound("OAuth client not found.");
 			const removed = rows[0].resource_scopes.filter((scope) => !scopes.includes(scope));
+			// RAW SQL: no entity for oidc_clients; text[] cast
 			await manager.query(`UPDATE "oidc_clients" SET "resource_scopes" = $2::text[] WHERE "id" = $1`, [id, scopes]);
 			if (removed.length) {
+				// RAW SQL: no entity for oidc_consents; array set operations
 				await manager.query(`UPDATE "oidc_consents" SET "scopes" = ARRAY(SELECT unnest("scopes") EXCEPT SELECT unnest($2::text[])) WHERE "client_id" = $1`, [id, removed]);
+				// RAW SQL: no entity for oidc_artifacts; jsonb payload operators
 				await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1 OR "payload"->>'grantId' IN (SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant' AND "payload"->>'clientId' = $1)`, [id]);
 			}
 		});
@@ -84,8 +90,10 @@ export class OidcClientService {
 
 	async remove(id: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: no entity for oidc_clients; DELETE with RETURNING
 			const rows: Array<{ id: string }> = await manager.query(`DELETE FROM "oidc_clients" WHERE "id" = $1 RETURNING "id"`, [id]);
 			if (!rows.length) throw new NotFound("OAuth client not found.");
+			// RAW SQL: no entity for oidc_artifacts; jsonb payload operator
 			await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1`, [id]);
 		});
 	}

@@ -35,6 +35,7 @@ export class OidcResourceController {
 		if (!token?.isValid || token.aud !== resource || token.isSenderConstrained() || !token.clientId || !token.accountId || !token.grantId) throw new Unauthorized("Invalid OAuth access token.");
 		const grant = await provider.Grant.find(token.grantId);
 		if (!grant?.isValid || grant.clientId !== token.clientId || grant.accountId !== token.accountId) throw new Unauthorized("OAuth authorization has expired or been revoked.");
+		// RAW SQL: no entity for oidc_clients/oidc_consents; correlated EXISTS
 		const clients: Array<{ resource_scopes: string[]; approved: boolean }> = await this.dataSource.query(`SELECT c.resource_scopes, EXISTS(SELECT 1 FROM oidc_consents consent WHERE consent.client_id = c.id AND consent.account_id = $2 AND $3 = ANY(consent.scopes)) AS approved FROM oidc_clients c WHERE c.id = $1`, [token.clientId, token.accountId, scope]);
 		if (!clients.length) throw new Unauthorized("OAuth client no longer exists.");
 		if (!token.scopes.has(scope) || !grant.getResourceScope(resource).split(" ").includes(scope) || !clients[0].resource_scopes.includes(scope) || !clients[0].approved) throw new Forbidden("The OAuth token does not have the required permission.");
@@ -56,6 +57,7 @@ export class OidcResourceController {
 
 	private async page(sql: string, user: User, limit: string | undefined, offset: string | undefined) {
 		const page = this.pagination(limit, offset);
+		// RAW SQL: caller-supplied SQL over mixed tables; shared paging helper
 		const rows: unknown[] = await this.dataSource.query(sql, [user.id, page.limit + 1, page.offset]);
 		return { items: rows.slice(0, page.limit), nextOffset: rows.length > page.limit ? page.offset + page.limit : null };
 	}
@@ -63,12 +65,14 @@ export class OidcResourceController {
 	@Get("/subscriptions")
 	async subscriptions(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "subscriptions:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper; snake_case aliases
 		return this.page(`SELECT s.id, s.status, s.plan_id AS "planId", p.name AS "planName", s.period_end AS "periodEnd", s.grace_until AS "graceUntil", s.cancel_at_period_end AS "cancelAtPeriodEnd", COALESCE(s.status <> 'expired' AND (s.period_end > now() OR (s.status = 'past_due' AND s.grace_until > now())), false) AS active FROM payment_subscriptions s LEFT JOIN payment_plans p ON p.id = s.plan_id WHERE s.user_id = $1 ORDER BY s.created_at DESC, s.id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 
 	@Get("/entitlements")
 	async grants(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "entitlements:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.page(
 			`SELECT id, source, scope, "expiresAt", "claimUntil", "activatedAt" FROM (
 			SELECT id::text AS id, source, scope, expires_at AS "expiresAt", claim_until AS "claimUntil", activated_at AS "activatedAt", created_at AS sort_at
@@ -87,6 +91,7 @@ export class OidcResourceController {
 	@Get("/purchases")
 	async purchases(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "purchases:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.page(`SELECT id, kind, product_id AS "productId", description, status, created_at AS "createdAt" FROM payment_orders WHERE user_id = $1 AND kind IN ('purchase', 'rental') ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 
@@ -130,6 +135,7 @@ export class OidcResourceController {
 	@Get("/favorites")
 	async favorites(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "favorites:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.visiblePage(`SELECT item_id AS "itemId", created_at AS "createdAt" FROM favorites WHERE user_id = $1 ORDER BY created_at DESC, item_id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 
@@ -146,6 +152,7 @@ export class OidcResourceController {
 	@Get("/playlists")
 	async playlists(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "playlists:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.page(`SELECT id, name, description, is_public AS "isPublic", updated_at AS "updatedAt" FROM playlists WHERE user_id = $1 ORDER BY id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 
@@ -154,6 +161,7 @@ export class OidcResourceController {
 		const user = await this.authorize(auth, "playlists:read", ctx);
 		if (!isUuid(id)) throw new BadRequest("Invalid playlist.");
 		const page = this.pagination(limit, offset);
+		// RAW SQL: join of playlist_items and playlists with snake_case-to-camelCase aliasing; kept for identical row shape
 		const rows: Array<{ itemId: string; position: number }> = await this.dataSource.query(`SELECT i.item_id AS "itemId", i.position FROM playlist_items i JOIN playlists p ON p.id = i.playlist_id WHERE p.user_id = $1 AND p.id = $2 ORDER BY i.position, i.item_id LIMIT $3 OFFSET $4`, [user.id, id, page.limit + 1, page.offset]);
 		const visible = await this.access.visibleIds(
 			await this.access.forUser(user.id),
@@ -165,12 +173,14 @@ export class OidcResourceController {
 	@Get("/progress")
 	async progress(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "progress:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.visiblePage(`SELECT item_id AS "itemId", position_seconds AS "positionSeconds", duration_seconds AS "durationSeconds", completed, updated_at AS "updatedAt" FROM watch_progress WHERE user_id = $1 ORDER BY updated_at DESC, item_id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 
 	@Get("/history")
 	async history(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "history:read", ctx);
+		// RAW SQL: SQL passed to shared paging helper
 		return this.visiblePage(`SELECT item_id AS "itemId", played_at AS "playedAt", play_count AS "playCount" FROM listening_history WHERE user_id = $1 ORDER BY played_at DESC, item_id LIMIT $2 OFFSET $3`, user, limit, offset);
 	}
 

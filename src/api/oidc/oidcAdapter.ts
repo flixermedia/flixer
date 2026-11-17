@@ -19,6 +19,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 	async function findArtifact(column: "id" | "uid" | "userCode", value: string): Promise<AdapterPayload | undefined> {
 
 		const predicate = column === "id" ? `"id" = $2` : `"payload"->>'${column}' = $2`;
+		// RAW SQL: no entity for oidc_artifacts; jsonb payload key lookup with expiry check
 		const rows: ArtifactRow[] = await dataSource.query(`SELECT "payload" FROM "oidc_artifacts" WHERE "kind" = $1 AND ${predicate} AND ("expires_at" IS NULL OR "expires_at" > now()) LIMIT 1`, [kind, value]);
 		return rows[0]?.payload;
 
@@ -27,6 +28,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 	return {
 		async upsert(id, payload, expiresIn) {
 			if (kind === "ReplayDetection") {
+				// RAW SQL: no entity for oidc_artifacts; single-statement atomic insert-or-skip with RETURNING
 				const rows: Array<{ id: string }> = await dataSource.query(
 					`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
 					 VALUES ($1, $2, $3::jsonb, now() + $4 * interval '1 second')
@@ -37,6 +39,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 				if (!rows.length) throw new Error("OAuth replay detected.");
 				return;
 			}
+			// RAW SQL: no entity for oidc_artifacts; single-statement upsert
 			await dataSource.query(
 				`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
 				 VALUES ($1, $2, $3::jsonb, CASE WHEN $4::integer IS NULL THEN NULL ELSE now() + $4 * interval '1 second' END)
@@ -46,6 +49,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 		},
 		async find(id) {
 			if (kind !== "Client") return findArtifact("id", id);
+			// RAW SQL: no entity for oidc_clients
 			const rows: ClientRow[] = await dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" FROM "oidc_clients" WHERE "id" = $1`, [id]);
 			const client = rows[0];
 			if (!client) return undefined;
@@ -63,6 +67,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 		findByUserCode: (code) => findArtifact("userCode", code),
 		findByUid: (uid) => findArtifact("uid", uid),
 		async consume(id) {
+			// RAW SQL: no entity for oidc_artifacts; atomic consume with RETURNING
 			const rows: Array<{ id: string }> = await dataSource.query(
 				`UPDATE "oidc_artifacts" SET "payload" = jsonb_set("payload", '{consumed}', to_jsonb(floor(extract(epoch from now()))::bigint))
 				 WHERE "kind" = $1 AND "id" = $2 AND NOT ("payload" ? 'consumed') AND ("expires_at" IS NULL OR "expires_at" > now()) RETURNING "id"`,
@@ -71,9 +76,11 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 			if (!rows.length) throw new Error("The OAuth artifact was already consumed or expired.");
 		},
 		async destroy(id) {
+			// RAW SQL: no entity for oidc_artifacts
 			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "kind" = $1 AND "id" = $2`, [kind, id]);
 		},
 		async revokeByGrantId(grantId) {
+			// RAW SQL: no entity for oidc_artifacts; jsonb payload operator
 			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'grantId' = $1`, [grantId]);
 		},
 	};
