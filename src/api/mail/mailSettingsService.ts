@@ -19,7 +19,7 @@ export interface MailServerSettingsView {
 	userAddressDomain: string | null;
 }
 
-export interface MailServerSettingsUpdate extends Partial<MailServerSettingsView> {}
+interface MailServerSettingsUpdate extends Partial<MailServerSettingsView> {}
 
 /** Loads and validates the built-in mail server configuration (a single database row). */
 @Injectable()

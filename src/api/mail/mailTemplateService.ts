@@ -13,7 +13,7 @@ const PLACEHOLDER = /{{\s*(\w+)\s*}}/g;
 const MAX_HTML_BYTES = 256 * 1024;
 const MAX_TEXT_BYTES = 64 * 1024;
 
-export interface BuiltinTemplate {
+interface BuiltinTemplate {
 	label: string;
 	description: string;
 	subject: string;
@@ -22,7 +22,7 @@ export interface BuiltinTemplate {
 }
 
 /** Templates shipped with Flixer. Their HTML lives in resources/emails; edits are saved under DATA_DIR/emails. */
-export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
+const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 	"verify-email": {
 		label: "Verify email address",
 		description: "Sent when someone registers or changes their email address.",
@@ -62,7 +62,7 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 	},
 };
 
-export interface TemplateKey {
+interface TemplateKey {
 	key: string;
 	group: "global" | "account" | "payments";
 	description: string;
@@ -70,7 +70,7 @@ export interface TemplateKey {
 }
 
 /** Every key a template can use. Global keys are filled automatically on every email; the rest come from the email that sends the template. */
-export const TEMPLATE_KEYS: TemplateKey[] = [
+const TEMPLATE_KEYS: TemplateKey[] = [
 	{ key: "appName", group: "global", description: "The name of this Flixer server.", sample: "Flixer" },
 	{ key: "appUrl", group: "global", description: "The address people use to open Flixer.", sample: "https://flixer.example.com" },
 	{ key: "year", group: "global", description: "The current year, handy for footers.", sample: "2029" },
@@ -110,7 +110,7 @@ interface StoredMeta {
 	subject?: string;
 }
 
-export interface MailTemplate {
+interface MailTemplate {
 	name: string;
 	label: string;
 	description: string;

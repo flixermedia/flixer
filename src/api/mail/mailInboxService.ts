@@ -10,7 +10,7 @@ import { NotificationService } from "../notifications/notificationService.ts";
 import { headerSafe } from "./mailAddress.ts";
 import { attachmentDirectory } from "./mailMessageService.ts";
 
-export interface InboundMessage {
+interface InboundMessage {
 	mailboxId: string;
 	fromAddress: string;
 	fromName: string | null;

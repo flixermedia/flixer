@@ -18,7 +18,7 @@ const MAX_RECIPIENTS = 20;
 const POLL_MS = 30_000;
 const CLAIM_MS = 10 * 60_000;
 
-export interface OutgoingMail {
+interface OutgoingMail {
 	from: { address: string; name?: string };
 	to: string[];
 	subject: string;

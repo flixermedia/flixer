@@ -54,7 +54,7 @@ export function sanitizeEmailHtml(html: string): string {
 	});
 }
 
-export interface MessageQuery {
+interface MessageQuery {
 	mailboxId?: string;
 	direction?: "inbound" | "outbound";
 	search?: string;

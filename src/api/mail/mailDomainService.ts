@@ -12,7 +12,7 @@ import { MailSettingsService } from "./mailSettingsService.ts";
 
 const OWNERSHIP_PREFIX = "flixer-verification=";
 
-export interface DnsRecord {
+interface DnsRecord {
 	purpose: "ownership" | "mx" | "spf" | "dkim" | "dmarc";
 	type: "TXT" | "MX";
 	name: string;
