@@ -41,7 +41,7 @@ export function liveStreamContainer(value: string): LiveStreamContainer | null {
 
 }
 
-interface PublicGuideSource {
+export interface PublicGuideSource {
 	id: string;
 	kind: GuideSourceKind;
 	name: string;
@@ -55,7 +55,7 @@ interface PublicGuideSource {
 	lastError: string | null;
 }
 
-interface GuideChannelView {
+export interface GuideChannelView {
 	id: string;
 	name: string;
 	icon: string | null;
@@ -66,7 +66,7 @@ interface GuideChannelView {
 	sortOrder: number;
 }
 
-interface GuideProgrammeView extends GuideProgrammeCache {
+export interface GuideProgrammeView extends GuideProgrammeCache {
 	channelId: string;
 }
 
