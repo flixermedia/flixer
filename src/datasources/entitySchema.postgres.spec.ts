@@ -60,6 +60,9 @@ const KNOWN_DRIFT_TABLES = new Set<string>([
 	"watch_progress", // foreign keys
 ]);
 
+/** TypeORM lowercases entity defaults but not the catalog's `ARRAY[]`, so this default can never compare equal. */
+const UNMATCHABLE_DEFAULT_QUERIES = new Set<string>([`ALTER TABLE "oidc_clients" ALTER COLUMN "resource_scopes" SET DEFAULT ARRAY[]::text[]`]);
+
 describe.skipIf(!databaseUrl)("entities match the migrated schema", () => {
 	const schema = `entity_schema_${randomUUID().replaceAll("-", "")}`;
 	let admin: DataSource;
@@ -99,6 +102,7 @@ describe.skipIf(!databaseUrl)("entities match the migrated schema", () => {
 		const tableOf = (query: string) => /^ALTER TABLE "([^"]+)"/.exec(query)?.[1] ?? /^CREATE (?:UNIQUE )?INDEX .* ON "([^"]+)"/.exec(query)?.[1] ?? indexTables.get(/^DROP INDEX "[^"]+"\."([^"]+)"/.exec(query)?.[1] ?? "");
 		const pending = log.upQueries
 			.map((query) => query.query)
+			.filter((query) => !UNMATCHABLE_DEFAULT_QUERIES.has(query))
 			.filter((query) => {
 				const table = tableOf(query);
 				return table === undefined || (entityTables.has(table) && !KNOWN_DRIFT_TABLES.has(table));

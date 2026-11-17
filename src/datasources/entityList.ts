@@ -59,6 +59,7 @@ import { ThemeVersion } from "../entities/themeVersion.entity.js";
 import { PlaybackHistory } from "../entities/playbackHistory.entity.js";
 import { IssueReport, IssueReportUpdate } from "../entities/issueReport.entity.js";
 import { ChatConversation } from "../entities/chatConversation.entity.js";
+import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../entities/oidc.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -126,4 +127,8 @@ export const ENTITIES = [
 	IssueReport,
 	IssueReportUpdate,
 	ChatConversation,
+	OidcClient,
+	OidcArtifact,
+	OidcConfig,
+	OidcConsent,
 ];
