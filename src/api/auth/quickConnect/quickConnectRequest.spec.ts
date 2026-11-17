@@ -1,5 +1,5 @@
 import { getJsonSchema } from "@tsed/schema";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import { describe, expect, it } from "vitest";
 import { QuickConnectDecisionRequest } from "./quickConnectRequest.js";
 

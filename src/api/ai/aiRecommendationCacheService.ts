@@ -159,7 +159,7 @@ export class AiRecommendationCacheService {
 		return {
 			entries: (row?.entries as RecommendationCacheState["entries"]) ?? {},
 			lastRefreshAt: row?.lastRefreshAt?.toISOString() ?? null,
-			entryScopes: row?.entryScopes ?? {},
+			entryScopes: (row?.entryScopes ?? {}) as RecommendationCacheState["entryScopes"],
 			refreshTimes: row?.refreshTimes ?? {},
 		};
 	}
