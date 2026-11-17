@@ -7,14 +7,14 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaLibrary, type MediaImageStorage, type MediaLibraryFolder, type MediaLibraryType } from "../../entities/mediaLibrary.entity.ts";
 import { MediaRootsService, parseRelativePath, type MediaRoot } from "./mediaRootsService.ts";
 
-export interface PublicMediaLibraryFolder extends MediaLibraryFolder {
+interface PublicMediaLibraryFolder extends MediaLibraryFolder {
 	rootName: string;
 	/** Absolute location on the server, shown to admins only. */
 	location: string;
 	available: boolean;
 }
 
-export interface PublicMediaLibrary {
+interface PublicMediaLibrary {
 	id: string;
 	name: string;
 	type: MediaLibraryType;

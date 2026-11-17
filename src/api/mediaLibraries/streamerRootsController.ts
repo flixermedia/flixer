@@ -15,8 +15,8 @@ import { AD_ROOT_ID } from "../advertisements/advertisementService.ts";
 import { PluginStreamerService, type StreamerHook } from "../plugins/pluginStreamerService.ts";
 
 export const STREAMER_ROOTS_CONTEXT = "flixer-streamer:media-roots:v1";
-export const STREAMER_TRANSCODING_CONTEXT = "flixer-streamer:transcoding:v1";
-export const STREAMER_PLUGINS_CONTEXT = "flixer-streamer:plugins:v1";
+const STREAMER_TRANSCODING_CONTEXT = "flixer-streamer:transcoding:v1";
+const STREAMER_PLUGINS_CONTEXT = "flixer-streamer:plugins:v1";
 export const STREAMER_HOOK_CONTEXT = "flixer-streamer:plugin-hooks:v1";
 const MAX_CLOCK_SKEW_SECONDS = 5 * 60;
 

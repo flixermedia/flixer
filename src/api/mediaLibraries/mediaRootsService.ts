@@ -11,7 +11,7 @@ export interface MediaRoot {
 	path: string;
 }
 
-export interface BrowseResult {
+interface BrowseResult {
 	rootId: string;
 	path: string;
 	directories: string[];
