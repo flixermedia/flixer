@@ -65,6 +65,10 @@ import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../entities/o
 import { SocialFriendInvite, SocialFriendship } from "../entities/social.entity.js";
 import { VideoCollection, VideoCollectionItem } from "../entities/videoCollection.entity.js";
 import { RecommendationFeedback, UpNextQueueItem, WatchLaterItem } from "../entities/userMediaQueue.entity.js";
+import { AdvertisementView, ListeningEvent, PlaybackHistoryHiddenSession, ViewingSession } from "../entities/analytics.entity.js";
+import { UserWebhook, UserWebhookConfig } from "../entities/userWebhook.entity.js";
+import { MediaSourceGroup } from "../entities/mediaSourceGroup.entity.js";
+import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../entities/mediaSearch.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -149,4 +153,13 @@ export const ENTITIES = [
 	UpNextQueueItem,
 	WatchLaterItem,
 	RecommendationFeedback,
+	AdvertisementView,
+	ViewingSession,
+	ListeningEvent,
+	PlaybackHistoryHiddenSession,
+	UserWebhookConfig,
+	UserWebhook,
+	MediaSourceGroup,
+	MediaSearchOutboxEvent,
+	MediaSearchLyrics,
 ];
