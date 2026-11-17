@@ -17,6 +17,7 @@ import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
 import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
+import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../../entities/oidc.entity.js";
 import { CreateOidcProvider1798300000015 } from "../../migrations/createOidcProvider1798300000015.js";
 import { CreateOidcConsents1798300000017 } from "../../migrations/createOidcConsents1798300000017.js";
 import { AddOidcSubscriptionSharing1798300000018 } from "../../migrations/addOidcSubscriptionSharing1798300000018.js";
@@ -56,8 +57,10 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		admin = new DataSource({ type: "postgres", url: databaseUrl });
 		await admin.initialize();
 		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: [User, UserPreference, PaymentSubscription, PaymentPlan, PaymentEntitlement, PaymentOrder, MediaItem, Favorite, Playlist, PlaylistItem, WatchProgress, ListeningHistory], synchronize: true });
+		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: [User, UserPreference, PaymentSubscription, PaymentPlan, PaymentEntitlement, PaymentOrder, MediaItem, Favorite, Playlist, PlaylistItem, WatchProgress, ListeningHistory, OidcClient, OidcArtifact, OidcConfig, OidcConsent], synchronize: true });
 		await db.initialize();
+		// The OIDC tables must come from the migrations replayed below, not from synchronize.
+		await db.query(`DROP TABLE oidc_consents, oidc_artifacts, oidc_config, oidc_clients`);
 		const runner = db.createQueryRunner();
 		try {
 			await new CreateOidcProvider1798300000015().up(runner);

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { OidcConsent } from "../../entities/oidc.entity.js";
 
 /** Manages an account's approved third-party applications. */
 @Injectable()
@@ -9,20 +10,13 @@ export class OidcConsentService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(accountId: string): Promise<Array<{ id: string; name: string; scopes: string[] }>> {
-		// RAW SQL: no entity for oidc_consents/oidc_clients
-		return this.dataSource.query(
-			`SELECT c.id, c.name, consent.scopes FROM "oidc_consents" consent
-			 JOIN "oidc_clients" c ON c.id = consent.client_id
-			 WHERE consent.account_id = $1 ORDER BY c.name, c.id`,
-			[accountId],
-		);
+		return this.dataSource.getRepository(OidcConsent).createQueryBuilder("consent").innerJoin("consent.client", "c").select("c.id", "id").addSelect("c.name", "name").addSelect("consent.scopes", "scopes").where("consent.accountId = :accountId", { accountId }).orderBy("c.name").addOrderBy("c.id").getRawMany<{ id: string; name: string; scopes: string[] }>();
 	}
 
 	async revoke(accountId: string, clientId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for oidc_consents
-			await manager.query(`DELETE FROM "oidc_consents" WHERE account_id = $1 AND client_id = $2`, [accountId, clientId]);
-			// RAW SQL: no entity for oidc_artifacts; jsonb payload operators
+			await manager.delete(OidcConsent, { accountId, clientId });
+			// RAW SQL: delete by jsonb ->> payload predicates with a Grant subselect
 			await manager.query(
 				`DELETE FROM "oidc_artifacts" WHERE
 					("payload"->>'accountId' = $1 AND "payload"->>'clientId' = $2)

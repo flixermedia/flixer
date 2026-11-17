@@ -1,13 +1,7 @@
 import type { Adapter, AdapterPayload } from "oidc-provider";
 import type { DataSource } from "typeorm";
+import { OidcArtifact, OidcClient } from "../../entities/oidc.entity.js";
 import { decryptOidcSecret } from "./oidcSecrets.js";
-
-interface ClientRow {
-	id: string;
-	name: string;
-	redirect_uris: string[];
-	secret_encrypted: string | null;
-}
 
 interface ArtifactRow {
 	payload: AdapterPayload;
@@ -19,7 +13,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 	async function findArtifact(column: "id" | "uid" | "userCode", value: string): Promise<AdapterPayload | undefined> {
 
 		const predicate = column === "id" ? `"id" = $2` : `"payload"->>'${column}' = $2`;
-		// RAW SQL: no entity for oidc_artifacts; jsonb payload key lookup with expiry check
+		// RAW SQL: jsonb ->> payload key lookup (uid/userCode use the expression indexes) with database-clock expiry check
 		const rows: ArtifactRow[] = await dataSource.query(`SELECT "payload" FROM "oidc_artifacts" WHERE "kind" = $1 AND ${predicate} AND ("expires_at" IS NULL OR "expires_at" > now()) LIMIT 1`, [kind, value]);
 		return rows[0]?.payload;
 
@@ -28,7 +22,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 	return {
 		async upsert(id, payload, expiresIn) {
 			if (kind === "ReplayDetection") {
-				// RAW SQL: no entity for oidc_artifacts; single-statement atomic insert-or-skip with RETURNING
+				// RAW SQL: atomic INSERT ... ON CONFLICT ... WHERE ... RETURNING detects replays in one statement
 				const rows: Array<{ id: string }> = await dataSource.query(
 					`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
 					 VALUES ($1, $2, $3::jsonb, now() + $4 * interval '1 second')
@@ -39,7 +33,7 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 				if (!rows.length) throw new Error("OAuth replay detected.");
 				return;
 			}
-			// RAW SQL: no entity for oidc_artifacts; single-statement upsert
+			// RAW SQL: upsert computing expires_at from the database clock (now() + interval) with a NULL-able lifetime
 			await dataSource.query(
 				`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
 				 VALUES ($1, $2, $3::jsonb, CASE WHEN $4::integer IS NULL THEN NULL ELSE now() + $4 * interval '1 second' END)
@@ -49,25 +43,23 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 		},
 		async find(id) {
 			if (kind !== "Client") return findArtifact("id", id);
-			// RAW SQL: no entity for oidc_clients
-			const rows: ClientRow[] = await dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" FROM "oidc_clients" WHERE "id" = $1`, [id]);
-			const client = rows[0];
+			const client = await dataSource.getRepository(OidcClient).findOne({ select: { id: true, name: true, redirectUris: true, secretEncrypted: true }, where: { id } });
 			if (!client) return undefined;
 			return {
 				client_id: client.id,
 				client_name: client.name,
-				redirect_uris: client.redirect_uris,
+				redirect_uris: client.redirectUris,
 				response_types: ["code"],
 				grant_types: ["authorization_code", "refresh_token"],
 				scope: "openid profile email offline_access roles groups",
-				token_endpoint_auth_method: client.secret_encrypted ? "client_secret_basic" : "none",
-				...(client.secret_encrypted ? { client_secret: decryptOidcSecret(client.secret_encrypted) } : {}),
+				token_endpoint_auth_method: client.secretEncrypted ? "client_secret_basic" : "none",
+				...(client.secretEncrypted ? { client_secret: decryptOidcSecret(client.secretEncrypted) } : {}),
 			};
 		},
 		findByUserCode: (code) => findArtifact("userCode", code),
 		findByUid: (uid) => findArtifact("uid", uid),
 		async consume(id) {
-			// RAW SQL: no entity for oidc_artifacts; atomic consume with RETURNING
+			// RAW SQL: atomic UPDATE ... jsonb_set ... RETURNING consumes an artifact exactly once
 			const rows: Array<{ id: string }> = await dataSource.query(
 				`UPDATE "oidc_artifacts" SET "payload" = jsonb_set("payload", '{consumed}', to_jsonb(floor(extract(epoch from now()))::bigint))
 				 WHERE "kind" = $1 AND "id" = $2 AND NOT ("payload" ? 'consumed') AND ("expires_at" IS NULL OR "expires_at" > now()) RETURNING "id"`,
@@ -76,11 +68,10 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 			if (!rows.length) throw new Error("The OAuth artifact was already consumed or expired.");
 		},
 		async destroy(id) {
-			// RAW SQL: no entity for oidc_artifacts
-			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "kind" = $1 AND "id" = $2`, [kind, id]);
+			await dataSource.getRepository(OidcArtifact).delete({ kind, id });
 		},
 		async revokeByGrantId(grantId) {
-			// RAW SQL: no entity for oidc_artifacts; jsonb payload operator
+			// RAW SQL: delete by jsonb ->> payload predicate
 			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'grantId' = $1`, [grantId]);
 		},
 	};

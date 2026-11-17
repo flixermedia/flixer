@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { OidcClient } from "../../entities/oidc.entity.js";
 import type { CreateOidcClientRequest } from "./oidcClientRequests.js";
 import { encryptOidcSecret } from "./oidcSecrets.js";
 import { isOidcResourceScope } from "./oidcResourceScopes.js";
@@ -10,14 +11,14 @@ import { isOidcResourceScope } from "./oidcResourceScopes.js";
 interface ClientRow {
 	id: string;
 	name: string;
-	redirect_uris: string[];
+	redirectUris: string[];
 	confidential: boolean;
-	resource_scopes: string[];
-	created_at: Date;
+	resourceScopes: string[];
+	createdAt: Date;
 }
 
 function publicClient(row: ClientRow) {
-	return { id: row.id, name: row.name, redirectUris: row.redirect_uris, type: row.confidential ? "confidential" : "public", resourceScopes: row.resource_scopes, createdAt: row.created_at };
+	return { id: row.id, name: row.name, redirectUris: row.redirectUris, type: row.confidential ? "confidential" : "public", resourceScopes: row.resourceScopes, createdAt: row.createdAt };
 }
 
 /** Exact redirect URI matching is required by the provider; never normalize registered values. */
@@ -48,9 +49,11 @@ export class OidcClientService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list() {
-		// RAW SQL: no entity for oidc_clients
-		const rows: ClientRow[] = await this.dataSource.query(`SELECT "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "resource_scopes", "created_at" FROM "oidc_clients" ORDER BY "created_at" DESC`);
-		return rows.map(publicClient);
+		const rows = await this.dataSource.getRepository(OidcClient).find({
+			select: { id: true, name: true, redirectUris: true, secretEncrypted: true, resourceScopes: true, createdAt: true },
+			order: { createdAt: "DESC" },
+		});
+		return rows.map((row) => publicClient({ ...row, confidential: row.secretEncrypted !== null }));
 	}
 
 	async create(request: CreateOidcClientRequest) {
@@ -60,29 +63,24 @@ export class OidcClientService {
 		validateOidcRedirectUris(request.redirectUris);
 		const id = randomBytes(24).toString("base64url");
 		const secret = request.type === "confidential" ? randomBytes(48).toString("base64url") : undefined;
-		// RAW SQL: no entity for oidc_clients
-		const rows: ClientRow[] = await this.dataSource.query(
-			`INSERT INTO "oidc_clients" ("id", "name", "redirect_uris", "secret_encrypted")
-			 VALUES ($1, $2, $3::jsonb, $4)
-			 RETURNING "id", "name", "redirect_uris", "secret_encrypted" IS NOT NULL AS "confidential", "resource_scopes", "created_at"`,
-			[id, name, JSON.stringify(request.redirectUris), secret ? encryptOidcSecret(secret) : null],
-		);
-		return { ...publicClient(rows[0]), ...(secret ? { secret } : {}) };
+		// Database defaults (created_at, resource_scopes) come back through the insert's RETURNING.
+		const { generatedMaps } = await this.dataSource.getRepository(OidcClient).insert({ id, name, redirectUris: request.redirectUris, secretEncrypted: secret ? encryptOidcSecret(secret) : null });
+		const { createdAt, resourceScopes } = generatedMaps[0] as Pick<OidcClient, "createdAt" | "resourceScopes">;
+		return { ...publicClient({ id, name, redirectUris: request.redirectUris, confidential: !!secret, resourceScopes, createdAt }), ...(secret ? { secret } : {}) };
 	}
 
 	async setResourceScopes(id: string, scopes: string[]): Promise<void> {
 		if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== "string" || !isOidcResourceScope(scope)) || new Set(scopes).size !== scopes.length) throw new BadRequest("Invalid resource permissions.");
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for oidc_clients; row lock inside transaction
+			// RAW SQL: SELECT ... FOR UPDATE row lock inside the transaction
 			const rows: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR UPDATE`, [id]);
 			if (!rows.length) throw new NotFound("OAuth client not found.");
 			const removed = rows[0].resource_scopes.filter((scope) => !scopes.includes(scope));
-			// RAW SQL: no entity for oidc_clients; text[] cast
-			await manager.query(`UPDATE "oidc_clients" SET "resource_scopes" = $2::text[] WHERE "id" = $1`, [id, scopes]);
+			await manager.update(OidcClient, { id }, { resourceScopes: scopes });
 			if (removed.length) {
-				// RAW SQL: no entity for oidc_consents; array set operations
+				// RAW SQL: text[] EXCEPT/unnest set difference
 				await manager.query(`UPDATE "oidc_consents" SET "scopes" = ARRAY(SELECT unnest("scopes") EXCEPT SELECT unnest($2::text[])) WHERE "client_id" = $1`, [id, removed]);
-				// RAW SQL: no entity for oidc_artifacts; jsonb payload operators
+				// RAW SQL: delete by jsonb ->> payload predicates with a Grant subselect
 				await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1 OR "payload"->>'grantId' IN (SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant' AND "payload"->>'clientId' = $1)`, [id]);
 			}
 		});
@@ -90,10 +88,9 @@ export class OidcClientService {
 
 	async remove(id: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for oidc_clients; DELETE with RETURNING
-			const rows: Array<{ id: string }> = await manager.query(`DELETE FROM "oidc_clients" WHERE "id" = $1 RETURNING "id"`, [id]);
-			if (!rows.length) throw new NotFound("OAuth client not found.");
-			// RAW SQL: no entity for oidc_artifacts; jsonb payload operator
+			const { affected } = await manager.delete(OidcClient, { id });
+			if (!affected) throw new NotFound("OAuth client not found.");
+			// RAW SQL: delete by jsonb ->> payload predicate
 			await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1`, [id]);
 		});
 	}

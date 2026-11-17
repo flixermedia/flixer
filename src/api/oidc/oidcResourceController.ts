@@ -35,7 +35,7 @@ export class OidcResourceController {
 		if (!token?.isValid || token.aud !== resource || token.isSenderConstrained() || !token.clientId || !token.accountId || !token.grantId) throw new Unauthorized("Invalid OAuth access token.");
 		const grant = await provider.Grant.find(token.grantId);
 		if (!grant?.isValid || grant.clientId !== token.clientId || grant.accountId !== token.accountId) throw new Unauthorized("OAuth authorization has expired or been revoked.");
-		// RAW SQL: no entity for oidc_clients/oidc_consents; correlated EXISTS
+		// RAW SQL: correlated EXISTS subquery over oidc_consents
 		const clients: Array<{ resource_scopes: string[]; approved: boolean }> = await this.dataSource.query(`SELECT c.resource_scopes, EXISTS(SELECT 1 FROM oidc_consents consent WHERE consent.client_id = c.id AND consent.account_id = $2 AND $3 = ANY(consent.scopes)) AS approved FROM oidc_clients c WHERE c.id = $1`, [token.clientId, token.accountId, scope]);
 		if (!clients.length) throw new Unauthorized("OAuth client no longer exists.");
 		if (!token.scopes.has(scope) || !grant.getResourceScope(resource).split(" ").includes(scope) || !clients[0].resource_scopes.includes(scope) || !clients[0].approved) throw new Forbidden("The OAuth token does not have the required permission.");
