@@ -14,7 +14,7 @@ interface PublicMediaLibraryFolder extends MediaLibraryFolder {
 	available: boolean;
 }
 
-interface PublicMediaLibrary {
+export interface PublicMediaLibrary {
 	id: string;
 	name: string;
 	type: MediaLibraryType;
