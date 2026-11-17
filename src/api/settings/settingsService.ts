@@ -20,7 +20,7 @@ import { setTrustedProxyConfig, validateTrustedProxyConfig } from "../../config/
 
 export { SECRET_MASK };
 
-interface PublicSetting {
+export interface PublicSetting {
 	key: string;
 	value: unknown | null;
 	isPublic: boolean;
