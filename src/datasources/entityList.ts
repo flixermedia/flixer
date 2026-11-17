@@ -57,6 +57,8 @@ import { QuickConnectRequest } from "../entities/quickConnectRequest.entity.js";
 import { Theme } from "../entities/theme.entity.js";
 import { ThemeVersion } from "../entities/themeVersion.entity.js";
 import { PlaybackHistory } from "../entities/playbackHistory.entity.js";
+import { IssueReport, IssueReportUpdate } from "../entities/issueReport.entity.js";
+import { ChatConversation } from "../entities/chatConversation.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -121,4 +123,7 @@ export const ENTITIES = [
 	MediaOrganizationSettings,
 	MediaOrganizationPlan,
 	MediaOrganizationPlanAudit,
+	IssueReport,
+	IssueReportUpdate,
+	ChatConversation,
 ];
