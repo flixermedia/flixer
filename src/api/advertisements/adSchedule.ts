@@ -2,7 +2,7 @@ import type { Advertisement } from "../../entities/advertisement.entity.ts";
 import type { AdvertisementSettings } from "../../entities/advertisementSettings.entity.ts";
 import { anyScopeCovers, type ItemContext } from "../payments/paymentTypes.ts";
 
-export interface ScheduledAdvertisement {
+interface ScheduledAdvertisement {
 	atSeconds: number;
 	ad: Advertisement;
 }

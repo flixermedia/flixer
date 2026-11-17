@@ -14,7 +14,7 @@ import { parseScopes } from "../payments/paymentTypes.ts";
 import { ChunkUploadStore } from "../uploads/chunkUploadStore.ts";
 
 export const AD_ROOT_ID = "flixer-advertisements";
-export const AD_MAX_BYTES = 100 * 1024 * 1024;
+const AD_MAX_BYTES = 100 * 1024 * 1024;
 export const AD_CHUNK_BYTES = 5 * 1024 * 1024;
 const execFileAsync = promisify(execFile);
 
