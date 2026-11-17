@@ -6,16 +6,16 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { AuthService, type PublicUser } from "../auth/authService.ts";
 import { ChatService } from "../../chat/chatService.ts";
 
-export const ISSUE_REPORT_SETTINGS = {
+const ISSUE_REPORT_SETTINGS = {
 	enabled: "issue_reports_enabled",
 	categories: "issue_reports_categories",
 	chatEnabled: "issue_reports_chat_enabled",
 } as const;
 
-export const ISSUE_REPORT_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
-export type IssueReportStatus = (typeof ISSUE_REPORT_STATUSES)[number];
+const ISSUE_REPORT_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
+type IssueReportStatus = (typeof ISSUE_REPORT_STATUSES)[number];
 
-export interface IssueReportUpdate {
+interface IssueReportUpdate {
 	id: string;
 	body: string;
 	isInternal: boolean;
@@ -23,7 +23,7 @@ export interface IssueReportUpdate {
 	author: { username: string; displayName: string } | null;
 }
 
-export interface IssueReport {
+interface IssueReport {
 	id: string;
 	title: string;
 	category: string;
