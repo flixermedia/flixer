@@ -26,7 +26,7 @@ interface UserRow {
 	visibility: "public" | "hidden" | "friends";
 }
 
-interface NowPlaying {
+export interface NowPlaying {
 	kind: "watching" | "listening";
 	item: SocialItem;
 	positionSeconds: number;

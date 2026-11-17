@@ -53,7 +53,7 @@ describe("FriendsService", () => {
 
 	it("creates a one-time invite token for the profile owner", async () => {
 		const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-		const query = vi.fn(async (sql: string) => {
+		const query = vi.fn(async (sql: string, _params?: unknown[]) => {
 			if (sql.includes("lower(u.username)")) {
 				return [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
 			}
@@ -71,7 +71,7 @@ describe("FriendsService", () => {
 
 	it("creates an invite that expires after the requested duration", async () => {
 		const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-		const query = vi.fn(async (sql: string) => {
+		const query = vi.fn(async (sql: string, _params?: unknown[]) => {
 			if (sql.includes("lower(u.username)")) {
 				return [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
 			}
@@ -87,7 +87,7 @@ describe("FriendsService", () => {
 
 	it("creates an unlimited invite without an expiration", async () => {
 		const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-		const query = vi.fn(async (sql: string) => {
+		const query = vi.fn(async (sql: string, _params?: unknown[]) => {
 			if (sql.includes("lower(u.username)")) {
 				return [{ id: USER, username: "alex", display_name: "Alex", avatar_file: null }];
 			}
