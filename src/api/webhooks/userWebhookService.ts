@@ -135,7 +135,7 @@ export class UserWebhookService {
 					// RAW SQL: advisory transaction lock; no TypeORM equivalent
 					await manager.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`user-webhooks:${actor.id}`]);
 					// RAW SQL: no entity for user_webhooks; atomic INSERT ... SELECT enforcing the per-user cap
-					return manager.query("INSERT INTO user_webhooks (id, user_id, name, url, enabled) SELECT $1, $2, $3, $4, $5 WHERE (SELECT count(*) FROM user_webhooks WHERE user_id = $2) < 10 RETURNING id, name, url, enabled", [randomUUID(), actor.id, value.name.trim(), url, value.enabled]) as Promise<Hook[]>;
+					return manager.query("INSERT INTO user_webhooks (id, user_id, name, url, enabled) SELECT $1, $2, $3, $4, $5 WHERE (SELECT count(*) FROM user_webhooks WHERE user_id = $2) < 10 RETURNING id, name, url, enabled", [randomUUID(), actor.id, (value.name as string).trim(), url, value.enabled]) as Promise<Hook[]>;
 				});
 		if (!rows.length) {
 			if (id) throw new NotFound("Webhook not found.");
