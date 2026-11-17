@@ -5,7 +5,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { UserPreference } from "../../entities/userPreference.entity.ts";
 import { AuthService } from "../auth/authService.ts";
 
-export interface DashboardGridItem {
+interface DashboardGridItem {
 	id: string;
 	x: number;
 	y: number;
@@ -13,7 +13,7 @@ export interface DashboardGridItem {
 	h: number;
 }
 
-export interface Preferences {
+interface Preferences {
 	language?: string;
 	audioLanguage?: string;
 	adminDashboardGrid?: DashboardGridItem[];
@@ -57,7 +57,7 @@ export const isBrowseColumns = (value: unknown): value is number => isIntIn(valu
 
 export const isAutoSkipIntroCredits = (value: unknown): value is boolean => typeof value === "boolean";
 
-export const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
+const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
 
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
