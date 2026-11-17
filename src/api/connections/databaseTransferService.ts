@@ -8,7 +8,8 @@ import { pipeline } from "node:stream/promises";
 import { Injectable, logger } from "@tsed/di";
 import { Conflict, BadRequest } from "@tsed/exceptions";
 import pg from "pg";
-import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import type { ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
 import { appConfig } from "../../config/store/appConfig.js";
 import type { DatabaseTransferJournal } from "../../config/store/configStore.js";
 import { validatePostgresUrl } from "../../config/store/configSchema.js";
@@ -63,7 +64,7 @@ export function excludedSchemaArguments(schemas: string[]): string[] {
 
 export function transferSchemaArguments(sourceSchemas: string[], excludedSchemas: string[] = []): string[] {
 
-	const selectedSchemas = sourceSchemas.filter((schema) => schema === "public" || schema === "pgboss");
+	const selectedSchemas: string[] = sourceSchemas.filter((schema) => schema === "public" || schema === "pgboss");
 	if (!selectedSchemas.includes("public")) {
 		throw new Error('The source database does not contain Flixer’s "public" schema.');
 	}
@@ -228,7 +229,7 @@ function redact(message: string, connectionUrls: string[]): string {
 
 }
 
-function childExit(child: ChildProcessWithoutNullStreams, name: string, urls: string[]): Promise<void> {
+function childExit(child: ChildProcessByStdio<null, Readable | null, Readable>, name: string, urls: string[]): Promise<void> {
 
 	let stderr = "";
 	child.stderr.on("data", (chunk: Buffer) => {
@@ -250,7 +251,7 @@ function childExit(child: ChildProcessWithoutNullStreams, name: string, urls: st
 
 }
 
-function childOutput(child: ChildProcessWithoutNullStreams, name: string, urls: string[]): Promise<string> {
+function childOutput(child: ChildProcessByStdio<null, Readable, Readable>, name: string, urls: string[]): Promise<string> {
 
 	let stderr = "";
 	const output: Buffer[] = [];
