@@ -12,6 +12,7 @@ export class AnalyticsService {
 	async snapshot(adDays?: number) {
 		if (adDays !== undefined && ![7, 30, 90].includes(adDays)) throw new BadRequest("Invalid advertising analytics range.");
 		const [video, music, orders, subscriptions, ads, adViews, adTrend] = await Promise.all([
+			// RAW SQL: FILTER aggregate, GROUP BY reporting over watch_progress
 			this.dataSource.query(`
 				SELECT m.id, m.title, m.type, count(*)::int AS viewers,
 					count(*) FILTER (WHERE w.completed)::int AS completed,
@@ -21,6 +22,7 @@ export class AnalyticsService {
 				GROUP BY m.id, m.title, m.type
 				ORDER BY viewers DESC, m.title ASC LIMIT 50
 			`) as Promise<Array<{ id: string; title: string; type: string; viewers: number; completed: number; last_updated: Date }>>,
+			// RAW SQL: reporting aggregate with sum::bigint over listening_history
 			this.dataSource.query(`
 				SELECT m.id, m.title, sum(h.play_count)::bigint AS plays,
 					count(*)::int AS listeners, max(h.played_at) AS last_played
@@ -28,20 +30,24 @@ export class AnalyticsService {
 				WHERE m.type = 'track'
 				GROUP BY m.id, m.title ORDER BY plays DESC, m.title ASC LIMIT 50
 			`) as Promise<Array<{ id: string; title: string; plays: string; listeners: number; last_played: Date }>>,
+			// RAW SQL: reporting aggregate over payment_orders
 			this.dataSource.query(`
 				SELECT currency, status, count(*)::int AS orders,
 					coalesce(sum(total_minor), 0)::bigint AS total_minor,
 					coalesce(sum(refunded_minor), 0)::bigint AS refunded_minor
 				FROM payment_orders GROUP BY currency, status ORDER BY currency, status
 			`) as Promise<Array<{ currency: string; status: string; orders: number; total_minor: string; refunded_minor: string }>>,
+			// RAW SQL: reporting aggregate over payment_subscriptions
 			this.dataSource.query(`
 				SELECT status, count(*)::int AS count FROM payment_subscriptions
 				GROUP BY status ORDER BY status
 			`) as Promise<Array<{ status: string; count: number }>>,
+			// RAW SQL: FILTER aggregate over advertisements
 			this.dataSource.query(`
 				SELECT count(*)::int AS total, count(*) FILTER (WHERE enabled)::int AS enabled
 				FROM advertisements
 			`) as Promise<Array<{ total: number; enabled: number }>>,
+			// RAW SQL: FILTER aggregates with parameterised UTC date window
 			this.dataSource.query(
 				`
 				SELECT a.id, a.name, count(v.id)::int AS views,
@@ -56,6 +62,7 @@ export class AnalyticsService {
 			`,
 				[adDays ?? null],
 			) as Promise<Array<{ id: string; name: string; views: number; completed: number; skipped: number; clicked: number; watched_seconds: number }>>,
+			// RAW SQL: CTE with generate_series for the daily ad trend
 			adDays === undefined
 				? Promise.resolve([])
 				: (this.dataSource.query(
@@ -90,6 +97,7 @@ export class AnalyticsService {
 		if (typeof report.id !== "string" || !AuthService.isUuid(report.id) || typeof report.advertisementId !== "string" || !AuthService.isUuid(report.advertisementId) || typeof report.watchedSeconds !== "number" || !Number.isFinite(report.watchedSeconds) || report.watchedSeconds < 0 || typeof report.completed !== "boolean" || typeof report.skipped !== "boolean" || typeof report.clicked !== "boolean") {
 			throw new BadRequest("Invalid advertisement report.");
 		}
+		// RAW SQL: INSERT ... SELECT with ON CONFLICT ... WHERE and RETURNING (atomic upsert-if-owned)
 		const result = (await this.dataSource.query(
 			`
 			INSERT INTO advertisement_views (id, user_id, advertisement_id, watched_seconds, completed, skipped, clicked)
@@ -118,6 +126,7 @@ export class AnalyticsService {
 		if (video ? typeof report.itemId !== "string" || !AuthService.isUuid(report.itemId) : typeof report.channelId !== "string" || report.channelId.length < 1 || report.channelId.length > 256 || typeof report.channelName !== "string" || !report.channelName.trim() || report.channelName.length > 256) {
 			throw new BadRequest("Invalid viewing target.");
 		}
+		// RAW SQL: data-modifying CTEs with UNION ALL and ON CONFLICT ... WHERE
 		const result = (await this.dataSource.query(
 			`
 			WITH recorded AS (
@@ -160,6 +169,7 @@ export class AnalyticsService {
 		if (![7, 30, 90].includes(days)) throw new BadRequest("Invalid viewing analytics range.");
 		const where = `s.created_at >= (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - ($1::integer - 1) * interval '1 day'`;
 		const [video, live, recent, totals, daily] = await Promise.all([
+			// RAW SQL: reporting aggregate with DISTINCT count over viewing_sessions
 			this.dataSource.query(
 				`
 				SELECT m.id, m.title, m.type, count(*)::int AS sessions,
@@ -169,6 +179,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
+			// RAW SQL: reporting aggregate over viewing_sessions
 			this.dataSource.query(
 				`
 				SELECT s.channel_id AS id, max(s.channel_name) AS name, count(*)::int AS sessions,
@@ -178,6 +189,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
+			// RAW SQL: join reporting query over viewing_sessions
 			this.dataSource.query(
 				`
 				SELECT s.id, COALESCE(u.display_name, u.username) AS viewer,
@@ -189,6 +201,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
+			// RAW SQL: FILTER aggregates over viewing_sessions
 			this.dataSource.query(
 				`
 				SELECT count(*) FILTER (WHERE item_id IS NOT NULL)::int AS video_sessions,
@@ -198,6 +211,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
+			// RAW SQL: CTE with generate_series and FILTER aggregates
 			this.dataSource.query(
 				`
 				WITH days AS (
@@ -229,6 +243,7 @@ export class AnalyticsService {
 	async music(days: number) {
 		if (![7, 30, 90].includes(days)) throw new BadRequest("Invalid music analytics range.");
 		const [tracks, daily] = await Promise.all([
+			// RAW SQL: reporting aggregate over listening_events (no entity)
 			this.dataSource.query(
 				`
 				SELECT m.id, m.title, count(*)::int AS plays, count(DISTINCT e.user_id)::int AS listeners
@@ -238,6 +253,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
+			// RAW SQL: reporting aggregate with to_char over listening_events (no entity)
 			this.dataSource.query(
 				`
 				SELECT to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, count(*)::int AS plays
@@ -253,6 +269,7 @@ export class AnalyticsService {
 
 	async orders(days: number) {
 		if (![7, 30, 90].includes(days)) throw new BadRequest("Invalid order analytics range.");
+		// RAW SQL: reporting aggregate with to_char over payment_orders
 		const rows = await this.dataSource.query(
 			`
 			SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, kind, currency, status,
