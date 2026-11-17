@@ -462,6 +462,7 @@ export class MediaAccessService {
 
 	/** A user's tags and genres, to suggest in the admin editor. */
 	async knownTags(): Promise<string[]> {
+		// RAW SQL: jsonb_array_elements_text and CASE over jsonb metadata
 		const rows: Array<{ tag: string }> = await this.dataSource.query(`SELECT DISTINCT lower(btrim(v)) AS tag FROM media_items, jsonb_array_elements_text((CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) || (CASE WHEN jsonb_typeof(metadata -> 'tags') = 'array' THEN metadata -> 'tags' ELSE '[]'::jsonb END)) v WHERE is_placeholder = false AND btrim(v) <> '' ORDER BY 1 LIMIT 500`);
 		return rows.map((row) => row.tag);
 	}
