@@ -40,7 +40,7 @@ export interface ChatMessage {
 	createdAt: string;
 }
 
-interface ChatMlsDeviceSummary {
+export interface ChatMlsDeviceSummary {
 	deviceId: string;
 	name: string;
 	status: "active" | "pending" | "revoked";

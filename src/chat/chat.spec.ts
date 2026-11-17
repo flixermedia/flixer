@@ -457,7 +457,7 @@ describe("ChatService", () => {
 		});
 		const dataSource = {
 			query,
-			transaction: vi.fn(async (work: (manager: typeof manager) => Promise<unknown>) => work(manager)),
+			transaction: vi.fn(async (work: (transactionManager: typeof manager) => Promise<unknown>) => work(manager)),
 		} as unknown as DataSource;
 		const chat = new ChatService(dataSource, {} as NotificationService);
 
