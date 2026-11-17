@@ -1,8 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource, In } from "typeorm";
+import { DataSource, In, IsNull } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { IssueReport as IssueReportEntity, IssueReportUpdate as IssueReportUpdateEntity } from "../../entities/issueReport.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Notification } from "../../entities/notification.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
@@ -69,7 +70,7 @@ interface UpdateRow {
 	display_name: string | null;
 }
 
-// RAW SQL: no entity for issue_reports; join with users and media_items
+// RAW SQL: join with users and media_items; COALESCE of media title
 const REPORT_SELECT = `SELECT r.id, r.title, r.category, r.description, r.status, r.media_item_id, COALESCE(r.media_title, mi.title) AS media_title,
 	r.chat_open, r.conversation_id, r.created_at, r.updated_at, r.resolved_at,
 	u.username, u.display_name
@@ -150,7 +151,7 @@ export class IssueReportsService {
 			mediaTitle = media.title;
 		}
 
-		// RAW SQL: no entity for issue_reports; count with DB-side now() and interval
+		// RAW SQL: count with DB-side now() and interval
 		const recent = (await this.dataSource.query(`SELECT count(*)::int AS count FROM issue_reports WHERE user_id = $1 AND created_at > now() - interval '24 hours'`, [user.id])) as Array<{ count: number }>;
 		if ((recent[0]?.count ?? 0) >= 5) {
 			throw new TooManyRequests("You can submit up to five issue reports per day.");
@@ -158,21 +159,15 @@ export class IssueReportsService {
 
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for issue_reports
-			await manager.query(
-				`INSERT INTO issue_reports (id, user_id, media_item_id, media_title, title, category, description)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-				[id, user.id, mediaItemId, mediaTitle, title, category, description],
-			);
-			// RAW SQL: no entity for issue_report_updates
-			await manager.query(`INSERT INTO issue_report_updates (id, report_id, body) VALUES ($1, $2, 'Issue report submitted.')`, [randomUUID(), id]);
+			await manager.getRepository(IssueReportEntity).insert({ id, userId: user.id, mediaItemId, mediaTitle, title, category, description });
+			await manager.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, body: "Issue report submitted." });
 		});
 		return this.userDetail(id, user);
 	}
 
 	async mine(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
+		// RAW SQL: shared REPORT_SELECT join with users and media_items
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.user_id = $1 ORDER BY r.updated_at DESC`, [user.id])) as IssueReportRow[];
 		return { reports: rows.map(reportOf) };
 	}
@@ -182,7 +177,7 @@ export class IssueReportsService {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
-		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
+		// RAW SQL: shared REPORT_SELECT join with users and media_items
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1 AND r.user_id = $2`, [id, actor.id])) as IssueReportRow[];
 		if (!rows[0]) {
 			throw new NotFound("Issue report not found.");
@@ -197,7 +192,7 @@ export class IssueReportsService {
 
 	async adminList(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		await this.authService.requireAdmin(authorization);
-		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
+		// RAW SQL: shared REPORT_SELECT join with users and media_items
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} ORDER BY r.updated_at DESC`)) as IssueReportRow[];
 		return { reports: rows.map(reportOf) };
 	}
@@ -215,7 +210,7 @@ export class IssueReportsService {
 			throw new NotFound("Issue report not found.");
 		}
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for issue_reports; row lock (FOR UPDATE)
+			// RAW SQL: row lock (FOR UPDATE)
 			const rows = (await manager.query(`SELECT status, conversation_id FROM issue_reports WHERE id = $1 FOR UPDATE`, [id])) as Array<{ status: IssueReportStatus; conversation_id: string | null }>;
 			const report = rows[0];
 			if (!report) {
@@ -224,10 +219,9 @@ export class IssueReportsService {
 			if (report.status !== "closed") {
 				throw new BadRequest("Only closed issue reports can be deleted.");
 			}
-			// RAW SQL: no entity for issue_reports
-			await manager.query(`DELETE FROM issue_reports WHERE id = $1`, [id]);
+			await manager.getRepository(IssueReportEntity).delete({ id });
 			if (report.conversation_id) {
-				// RAW SQL: no entity for chat_conversations; DELETE ... NOT EXISTS with RETURNING
+				// RAW SQL: DELETE ... NOT EXISTS with RETURNING
 				const deletedConversations = (await manager.query(
 					`DELETE FROM chat_conversations WHERE id = $1 AND NOT EXISTS (
 						SELECT 1 FROM issue_reports WHERE conversation_id = $1
@@ -249,10 +243,9 @@ export class IssueReportsService {
 		const report = await this.find(id);
 		if (report.status !== status) {
 			await this.dataSource.transaction(async (manager) => {
-				// RAW SQL: no entity for issue_reports; CASE and DB-side now()
+				// RAW SQL: CASE and DB-side now()
 				await manager.query(`UPDATE issue_reports SET status = $2, resolved_at = CASE WHEN $3 THEN now() ELSE NULL END, updated_at = now() WHERE id = $1`, [id, status, status === "resolved" || status === "closed"]);
-				// RAW SQL: no entity for issue_report_updates
-				await manager.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body) VALUES ($1, $2, $3, $4)`, [randomUUID(), id, user.id, `Status changed to ${status.replace("_", " ")}.`]);
+				await manager.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: `Status changed to ${status.replace("_", " ")}.` });
 			});
 		}
 		return this.adminDetail(id, authorization);
@@ -263,9 +256,8 @@ export class IssueReportsService {
 		const text = this.cleanText(body, 2000, "Write an update first.");
 		const isInternal = internal === true;
 		await this.find(id);
-		// RAW SQL: no entity for issue_report_updates
-		await this.dataSource.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body, is_internal) VALUES ($1, $2, $3, $4, $5)`, [randomUUID(), id, user.id, text, isInternal]);
-		// RAW SQL: no entity for issue_reports; DB-side now()
+		await this.dataSource.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: text, isInternal });
+		// RAW SQL: DB-side now()
 		await this.dataSource.query(`UPDATE issue_reports SET updated_at = now() WHERE id = $1`, [id]);
 		return this.adminDetail(id, authorization);
 	}
@@ -282,8 +274,7 @@ export class IssueReportsService {
 		let report = await this.find(id);
 		if (open && !report.chatConversationId) {
 			const conversation = await this.chat.createSupportGroup(user.id, await this.requesterId(id), `Issue: ${report.title}`.slice(0, 60));
-			// RAW SQL: no entity for issue_reports; conditional claim (conversation_id IS NULL)
-			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = $2 WHERE id = $1 AND conversation_id IS NULL`, [id, conversation.id]);
+			await this.dataSource.getRepository(IssueReportEntity).update({ id, conversationId: IsNull() }, { conversationId: conversation.id });
 			report = await this.find(id);
 		}
 		if (open && report.chatConversationId) {
@@ -293,10 +284,9 @@ export class IssueReportsService {
 			return this.adminDetail(id, authorization);
 		}
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for issue_reports; DB-side now()
+			// RAW SQL: DB-side now()
 			await manager.query(`UPDATE issue_reports SET chat_open = $2, updated_at = now() WHERE id = $1`, [id, open]);
-			// RAW SQL: no entity for issue_report_updates
-			await manager.query(`INSERT INTO issue_report_updates (id, report_id, actor_id, body) VALUES ($1, $2, $3, $4)`, [randomUUID(), id, user.id, open ? "Live chat is now open for this issue." : "Live chat has been closed for this issue."]);
+			await manager.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: open ? "Live chat is now open for this issue." : "Live chat has been closed for this issue." });
 		});
 		if (report.chatConversationId) {
 			await this.chat.supportChatChanged(report.chatConversationId);
@@ -305,19 +295,18 @@ export class IssueReportsService {
 	}
 
 	private async requesterId(id: string): Promise<string> {
-		// RAW SQL: no entity for issue_reports
-		const rows = (await this.dataSource.query(`SELECT user_id FROM issue_reports WHERE id = $1`, [id])) as Array<{ user_id: string }>;
-		if (!rows[0]) {
+		const report = await this.dataSource.getRepository(IssueReportEntity).findOne({ select: { userId: true }, where: { id } });
+		if (!report) {
 			throw new NotFound("Issue report not found.");
 		}
-		return rows[0].user_id;
+		return report.userId;
 	}
 
 	private async find(id: string): Promise<IssueReport> {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
-		// RAW SQL: no entity for issue_reports; shared REPORT_SELECT join with users
+		// RAW SQL: shared REPORT_SELECT join with users and media_items
 		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1`, [id])) as IssueReportRow[];
 		if (!rows[0]) {
 			throw new NotFound("Issue report not found.");
@@ -326,7 +315,7 @@ export class IssueReportsService {
 	}
 
 	private async updates(id: string, includeInternal: boolean): Promise<IssueReportUpdate[]> {
-		// RAW SQL: no entity for issue_report_updates; join with users
+		// RAW SQL: LEFT JOIN with users
 		const rows = (await this.dataSource.query(
 			`SELECT i.id, i.body, i.is_internal, i.created_at, u.username, u.display_name
 			FROM issue_report_updates i LEFT JOIN users u ON u.id = i.actor_id

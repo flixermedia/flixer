@@ -42,12 +42,18 @@ function createService(
 		if (sql.includes("FROM issue_report_updates")) {
 			return [{ id: "update-id", body: "Issue report submitted.", is_internal: false, created_at: now, username: null, display_name: null }];
 		}
-		if (sql.includes("SELECT user_id FROM issue_reports")) return [{ user_id: USER_ID }];
 		return [];
 	});
 	const notificationDelete = vi.fn(async () => ({ affected: 1 }));
+	const reportDelete = vi.fn(async () => ({ affected: 1 }));
+	const reportInsert = vi.fn(async () => ({}));
+	const updateInsert = vi.fn(async () => ({}));
 	const manager = {
-		getRepository: vi.fn(() => ({ delete: notificationDelete })),
+		getRepository: vi.fn((entity: { name: string }) => {
+			if (entity.name === "IssueReport") return { insert: reportInsert, delete: reportDelete };
+			if (entity.name === "IssueReportUpdate") return { insert: updateInsert };
+			return { delete: notificationDelete };
+		}),
 		query: vi.fn(async (sql: string, params: unknown[] = []) => {
 			if (sql.includes("SELECT status, conversation_id FROM issue_reports")) {
 				return [{ status: reportStatus, conversation_id: "33333333-3333-4333-8333-333333333333" }];
@@ -62,7 +68,12 @@ function createService(
 		{ key: "issue_reports_categories", value: config.categories },
 		{ key: "issue_reports_chat_enabled", value: config.chatEnabled },
 	];
-	const getRepository = vi.fn((entity: { name: string }) => (entity.name === "Setting" ? { find: vi.fn(async () => settings) } : { findOne: vi.fn(async () => null) }));
+	const getRepository = vi.fn((entity: { name: string }) => {
+		if (entity.name === "Setting") return { find: vi.fn(async () => settings) };
+		if (entity.name === "IssueReport") return { findOne: vi.fn(async () => ({ userId: USER_ID })), update: vi.fn(async () => ({ affected: 1 })) };
+		if (entity.name === "IssueReportUpdate") return { insert: updateInsert };
+		return { findOne: vi.fn(async () => null) };
+	});
 	const dataSource = { query, transaction, getRepository } as unknown as DataSource;
 	const auth = {
 		getAuthenticatedUser: vi.fn(async () => user),
@@ -74,13 +85,13 @@ function createService(
 		supportChatChanged: vi.fn(),
 		ensureSupportRequester: vi.fn(),
 	} as unknown as ChatService;
-	return { service: new IssueReportsService(dataSource, auth, chat), query, transaction, manager, notificationDelete, auth, chat };
+	return { service: new IssueReportsService(dataSource, auth, chat), query, transaction, manager, notificationDelete, reportDelete, reportInsert, updateInsert, auth, chat };
 
 }
 
 describe("IssueReportsService", () => {
 	it("creates a user-owned report and exposes its public updates", async () => {
-		const { service, transaction } = createService();
+		const { service, transaction, reportInsert, updateInsert } = createService();
 		const report = await service.create("Bearer token", {
 			title: "  Playback issue ",
 			category: "Playback",
@@ -95,6 +106,8 @@ describe("IssueReportsService", () => {
 			updates: [{ body: "Issue report submitted.", isInternal: false }],
 		});
 		expect(transaction).toHaveBeenCalledOnce();
+		expect(reportInsert).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID, title: "Playback issue", category: "Playback", description: "The video stops." }));
+		expect(updateInsert).toHaveBeenCalledWith(expect.objectContaining({ body: "Issue report submitted." }));
 	});
 
 	it("rejects report creation when reporting is disabled", async () => {
@@ -144,11 +157,12 @@ describe("IssueReportsService", () => {
 	});
 
 	it("allows admins to delete closed reports and their unshared support chats", async () => {
-		const { service, manager, transaction, notificationDelete } = createService(undefined, "closed");
+		const { service, manager, transaction, notificationDelete, reportDelete } = createService(undefined, "closed");
 		await service.deleteClosed(REPORT_ID, "Bearer admin");
 
 		expect(transaction).toHaveBeenCalledOnce();
-		expect(manager.query.mock.calls.map(([sql]) => sql)).toEqual([expect.stringContaining("FOR UPDATE"), expect.stringContaining("DELETE FROM issue_reports"), expect.stringContaining("DELETE FROM chat_conversations")]);
+		expect(manager.query.mock.calls.map(([sql]) => sql)).toEqual([expect.stringContaining("FOR UPDATE"), expect.stringContaining("DELETE FROM chat_conversations")]);
+		expect(reportDelete).toHaveBeenCalledWith({ id: REPORT_ID });
 		expect(notificationDelete).toHaveBeenCalledWith({ kind: "message", url: "/chat/33333333-3333-4333-8333-333333333333" });
 	});
 
