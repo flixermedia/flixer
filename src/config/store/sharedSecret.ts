@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { appConfig, type AppConfig } from "./appConfig.js";
+import { appConfig, type AppConfig } from "./appConfig.ts";
 
 const GENERATED_SECRET_BYTES = 48;
 

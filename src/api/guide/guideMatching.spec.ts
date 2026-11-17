@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { channelNameMatchScore, groupRegionalChannels, stableChannelId } from "./guideMatching.js";
-import type { RegionalGuideChannel } from "./guideMatching.js";
+import { channelNameMatchScore, groupRegionalChannels, stableChannelId } from "./guideMatching.ts";
+import type { RegionalGuideChannel } from "./guideMatching.ts";
 
 const listing = (title: string, start: number, stop: number) => ({
 	channelExternalId: "channel",

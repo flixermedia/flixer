@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { RepairOidcConfiguration1798300000016 } from "./repairOidcConfiguration1798300000016.js";
+import { RepairOidcConfiguration1798300000016 } from "./repairOidcConfiguration1798300000016.ts";
 
 const databaseUrl = process.env.OIDC_TEST_DATABASE_URL;
 

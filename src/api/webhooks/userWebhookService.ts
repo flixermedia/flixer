@@ -3,9 +3,9 @@ import { BadRequest, Forbidden, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { RE2JS } from "re2js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { AuthService } from "../auth/authService.js";
-import { MediaAccessService } from "../access/mediaAccessService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { AuthService } from "../auth/authService.ts";
+import { MediaAccessService } from "../access/mediaAccessService.ts";
 
 type Audience = "admins" | "everyone";
 type Actor = { id: string; role: string };

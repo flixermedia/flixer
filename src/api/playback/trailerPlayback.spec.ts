@@ -1,16 +1,16 @@
 import { createDecipheriv, createHash, createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import type { MediaItem } from "../../entities/mediaItem.entity.js";
-import type { AuthService } from "../auth/authService.js";
-import type { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
-import type { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
-import type { MediaSegmentsService } from "../media/mediaSegmentsService.js";
-import type { GuideService } from "../guide/guideService.js";
-import type { MediaAccessService } from "../access/mediaAccessService.js";
-import type { EntitlementService } from "../payments/entitlementService.js";
-import { PlaybackService } from "./playbackService.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import type { MediaItem } from "../../entities/mediaItem.entity.ts";
+import type { AuthService } from "../auth/authService.ts";
+import type { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.ts";
+import type { MediaRootsService } from "../mediaLibraries/mediaRootsService.ts";
+import type { MediaSegmentsService } from "../media/mediaSegmentsService.ts";
+import type { GuideService } from "../guide/guideService.ts";
+import type { MediaAccessService } from "../access/mediaAccessService.ts";
+import type { EntitlementService } from "../payments/entitlementService.ts";
+import { PlaybackService } from "./playbackService.ts";
 
 describe("cached trailer playback", () => {
 	afterEach(() => {

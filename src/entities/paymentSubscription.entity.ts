@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { SubscriptionStatus } from "../api/payments/paymentTypes.js";
+import type { SubscriptionStatus } from "../api/payments/paymentTypes.ts";
 
 /** Renewals are charged by Flixer against the saved card, so Stripe and Square behave the same way. */
 @Entity("payment_subscriptions")

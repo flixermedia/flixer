@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { HeaderParams, QueryParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { UpdateService } from "./updateService.js";
+import { AuthService } from "../auth/authService.ts";
+import { UpdateService } from "./updateService.ts";
 
 /** Which version of each component is running, whether newer releases exist, and applying them. Administrators only. */
 @Controller("/admin/updates")

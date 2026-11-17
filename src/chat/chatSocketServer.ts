@@ -1,10 +1,10 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
-import type { CallService } from "./callService.js";
-import type { ChatEvent, ChatService } from "./chatService.js";
-import { AuthService } from "../api/auth/authService.js";
+import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.ts";
+import type { CallService } from "./callService.ts";
+import type { ChatEvent, ChatService } from "./chatService.ts";
+import { AuthService } from "../api/auth/authService.ts";
 
 export const CHAT_PATH = "/api/chat/live";
 

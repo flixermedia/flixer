@@ -1,6 +1,6 @@
 import { LogContext, LogEvent, levels } from "@tsed/logger";
 import { describe, expect, it } from "vitest";
-import { toUnifiedRecord } from "./unifiedLog.js";
+import { toUnifiedRecord } from "./unifiedLog.ts";
 
 describe("unified log records", () => {
 	function record(data: unknown[]) {

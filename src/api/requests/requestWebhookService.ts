@@ -3,12 +3,12 @@ import { BadRequest, Unauthorized } from "@tsed/exceptions";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { IndexerClient } from "../indexer/indexerClient.js";
-import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
-import { REQUEST_SERVICE_KINDS, type RequestServiceKind } from "../../entities/requestService.entity.js";
-import { RequestServicesService } from "./requestServicesService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { IndexerClient } from "../indexer/indexerClient.ts";
+import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.ts";
+import { REQUEST_SERVICE_KINDS, type RequestServiceKind } from "../../entities/requestService.entity.ts";
+import { RequestServicesService } from "./requestServicesService.ts";
 
 const TOKEN_SETTING_KEY = "requests_webhook_token";
 export const REQUEST_WEBHOOK_USERNAME = "flixer";

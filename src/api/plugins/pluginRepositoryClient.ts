@@ -2,8 +2,8 @@ import { type LookupAddress } from "node:dns";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import ipaddr from "ipaddr.js";
-import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.js";
-import { parsePluginRepositoryManifest, type PluginRepositoryManifest } from "./repositoryManifest.js";
+import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.ts";
+import { parsePluginRepositoryManifest, type PluginRepositoryManifest } from "./repositoryManifest.ts";
 
 const MAX_MANIFEST_BYTES = 1_048_576;
 const REQUEST_TIMEOUT_MS = 5_000;

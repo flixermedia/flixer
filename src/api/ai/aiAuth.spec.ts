@@ -1,7 +1,7 @@
 import { Unauthorized } from "@tsed/exceptions";
 import { afterEach, describe, expect, it } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { aiSignature, canonicalAiJson, verifyAiRequest } from "./aiAuth.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { aiSignature, canonicalAiJson, verifyAiRequest } from "./aiAuth.ts";
 
 const originalSecret = process.env.APP_SECRET;
 const secret = "test-shared-secret-with-at-least-32-bytes";

@@ -2,10 +2,10 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
-import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.ts";
+import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.ts";
 
 const VIDEO_TYPES = ["movie", "series", "season", "episode", "video"];
 const PLAYABLE_VIDEO_TYPES = ["movie", "episode", "video"];

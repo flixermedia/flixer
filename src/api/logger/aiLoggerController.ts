@@ -1,9 +1,9 @@
 import { Controller } from "@tsed/di";
 import { Context, HeaderParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
-import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, verifyAiRequest } from "../ai/aiAuth.js";
-import { LoggerService } from "./loggerService.js";
-import { requireProtectedProducerTransport, type ProducerRequestContext } from "./secureProducerRequest.js";
+import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, verifyAiRequest } from "../ai/aiAuth.ts";
+import { LoggerService } from "./loggerService.ts";
+import { requireProtectedProducerTransport, type ProducerRequestContext } from "./secureProducerRequest.ts";
 
 const PATH = "/api/internal/ai/logger-configuration";
 

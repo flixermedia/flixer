@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { UserWebhookService } from "./userWebhookService.js";
+import { AuthService } from "../auth/authService.ts";
+import { UserWebhookService } from "./userWebhookService.ts";
 
 /** Server policy for personal outbound webhooks. */
 @Controller("/admin/user-webhooks")

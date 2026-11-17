@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MEDIA_SEARCH_ENABLED_SETTING, MEDIA_SEARCH_URL_SETTING, MediaSearchService } from "./mediaSearchService.js";
+import type { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MEDIA_SEARCH_ENABLED_SETTING, MEDIA_SEARCH_URL_SETTING, MediaSearchService } from "./mediaSearchService.ts";
 
 function response(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

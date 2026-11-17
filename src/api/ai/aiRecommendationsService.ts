@@ -2,9 +2,9 @@ import { BadRequest, ServiceUnavailable, TooManyRequests } from "@tsed/exception
 import { Injectable } from "@tsed/di";
 import { $log } from "@tsed/logger";
 import { randomBytes, randomUUID } from "node:crypto";
-import { appConfig } from "../../config/store/appConfig.js";
-import type { RecommendationRequest } from "./recommendationRequests.js";
-import { AiAdminService } from "./aiAdminService.js";
+import { appConfig } from "../../config/store/appConfig.ts";
+import type { RecommendationRequest } from "./recommendationRequests.ts";
+import { AiAdminService } from "./aiAdminService.ts";
 
 interface ScoredRecommendation {
 	id: string;

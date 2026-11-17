@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ratingAgeSql, ratingToAge } from "./contentRatings.js";
-import { scheduleAllows, scheduleStatus } from "./mediaAccessService.js";
+import { ratingAgeSql, ratingToAge } from "./contentRatings.ts";
+import { scheduleAllows, scheduleStatus } from "./mediaAccessService.ts";
 
 describe("ratingToAge", () => {
 	it.each([

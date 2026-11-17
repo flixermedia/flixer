@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { NormalizeChapterTitles1798300000004 } from "./normalizeChapterTitles1798300000004.js";
+import { NormalizeChapterTitles1798300000004 } from "./normalizeChapterTitles1798300000004.ts";
 
 describe.skipIf(!process.env.CHAPTER_TEST_PG_SOCKET)("chapter title migration (PostgreSQL)", () => {
 	it("updates both chapter lists without altering other data and is idempotent", async () => {

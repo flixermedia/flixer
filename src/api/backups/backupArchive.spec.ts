@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BackupCorruptError, BackupPassphraseError, CHUNK_SIZE, extractArchive, readArchiveHeader, writeArchive } from "./backupArchive.js";
+import { BackupCorruptError, BackupPassphraseError, CHUNK_SIZE, extractArchive, readArchiveHeader, writeArchive } from "./backupArchive.ts";
 
 let root: string;
 let sources: Parameters<typeof writeArchive>[0]["sources"];

@@ -1,9 +1,9 @@
 import { Controller } from "@tsed/di";
 import { HeaderParams, QueryParams } from "@tsed/platform-params";
 import { Get, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { ActivityService } from "./activityService.js";
-import { OverviewService } from "./overviewService.js";
+import { AuthService } from "../auth/authService.ts";
+import { ActivityService } from "./activityService.ts";
+import { OverviewService } from "./overviewService.ts";
 
 /** Library, storage, server and activity summary for the admin dashboard overview. */
 @Controller("/admin/overview")

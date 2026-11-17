@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 
 interface SourceRow {
 	id: string;

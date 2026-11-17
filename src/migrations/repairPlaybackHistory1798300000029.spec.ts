@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryRunner } from "typeorm";
-import { RepairPlaybackHistory1798300000029 } from "./repairPlaybackHistory1798300000029.js";
+import { RepairPlaybackHistory1798300000029 } from "./repairPlaybackHistory1798300000029.ts";
 
 describe("RepairPlaybackHistory1798300000029", () => {
 	it("repairs applied schemas and backfills legacy activity without restoring hidden sessions", async () => {

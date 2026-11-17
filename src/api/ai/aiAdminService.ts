@@ -1,11 +1,11 @@
 import { BadRequest, ServiceUnavailable } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { appConfig } from "../../config/store/appConfig.js";
-import { aiSignature } from "./aiAuth.js";
-import type { UpdateAiConfigurationRequest } from "./aiAdminRequests.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { aiSignature } from "./aiAuth.ts";
+import type { UpdateAiConfigurationRequest } from "./aiAdminRequests.ts";
 
 const AI_SETTING_KEYS = {
 	enabled: "ai_enabled",

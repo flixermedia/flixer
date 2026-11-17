@@ -1,9 +1,9 @@
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setAppConfig } from "../../config/store/appConfig.js";
-import { extractArchive, writeArchive } from "./backupArchive.js";
-import { BackupService, backupFileName, isBackupDue, isBackupName, signDownload, type BackupRun } from "./backupService.js";
+import { setAppConfig } from "../../config/store/appConfig.ts";
+import { extractArchive, writeArchive } from "./backupArchive.ts";
+import { BackupService, backupFileName, isBackupDue, isBackupName, signDownload, type BackupRun } from "./backupService.ts";
 
 describe("isBackupName", () => {
 	it("accepts archive names only", () => {

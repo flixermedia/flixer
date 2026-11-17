@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AuthService } from "../auth/authService.js";
-import type { DuplicateSuggestionsService } from "./duplicateSuggestionsService.js";
-import { AdminDuplicateSuggestionsController } from "./duplicateSuggestionsController.js";
+import type { AuthService } from "../auth/authService.ts";
+import type { DuplicateSuggestionsService } from "./duplicateSuggestionsService.ts";
+import { AdminDuplicateSuggestionsController } from "./duplicateSuggestionsController.ts";
 
 describe("AdminDuplicateSuggestionsController", () => {
 	it("requires admin access and forwards the bounded query", async () => {

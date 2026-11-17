@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { PaymentEntitlement } from "../../entities/paymentEntitlement.entity.js";
-import { PaymentOrder } from "../../entities/paymentOrder.entity.js";
-import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
-import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
-import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
-import { EntitlementService } from "./entitlementService.js";
+import { PaymentEntitlement } from "../../entities/paymentEntitlement.entity.ts";
+import { PaymentOrder } from "../../entities/paymentOrder.entity.ts";
+import { PaymentPlan } from "../../entities/paymentPlan.entity.ts";
+import { PaymentProduct } from "../../entities/paymentProduct.entity.ts";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.ts";
+import { EntitlementService } from "./entitlementService.ts";
 
 const context = { ids: ["movie"], kind: "movies" as const, artists: [] };
 const future = new Date(Date.now() + 60_000);

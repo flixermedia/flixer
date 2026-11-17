@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
+import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.ts";
 
 export const PLAYBACK_REMOTE_PATH = "/api/playback/remote";
 

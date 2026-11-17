@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { ConfigStore } from "../../config/store/configStore.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { ConfigStore } from "../../config/store/configStore.ts";
 import {
 	DatabaseTransferService,
 	excludedSchemaArguments,
@@ -12,7 +12,7 @@ import {
 	restoreListWithoutPublicSchema,
 	replaceableSchemas,
 	transferSchemaArguments,
-} from "./databaseTransferService.js";
+} from "./databaseTransferService.ts";
 
 describe("DatabaseTransferService", () => {
 	let directory: string | undefined;

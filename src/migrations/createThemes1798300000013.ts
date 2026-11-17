@@ -1,5 +1,5 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
-import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from "../api/appearance/builtInThemes.js";
+import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from "../api/appearance/builtInThemes.ts";
 
 /** Creates the themes table, installs the five built-in themes and selects Flixer Default for everyone. */
 export class CreateThemes1798300000013 implements MigrationInterface {

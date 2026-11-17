@@ -1,9 +1,9 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { MediaSearchSettingsRequest } from "./adminMediaSearchRequests.js";
-import { MediaSearchService } from "./mediaSearchService.js";
+import { AuthService } from "../auth/authService.ts";
+import { MediaSearchSettingsRequest } from "./adminMediaSearchRequests.ts";
+import { MediaSearchService } from "./mediaSearchService.ts";
 
 /** Search-index maintenance operations for administrators. */
 @Controller("/admin/search")

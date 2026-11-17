@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseM3u, parseXmltv } from "./guideParsers.js";
+import { parseM3u, parseXmltv } from "./guideParsers.ts";
 
 describe("guide parsers", () => {
 	it("parses XMLTV channels, programme times and escaped text", () => {

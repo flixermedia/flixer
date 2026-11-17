@@ -1,8 +1,8 @@
 import { isDeepStrictEqual } from "node:util";
 import { mkdir, mkdtemp, readFile, rename, rm, stat } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import { parsePluginManifest, type PluginManifest } from "./pluginManifest.js";
-import { extractPluginArchive } from "./safePluginArchive.js";
+import { parsePluginManifest, type PluginManifest } from "./pluginManifest.ts";
+import { extractPluginArchive } from "./safePluginArchive.ts";
 
 const MAX_MANIFEST_BYTES = 1_048_576;
 

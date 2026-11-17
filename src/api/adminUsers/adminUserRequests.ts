@@ -1,5 +1,5 @@
 import { Enum, Format, MaxLength, MinLength, Pattern, Property, Required } from "@tsed/schema";
-import type { OriginalAccess, UserRole } from "../../entities/user.entity.js";
+import type { OriginalAccess, UserRole } from "../../entities/user.entity.ts";
 
 export class CreateAdminUserRequest {
 

@@ -6,12 +6,12 @@ import { chmod, mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { DataSource } from "typeorm";
-import { dataPath } from "../../config/dataPath.js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Advertisement } from "../../entities/advertisement.entity.js";
-import { AdvertisementSettings } from "../../entities/advertisementSettings.entity.js";
-import { parseScopes } from "../payments/paymentTypes.js";
-import { ChunkUploadStore } from "../uploads/chunkUploadStore.js";
+import { dataPath } from "../../config/dataPath.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Advertisement } from "../../entities/advertisement.entity.ts";
+import { AdvertisementSettings } from "../../entities/advertisementSettings.entity.ts";
+import { parseScopes } from "../payments/paymentTypes.ts";
+import { ChunkUploadStore } from "../uploads/chunkUploadStore.ts";
 
 export const AD_ROOT_ID = "flixer-advertisements";
 export const AD_MAX_BYTES = 100 * 1024 * 1024;

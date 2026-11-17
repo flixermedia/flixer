@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { Playlist } from "../../entities/playlist.entity.js";
-import { FavoritesService } from "./favoritesService.js";
-import { FriendsService } from "./friendsService.js";
-import { PlaylistsService } from "./playlistsService.js";
-import { ProfilesService, isFresh, likePattern, PRESENCE_MS } from "./profilesService.js";
-import { UserMediaController } from "./userMediaController.js";
-import { UserMediaService } from "./userMediaService.js";
-import { artistOf, durationOf, imageIndexOf } from "./socialItems.js";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { Playlist } from "../../entities/playlist.entity.ts";
+import { FavoritesService } from "./favoritesService.ts";
+import { FriendsService } from "./friendsService.ts";
+import { PlaylistsService } from "./playlistsService.ts";
+import { ProfilesService, isFresh, likePattern, PRESENCE_MS } from "./profilesService.ts";
+import { UserMediaController } from "./userMediaController.ts";
+import { UserMediaService } from "./userMediaService.ts";
+import { artistOf, durationOf, imageIndexOf } from "./socialItems.ts";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";

@@ -1,12 +1,12 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 import {
 	PluginStorageEntry,
 	type PluginStorageJsonValue,
 	type PluginStorageScope,
-} from "../../entities/pluginStorageEntry.entity.js";
+} from "../../entities/pluginStorageEntry.entity.ts";
 
 const MAX_STORAGE_BYTES = 256 * 1024;
 const MAX_STORAGE_KEYS = 1024;

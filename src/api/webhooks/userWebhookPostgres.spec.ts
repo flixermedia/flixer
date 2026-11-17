@@ -2,9 +2,9 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
-import { CreateUserWebhooks1798300000009 } from "../../migrations/createUserWebhooks1798300000009.js";
-import { DefaultUserWebhookUrlRules1798300000010 } from "../../migrations/defaultUserWebhookUrlRules1798300000010.js";
-import { UserWebhookService } from "./userWebhookService.js";
+import { CreateUserWebhooks1798300000009 } from "../../migrations/createUserWebhooks1798300000009.ts";
+import { DefaultUserWebhookUrlRules1798300000010 } from "../../migrations/defaultUserWebhookUrlRules1798300000010.ts";
+import { UserWebhookService } from "./userWebhookService.ts";
 
 describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated PostgreSQL)", () => {
 	it("migrates, enforces ownership, delivers ordered events and rolls back", async () => {

@@ -2,29 +2,29 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, In, MoreThan, Not } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaRequest, type RequestMediaType, type RequestStatus } from "../../entities/mediaRequest.entity.js";
-import type { RequestServiceKind } from "../../entities/requestService.entity.js";
-import { RequestUserLimit } from "../../entities/requestUserLimit.entity.js";
-import { UserAccessPolicy } from "../../entities/userAccessPolicy.entity.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { User } from "../../entities/user.entity.js";
-import type { PublicUser } from "../auth/authService.js";
-import { NotificationService } from "../notifications/notificationService.js";
-import { ArrError } from "./arrClient.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaRequest, type RequestMediaType, type RequestStatus } from "../../entities/mediaRequest.entity.ts";
+import type { RequestServiceKind } from "../../entities/requestService.entity.ts";
+import { RequestUserLimit } from "../../entities/requestUserLimit.entity.ts";
+import { UserAccessPolicy } from "../../entities/userAccessPolicy.entity.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { User } from "../../entities/user.entity.ts";
+import type { PublicUser } from "../auth/authService.ts";
+import { NotificationService } from "../notifications/notificationService.ts";
+import { ArrError } from "./arrClient.ts";
 import {
 	type DiscoverSection,
 	type ExternalMediaCard,
 	type ExternalMediaDetail,
 	normalizeTitle,
-} from "./externalMetadata.js";
-import { ExternalMetadataService } from "./externalMetadataService.js";
-import { type RequestAccess, remainingSeasons, resolveAccess } from "./requestAccess.js";
-import type { ApproveRequestBody, CreateMediaRequest, RequestUserLimitInput } from "./requestRequests.js";
-import { type RequestSettings, parseRequestSettings, MAX_QUOTA_DAYS, MAX_QUOTA_LIMIT } from "./requestSettings.js";
-import { RequestServicesService, clientFor, targetOf } from "./requestServicesService.js";
-import { cachedImageUrl } from "./tmdbImageCache.js";
+} from "./externalMetadata.ts";
+import { ExternalMetadataService } from "./externalMetadataService.ts";
+import { type RequestAccess, remainingSeasons, resolveAccess } from "./requestAccess.ts";
+import type { ApproveRequestBody, CreateMediaRequest, RequestUserLimitInput } from "./requestRequests.ts";
+import { type RequestSettings, parseRequestSettings, MAX_QUOTA_DAYS, MAX_QUOTA_LIMIT } from "./requestSettings.ts";
+import { RequestServicesService, clientFor, targetOf } from "./requestServicesService.ts";
+import { cachedImageUrl } from "./tmdbImageCache.ts";
 
 const KIND_OF: Record<RequestMediaType, RequestServiceKind> = { movie: "radarr", tv: "sonarr", music: "lidarr" };
 const ALL_STATUSES: RequestStatus[] = ["pending", "approved", "declined", "failed", "available"];

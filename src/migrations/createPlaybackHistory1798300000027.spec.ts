@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryRunner } from "typeorm";
-import { CreatePlaybackHistory1798300000027 } from "./createPlaybackHistory1798300000027.js";
+import { CreatePlaybackHistory1798300000027 } from "./createPlaybackHistory1798300000027.ts";
 
 describe("CreatePlaybackHistory1798300000027", () => {
 	it("creates owner-bound video, music, and live history and can roll it back", async () => {

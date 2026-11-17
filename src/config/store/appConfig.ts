@@ -1,7 +1,7 @@
 import { $log } from "@tsed/logger";
-import { CONFIG_KEYS, type ConfigName } from "./configSchema.js";
-import { ConfigStore, type ConfigSource } from "./configStore.js";
-import { dataPath } from "../dataPath.js";
+import { CONFIG_KEYS, type ConfigName } from "./configSchema.ts";
+import { ConfigStore, type ConfigSource } from "./configStore.ts";
+import { dataPath } from "../dataPath.ts";
 
 /**
  * Reads configuration with a fixed priority: the environment variable for that key, then the saved SQLite value, then the

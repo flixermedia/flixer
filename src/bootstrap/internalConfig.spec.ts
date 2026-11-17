@@ -3,13 +3,13 @@ import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { signIndexerRequest } from "../api/indexer/indexerAuth.js";
-import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
-import { ConfigStore } from "../config/store/configStore.js";
-import { parseRedisUrl } from "../config/store/redisConfig.js";
-import { ensureSecrets, publishAppSecret } from "../config/store/sharedSecret.js";
-import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.js";
-import { internalConfigPath } from "./internalConfig.js";
+import { signIndexerRequest } from "../api/indexer/indexerAuth.ts";
+import { AppConfig, setAppConfig } from "../config/store/appConfig.ts";
+import { ConfigStore } from "../config/store/configStore.ts";
+import { parseRedisUrl } from "../config/store/redisConfig.ts";
+import { ensureSecrets, publishAppSecret } from "../config/store/sharedSecret.ts";
+import { startBootstrapServer, stopBootstrapServer } from "./bootstrapServer.ts";
+import { internalConfigPath } from "./internalConfig.ts";
 
 const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL", "APP_SECRET_FILE"];
 

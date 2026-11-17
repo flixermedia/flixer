@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { UpdateService } from "./updateService.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { UpdateService } from "./updateService.ts";
 
 describe("additional update components", () => {
 	afterEach(() => {

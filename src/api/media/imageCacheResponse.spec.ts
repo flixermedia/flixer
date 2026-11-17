@@ -3,14 +3,14 @@ import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaAccessService } from "../access/mediaAccessService.js";
-import { AuthService } from "../auth/authService.js";
-import { NetworkSharesService } from "../networkShares/networkSharesService.js";
-import { AdminMediaService } from "./adminMediaService.js";
-import { MediaHomeController } from "./mediaHomeController.js";
-import { MediaHomeService } from "./mediaHomeService.js";
-import { MediaTrailerService } from "./mediaTrailerService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaAccessService } from "../access/mediaAccessService.ts";
+import { AuthService } from "../auth/authService.ts";
+import { NetworkSharesService } from "../networkShares/networkSharesService.ts";
+import { AdminMediaService } from "./adminMediaService.ts";
+import { MediaHomeController } from "./mediaHomeController.ts";
+import { MediaHomeService } from "./mediaHomeService.ts";
+import { MediaTrailerService } from "./mediaTrailerService.ts";
 
 @Configuration({})
 class TestServer {}

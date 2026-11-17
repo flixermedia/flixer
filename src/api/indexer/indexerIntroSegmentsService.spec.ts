@@ -1,9 +1,9 @@
 import { BadRequest } from "@tsed/exceptions";
 import { describe, expect, it, vi } from "vitest";
 import { In, type DataSource } from "typeorm";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaSegment } from "../../entities/mediaSegment.entity.js";
-import { IndexerIntroSegmentsService, parseIntroSegmentUpdate } from "./indexerIntroSegmentsService.js";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaSegment } from "../../entities/mediaSegment.entity.ts";
+import { IndexerIntroSegmentsService, parseIntroSegmentUpdate } from "./indexerIntroSegmentsService.ts";
 
 const itemId = "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2";
 

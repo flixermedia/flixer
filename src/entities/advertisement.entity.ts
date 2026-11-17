@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { ContentScope } from "../api/payments/paymentTypes.js";
+import type { ContentScope } from "../api/payments/paymentTypes.ts";
 
 /** An uploaded advertisement and the content and break positions it may serve. */
 @Entity("advertisements")

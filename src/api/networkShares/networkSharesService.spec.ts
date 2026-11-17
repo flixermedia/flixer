@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DataSource } from "typeorm";
-import { normalizeShareInput, shareRootId } from "./networkSharesService.js";
-import { NetworkSharesService } from "./networkSharesService.js";
+import { normalizeShareInput, shareRootId } from "./networkSharesService.ts";
+import { NetworkSharesService } from "./networkSharesService.ts";
 
 describe("network share settings", () => {
 	const base = { name: "Media", host: "nas.local", share: "Media" };

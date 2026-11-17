@@ -2,11 +2,11 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, Like } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { AuthService } from "../auth/authService.js";
-import { LOGIN_LAYOUT_SETTING } from "./appearanceService.js";
-import { sanitizePageContent, sanitizePageDraft, type BuilderPage, type PageBlock, type PublishedPage } from "./pageBuilderSchema.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { AuthService } from "../auth/authService.ts";
+import { LOGIN_LAYOUT_SETTING } from "./appearanceService.ts";
+import { sanitizePageContent, sanitizePageDraft, type BuilderPage, type PageBlock, type PublishedPage } from "./pageBuilderSchema.ts";
 
 const PREFIX = "page-builder:";
 const LOGIN_ID = "login";

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readdir, readFile, rm, rmdir, writeFile } from "node:fs
 import { createCipheriv, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dataPath } from "../../config/dataPath.js";
+import { dataPath } from "../../config/dataPath.ts";
 
 export interface MountTarget {
 	id: string;

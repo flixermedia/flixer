@@ -3,12 +3,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Mailbox } from "../../entities/mailbox.entity.js";
-import { MailMessage, type MailAttachmentInfo } from "../../entities/mailMessage.entity.js";
-import { NotificationService } from "../notifications/notificationService.js";
-import { headerSafe } from "./mailAddress.js";
-import { attachmentDirectory } from "./mailMessageService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Mailbox } from "../../entities/mailbox.entity.ts";
+import { MailMessage, type MailAttachmentInfo } from "../../entities/mailMessage.entity.ts";
+import { NotificationService } from "../notifications/notificationService.ts";
+import { headerSafe } from "./mailAddress.ts";
+import { attachmentDirectory } from "./mailMessageService.ts";
 
 export interface InboundMessage {
 	mailboxId: string;

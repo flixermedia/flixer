@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "@tsed/schema";
-import { isAutoSkipIntroCredits, isBrowseColumns, isDashboardGrid, publicPreferences } from "./preferencesService.js";
-import { UpdatePreferencesRequest } from "./updatePreferencesRequest.js";
+import { isAutoSkipIntroCredits, isBrowseColumns, isDashboardGrid, publicPreferences } from "./preferencesService.ts";
+import { UpdatePreferencesRequest } from "./updatePreferencesRequest.ts";
 
 describe("user preferences", () => {
 	it("accepts placed panels, including none", () => {

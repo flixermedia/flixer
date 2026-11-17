@@ -5,17 +5,17 @@ import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/pla
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Property, Put, Required, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { ExternalOAuthProfilesService } from "../auth/externalOAuthProfilesService.js";
-import { oauthCallbackUrl } from "../auth/externalOAuthProfiles.js";
+import { AuthService } from "../auth/authService.ts";
+import { ExternalOAuthProfilesService } from "../auth/oauth/externalOAuthProfilesService.ts";
+import { oauthCallbackUrl } from "../auth/oauth/externalOAuthProfiles.ts";
 import {
 	type AddPluginRepositoryRequest,
 	type InstallPluginRequest,
 	PluginCatalogFilter,
 	PluginManagerService,
-} from "./pluginManagerService.js";
-import { MAX_LOCAL_PLUGIN_ARCHIVE_BYTES } from "./pluginManagerService.js";
-import { PluginSettingsService, type PluginSettingsUpdate } from "./pluginSettingsService.js";
+} from "./pluginManagerService.ts";
+import { MAX_LOCAL_PLUGIN_ARCHIVE_BYTES } from "./pluginManagerService.ts";
+import { PluginSettingsService, type PluginSettingsUpdate } from "./pluginSettingsService.ts";
 
 class LocalPluginImportRequest {
 	@Property()

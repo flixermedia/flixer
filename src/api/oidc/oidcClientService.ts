@@ -2,10 +2,10 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import type { CreateOidcClientRequest } from "./oidcClientRequests.js";
-import { encryptOidcSecret } from "./oidcSecrets.js";
-import { isOidcResourceScope } from "./oidcResourceScopes.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import type { CreateOidcClientRequest } from "./oidcClientRequests.ts";
+import { encryptOidcSecret } from "./oidcSecrets.ts";
+import { isOidcResourceScope } from "./oidcResourceScopes.ts";
 
 interface ClientRow {
 	id: string;

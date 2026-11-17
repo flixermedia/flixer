@@ -1,8 +1,8 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
-import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
+import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
 
 export const SEARCH_CAPABILITY = "search.results";
 export const SEARCH_PERMISSION = "api.routes.search";

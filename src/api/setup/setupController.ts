@@ -3,12 +3,12 @@ import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-pa
 import type { PlatformContext } from "@tsed/platform-http";
 import { Get, Post, Security } from "@tsed/schema";
 import { DataSource } from "typeorm";
-import { setupStatus } from "../../bootstrap/setupStatus.js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { User } from "../../entities/user.entity.js";
-import { RECOVERY_CODE_HEADER } from "../../setup/recovery.js";
-import { handleSetupRequest } from "../../setup/setupApi.js";
-import { AuthService } from "../auth/authService.js";
+import { setupStatus } from "../../bootstrap/setupStatus.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { User } from "../../entities/user.entity.ts";
+import { RECOVERY_CODE_HEADER } from "../../setup/recovery.ts";
+import { handleSetupRequest } from "../../setup/setupApi.ts";
+import { AuthService } from "../auth/authService.ts";
 
 /** Whether the installation has been set up, and the wizard's own endpoints. */
 @Controller("/setup")

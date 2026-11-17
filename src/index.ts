@@ -2,14 +2,14 @@ import "reflect-metadata";
 import { tryCatch } from "@dschz/try-catch";
 import { $log } from "@tsed/logger";
 import { PlatformFastify } from "@tsed/platform-fastify";
-import { startBootstrapServer, stopBootstrapServer } from "./bootstrap/bootstrapServer.js";
-import { announceRecovery } from "./setup/recovery.js";
-import { updateRuntime } from "./bootstrap/setupStatus.js";
-import { waitForDatabase } from "./bootstrap/waitForDatabase.js";
-import { ensureSecrets } from "./config/store/sharedSecret.js";
-import { appConfig } from "./config/store/appConfig.js";
-import { Server } from "./server.js";
-import { freePortIfBusy } from "./utils/freePort.js";
+import { startBootstrapServer, stopBootstrapServer } from "./bootstrap/bootstrapServer.ts";
+import { announceRecovery } from "./setup/recovery.ts";
+import { updateRuntime } from "./bootstrap/setupStatus.ts";
+import { waitForDatabase } from "./bootstrap/waitForDatabase.ts";
+import { ensureSecrets } from "./config/store/sharedSecret.ts";
+import { appConfig } from "./config/store/appConfig.ts";
+import { Server } from "./server.ts";
+import { freePortIfBusy } from "./utils/freePort.ts";
 
 async function startServer(): Promise<void> {
 	const port = Number(process.env.PORT || 8083);

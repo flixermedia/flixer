@@ -4,10 +4,10 @@ import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { AuthService } from "../auth/authService.js";
-import { AdvertisementController } from "./advertisementController.js";
-import { AD_CHUNK_BYTES, AdvertisementService } from "./advertisementService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { AuthService } from "../auth/authService.ts";
+import { AdvertisementController } from "./advertisementController.ts";
+import { AD_CHUNK_BYTES, AdvertisementService } from "./advertisementService.ts";
 
 @Configuration({})
 class TestServer {}

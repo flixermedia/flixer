@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
-import { PluginDatabaseError, PluginDatabaseService, pluginTableName } from "./pluginDatabaseService.js";
-import { executeHostCalls } from "./pluginHostCalls.js";
+import type { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
+import { PluginDatabaseError, PluginDatabaseService, pluginTableName } from "./pluginDatabaseService.ts";
+import { executeHostCalls } from "./pluginHostCalls.ts";
 
 const installation = {
 	pluginId: "flixer.requests",

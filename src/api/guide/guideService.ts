@@ -7,8 +7,8 @@ import { isIP } from "node:net";
 import { randomUUID } from "node:crypto";
 import ipaddr from "ipaddr.js";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { GuideProgramme } from "../../entities/guideProgramme.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { GuideProgramme } from "../../entities/guideProgramme.entity.ts";
 import {
 	GuideSettings,
 	GuideSource,
@@ -19,15 +19,15 @@ import {
 	type GuideSourceKind,
 	type IptvChannelCache,
 	type IptvSourceCache,
-} from "../../entities/guideSource.entity.js";
+} from "../../entities/guideSource.entity.ts";
 import {
 	channelNameMatchScore,
 	groupRegionalChannels,
 	stableChannelId,
 	type RegionalGuideChannel,
-} from "./guideMatching.js";
-import { parseM3u, parseXmltv } from "./guideParsers.js";
-import type { CreateGuideSourceRequest, GuideChannelChange, UpdateGuideSourceRequest } from "./guideRequests.js";
+} from "./guideMatching.ts";
+import { parseM3u, parseXmltv } from "./guideParsers.ts";
+import type { CreateGuideSourceRequest, GuideChannelChange, UpdateGuideSourceRequest } from "./guideRequests.ts";
 
 const SOURCE_REFRESH_MS: Record<GuideSourceKind, number> = {
 	epg: 24 * 60 * 60 * 1000,

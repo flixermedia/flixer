@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TrailerCacheService } from "./trailerCacheService.js";
+import { TrailerCacheService } from "./trailerCacheService.ts";
 
 const ID = "00000000-0000-4000-8000-000000000001";
 

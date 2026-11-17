@@ -1,10 +1,10 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Favorite } from "../../entities/favorite.entity.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { FAVORITE_TYPES, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Favorite } from "../../entities/favorite.entity.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { FAVORITE_TYPES, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.ts";
 
 const LIST_LIMIT = 500;
 

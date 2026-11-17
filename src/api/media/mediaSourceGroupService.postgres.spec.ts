@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { CreateMediaSourceGroups1798300000011 } from "../../migrations/createMediaSourceGroups1798300000011.js";
-import { MediaSourceGroupService } from "./mediaSourceGroupService.js";
+import { CreateMediaSourceGroups1798300000011 } from "../../migrations/createMediaSourceGroups1798300000011.ts";
+import { MediaSourceGroupService } from "./mediaSourceGroupService.ts";
 
 const databaseUrl = process.env.MEDIA_GROUP_TEST_DATABASE_URL;
 

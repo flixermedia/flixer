@@ -5,9 +5,9 @@ import { rm, stat } from "node:fs/promises";
 import path from "node:path";
 import sanitizeHtml from "sanitize-html";
 import { Brackets, DataSource } from "typeorm";
-import { dataPath } from "../../config/dataPath.js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MailMessage } from "../../entities/mailMessage.entity.js";
+import { dataPath } from "../../config/dataPath.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MailMessage } from "../../entities/mailMessage.entity.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE_MAX = 100;

@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { IndexerClient } from "../indexer/indexerClient.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { IndexerClient } from "../indexer/indexerClient.ts";
 
 const SUBTITLE_TYPES = ["movie", "episode", "video"];
 const SUBTITLE_TIMEOUT_MS = 60_000;

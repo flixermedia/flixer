@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { FriendsController } from "./friendsController.js";
-import { FriendsService } from "./friendsService.js";
+import { FriendsController } from "./friendsController.ts";
+import { FriendsService } from "./friendsService.ts";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";

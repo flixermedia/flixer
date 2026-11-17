@@ -1,9 +1,9 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { AddIssueReportUpdateRequest, CreateIssueReportRequest, SetIssueReportChatRequest, UpdateIssueReportStatusRequest } from "./issueReportRequests.js";
-import { IssueReportsService } from "./issueReportsService.js";
+import { AuthService } from "../auth/authService.ts";
+import { AddIssueReportUpdateRequest, CreateIssueReportRequest, SetIssueReportChatRequest, UpdateIssueReportStatusRequest } from "./issueReportRequests.ts";
+import { IssueReportsService } from "./issueReportsService.ts";
 
 /** Issue reports belonging to the signed-in user. */
 @Controller("/issues")

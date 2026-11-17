@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { validateRegistrationFields } from "./registrationFields.js";
+import { validateRegistrationFields } from "./registrationFields.ts";
 import { deserialize } from "@tsed/json-mapper";
 import { getJsonSchema } from "@tsed/schema";
-import { RegisterRequest } from "./registerRequest.js";
-import { AuthService } from "./authService.js";
-import { User } from "../../entities/user.entity.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { UserPreference } from "../../entities/userPreference.entity.js";
+import { RegisterRequest } from "./registerRequest.ts";
+import { AuthService } from "./authService.ts";
+import { User } from "../../entities/user.entity.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { UserPreference } from "../../entities/userPreference.entity.ts";
 
 const fields = ["username", "password", "email", "submit", "switch"].map((field) => ({ id: field, type: "auth-field" as const, field: field as "username" | "password" | "email" | "submit" | "switch", text: "", image: null }));
 const published = { title: "Login", slug: "login", layout: "free" as const, blocks: [...fields, { id: "custom-id", type: "auth-custom" as const, text: "Favorite genre", image: null }] };

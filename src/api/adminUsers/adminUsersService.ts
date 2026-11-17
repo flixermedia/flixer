@@ -2,14 +2,14 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, MoreThan } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { PasskeyCredential } from "../../entities/passkeyCredential.entity.js";
-import { User, type OriginalAccess, type UserRole } from "../../entities/user.entity.js";
-import { UserSession } from "../../entities/userSession.entity.js";
-import { AuthService } from "../auth/authService.js";
-import { AvatarService } from "../auth/avatarService.js";
-import { deleteAvatarFile } from "../auth/avatarStorage.js";
-import type { CreateAdminUserRequest, UpdateAdminUserRequest } from "./adminUserRequests.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { PasskeyCredential } from "../../entities/passkeyCredential.entity.ts";
+import { User, type OriginalAccess, type UserRole } from "../../entities/user.entity.ts";
+import { UserSession } from "../../entities/userSession.entity.ts";
+import { AuthService } from "../auth/authService.ts";
+import { AvatarService } from "../auth/avatar/avatarService.ts";
+import { deleteAvatarFile } from "../auth/avatar/avatarStorage.ts";
+import type { CreateAdminUserRequest, UpdateAdminUserRequest } from "./adminUserRequests.ts";
 
 export interface AdminUser {
 	id: string;

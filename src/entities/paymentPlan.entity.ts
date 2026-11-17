@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { ContentScope, PlanInterval, Price } from "../api/payments/paymentTypes.js";
+import type { ContentScope, PlanInterval, Price } from "../api/payments/paymentTypes.ts";
 
 /** A recurring subscription tier that unlocks a set of content scopes. */
 @Entity("payment_plans")

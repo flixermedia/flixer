@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MailServerSettings, type UserAddressMode } from "../../entities/mailServerSettings.entity.js";
-import { normalizeDomain, parseAddress } from "./mailAddress.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MailServerSettings, type UserAddressMode } from "../../entities/mailServerSettings.entity.ts";
+import { normalizeDomain, parseAddress } from "./mailAddress.ts";
 
 export interface MailServerSettingsView {
 	inboundEnabled: boolean;

@@ -3,10 +3,10 @@ import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { aiSignature } from "../ai/aiAuth.js";
-import { indexerSignature } from "../indexer/indexerAuth.js";
-import { startLoggerControlSocket } from "./loggerControlSocket.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { aiSignature } from "../ai/aiAuth.ts";
+import { indexerSignature } from "../indexer/indexerAuth.ts";
+import { startLoggerControlSocket } from "./loggerControlSocket.ts";
 
 const originalSecret = process.env.APP_SECRET;
 const secret = "test-shared-secret-with-at-least-32-bytes";

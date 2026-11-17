@@ -2,7 +2,7 @@ import { Controller } from "@tsed/di";
 import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AppearanceService } from "./appearanceService.js";
+import { AppearanceService } from "./appearanceService.ts";
 
 /** The theme every visitor needs before signing in. No authentication: it only holds cosmetic data. */
 @Controller("/appearance")

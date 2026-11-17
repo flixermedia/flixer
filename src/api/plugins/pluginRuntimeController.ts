@@ -1,11 +1,11 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { PluginSearchService } from "./pluginSearchService.js";
-import { PluginPagesService } from "./pluginPagesService.js";
-import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
-import { PluginSlotService } from "./pluginSlotService.js";
+import { AuthService } from "../auth/authService.ts";
+import { PluginSearchService } from "./pluginSearchService.ts";
+import { PluginPagesService } from "./pluginPagesService.ts";
+import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
+import { PluginSlotService } from "./pluginSlotService.ts";
 
 @Controller("/plugins")
 @Security("BearerAuth")

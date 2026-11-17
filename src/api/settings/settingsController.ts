@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Put, Security } from "@tsed/schema";
-import { SettingRequest } from "./settingRequest.js";
-import { SettingsService } from "./settingsService.js";
+import { SettingRequest } from "./settingRequest.ts";
+import { SettingsService } from "./settingsService.ts";
 
 @Controller("/settings")
 export class SettingsController {

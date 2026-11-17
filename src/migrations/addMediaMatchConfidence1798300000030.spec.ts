@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AddMediaMatchConfidence1798300000030 } from "./addMediaMatchConfidence1798300000030.js";
+import { AddMediaMatchConfidence1798300000030 } from "./addMediaMatchConfidence1798300000030.ts";
 
 describe("AddMediaMatchConfidence1798300000030", () => {
 	it("adds an unknown legacy default and indexes reviewable items", async () => {

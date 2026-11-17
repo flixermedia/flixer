@@ -3,12 +3,12 @@ import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
 import dns from "node:dns";
 import { DataSource, Like } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MailDomain, type MailDomainDnsChecks } from "../../entities/mailDomain.entity.js";
-import { Mailbox } from "../../entities/mailbox.entity.js";
-import { domainCovers, normalizeDomain } from "./mailAddress.js";
-import { decryptMailSecret, encryptMailSecret } from "./mailSecrets.js";
-import { MailSettingsService } from "./mailSettingsService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MailDomain, type MailDomainDnsChecks } from "../../entities/mailDomain.entity.ts";
+import { Mailbox } from "../../entities/mailbox.entity.ts";
+import { domainCovers, normalizeDomain } from "./mailAddress.ts";
+import { decryptMailSecret, encryptMailSecret } from "./mailSecrets.ts";
+import { MailSettingsService } from "./mailSettingsService.ts";
 
 const OWNERSHIP_PREFIX = "flixer-verification=";
 

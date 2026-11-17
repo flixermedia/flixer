@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import type { ContentScope, Price, RentalStart } from "../api/payments/paymentTypes.js";
+import type { ContentScope, Price, RentalStart } from "../api/payments/paymentTypes.ts";
 
 /** Something sold once: buying keeps access for good, renting gives access for a window. */
 @Entity("payment_products")

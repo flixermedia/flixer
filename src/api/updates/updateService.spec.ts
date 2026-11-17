@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deriveUpdaterToken, isNewer, parseVersion, UpdateService } from "./updateService.js";
-import { version } from "../../config/config.js";
-import { VersionController } from "./versionController.js";
+import { deriveUpdaterToken, isNewer, parseVersion, UpdateService } from "./updateService.ts";
+import { version } from "../../config/config.ts";
+import { VersionController } from "./versionController.ts";
 
 describe("deriveUpdaterToken", () => {
 	it("matches the updater's HMAC derivation", () => {

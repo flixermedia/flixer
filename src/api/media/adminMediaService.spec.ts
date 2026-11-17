@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import type { DataSource } from "typeorm";
-import type { IndexerClient } from "../indexer/indexerClient.js";
-import type { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
-import { AdminMediaService } from "./adminMediaService.js";
+import type { IndexerClient } from "../indexer/indexerClient.ts";
+import type { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.ts";
+import { AdminMediaService } from "./adminMediaService.ts";
 
 describe("AdminMediaService", () => {
 	it("refreshes resized artwork when the item changes but the image path stays the same", async () => {

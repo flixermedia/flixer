@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { MediaAccessService } from "../access/mediaAccessService.js";
-import type { ExternalMetadataService } from "../requests/externalMetadataService.js";
-import type { TrailerCacheService } from "./trailerCacheService.js";
-import type { PlaybackService } from "../playback/playbackService.js";
-import type { AuthService } from "../auth/authService.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { MediaTrailerService } from "./mediaTrailerService.js";
+import type { MediaAccessService } from "../access/mediaAccessService.ts";
+import type { ExternalMetadataService } from "../requests/externalMetadataService.ts";
+import type { TrailerCacheService } from "./trailerCacheService.ts";
+import type { PlaybackService } from "../playback/playbackService.ts";
+import type { AuthService } from "../auth/authService.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { MediaTrailerService } from "./mediaTrailerService.ts";
 
 describe("MediaTrailerService", () => {
 	function setup(item: unknown, visible = true, enabled = false) {

@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Unauthorized } from "@tsed/exceptions";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { ConfigStore } from "../../config/store/configStore.js";
-import { LoggerQueryProxy } from "./loggerQueryProxy.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { ConfigStore } from "../../config/store/configStore.ts";
+import { LoggerQueryProxy } from "./loggerQueryProxy.ts";
 
 describe("logger query relay", () => {
 	let directory: string;

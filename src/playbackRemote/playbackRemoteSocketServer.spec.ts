@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it } from "vitest";
-import { PlaybackRemoteSocketServer } from "./playbackRemoteSocketServer.js";
+import { PlaybackRemoteSocketServer } from "./playbackRemoteSocketServer.ts";
 
 interface Client {
 	ws: WebSocket;

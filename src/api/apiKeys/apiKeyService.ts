@@ -2,9 +2,9 @@ import { Inject, Injectable } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { ApiKey } from "../../entities/apiKey.entity.js";
-import { User } from "../../entities/user.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { ApiKey } from "../../entities/apiKey.entity.ts";
+import { User } from "../../entities/user.entity.ts";
 
 export const API_KEY_PREFIX = "flx_";
 const DISPLAY_PREFIX_LENGTH = 12;

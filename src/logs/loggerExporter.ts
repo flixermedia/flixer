@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { UnifiedLogRecord } from "./unifiedLog.js";
+import type { UnifiedLogRecord } from "./unifiedLog.ts";
 
 const QUEUE_LIMIT = 1000;
 const BATCH_LIMIT = 100;

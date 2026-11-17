@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Returns, Security } from "@tsed/schema";
-import { StreamsService } from "./streamsService.js";
-import { LiveService } from "../../live/liveService.js";
+import { StreamsService } from "./streamsService.ts";
+import { LiveService } from "../../live/liveService.ts";
 
 /** Admin view of the sessions flixer-streamer is currently remuxing or transcoding. */
 @Controller("/admin/streams")

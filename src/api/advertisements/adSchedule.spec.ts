@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Advertisement } from "../../entities/advertisement.entity.js";
-import type { AdvertisementSettings } from "../../entities/advertisementSettings.entity.js";
-import { scheduleAdvertisements } from "./adSchedule.js";
+import type { Advertisement } from "../../entities/advertisement.entity.ts";
+import type { AdvertisementSettings } from "../../entities/advertisementSettings.entity.ts";
+import { scheduleAdvertisements } from "./adSchedule.ts";
 
 const settings = { enabled: true, minimumIntervalSeconds: 300, maxPerPlayback: 3 } as AdvertisementSettings;
 const context = { ids: ["episode", "series"], kind: "tv" as const, artists: [] };

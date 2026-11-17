@@ -2,7 +2,7 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { PathParams } from "@tsed/platform-params";
 import { Get } from "@tsed/schema";
-import { isSentryApp, SentryService } from "./sentryService.js";
+import { isSentryApp, SentryService } from "./sentryService.ts";
 
 /** Lets Flixer services discover whether Sentry is enabled and which DSN to use. */
 @Controller("/sentry")

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource, EntityManager } from "typeorm";
-import { PluginStorageEntry } from "../../entities/pluginStorageEntry.entity.js";
-import { PluginStorageService } from "./pluginStorageService.js";
+import { PluginStorageEntry } from "../../entities/pluginStorageEntry.entity.ts";
+import { PluginStorageService } from "./pluginStorageService.ts";
 
 describe("PluginStorageService", () => {
 	it("loads only scopes granted to this plugin and authenticated user", async () => {

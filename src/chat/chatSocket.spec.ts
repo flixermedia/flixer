@@ -2,8 +2,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it } from "vitest";
-import { ChatSocketServer } from "./chatSocketServer.js";
-import type { ChatEvent } from "./chatService.js";
+import { ChatSocketServer } from "./chatSocketServer.ts";
+import type { ChatEvent } from "./chatService.ts";
 
 function fakeChat() {
 	const listeners = new Set<(ids: string[], event: ChatEvent) => void>();

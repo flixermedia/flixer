@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { ApiKeyService } from "./apiKeyService.js";
-import { CreateApiKeyRequest } from "./createApiKeyRequest.js";
+import { AuthService } from "../auth/authService.ts";
+import { ApiKeyService } from "./apiKeyService.ts";
+import { CreateApiKeyRequest } from "./createApiKeyRequest.ts";
 
 /** Admin management of API keys. Needs a signed-in administrator; a key can't create or list keys. */
 @Controller("/admin/api-keys")

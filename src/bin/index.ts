@@ -2,7 +2,7 @@
 import { CliCore } from "@tsed/cli-core";
 import { tryCatch } from "@dschz/try-catch";
 // import * as commands from "./bin/commands/index.js";
-import { config } from "../config/config.js";
+import { config } from "../config/config.ts";
 
 const [bootstrapError] = await tryCatch(() =>
 	CliCore.bootstrap({

@@ -4,9 +4,9 @@ import { chmodSync, lstatSync, unlinkSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { connect } from "node:net";
 import { dirname, isAbsolute } from "node:path";
-import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, verifyAiRequest } from "../ai/aiAuth.js";
-import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../indexer/indexerAuth.js";
-import { LoggerService, type LoggerProducer } from "./loggerService.js";
+import { AI_SIGNATURE_HEADER, AI_TIMESTAMP_HEADER, verifyAiRequest } from "../ai/aiAuth.ts";
+import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../indexer/indexerAuth.ts";
+import { LoggerService, type LoggerProducer } from "./loggerService.ts";
 
 const paths: Record<string, { app: LoggerProducer; ai?: true }> = {
 	"/api/internal/logger/indexer": { app: "flixer-indexer" },

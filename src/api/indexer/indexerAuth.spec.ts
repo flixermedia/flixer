@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { indexerSignature, signIndexerRequest, verifyIndexerRequest } from "./indexerAuth.js";
+import { indexerSignature, signIndexerRequest, verifyIndexerRequest } from "./indexerAuth.ts";
 
 const SECRET = "0123456789abcdef0123456789abcdef";
 const BODY = Buffer.from('{"a":1}');

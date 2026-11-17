@@ -2,10 +2,10 @@ import { Controller } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Put, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
-import { AiAdminService } from "./aiAdminService.js";
-import { UpdateAiConfigurationRequest } from "./aiAdminRequests.js";
+import { AuthService } from "../auth/authService.ts";
+import { AiRecommendationCacheService } from "./aiRecommendationCacheService.ts";
+import { AiAdminService } from "./aiAdminService.ts";
+import { UpdateAiConfigurationRequest } from "./aiAdminRequests.ts";
 
 @Controller("/admin/ai")
 @Security("BearerAuth")

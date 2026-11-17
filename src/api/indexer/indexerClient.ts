@@ -1,7 +1,7 @@
 import { Injectable, logger } from "@tsed/di";
 import { Exception } from "@tsed/exceptions";
-import { appConfig } from "../../config/store/appConfig.js";
-import { signIndexerRequest } from "./indexerAuth.js";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { signIndexerRequest } from "./indexerAuth.ts";
 
 const DEFAULT_INDEXER_URL = "http://localhost:8092";
 const REQUEST_TIMEOUT_MS = 15_000;

@@ -3,9 +3,9 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { dataPath } from "../../config/dataPath.js";
-import { appConfig } from "../../config/store/appConfig.js";
-import { headerSafe } from "./mailAddress.js";
+import { dataPath } from "../../config/dataPath.ts";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { headerSafe } from "./mailAddress.ts";
 
 const RESOURCE_DIRECTORY = path.resolve(process.cwd(), "resources", "emails");
 const NAME = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;

@@ -2,13 +2,13 @@ import { Inject, Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { UserPreference } from "../../entities/userPreference.entity.js";
-import { FavoritesService } from "./favoritesService.js";
-import { FriendsService } from "./friendsService.js";
-import { PlaylistsService } from "./playlistsService.js";
-import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { UserPreference } from "../../entities/userPreference.entity.ts";
+import { FavoritesService } from "./favoritesService.ts";
+import { FriendsService } from "./friendsService.ts";
+import { PlaylistsService } from "./playlistsService.ts";
+import { loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.ts";
 
 /** How long after the last report or saved position someone still counts as watching or listening. */
 export const PRESENCE_MS = 3 * 60 * 1000;

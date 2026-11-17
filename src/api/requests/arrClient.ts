@@ -1,5 +1,5 @@
-import type { RequestServiceKind } from "../../entities/requestService.entity.js";
-import { normalizeTitle } from "./externalMetadata.js";
+import type { RequestServiceKind } from "../../entities/requestService.entity.ts";
+import { normalizeTitle } from "./externalMetadata.ts";
 
 const TIMEOUT_MS = 20_000;
 

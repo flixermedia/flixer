@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig, validateTrustedProxyConfig } from "./trustedProxies.js";
+import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig, validateTrustedProxyConfig } from "./trustedProxies.ts";
 
 describe("trusted proxies", () => {
 	afterEach(() => setTrustedProxyConfig(DEFAULT_TRUSTED_PROXIES));

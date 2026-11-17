@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizePageContent, sanitizePageDraft } from "./pageBuilderSchema.js";
+import { sanitizePageContent, sanitizePageDraft } from "./pageBuilderSchema.ts";
 
 const block = (id: string, type: string, text = "") => ({ id, type, text, image: null });
 

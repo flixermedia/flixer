@@ -1,8 +1,8 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../../logs/liveLogSocketServer.js";
-import type { NotificationEvent, NotificationService } from "./notificationService.js";
+import { CLOSE_UNAUTHORIZED } from "../../logs/liveLogSocketServer.ts";
+import type { NotificationEvent, NotificationService } from "./notificationService.ts";
 
 export const NOTIFICATION_PATH = "/api/notifications/live";
 

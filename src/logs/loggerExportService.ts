@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@tsed/di";
-import { LoggerService } from "../api/logger/loggerService.js";
-import { loggerExporter } from "./loggerExporter.js";
+import { LoggerService } from "../api/logger/loggerService.ts";
+import { loggerExporter } from "./loggerExporter.ts";
 
 @Injectable()
 export class LoggerExportService {

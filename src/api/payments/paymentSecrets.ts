@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { appConfig } from "../../config/store/appConfig.js";
-import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "../../utils/aesGcm.js";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "../../utils/aesGcm.ts";
 
 const CONTEXT = "flixer:payments:v1";
 const AAD = Buffer.from(CONTEXT);

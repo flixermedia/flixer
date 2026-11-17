@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePluginManifest, updatePluginTargetHealth } from "./pluginManifest.js";
+import { parsePluginManifest, updatePluginTargetHealth } from "./pluginManifest.ts";
 
 const validManifest = {
 	manifestVersion: 1,

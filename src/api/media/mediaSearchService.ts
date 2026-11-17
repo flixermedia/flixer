@@ -1,10 +1,10 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { appConfig } from "../../config/store/appConfig.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { appConfig } from "../../config/store/appConfig.ts";
 
 const INDEX_UID = "media";
 const SEARCH_DOCUMENT_VERSION = 2;

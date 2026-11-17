@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DiscogsImageCache, TmdbImageCache, cachedImageUrl, discogsImagePath, tmdbImagePath } from "./tmdbImageCache.js";
+import { DiscogsImageCache, TmdbImageCache, cachedImageUrl, discogsImagePath, tmdbImagePath } from "./tmdbImageCache.ts";
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
 

@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../api/auth/authService.js";
-import { CallService } from "./callService.js";
-import { ChatService } from "./chatService.js";
+import { AuthService } from "../api/auth/authService.ts";
+import { CallService } from "./callService.ts";
+import { ChatService } from "./chatService.ts";
 import {
 	AddChatMlsKeyPackageRequest,
 	AcknowledgeChatMlsWelcomeRequest,
@@ -16,7 +16,7 @@ import {
 	SendMessageRequest,
 	StartChatRequest,
 	StoreChatMlsWelcomeRequest,
-} from "./chatRequests.js";
+} from "./chatRequests.ts";
 
 const conversationId = (value: string): string => {
 	if (!AuthService.isUuid(value)) {

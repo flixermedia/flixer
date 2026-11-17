@@ -1,12 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Unauthorized } from "@tsed/exceptions";
-import { version } from "../config/config.js";
-import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../api/indexer/indexerAuth.js";
-import { indexerRuntimeConfig, internalConfigPath } from "./internalConfig.js";
-import { handleSetupRequest } from "../setup/setupApi.js";
-import { RECOVERY_CODE_HEADER } from "../setup/recovery.js";
-import { setupStatus } from "./setupStatus.js";
-import { CORS_METHODS, CORS_ORIGINS } from "../cors.js";
+import { version } from "../config/config.ts";
+import { INDEXER_SIGNATURE_HEADER, INDEXER_TIMESTAMP_HEADER, verifyIndexerRequest } from "../api/indexer/indexerAuth.ts";
+import { indexerRuntimeConfig, internalConfigPath } from "./internalConfig.ts";
+import { handleSetupRequest } from "../setup/setupApi.ts";
+import { RECOVERY_CODE_HEADER } from "../setup/recovery.ts";
+import { setupStatus } from "./setupStatus.ts";
+import { CORS_METHODS, CORS_ORIGINS } from "../cors.ts";
 
 const MAX_BODY_BYTES = 64 * 1024;
 

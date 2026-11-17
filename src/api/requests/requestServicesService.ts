@@ -2,16 +2,16 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, IsNull, Not } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
 import {
 	REQUEST_SERVICE_KINDS,
 	RequestService,
 	type RequestServiceKind,
-} from "../../entities/requestService.entity.js";
-import { SECRET_MASK } from "../settings/secretMask.js";
-import { type ArrTarget, type ArrTestResult, ArrClient, normalizeArrUrl } from "./arrClient.js";
-import type { RequestServiceInput, TestServiceInput } from "./requestRequests.js";
+} from "../../entities/requestService.entity.ts";
+import { SECRET_MASK } from "../settings/secretMask.ts";
+import { type ArrTarget, type ArrTestResult, ArrClient, normalizeArrUrl } from "./arrClient.ts";
+import type { RequestServiceInput, TestServiceInput } from "./requestRequests.ts";
 
 export interface RequestServiceView {
 	id: string;

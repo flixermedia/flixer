@@ -2,9 +2,9 @@ import { BadRequest } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource, In } from "typeorm";
 import { createHash } from "node:crypto";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
 
 interface CachedRecommendationResponse {
 	items: Array<{

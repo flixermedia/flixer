@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../auth/loginSecurity.js";
-import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "../../config/trustedProxies.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { SettingsService } from "./settingsService.js";
+import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../auth/login/loginSecurity.ts";
+import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "../../config/trustedProxies.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { SettingsService } from "./settingsService.ts";
 
 function createService() {
 	const repository = {

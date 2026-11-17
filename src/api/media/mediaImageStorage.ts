@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { detectAvatarType, type AvatarType } from "../auth/avatarStorage.js";
-import { dataPath } from "../../config/dataPath.js";
+import { detectAvatarType, type AvatarType } from "../auth/avatar/avatarStorage.ts";
+import { dataPath } from "../../config/dataPath.ts";
 
 export const MAX_MEDIA_IMAGE_BYTES = 15 * 1024 * 1024;
 export const MANUAL_PROVIDER = "manual";

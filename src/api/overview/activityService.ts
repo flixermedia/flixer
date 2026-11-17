@@ -1,8 +1,8 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { AuthService } from "../auth/authService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { AuthService } from "../auth/authService.ts";
 
 export interface ActivityRow {
 	user_name: string;

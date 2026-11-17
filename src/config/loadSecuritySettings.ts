@@ -1,7 +1,7 @@
 import type { DataSource } from "typeorm";
-import { DEFAULT_LOGIN_SECURITY, setLoginSecurity, validateLoginSecurity } from "../api/auth/loginSecurity.js";
-import { Setting } from "../entities/setting.entity.js";
-import { DEFAULT_TRUSTED_PROXIES, setTrustedProxyConfig, validateTrustedProxyConfig } from "./trustedProxies.js";
+import { DEFAULT_LOGIN_SECURITY, setLoginSecurity, validateLoginSecurity } from "../api/auth/login/loginSecurity.ts";
+import { Setting } from "../entities/setting.entity.ts";
+import { DEFAULT_TRUSTED_PROXIES, setTrustedProxyConfig, validateTrustedProxyConfig } from "./trustedProxies.ts";
 
 export async function loadSecuritySettings(dataSource: DataSource, warn: (message: string) => void): Promise<void> {
 	const repository = dataSource.getRepository(Setting);

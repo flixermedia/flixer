@@ -2,11 +2,11 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { NetworkShare, type NetworkShareProtocol } from "../../entities/networkShare.entity.js";
-import type { MediaRoot } from "../mediaLibraries/mediaRootsService.js";
-import { localPathFor, mountShare, MountError, unmountShare, type MountTarget } from "./shareMounter.js";
-import { decryptSecret, encryptSecret } from "./shareSecrets.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { NetworkShare, type NetworkShareProtocol } from "../../entities/networkShare.entity.ts";
+import type { MediaRoot } from "../mediaLibraries/mediaRootsService.ts";
+import { localPathFor, mountShare, MountError, unmountShare, type MountTarget } from "./shareMounter.ts";
+import { decryptSecret, encryptSecret } from "./shareSecrets.ts";
 
 export type ShareStatus = "connecting" | "connected" | "error";
 

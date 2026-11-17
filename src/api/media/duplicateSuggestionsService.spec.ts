@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { DuplicateSuggestionsService } from "./duplicateSuggestionsService.js";
+import { DuplicateSuggestionsService } from "./duplicateSuggestionsService.ts";
 
 describe("DuplicateSuggestionsService", () => {
 	it("returns paginated exact provider identity groups with bounded item details", async () => {

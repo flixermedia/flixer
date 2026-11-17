@@ -4,10 +4,10 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, resolve, sep } from "node:path";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
-import { SECRET_MASK } from "../settings/secretMask.js";
-import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
+import { SECRET_MASK } from "../settings/secretMask.ts";
+import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.ts";
 
 export interface PluginSettingsUpdate {
 	values: Record<string, unknown>;

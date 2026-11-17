@@ -10,16 +10,16 @@ import { describe, expect, it, vi } from "vitest";
 import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { ConfigStore } from "../../config/store/configStore.js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { loggerExporter } from "../../logs/loggerExporter.js";
-import { AuthService } from "../auth/authService.js";
-import { LoggerController } from "./loggerController.js";
-import { LoggerService } from "./loggerService.js";
-import { LoggerQueryProxy } from "./loggerQueryProxy.js";
-import { startLoggerControlSocket } from "./loggerControlSocket.js";
-import { signIndexerRequest } from "../indexer/indexerAuth.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { ConfigStore } from "../../config/store/configStore.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { loggerExporter } from "../../logs/loggerExporter.ts";
+import { AuthService } from "../auth/authService.ts";
+import { LoggerController } from "./loggerController.ts";
+import { LoggerService } from "./loggerService.ts";
+import { LoggerQueryProxy } from "./loggerQueryProxy.ts";
+import { startLoggerControlSocket } from "./loggerControlSocket.ts";
+import { signIndexerRequest } from "../indexer/indexerAuth.ts";
 
 const binary = process.env.FLIXER_LOGGER_TEST_BINARY;
 

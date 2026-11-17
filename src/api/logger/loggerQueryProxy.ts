@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, Exception } from "@tsed/exceptions";
 import { Readable } from "node:stream";
-import { appConfig } from "../../config/store/appConfig.js";
-import { AuthService } from "../auth/authService.js";
-import { LoggerService } from "./loggerService.js";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { AuthService } from "../auth/authService.ts";
+import { LoggerService } from "./loggerService.ts";
 
 const paths = {
 	recent: "/api/logs",

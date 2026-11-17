@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PluginRuntimeController } from "./pluginRuntimeController.js";
+import { PluginRuntimeController } from "./pluginRuntimeController.ts";
 
 describe("PluginRuntimeController", () => {
 	it("invokes the plugin as the user resolved from an API key or session", async () => {

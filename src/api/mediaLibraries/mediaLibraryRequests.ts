@@ -1,5 +1,5 @@
 import { CollectionOf, Enum, MaxItems, MaxLength, MinItems, MinLength, Property, Required } from "@tsed/schema";
-import { MEDIA_IMAGE_STORAGES, MEDIA_LIBRARY_TYPES, type MediaImageStorage, type MediaLibraryType } from "../../entities/mediaLibrary.entity.js";
+import { MEDIA_IMAGE_STORAGES, MEDIA_LIBRARY_TYPES, type MediaImageStorage, type MediaLibraryType } from "../../entities/mediaLibrary.entity.ts";
 
 export class MediaLibraryFolderRequest {
 

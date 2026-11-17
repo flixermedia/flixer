@@ -1,11 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaSegment, SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.js";
-import { PluginSegmentProvider } from "../plugins/pluginSegmentProvider.js";
-import { type Chapter, type ResolvedSegment, chapterSegments, mergeSegments, parseMediaChapters } from "./segmentLogic.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaSegment, SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.ts";
+import { PluginSegmentProvider } from "../plugins/pluginSegmentProvider.ts";
+import { type Chapter, type ResolvedSegment, chapterSegments, mergeSegments, parseMediaChapters } from "./segmentLogic.ts";
 
 const PLUGIN_TYPES: SegmentType[] = ["intro", "recap", "credits", "preview", "commercial"];
 

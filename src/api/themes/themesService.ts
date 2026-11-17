@@ -1,11 +1,11 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { IndexerClient, type IndexerThemeTask } from "../indexer/indexerClient.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { IndexerClient, type IndexerThemeTask } from "../indexer/indexerClient.ts";
 
 export const THEMES_ENABLED_KEY = "themes_enabled";
 const BATCH_SIZE = 200;

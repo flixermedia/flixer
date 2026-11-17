@@ -2,10 +2,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
-import { ConfigStore } from "../../config/store/configStore.js";
-import { LoggerService } from "./loggerService.js";
-import { loggerExporter } from "../../logs/loggerExporter.js";
+import { AppConfig, setAppConfig } from "../../config/store/appConfig.ts";
+import { ConfigStore } from "../../config/store/configStore.ts";
+import { LoggerService } from "./loggerService.ts";
+import { loggerExporter } from "../../logs/loggerExporter.ts";
 
 const endpoint = process.env.LOGGER_INTEGRATION_URL;
 const manageToken = process.env.LOGGER_INTEGRATION_MANAGE_TOKEN;

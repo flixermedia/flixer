@@ -1,6 +1,6 @@
 import { compile } from "@tsed/schema";
 import { describe, expect, it } from "vitest";
-import { GuideChannelChange } from "./guideRequests.js";
+import { GuideChannelChange } from "./guideRequests.ts";
 
 describe("GuideChannelChange", () => {
 	it("allows an IPTV mapping to be cleared", () => {

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource, EntityManager } from "typeorm";
-import { PaymentEvent } from "../../entities/paymentEvent.entity.js";
-import { PaymentOrder } from "../../entities/paymentOrder.entity.js";
-import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
-import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
-import { PaymentsService } from "./paymentsService.js";
+import { PaymentEvent } from "../../entities/paymentEvent.entity.ts";
+import { PaymentOrder } from "../../entities/paymentOrder.entity.ts";
+import { PaymentPlan } from "../../entities/paymentPlan.entity.ts";
+import { PaymentProduct } from "../../entities/paymentProduct.entity.ts";
+import { PaymentsService } from "./paymentsService.ts";
 
-vi.mock("./webhookSignature.js", () => ({
+vi.mock("./webhookSignature.ts", () => ({
 	verifySquareSignature: vi.fn(() => true),
 	verifyStripeSignature: vi.fn(() => true),
 }));

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { PluginSegmentProvider } from "./pluginSegmentProvider.js";
-import type { PluginWasiRuntime } from "./pluginWasiRuntime.js";
+import { PluginSegmentProvider } from "./pluginSegmentProvider.ts";
+import type { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
 
 const item = { type: "movie" as const, durationMs: 1000, providerIds: { tmdb: "1" } };
 

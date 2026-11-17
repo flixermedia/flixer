@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { domainCovers, headerSafe, normalizeDomain, parseAddress } from "./mailAddress.js";
-import { sanitizeEmailHtml } from "./mailMessageService.js";
-import { fillTemplate, templateVariables } from "./mailTemplateService.js";
-import { usernameLocalPart } from "./mailboxService.js";
+import { domainCovers, headerSafe, normalizeDomain, parseAddress } from "./mailAddress.ts";
+import { sanitizeEmailHtml } from "./mailMessageService.ts";
+import { fillTemplate, templateVariables } from "./mailTemplateService.ts";
+import { usernameLocalPart } from "./mailboxService.ts";
 
 describe("mail addresses", () => {
 	it("normalizes and validates domains and addresses", () => {

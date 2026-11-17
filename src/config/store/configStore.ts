@@ -1,8 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
-import { CONFIG_KEYS, type ConfigKeyDefinition, type ConfigName } from "./configSchema.js";
-import { SecretBox } from "./secretBox.js";
+import { CONFIG_KEYS, type ConfigKeyDefinition, type ConfigName } from "./configSchema.ts";
+import { SecretBox } from "./secretBox.ts";
 
 /** not_started: nothing saved yet. in_progress: the wizard has begun. completed: never reset by an outage. recovery_required: needs an administrator. */
 export const SETUP_STATES = ["not_started", "in_progress", "completed", "recovery_required"] as const;

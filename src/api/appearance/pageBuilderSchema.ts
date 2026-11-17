@@ -1,5 +1,5 @@
 import { BadRequest } from "@tsed/exceptions";
-import { sanitizeImage } from "./themeSchema.js";
+import { sanitizeImage } from "./themeSchema.ts";
 
 export const PAGE_BLOCK_TYPES = ["heading", "text", "image", "auth", "auth-field", "auth-custom", "auth-action", "button", "video", "card", "columns"] as const;
 export type PageBlockType = (typeof PAGE_BLOCK_TYPES)[number];

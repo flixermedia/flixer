@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 
 /** Manages an account's approved third-party applications. */
 @Injectable()

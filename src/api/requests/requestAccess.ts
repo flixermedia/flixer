@@ -1,5 +1,5 @@
-import type { RequestUserLimit } from "../../entities/requestUserLimit.entity.js";
-import type { RequestSettings } from "./requestSettings.js";
+import type { RequestUserLimit } from "../../entities/requestUserLimit.entity.ts";
+import type { RequestSettings } from "./requestSettings.ts";
 
 export interface RequestAccess {
 	canRequest: boolean;

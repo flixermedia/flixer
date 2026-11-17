@@ -1,6 +1,6 @@
 import { CollectionOf, Enum, MaxItems, MaxLength, MinItems, Property, Required } from "@tsed/schema";
-import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.entity.js";
-import { MediaLibraryFolderRequest } from "../mediaLibraries/mediaLibraryRequests.js";
+import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.entity.ts";
+import { MediaLibraryFolderRequest } from "../mediaLibraries/mediaLibraryRequests.ts";
 
 export class ScanLibraryRequest {
 	/** Re-reads every item instead of only what changed on disk. */

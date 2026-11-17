@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { $log } from "@tsed/logger";
-import { PaymentProviderError, type ChargeInput } from "./paymentProvider.js";
-import { SquareProvider } from "./squareProvider.js";
-import { StripeProvider } from "./stripeProvider.js";
+import { PaymentProviderError, type ChargeInput } from "./paymentProvider.ts";
+import { SquareProvider } from "./squareProvider.ts";
+import { StripeProvider } from "./stripeProvider.ts";
 
 const charge: ChargeInput = {
 	customerId: "customer",

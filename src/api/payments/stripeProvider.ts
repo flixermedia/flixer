@@ -1,6 +1,6 @@
-import type { CardSetupInput, ChargeInput, ChargeResult, PaymentProvider, ProviderCard } from "./paymentProvider.js";
-import { PaymentProviderError } from "./paymentProvider.js";
-import { providerErrorMessage } from "./providerErrors.js";
+import type { CardSetupInput, ChargeInput, ChargeResult, PaymentProvider, ProviderCard } from "./paymentProvider.ts";
+import { PaymentProviderError } from "./paymentProvider.ts";
+import { providerErrorMessage } from "./providerErrors.ts";
 
 const API = "https://api.stripe.com/v1";
 const TIMEOUT_MS = 20_000;

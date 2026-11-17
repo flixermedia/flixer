@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ActivityService } from "./activityService.js";
+import { ActivityService } from "./activityService.ts";
 
 function setup() {
 	const query = vi.fn(async (sql: string) => {

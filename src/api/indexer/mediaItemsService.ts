@@ -1,16 +1,16 @@
-import { NotificationService } from "../notifications/notificationService.js";
+import { NotificationService } from "../notifications/notificationService.ts";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { createHash, randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { DataSource, EntityManager, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MATCH_CONFIDENCES, MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
-import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.js";
-import { allowedPersonImage } from "../media/personImages.js";
-import { normalizeChapterField } from "../media/chapterTitles.js";
-import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MATCH_CONFIDENCES, MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.ts";
+import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.ts";
+import { allowedPersonImage } from "../media/personImages.ts";
+import { normalizeChapterField } from "../media/chapterTitles.ts";
+import { MediaLibrary } from "../../entities/mediaLibrary.entity.ts";
 
 const CREDITED_TYPES: MediaItemType[] = ["movie", "series", "album", "video"];
 /** What flixer-indexer sends to POST /api/indexer/media/items. */

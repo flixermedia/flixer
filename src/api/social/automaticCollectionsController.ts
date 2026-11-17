@@ -1,8 +1,8 @@
 import { Controller } from "@tsed/di";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.js";
-import { AutomaticCollectionsService } from "./automaticCollectionsService.js";
+import { MediaAccessService } from "../access/mediaAccessService.ts";
+import { AutomaticCollectionsService } from "./automaticCollectionsService.ts";
 
 @Controller("/user-media/automatic-collections")
 @Security("BearerAuth")

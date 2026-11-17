@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isGlobalAddress, liveStreamContainer, parseSourceUrl } from "./guideService.js";
+import { isGlobalAddress, liveStreamContainer, parseSourceUrl } from "./guideService.ts";
 
 describe("guide source network restrictions", () => {
 	it("allows public addresses", () => {

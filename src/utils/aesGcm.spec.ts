@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "./aesGcm.js";
+import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "./aesGcm.ts";
 
 const SECRET = "x".repeat(32);
 

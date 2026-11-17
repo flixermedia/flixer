@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import type { IndexerClient } from "../indexer/indexerClient.js";
-import type { PluginStorageService } from "./pluginStorageService.js";
-import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
+import type { IndexerClient } from "../indexer/indexerClient.ts";
+import type { PluginStorageService } from "./pluginStorageService.ts";
+import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
 
 function setup(
 	response: unknown = { result: { ok: true } },

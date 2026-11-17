@@ -2,15 +2,15 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.js";
-import { AuthService } from "../auth/authService.js";
+import { MediaAccessService } from "../access/mediaAccessService.ts";
+import { AuthService } from "../auth/authService.ts";
 import {
 	CreateGuideSourceRequest,
 	UpdateGuideChannelsRequest,
 	UpdateGuideSettingsRequest,
 	UpdateGuideSourceRequest,
-} from "./guideRequests.js";
-import { GuideService } from "./guideService.js";
+} from "./guideRequests.ts";
+import { GuideService } from "./guideService.ts";
 
 @Controller("/guide")
 @Security("BearerAuth")

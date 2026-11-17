@@ -1,4 +1,4 @@
-import type { ThemeConfig, ThemePalette } from "./themeSchema.js";
+import type { ThemeConfig, ThemePalette } from "./themeSchema.ts";
 
 export interface BuiltInTheme {
 	id: string;

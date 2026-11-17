@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@tsed/di";
-import { LoggerService } from "./loggerService.js";
+import { LoggerService } from "./loggerService.ts";
 
 /** Attempts optional local development enrollment without delaying API startup. */
 @Injectable()

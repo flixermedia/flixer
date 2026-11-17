@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeChapterField, normalizeChapterTitle, normalizeChapterTitles } from "./chapterTitles.js";
+import { normalizeChapterField, normalizeChapterTitle, normalizeChapterTitles } from "./chapterTitles.ts";
 
 describe("chapter title normalization", () => {
 	it("numbers timestamp titles by chronological position without changing names or array order", () => {

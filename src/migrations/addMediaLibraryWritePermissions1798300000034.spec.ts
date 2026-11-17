@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AddMediaLibraryWritePermissions1798300000034 } from "./addMediaLibraryWritePermissions1798300000034.js";
+import { AddMediaLibraryWritePermissions1798300000034 } from "./addMediaLibraryWritePermissions1798300000034.ts";
 
 describe("AddMediaLibraryWritePermissions1798300000034", () => {
 	it("adds separate default-off organization and NFO write permissions", async () => {

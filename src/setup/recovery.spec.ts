@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { setupStatus, updateRuntime } from "../bootstrap/setupStatus.js";
-import { AppConfig, setAppConfig } from "../config/store/appConfig.js";
-import { ConfigStore } from "../config/store/configStore.js";
-import { announceRecovery, logRecoveryKey, needsRecovery, recoveryCode, resetRecoveryForTests } from "./recovery.js";
-import { handleSetupRequest } from "./setupApi.js";
-import type { Probes } from "./setupSteps.js";
+import { setupStatus, updateRuntime } from "../bootstrap/setupStatus.ts";
+import { AppConfig, setAppConfig } from "../config/store/appConfig.ts";
+import { ConfigStore } from "../config/store/configStore.ts";
+import { announceRecovery, logRecoveryKey, needsRecovery, recoveryCode, resetRecoveryForTests } from "./recovery.ts";
+import { handleSetupRequest } from "./setupApi.ts";
+import type { Probes } from "./setupSteps.ts";
 
 const ENV = ["DATABASE_URL", "JWT_SECRET", "APP_SECRET", "REDIS_URL"];
 

@@ -1,6 +1,6 @@
 import { Injectable, logger } from "@tsed/di";
 import { createClient, type RedisClientType } from "redis";
-import { appConfig } from "../config/store/appConfig.js";
+import { appConfig } from "../config/store/appConfig.ts";
 
 export const PARTY_EVENTS_CHANNEL = "flixer:parties:events";
 

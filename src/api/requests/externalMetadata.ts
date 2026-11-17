@@ -1,4 +1,4 @@
-import type { RequestMediaType, RequestSource, RequestStatus } from "../../entities/mediaRequest.entity.js";
+import type { RequestMediaType, RequestSource, RequestStatus } from "../../entities/mediaRequest.entity.ts";
 
 export interface ExternalMediaCard {
 	source: RequestSource;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { RequestWebhookService, extractWebhookTargets } from "./requestWebhookService.js";
+import { RequestWebhookService, extractWebhookTargets } from "./requestWebhookService.ts";
 
 const TOKEN = "a".repeat(64);
 const SERVICE_ID = "c52b71c1-b58d-4c48-bd33-e0e591c0c46d";

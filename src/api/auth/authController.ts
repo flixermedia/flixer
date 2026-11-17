@@ -1,16 +1,16 @@
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Controller } from "@tsed/di";
 import { Delete, Get, Patch, Post, Security } from "@tsed/schema";
-import { AuthService } from "./authService.js";
-import { ChangePasswordRequest } from "./changePasswordRequest.js";
-import { DeleteAccountRequest } from "./deleteAccountRequest.js";
-import { LoginRequest } from "./loginRequest.js";
-import { RegisterRequest } from "./registerRequest.js";
-import { SetPasskeyRequiredRequest } from "./setPasskeyRequiredRequest.js";
-import { UpdateProfileRequest } from "./updateProfileRequest.js";
-import { VerifyEmailRequest } from "./verifyEmailRequest.js";
-import { QuickConnectDecisionRequest, QuickConnectPollRequest } from "./quickConnectRequest.js";
-import { QuickConnectService } from "./quickConnectService.js";
+import { AuthService } from "./authService.ts";
+import { ChangePasswordRequest } from "./changePasswordRequest.ts";
+import { DeleteAccountRequest } from "./deleteAccountRequest.ts";
+import { LoginRequest } from "./login/loginRequest.ts";
+import { RegisterRequest } from "./registerRequest.ts";
+import { SetPasskeyRequiredRequest } from "./passkey/setPasskeyRequiredRequest.ts";
+import { UpdateProfileRequest } from "./updateProfileRequest.ts";
+import { VerifyEmailRequest } from "./verifyEmailRequest.ts";
+import { QuickConnectDecisionRequest, QuickConnectPollRequest } from "./quickConnect/quickConnectRequest.ts";
+import { QuickConnectService } from "./quickConnect/quickConnectService.ts";
 
 @Controller("/auth")
 export class AuthController {

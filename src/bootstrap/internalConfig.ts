@@ -1,5 +1,5 @@
-import { appConfig, type AppConfig } from "../config/store/appConfig.js";
-import { parseRedisUrl, type RedisConnection } from "../config/store/redisConfig.js";
+import { appConfig, type AppConfig } from "../config/store/appConfig.ts";
+import { parseRedisUrl, type RedisConnection } from "../config/store/redisConfig.ts";
 
 export const INTERNAL_CONFIG_SERVICES = ["indexer"] as const;
 export type InternalConfigService = (typeof INTERNAL_CONFIG_SERVICES)[number];

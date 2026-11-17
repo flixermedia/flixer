@@ -4,13 +4,13 @@ import { BadRequest } from "@tsed/exceptions";
 import { createHmac } from "node:crypto";
 import { PgBoss, type Job, type JobWithMetadata, type QueueResult, type Schedule } from "pg-boss";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../entities/setting.entity.js";
-import { SentryService } from "../sentry/sentryService.js";
-import { appConfig } from "../config/store/appConfig.js";
-import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
-import { IndexerClient } from "../api/indexer/indexerClient.js";
-import { GuideService } from "../api/guide/guideService.js";
+import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../entities/setting.entity.ts";
+import { SentryService } from "../sentry/sentryService.ts";
+import { appConfig } from "../config/store/appConfig.ts";
+import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.ts";
+import { IndexerClient } from "../api/indexer/indexerClient.ts";
+import { GuideService } from "../api/guide/guideService.ts";
 import {
 	ADMIN_SCHEDULED_TASKS,
 	ADMIN_SCHEDULED_TASKS_SETTING,
@@ -20,11 +20,11 @@ import {
 	type AdminScheduledTaskConfig,
 	type AdminScheduledTaskConfigs,
 	type AdminScheduledTaskId,
-} from "./adminScheduledTasks.js";
-import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
-import { PaymentsService } from "../api/payments/paymentsService.js";
-import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
-import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
+} from "./adminScheduledTasks.ts";
+import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.ts";
+import { PaymentsService } from "../api/payments/paymentsService.ts";
+import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.ts";
+import { PageBuilderService } from "../api/appearance/pageBuilderService.ts";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
 const ANALYTICS_RETENTION_JOB = "analytics-retention";

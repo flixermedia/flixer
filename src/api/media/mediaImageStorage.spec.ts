@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { deleteUpload, readUpload, saveUpload, uploadFilename } from "./mediaImageStorage.js";
+import { deleteUpload, readUpload, saveUpload, uploadFilename } from "./mediaImageStorage.ts";
 
 describe("media image cache storage", () => {
 	const originalDataPath = process.env.DATA_PATH;

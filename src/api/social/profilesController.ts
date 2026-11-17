@@ -2,11 +2,11 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { BodyParams, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
 import { Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { MediaAccessService } from "../access/mediaAccessService.js";
-import { AuthService } from "../auth/authService.js";
-import { PartiesService } from "../../party/partiesService.js";
-import { ProfilesService } from "./profilesService.js";
-import { ListeningReportRequest, UpdateProfileVisibilityRequest } from "./socialRequests.js";
+import { MediaAccessService } from "../access/mediaAccessService.ts";
+import { AuthService } from "../auth/authService.ts";
+import { PartiesService } from "../../party/partiesService.ts";
+import { ProfilesService } from "./profilesService.ts";
+import { ListeningReportRequest, UpdateProfileVisibilityRequest } from "./socialRequests.ts";
 
 /** Profiles visible according to each user's privacy setting. */
 @Controller("/profiles")

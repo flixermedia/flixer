@@ -1,5 +1,5 @@
 import { In, type DataSource } from "typeorm";
-import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
+import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.ts";
 
 /** A library item shown as a card on a profile, favourites list or playlist. */
 export interface SocialItem {

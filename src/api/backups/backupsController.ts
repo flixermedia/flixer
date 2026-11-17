@@ -6,9 +6,9 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { AuthService } from "../auth/authService.js";
-import { dataPath } from "../../config/dataPath.js";
-import { BackupService } from "./backupService.js";
+import { AuthService } from "../auth/authService.ts";
+import { dataPath } from "../../config/dataPath.ts";
+import { BackupService } from "./backupService.ts";
 
 const uploadDirectory = () => dataPath("backups", "uploads");
 

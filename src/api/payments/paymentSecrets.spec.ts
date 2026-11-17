@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { decryptPaymentSecret, encryptPaymentSecret, signPendingSignupToken, signSetupToken, verifyPendingSignupToken, verifySetupToken } from "./paymentSecrets.js";
+import { decryptPaymentSecret, encryptPaymentSecret, signPendingSignupToken, signSetupToken, verifyPendingSignupToken, verifySetupToken } from "./paymentSecrets.ts";
 
 beforeAll(() => {
 	process.env.APP_SECRET = "test-secret-for-payments-0123456789";

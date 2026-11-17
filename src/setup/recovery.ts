@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { appConfig, type AppConfig } from "../config/store/appConfig.js";
-import { runtimeState } from "../bootstrap/setupStatus.js";
+import { appConfig, type AppConfig } from "../config/store/appConfig.ts";
+import { runtimeState } from "../bootstrap/setupStatus.ts";
 
 export const RECOVERY_CODE_HEADER = "x-setup-recovery-code";
 

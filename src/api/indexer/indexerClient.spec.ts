@@ -6,9 +6,9 @@ vi.mock("@tsed/di", async (importOriginal) => ({
 	...await importOriginal<typeof import("@tsed/di")>(),
 	logger: () => ({ warn: mocks.warn }),
 }));
-vi.mock("./indexerAuth.js", () => ({ signIndexerRequest: mocks.sign }));
+vi.mock("./indexerAuth.ts", () => ({ signIndexerRequest: mocks.sign }));
 
-import { IndexerClient } from "./indexerClient.js";
+import { IndexerClient } from "./indexerClient.ts";
 
 describe("IndexerClient artwork requests", () => {
 	afterEach(() => {

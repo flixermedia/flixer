@@ -1,22 +1,22 @@
-import { isValidVapidSubject } from "../notifications/notificationService.js";
+import { isValidVapidSubject } from "../notifications/notificationService.ts";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { AuthService } from "../auth/authService.js";
-import { SENTRY_SETTING_KEYS, SentryService } from "../../sentry/sentryService.js";
-import { MailService, SMTP_SETTING_KEYS } from "../auth/mailService.js";
-import { IndexerClient } from "../indexer/indexerClient.js";
-import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexerSettingsService.js";
-import { SECRET_MASK } from "./secretMask.js";
-import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
-import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
-import { SettingRequest } from "./settingRequest.js";
-import { APPEARANCE_SETTING_KEYS } from "../appearance/appearanceService.js";
-import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.js";
-import { setLoginSecurity, validateLoginSecurity } from "../auth/loginSecurity.js";
-import { setTrustedProxyConfig, validateTrustedProxyConfig } from "../../config/trustedProxies.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { AuthService } from "../auth/authService.ts";
+import { SENTRY_SETTING_KEYS, SentryService } from "../../sentry/sentryService.ts";
+import { MailService, SMTP_SETTING_KEYS } from "../auth/mailService.ts";
+import { IndexerClient } from "../indexer/indexerClient.ts";
+import { IndexerSettingsService, INDEXER_SETTING_KEYS } from "../indexer/indexerSettingsService.ts";
+import { SECRET_MASK } from "./secretMask.ts";
+import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.ts";
+import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.ts";
+import { SettingRequest } from "./settingRequest.ts";
+import { APPEARANCE_SETTING_KEYS } from "../appearance/appearanceService.ts";
+import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.ts";
+import { setLoginSecurity, validateLoginSecurity } from "../auth/login/loginSecurity.ts";
+import { setTrustedProxyConfig, validateTrustedProxyConfig } from "../../config/trustedProxies.ts";
 
 export { SECRET_MASK };
 

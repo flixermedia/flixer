@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import type { DuplicateSuggestion, DuplicateSuggestionItem, DuplicateSuggestionsPage, DuplicateSuggestionsQuery } from "./duplicateSuggestionsDto.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import type { DuplicateSuggestion, DuplicateSuggestionItem, DuplicateSuggestionsPage, DuplicateSuggestionsQuery } from "./duplicateSuggestionsDto.ts";
 
 const MAX_PAGE_SIZE = 100;
 const MAX_ITEMS_PER_SUGGESTION = 10;

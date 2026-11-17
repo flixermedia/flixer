@@ -1,6 +1,6 @@
 import { appender, BaseAppender, type LogEvent } from "@tsed/logger";
-import { loggerExporter } from "./loggerExporter.js";
-import { toUnifiedRecord } from "./unifiedLog.js";
+import { loggerExporter } from "./loggerExporter.ts";
+import { toUnifiedRecord } from "./unifiedLog.ts";
 
 export class LoggerAppender extends BaseAppender {
 	write(event: LogEvent): void {

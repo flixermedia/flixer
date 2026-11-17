@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.js";
+import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.ts";
 
 const previousSecret = process.env.APP_SECRET;
 

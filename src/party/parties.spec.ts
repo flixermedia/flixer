@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { FriendsService } from "../api/social/friendsService.js";
-import type { NotificationService } from "../api/notifications/notificationService.js";
-import type { PartyRedisService } from "./partyRedisService.js";
+import { FriendsService } from "../api/social/friendsService.ts";
+import type { NotificationService } from "../api/notifications/notificationService.ts";
+import type { PartyRedisService } from "./partyRedisService.ts";
 import partyJsonScript from "./lua/partyJson.lua?raw";
 import controlScript from "./lua/control.lua?raw";
 import presenceScript from "./lua/presence.lua?raw";
 import chatScript from "./lua/chat.lua?raw";
 import endScript from "./lua/end.lua?raw";
 
-vi.mock("../api/social/socialItems.js", () => ({
+vi.mock("../api/social/socialItems.ts", () => ({
 	loadSocialItems: vi.fn(async (_source: unknown, ids: string[]) =>
 		ids.map((id) => ({
 			id,
@@ -28,7 +28,7 @@ import {
 	type PartyMessage,
 	type PartyPerson,
 	type PartySnapshot,
-} from "./partiesService.js";
+} from "./partiesService.ts";
 
 const person = (id: string): PartyPerson => ({ id, username: id, displayName: id.toUpperCase(), avatarUrl: null });
 

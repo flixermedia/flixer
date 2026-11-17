@@ -3,13 +3,13 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, In, IsNull, LessThan } from "typeorm";
 import webpush from "web-push";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { Notification, type NotificationKind } from "../../entities/notification.entity.js";
-import { PushKey } from "../../entities/pushKey.entity.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { PushSubscription } from "../../entities/pushSubscription.entity.js";
-import { User } from "../../entities/user.entity.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import { Notification, type NotificationKind } from "../../entities/notification.entity.ts";
+import { PushKey } from "../../entities/pushKey.entity.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { PushSubscription } from "../../entities/pushSubscription.entity.ts";
+import { User } from "../../entities/user.entity.ts";
 
 const NEW_MEDIA_TYPES = new Set(["movie", "series", "episode"]);
 /** New titles are announced together once the indexer has been quiet this long, so a library scan is one message. */

@@ -2,10 +2,10 @@ import { Controller } from "@tsed/di";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { CreateOidcClientRequest, UpdateOidcConfigurationRequest, UpdateOidcResourceScopesRequest } from "./oidcClientRequests.js";
-import { OidcClientService } from "./oidcClientService.js";
-import { OidcProviderService } from "./oidcProviderService.js";
+import { AuthService } from "../auth/authService.ts";
+import { CreateOidcClientRequest, UpdateOidcConfigurationRequest, UpdateOidcResourceScopesRequest } from "./oidcClientRequests.ts";
+import { OidcClientService } from "./oidcClientService.ts";
+import { OidcProviderService } from "./oidcProviderService.ts";
 
 /** Administrator-managed OAuth client registrations. */
 @Controller("/admin/oidc/clients")

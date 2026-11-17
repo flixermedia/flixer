@@ -3,17 +3,17 @@ import { BadRequest, Conflict } from "@tsed/exceptions";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { DataSource, IsNull } from "typeorm";
-import { version as flixerVersion } from "../../config/config.js";
-import { runtimeVersion } from "../../config/runtimeVersion.js";
-import { dataPath } from "../../config/dataPath.js";
-import { appConfig } from "../../config/store/appConfig.js";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { Setting } from "../../entities/setting.entity.js";
-import { User } from "../../entities/user.entity.js";
-import { NotificationService } from "../notifications/notificationService.js";
-import { UpdaterClient } from "./updaterClient.js";
+import { version as flixerVersion } from "../../config/config.ts";
+import { runtimeVersion } from "../../config/runtimeVersion.ts";
+import { dataPath } from "../../config/dataPath.ts";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { Setting } from "../../entities/setting.entity.ts";
+import { User } from "../../entities/user.entity.ts";
+import { NotificationService } from "../notifications/notificationService.ts";
+import { UpdaterClient } from "./updaterClient.ts";
 
-export { deriveUpdaterToken } from "./updaterClient.js";
+export { deriveUpdaterToken } from "./updaterClient.ts";
 
 export const UPDATE_SETTING_KEYS = ["updates_check_enabled", "updates_auto_update", "updates_updater_url"];
 

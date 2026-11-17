@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appConfig } from "../config/store/appConfig.js";
-import { CallService, derivedTurnSecret } from "./callService.js";
+import { appConfig } from "../config/store/appConfig.ts";
+import { CallService, derivedTurnSecret } from "./callService.ts";
 
 function serviceWith(settings: Record<string, unknown>, members: string[] = []) {
 	const dataSource = {

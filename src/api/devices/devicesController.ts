@@ -2,9 +2,9 @@ import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Returns, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { DevicesService } from "./devicesService.js";
-import { LiveService } from "../../live/liveService.js";
+import { AuthService } from "../auth/authService.ts";
+import { DevicesService } from "./devicesService.ts";
+import { LiveService } from "../../live/liveService.ts";
 
 /** Admin view of the devices (login sessions) connected to this server. */
 @Controller("/admin/devices")

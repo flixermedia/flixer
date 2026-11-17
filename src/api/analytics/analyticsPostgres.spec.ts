@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { CreateViewingAnalytics1798300000007 } from "../../migrations/createViewingAnalytics1798300000007.js";
-import { CreateListeningAnalytics1798300000008 } from "../../migrations/createListeningAnalytics1798300000008.js";
-import { CreatePlaybackHistory1798300000027 } from "../../migrations/createPlaybackHistory1798300000027.js";
-import { CreateUserMediaFeatures1798300000028 } from "../../migrations/createUserMediaFeatures1798300000028.js";
-import { AnalyticsService } from "./analyticsService.js";
-import { UserMediaService } from "../social/userMediaService.js";
-import { applyBrowseFilters } from "../media/mediaHomeService.js";
+import { CreateViewingAnalytics1798300000007 } from "../../migrations/createViewingAnalytics1798300000007.ts";
+import { CreateListeningAnalytics1798300000008 } from "../../migrations/createListeningAnalytics1798300000008.ts";
+import { CreatePlaybackHistory1798300000027 } from "../../migrations/createPlaybackHistory1798300000027.ts";
+import { CreateUserMediaFeatures1798300000028 } from "../../migrations/createUserMediaFeatures1798300000028.ts";
+import { AnalyticsService } from "./analyticsService.ts";
+import { UserMediaService } from "../social/userMediaService.ts";
+import { applyBrowseFilters } from "../media/mediaHomeService.ts";
 
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("analytics (isolated PostgreSQL)", () => {
 	it("migrates, stores idempotent and user-bound reports, aggregates and rolls back", async () => {

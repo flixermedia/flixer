@@ -1,7 +1,7 @@
 import { deserialize } from "@tsed/json-mapper";
 import { getJsonSchema } from "@tsed/schema";
 import { describe, expect, it } from "vitest";
-import { LoggerIngestionPolicyRequest, LoggerRetentionRequest } from "./loggerRequests.js";
+import { LoggerIngestionPolicyRequest, LoggerRetentionRequest } from "./loggerRequests.ts";
 
 describe("logger retention request", () => {
 	it("keeps optional severity overrides in the request schema and mapper", () => {

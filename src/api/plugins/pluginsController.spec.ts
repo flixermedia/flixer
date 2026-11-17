@@ -4,12 +4,12 @@ import { Configuration } from "@tsed/di";
 import { Unauthorized } from "@tsed/exceptions";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { AuthService } from "../auth/authService.js";
-import { ExternalOAuthProfilesService } from "../auth/externalOAuthProfilesService.js";
-import { PluginManagerService } from "./pluginManagerService.js";
-import { PluginSettingsService } from "./pluginSettingsService.js";
-import { PluginsController } from "./pluginsController.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { AuthService } from "../auth/authService.ts";
+import { ExternalOAuthProfilesService } from "../auth/oauth/externalOAuthProfilesService.ts";
+import { PluginManagerService } from "./pluginManagerService.ts";
+import { PluginSettingsService } from "./pluginSettingsService.ts";
+import { PluginsController } from "./pluginsController.ts";
 
 @Configuration({})
 class TestServer {}

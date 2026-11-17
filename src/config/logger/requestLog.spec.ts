@@ -4,10 +4,10 @@ import { DIContext } from "@tsed/di";
 import { Logger } from "@tsed/logger";
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import "../../logs/liveLogAppender.js";
-import { liveLogHub } from "../../logs/liveLogHub.js";
-import { LiveLogSocketServer } from "../../logs/liveLogSocketServer.js";
-import { alterRequestLog, logRequestResponse, setLogSuccessfulApiRequests, shouldLogRequestResponse } from "./requestLog.js";
+import "../../logs/liveLogAppender.ts";
+import { liveLogHub } from "../../logs/liveLogHub.ts";
+import { LiveLogSocketServer } from "../../logs/liveLogSocketServer.ts";
+import { alterRequestLog, logRequestResponse, setLogSuccessfulApiRequests, shouldLogRequestResponse } from "./requestLog.ts";
 
 describe("logger administration request logs", () => {
 	it("logs failed API requests by default and only logs successful ones when enabled", () => {

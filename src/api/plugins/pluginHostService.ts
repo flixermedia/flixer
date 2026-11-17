@@ -1,14 +1,14 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { MediaItem } from "../../entities/mediaItem.entity.js";
-import type { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
-import { PluginSecret } from "../../entities/pluginSecret.entity.js";
-import { User } from "../../entities/user.entity.js";
-import { NotificationService } from "../notifications/notificationService.js";
-import { DATABASE_PERMISSION, PluginDatabaseError, PluginDatabaseService } from "./pluginDatabaseService.js";
-import type { HostCall, HostResult } from "./pluginHostCalls.js";
-import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { MediaItem } from "../../entities/mediaItem.entity.ts";
+import type { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
+import { PluginSecret } from "../../entities/pluginSecret.entity.ts";
+import { User } from "../../entities/user.entity.ts";
+import { NotificationService } from "../notifications/notificationService.ts";
+import { DATABASE_PERMISSION, PluginDatabaseError, PluginDatabaseService } from "./pluginDatabaseService.ts";
+import type { HostCall, HostResult } from "./pluginHostCalls.ts";
+import { decryptPluginSettingSecret, encryptPluginSettingSecret } from "./pluginSettingsSecrets.ts";
 
 const SECRET_NAME = /^[a-zA-Z0-9_.:-]{1,128}$/;
 const MAX_SECRET_BYTES = 64 * 1024;

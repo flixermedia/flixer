@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm";
-import type { ContentScope } from "../api/payments/paymentTypes.js";
+import type { ContentScope } from "../api/payments/paymentTypes.ts";
 
 export type EntitlementSource = "purchase" | "rental" | "registration" | "admin";
 

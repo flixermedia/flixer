@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { CONFIG_KEYS, suggestedRedisUrl, validateHttpUrl, validatePostgresUrl, validateRedisUrl, validateSecret, type ConfigName } from "../config/store/configSchema.js";
-import type { AppConfig } from "../config/store/appConfig.js";
-import type { ConfigStore } from "../config/store/configStore.js";
-import { probeDatabase, type DatabaseProbe } from "../bootstrap/databaseProbe.js";
-import { retryDatabaseNow } from "../bootstrap/waitForDatabase.js";
-import { publishAppSecret } from "../config/store/sharedSecret.js";
-import { probeRedis, type RedisProbe } from "./redisProbe.js";
-import { resolveUrls, type FieldErrors } from "./urlRules.js";
+import { CONFIG_KEYS, suggestedRedisUrl, validateHttpUrl, validatePostgresUrl, validateRedisUrl, validateSecret, type ConfigName } from "../config/store/configSchema.ts";
+import type { AppConfig } from "../config/store/appConfig.ts";
+import type { ConfigStore } from "../config/store/configStore.ts";
+import { probeDatabase, type DatabaseProbe } from "../bootstrap/databaseProbe.ts";
+import { retryDatabaseNow } from "../bootstrap/waitForDatabase.ts";
+import { publishAppSecret } from "../config/store/sharedSecret.ts";
+import { probeRedis, type RedisProbe } from "./redisProbe.ts";
+import { resolveUrls, type FieldErrors } from "./urlRules.ts";
 
 export class SetupError extends Error {
 	constructor(readonly status: number, message: string, readonly fields?: FieldErrors) {

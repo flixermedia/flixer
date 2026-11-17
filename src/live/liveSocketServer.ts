@@ -1,8 +1,8 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_FORBIDDEN, CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
-import { isLiveTopic, type LiveHub, type LiveTopic } from "./liveHub.js";
+import { CLOSE_FORBIDDEN, CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.ts";
+import { isLiveTopic, type LiveHub, type LiveTopic } from "./liveHub.ts";
 
 export const LIVE_PATH = "/api/live";
 

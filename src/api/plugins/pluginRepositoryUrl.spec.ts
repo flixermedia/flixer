@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { assertPublicRepositoryAddresses, isPublicRepositoryAddress } from "./pluginRepositoryClient.js";
-import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.js";
+import { assertPublicRepositoryAddresses, isPublicRepositoryAddress } from "./pluginRepositoryClient.ts";
+import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.ts";
 
 describe("normalizePluginRepositoryUrl", () => {
 	it("normalizes public HTTPS repository manifests", () => {

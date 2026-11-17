@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AddMediaItemContentHash1798300000033 } from "./addMediaItemContentHash1798300000033.js";
+import { AddMediaItemContentHash1798300000033 } from "./addMediaItemContentHash1798300000033.ts";
 
 describe("AddMediaItemContentHash1798300000033", () => {
 	it("adds an indexed nullable SHA-256 column", async () => {

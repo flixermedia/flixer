@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { executeDirectoryBind, executeDirectorySearch } from "./pluginDirectoryHost.js";
+import { executeDirectoryBind, executeDirectorySearch } from "./pluginDirectoryHost.ts";
 
 describe("directory authentication host call", () => {
 	it("requires a specific approved LDAPS host and uses the submitted password", async () => {

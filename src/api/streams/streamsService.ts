@@ -2,10 +2,10 @@ import { Inject, Injectable } from "@tsed/di";
 import { BadGateway, GatewayTimeout, NotFound } from "@tsed/exceptions";
 import { createHmac } from "node:crypto";
 import { DataSource, In } from "typeorm";
-import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { User } from "../../entities/user.entity.js";
-import { appConfig } from "../../config/store/appConfig.js";
-import { AuthService } from "../auth/authService.js";
+import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
+import { User } from "../../entities/user.entity.ts";
+import { appConfig } from "../../config/store/appConfig.ts";
+import { AuthService } from "../auth/authService.ts";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 

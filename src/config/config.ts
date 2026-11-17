@@ -3,7 +3,7 @@ import { DotEnvsConfigSource } from "@tsed/config/dotenv";
 import { JsonConfigSource } from "@tsed/config/json";
 import { YamlConfigSource } from "@tsed/config/yaml";
 import { readFileSync } from "node:fs";
-import loggerConfig from "./logger/index.js";
+import loggerConfig from "./logger/index.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", { encoding: "utf8" }));
 export const version: string = pkg.version;

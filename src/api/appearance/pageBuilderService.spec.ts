@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { PageBuilderService } from "./pageBuilderService.js";
-import { LOGIN_LAYOUT_SETTING } from "./appearanceService.js";
+import { PageBuilderService } from "./pageBuilderService.ts";
+import { LOGIN_LAYOUT_SETTING } from "./appearanceService.ts";
 
 function setup() {
 	const values = new Map<string, unknown>();

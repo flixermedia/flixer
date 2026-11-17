@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeSearchSections } from "./pluginSearchService.js";
+import { sanitizeSearchSections } from "./pluginSearchService.ts";
 
 describe("sanitizeSearchSections", () => {
 	it("keeps well-formed items and drops unsafe or malformed data", () => {

@@ -3,9 +3,9 @@ import { NotFound } from "@tsed/exceptions";
 import type { PlatformContext } from "@tsed/platform-http";
 import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Get, Post, Security } from "@tsed/schema";
-import { AuthService } from "../auth/authService.js";
-import { LiveService } from "../../live/liveService.js";
-import { ThemesService } from "./themesService.js";
+import { AuthService } from "../auth/authService.ts";
+import { LiveService } from "../../live/liveService.ts";
+import { ThemesService } from "./themesService.ts";
 
 /** Theme songs (ThemerrDB) for movies and shows. */
 @Controller("/themes")

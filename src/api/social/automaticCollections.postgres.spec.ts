@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { describe, expect, it } from "vitest";
-import { AutomaticCollectionsService } from "./automaticCollectionsService.js";
-import { UserMediaService } from "./userMediaService.js";
+import { AutomaticCollectionsService } from "./automaticCollectionsService.ts";
+import { UserMediaService } from "./userMediaService.ts";
 
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (isolated PostgreSQL)", () => {
 	it("groups metadata case-insensitively and only counts or returns permitted movies", async () => {

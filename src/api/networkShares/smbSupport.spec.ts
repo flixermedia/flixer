@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mountBaseDir } from "./shareMounter.js";
-import { smbMountSupported } from "./smbSupport.js";
+import { mountBaseDir } from "./shareMounter.ts";
+import { smbMountSupported } from "./smbSupport.ts";
 
 describe("smbMountSupported", () => {
 	it("is supported on a normal Linux host", () => {

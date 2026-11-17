@@ -9,7 +9,7 @@ vi.mock("node:child_process", () => ({
 	},
 }));
 
-import { AdvertisementService } from "./advertisementService.js";
+import { AdvertisementService } from "./advertisementService.ts";
 
 const directories: string[] = [];
 
