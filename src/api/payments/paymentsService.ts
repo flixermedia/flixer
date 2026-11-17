@@ -32,7 +32,7 @@ const NETWORK_RETRY_MS = 3_600_000;
 const FIRST_PLAY_CLAIM_DAYS = 30;
 const MAX_CARDS = 5;
 
-export interface PayingUser {
+interface PayingUser {
 	id: string;
 	email: string | null;
 	displayName: string | null;
@@ -55,7 +55,7 @@ export interface SignupPayment extends CardSetupInput {
 	currency?: string;
 }
 
-export interface Quote {
+interface Quote {
 	kind: PaymentOrderKind;
 	description: string;
 	currency: string;
@@ -74,7 +74,7 @@ export interface SignupAction {
 	clientSecret: string;
 }
 
-export interface CheckoutResult {
+interface CheckoutResult {
 	status: "paid" | "requires_action" | "failed";
 	orderId: string;
 	clientSecret?: string;

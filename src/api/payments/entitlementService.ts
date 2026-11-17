@@ -15,13 +15,13 @@ import { anyScopeCovers, kindForItemType, scopeCovers, subscriptionGrantsAccess,
 const CACHE_MS = 5_000;
 const MAX_DEPTH = 4;
 
-export interface AccessSubject {
+interface AccessSubject {
 	id: string;
 	role: string;
 	createdAt: Date;
 }
 
-export interface LockState {
+interface LockState {
 	locked: boolean;
 	/** Set when access comes from a rental, so the UI can show when it ends. */
 	rentalEndsAt?: string | null;

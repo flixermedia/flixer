@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /** Stripe rejects deliveries older than this to blunt replays. */
-export const STRIPE_TOLERANCE_SECONDS = 5 * 60;
+const STRIPE_TOLERANCE_SECONDS = 5 * 60;
 
 function safeEqual(a: string, b: string): boolean {
 	const left = Buffer.from(a);

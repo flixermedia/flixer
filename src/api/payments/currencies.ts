@@ -1,4 +1,4 @@
-export interface CurrencyInfo {
+interface CurrencyInfo {
 	code: string;
 	name: string;
 	/** Digits after the decimal point; prices are stored as whole minor units (10^-digits). */
@@ -33,12 +33,6 @@ export const CURRENCIES: readonly CurrencyInfo[] = [
 	{ code: "TRY", name: "Turkish lira", digits: 2, square: false },
 	{ code: "RON", name: "Romanian leu", digits: 2, square: false },
 ];
-
-const BY_CODE = new Map(CURRENCIES.map((currency) => [currency.code, currency]));
-
-export function currencyInfo(code: string): CurrencyInfo | undefined {
-	return BY_CODE.get(code);
-}
 
 export function currenciesFor(provider: "stripe" | "square" | null): CurrencyInfo[] {
 	return CURRENCIES.filter((currency) => provider !== "square" || currency.square);

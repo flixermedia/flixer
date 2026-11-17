@@ -3,11 +3,11 @@ import { BadRequest } from "@tsed/exceptions";
 export const PAYMENT_PROVIDERS = ["stripe", "square"] as const;
 export type PaymentProviderId = (typeof PAYMENT_PROVIDERS)[number];
 
-export const CONTENT_KINDS = ["movies", "tv", "music", "guide"] as const;
-export type ContentKind = (typeof CONTENT_KINDS)[number];
+const CONTENT_KINDS = ["movies", "tv", "music", "guide"] as const;
+type ContentKind = (typeof CONTENT_KINDS)[number];
 
-export const SCOPE_TYPES = ["all", "kind", "item", "artist"] as const;
-export type ScopeType = (typeof SCOPE_TYPES)[number];
+const SCOPE_TYPES = ["all", "kind", "item", "artist"] as const;
+type ScopeType = (typeof SCOPE_TYPES)[number];
 
 /** What a product, plan or registration unlocks. `item` covers the item and everything below it in the tree. */
 export interface ContentScope {
@@ -23,10 +23,10 @@ export interface Price {
 
 export type RentalStart = "purchase" | "first_play";
 export type PlanInterval = "month" | "year";
-export type RegistrationMode = "one_time" | "subscription";
-export type RegistrationUnlocks = "all" | "scopes" | "none";
+type RegistrationMode = "one_time" | "subscription";
+type RegistrationUnlocks = "all" | "scopes" | "none";
 
-export interface TaxRate {
+interface TaxRate {
 	name: string;
 	percent: number;
 }
@@ -199,7 +199,7 @@ export interface Totals {
 	totalMinor: number;
 }
 
-export interface DiscountCoupon {
+interface DiscountCoupon {
 	percentOff: number | null;
 	amountOff: Price[] | null;
 }
@@ -230,7 +230,7 @@ export function computeTotals(subtotalMinor: number, discountMinor: number, tax:
 
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "expired";
 
-export interface AccessWindowSubscription {
+interface AccessWindowSubscription {
 	status: SubscriptionStatus;
 	periodEnd: Date;
 	graceUntil: Date | null;
