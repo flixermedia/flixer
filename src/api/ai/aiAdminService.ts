@@ -15,7 +15,7 @@ const AI_SETTING_KEYS = {
 } as const;
 const PROFILE_NAMES = ["auto", "classic", "micro", "mini"] as const;
 
-interface AiAdminConfiguration {
+export interface AiAdminConfiguration {
 	enabled: boolean;
 	profile: (typeof PROFILE_NAMES)[number];
 	allowDownloads: boolean;

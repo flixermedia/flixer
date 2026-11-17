@@ -14,7 +14,7 @@ interface CachedRecommendationResponse {
 	}>;
 }
 
-interface RecommendationCacheState {
+export interface RecommendationCacheState {
 	entries: Record<string, CachedRecommendationResponse>;
 	lastRefreshAt: string | null;
 	entryScopes: Record<string, "movies" | "music" | "general">;

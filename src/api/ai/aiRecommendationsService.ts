@@ -12,7 +12,7 @@ interface ScoredRecommendation {
 	reason?: string | null;
 }
 
-interface RecommendationResponse {
+export interface RecommendationResponse {
 	items: ScoredRecommendation[];
 }
 
