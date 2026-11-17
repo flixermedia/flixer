@@ -27,7 +27,7 @@ interface JsonSchemaProperty {
 	"x-flixer-secret"?: boolean;
 }
 
-interface PluginSettingsSchema {
+export interface PluginSettingsSchema {
 	type: "object";
 	properties: Record<string, JsonSchemaProperty>;
 	[key: string]: unknown;

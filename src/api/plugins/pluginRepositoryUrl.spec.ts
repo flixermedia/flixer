@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { LookupAddress } from "node:dns";
 import { assertPublicRepositoryAddresses, isPublicRepositoryAddress } from "./pluginRepositoryClient.js";
 import { normalizePluginRepositoryUrl } from "./pluginRepositoryUrl.js";
 
@@ -20,7 +21,7 @@ describe("normalizePluginRepositoryUrl", () => {
 	});
 
 	it("rejects private DNS results before an HTTP request", () => {
-		expect(() => assertPublicRepositoryAddresses([{ address: "127.0.0.1", family: 4 }])).toThrow("non-public network address");
+		expect(() => assertPublicRepositoryAddresses([{ address: "127.0.0.1", family: 4 } as LookupAddress])).toThrow("non-public network address");
 		expect(() => assertPublicRepositoryAddresses([])).toThrow("did not resolve");
 	});
 });

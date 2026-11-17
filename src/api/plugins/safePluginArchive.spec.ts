@@ -10,7 +10,7 @@ async function makeArchive(entries: Array<{ name: string; body?: string; type?: 
 
 	const pack = tar.pack();
 	const chunks: Buffer[] = [];
-	pack.on("data", (chunk: Buffer) => chunks.push(chunk));
+	pack.on("data", (chunk: unknown) => chunks.push(chunk as Buffer));
 	const finished = new Promise<Buffer>((resolve, reject) => {
 		pack.on("error", reject);
 		pack.on("end", () => resolve(Buffer.concat(chunks)));

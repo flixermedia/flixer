@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest } from "./repositoryManifest.js";
+import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest, type PluginRepositoryManifest } from "./repositoryManifest.js";
 
 const validCatalog = {
 	manifestVersion: 1,
@@ -71,7 +71,7 @@ describe("parsePluginRepositoryManifest", () => {
 
 describe("pluginCatalogMatchesManifest", () => {
 	it("requires release identity, targets, capabilities, and permissions to match", () => {
-		const catalogEntry = validCatalog.plugins[0]!;
+		const catalogEntry = validCatalog.plugins[0]! as PluginRepositoryManifest["plugins"][number];
 		const manifest = {
 			manifestVersion: 1 as const,
 			id: catalogEntry.id,

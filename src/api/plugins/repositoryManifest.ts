@@ -2,7 +2,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import schema from "./repository-manifest.schema.json" with { type: "json" };
 import type { PluginManifest } from "./pluginManifest.js";
 
-interface PluginRelease {
+export interface PluginRelease {
 	version: string;
 	manifest: string;
 	package: string;

@@ -25,7 +25,7 @@ async function makeArchive(packageManifest: PluginManifest): Promise<Buffer> {
 
 	const pack = tar.pack();
 	const chunks: Buffer[] = [];
-	pack.on("data", (chunk: Buffer) => chunks.push(chunk));
+	pack.on("data", (chunk: unknown) => chunks.push(chunk as Buffer));
 	const finished = new Promise<Buffer>((resolve, reject) => {
 		pack.on("error", reject);
 		pack.on("end", () => resolve(Buffer.concat(chunks)));

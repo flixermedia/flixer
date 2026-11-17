@@ -26,7 +26,7 @@ const installation = {
 
 function setup(rows: unknown[] = []) {
 
-	const query = vi.fn(async (sql: string) => (sql.includes("information_schema") ? [] : rows));
+	const query = vi.fn(async (sql: string, _params?: unknown[]) => (sql.includes("information_schema") ? [] : rows));
 	return { query, service: new PluginDatabaseService({ query } as unknown as DataSource) };
 
 }

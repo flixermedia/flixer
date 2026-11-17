@@ -77,7 +77,7 @@ describe("PluginSettingsService", () => {
 		installation.settings = { language: "en", apiKey: "legacy-plain-value" };
 		try {
 			const result = await service.get(installation.pluginId);
-			expect(result.values.apiKey).toBe(SECRET_MASK);
+			expect((result.values as Record<string, unknown>).apiKey).toBe(SECRET_MASK);
 			expect(installation.settings).toEqual({ language: "en" });
 			expect(decryptPluginSettingSecret(installation.pluginId, "apiKey", installation.encryptedSecrets.apiKey!)).toBe("legacy-plain-value");
 			expect(result.schema?.properties.apiKey).not.toHaveProperty("default");

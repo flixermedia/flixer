@@ -1,7 +1,7 @@
 import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
-import { DataSource, In, type EntityManager } from "typeorm";
+import { DataSource, In, type EntityManager, type FindOptionsWhere } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginStorageEntry, type PluginStorageJsonValue, type PluginStorageScope } from "../../entities/pluginStorageEntry.entity.js";
 
@@ -159,7 +159,7 @@ export class PluginStorageService {
 		this.validateDocument(current);
 
 		if (deleteKeys.length > 0) {
-			await repository.delete({ pluginId, scope, ownerId, key: In(deleteKeys) });
+			await repository.delete({ pluginId, scope, ownerId, key: In(deleteKeys) } as FindOptionsWhere<PluginStorageEntry>);
 		}
 		const entries = Object.entries(values).map(([key, value]) => ({
 			key,

@@ -23,7 +23,7 @@ interface PluginSearchItem {
 	query: Record<string, string>;
 }
 
-interface PluginSearchSection {
+export interface PluginSearchSection {
 	pluginId: string;
 	title: string;
 	items: PluginSearchItem[];
