@@ -30,8 +30,6 @@ const RATING_AGES: Record<string, number> = {
 	"FSK-18": 18,
 };
 
-/** Labels that mean "not rated", which parents may want to block separately from explicit ratings. */
-export const UNRATED_LABELS = ["NR", "NOT-RATED", "UNRATED", "UR", "NOT-RATED.", "NONE", "N/A"];
 
 /** The limits an administrator can pick from, with the labels they cover. */
 export const RATING_LIMITS: ReadonlyArray<{ age: number; label: string; examples: string }> = [

@@ -12,10 +12,10 @@ import { User } from "../../entities/user.entity.ts";
 import { AuthService } from "../auth/authService.ts";
 import { RATING_LIMITS, ratingAgeSql } from "./contentRatings.ts";
 
-export type RestrictedDisplay = "hidden" | "locked";
-export type BlockReason = "library" | "rating" | "unrated" | "tags";
+type RestrictedDisplay = "hidden" | "locked";
+type BlockReason = "library" | "rating" | "unrated" | "tags";
 
-export const UNLOCK_MINUTES = 30;
+const UNLOCK_MINUTES = 30;
 const PIN_PATTERN = /^\d{6}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_TAGS = 50;
@@ -43,7 +43,7 @@ export interface AccessPolicy {
 	enforced: boolean;
 }
 
-export interface AccessPolicyDto {
+interface AccessPolicyDto {
 	libraryMode: LibraryAccessMode;
 	libraryIds: string[];
 	maxAge: number | null;
@@ -115,7 +115,7 @@ function localParts(at: Date, timezone: string): { day: number; minute: number }
 	return { day, minute: Number(value("hour")) * 60 + Number(value("minute")) };
 }
 
-export interface ScheduleStatus {
+interface ScheduleStatus {
 	allowed: boolean;
 	/** When viewing is next allowed, if it is not allowed now. */
 	nextAllowedAt: string | null;
