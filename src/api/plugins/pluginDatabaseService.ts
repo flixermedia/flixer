@@ -112,13 +112,16 @@ export class PluginDatabaseService {
 		const columns = Object.entries(definition.columns);
 		const primary = columns.filter(([, column]) => column.primary).map(([column]) => quote(column));
 		if (primary.length === 0) invalid();
+		// RAW SQL: information_schema introspection of dynamic plugin table
 		const existing = await this.dataSource.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1`, [pluginTableName(pluginId, name)]);
 		if (existing.length === 0) {
+			// RAW SQL: DDL for dynamic plugin table; no entity
 			await this.dataSource.query(`CREATE TABLE IF NOT EXISTS ${table} (${columns.map(([column, spec]) => columnSql(column, spec, false)).join(", ")}, PRIMARY KEY (${primary.join(", ")}))`);
 		} else {
 			const present = new Set((existing as Array<{ column_name: string }>).map((row) => row.column_name));
 			for (const [column, spec] of columns) {
 				if (!present.has(column)) {
+					// RAW SQL: DDL for dynamic plugin table; no entity
 					await this.dataSource.query(`ALTER TABLE ${table} ADD COLUMN ${columnSql(column, spec, true)}`);
 				}
 			}
@@ -129,6 +132,7 @@ export class PluginDatabaseService {
 				.update(`${pluginId}:${name}:${index.columns.join(",")}:${index.unique ? "u" : ""}`)
 				.digest("hex")
 				.slice(0, 40)}`;
+			// RAW SQL: DDL for dynamic plugin index; no entity
 			await this.dataSource.query(`CREATE ${index.unique ? "UNIQUE " : ""}INDEX IF NOT EXISTS ${quote(indexName)} ON ${table} (${index.columns.map(quote).join(", ")})`);
 		}
 	}
@@ -267,6 +271,7 @@ export class PluginDatabaseService {
 		const orderBy = this.orderSql(definition, call.orderBy);
 		const limit = this.bounded(call.limit, DEFAULT_ROWS, 1, MAX_ROWS);
 		const offset = this.bounded(call.offset, 0, 0, 1_000_000);
+		// RAW SQL: dynamic plugin table; no entity
 		const rows: Array<Record<string, unknown>> = await this.dataSource.query(`SELECT * FROM ${table}${where}${orderBy} LIMIT ${limit} OFFSET ${offset}`, params);
 		return rows.map((row) => this.outRow(definition, row));
 	}
@@ -275,10 +280,12 @@ export class PluginDatabaseService {
 		const params: unknown[] = [];
 		const where = this.whereSql(definition, call.where, params, false);
 		if (call.groupBy === undefined) {
+			// RAW SQL: dynamic plugin table; no entity
 			const rows = await this.dataSource.query(`SELECT count(*)::int AS count FROM ${table}${where}`, params);
 			return { count: Number(rows[0]?.count ?? 0) };
 		}
 		const [name, column] = this.column(definition, call.groupBy);
+		// RAW SQL: dynamic plugin table; no entity, grouped aggregate
 		const rows: Array<{ value: unknown; count: number }> = await this.dataSource.query(`SELECT ${quote(name)} AS value, count(*)::int AS count FROM ${table}${where} GROUP BY ${quote(name)} ORDER BY ${quote(name)} LIMIT ${MAX_ROWS}`, params);
 		return { groups: rows.map((row) => ({ value: this.outValue(column, row.value), count: Number(row.count) })) };
 	}
@@ -301,6 +308,7 @@ export class PluginDatabaseService {
 			});
 			return `(${cells.join(", ")})`;
 		});
+		// RAW SQL: dynamic plugin table; CTE with INSERT ... RETURNING
 		const rowsInserted = await this.dataSource.query(`WITH written AS (INSERT INTO ${table} (${columns.map(quote).join(", ")}) VALUES ${values.join(", ")} RETURNING 1) SELECT count(*)::int AS count FROM written`, params);
 		return Number(rowsInserted[0]?.count ?? 0);
 	}
@@ -315,6 +323,7 @@ export class PluginDatabaseService {
 			return `${quote(column)} = $${params.length}${cast}`;
 		});
 		const where = this.whereSql(definition, call.where, params, true);
+		// RAW SQL: dynamic plugin table; CTE with UPDATE ... RETURNING
 		const rows = await this.dataSource.query(`WITH written AS (UPDATE ${table} SET ${assignments.join(", ")}${where} RETURNING 1) SELECT count(*)::int AS count FROM written`, params);
 		return Number(rows[0]?.count ?? 0);
 	}
@@ -322,6 +331,7 @@ export class PluginDatabaseService {
 	private async remove(table: string, definition: PluginTableDefinition, call: Record<string, unknown>) {
 		const params: unknown[] = [];
 		const where = this.whereSql(definition, call.where, params, true);
+		// RAW SQL: dynamic plugin table; CTE with DELETE ... RETURNING
 		const rows = await this.dataSource.query(`WITH removed AS (DELETE FROM ${table}${where} RETURNING 1) SELECT count(*)::int AS count FROM removed`, params);
 		return Number(rows[0]?.count ?? 0);
 	}

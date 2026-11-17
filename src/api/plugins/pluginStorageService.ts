@@ -1,7 +1,7 @@
 import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
-import { DataSource, type EntityManager } from "typeorm";
+import { DataSource, In, type EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginStorageEntry, type PluginStorageJsonValue, type PluginStorageScope } from "../../entities/pluginStorageEntry.entity.js";
 
@@ -149,6 +149,7 @@ export class PluginStorageService {
 
 	private async applyPatch(manager: EntityManager, pluginId: string, userId: string, scope: PluginStorageScope, values: Record<string, PluginStorageJsonValue>, deleteKeys: string[]): Promise<void> {
 		const ownerId = ownerIdFor(scope, pluginId, userId);
+		// RAW SQL: advisory transaction lock; no TypeORM equivalent
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [`${pluginId}:${scope}`, ownerId]);
 		const repository = manager.getRepository(PluginStorageEntry);
 		const currentEntries = await repository.find({ where: { pluginId, scope, ownerId } });
@@ -158,11 +159,7 @@ export class PluginStorageService {
 		this.validateDocument(current);
 
 		if (deleteKeys.length > 0) {
-			await manager.query(
-				`DELETE FROM "plugin_storage"
-				WHERE "plugin_id" = $1 AND "scope" = $2 AND "owner_id" = $3 AND "key" = ANY($4::varchar[])`,
-				[pluginId, scope, ownerId, deleteKeys],
-			);
+			await repository.delete({ pluginId, scope, ownerId, key: In(deleteKeys) });
 		}
 		const entries = Object.entries(values).map(([key, value]) => ({
 			key,
@@ -177,6 +174,7 @@ export class PluginStorageService {
 				parameters.push(pluginId, scope, ownerId, entry.key, serializedValue);
 				return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::jsonb, now())`;
 			});
+			// RAW SQL: multi-row upsert storing JSON null as jsonb 'null'; TypeORM would write SQL NULL
 			await manager.query(
 				`INSERT INTO "plugin_storage" ("plugin_id", "scope", "owner_id", "key", "value", "updated_at")
 				VALUES ${rows.join(", ")}

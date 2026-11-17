@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { DataSource, EntityManager } from "typeorm";
+import { In, type DataSource, type EntityManager } from "typeorm";
 import { PluginStorageEntry } from "../../entities/pluginStorageEntry.entity.js";
 import { PluginStorageService } from "./pluginStorageService.js";
 
@@ -21,7 +21,8 @@ describe("PluginStorageService", () => {
 
 	it("applies permitted scope patches transactionally and rejects writes without the matching grant", async () => {
 		const find = vi.fn().mockResolvedValue([]);
-		const getRepository = vi.fn(() => ({ find }));
+		const remove = vi.fn().mockResolvedValue({});
+		const getRepository = vi.fn(() => ({ find, delete: remove }));
 		const query = vi.fn().mockResolvedValue([]);
 		const transaction = vi.fn(async (work: (manager: EntityManager) => Promise<void>) => work({ getRepository, query } as unknown as EntityManager));
 		const dataSource = { transaction } as unknown as DataSource;
@@ -34,7 +35,7 @@ describe("PluginStorageService", () => {
 		expect(transaction).toHaveBeenCalledOnce();
 		expect(getRepository).toHaveBeenCalledWith(PluginStorageEntry);
 		expect(query).toHaveBeenCalledWith("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", ["flixer.example:plugin", "flixer.example"]);
-		expect(query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM "plugin_storage"'), ["flixer.example", "plugin", "flixer.example", ["old-theme"]]);
+		expect(remove).toHaveBeenCalledWith({ pluginId: "flixer.example", scope: "plugin", ownerId: "flixer.example", key: In(["old-theme"]) });
 		expect(query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO "plugin_storage"'), ["flixer.example", "plugin", "flixer.example", "theme", '"dark"']);
 	});
 
