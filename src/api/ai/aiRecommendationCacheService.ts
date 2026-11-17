@@ -106,6 +106,7 @@ export class AiRecommendationCacheService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listUsers() {
+		// RAW SQL: reporting join with snake_case-to-camelCase aliases and COALESCE; kept for identical row shape
 		const rows = (await this.dataSource.query(`
 			SELECT
 				u.id AS "userId",

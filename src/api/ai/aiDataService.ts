@@ -76,6 +76,7 @@ export class AiDataService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async libraryContext() {
+		// RAW SQL: jsonb ->/->> operators over media_items.metadata
 		const candidates = (await this.dataSource.query(
 			`SELECT id, type, title, year,
 				metadata ->> 'overview' AS overview,
@@ -98,6 +99,7 @@ export class AiDataService {
 	async recommendationContext(userId: string) {
 		const [library, history, favorites, feedback] = await Promise.all([
 			this.libraryContext(),
+			// RAW SQL: jsonb operators and CASE self-joins over media_items; watch_progress history
 			this.dataSource.query(
 				`SELECT i.id, i.type, i.title, i.year,
 					i.metadata ->> 'overview' AS overview,
@@ -119,6 +121,7 @@ export class AiDataService {
 				LIMIT $2`,
 				[userId, HISTORY_LIMIT],
 			) as Promise<ItemRow[]>,
+			// RAW SQL: jsonb operators over media_items joined to favorites
 			this.dataSource.query(
 				`SELECT i.id, i.type, i.title, i.year,
 					i.metadata ->> 'overview' AS overview,
@@ -136,6 +139,7 @@ export class AiDataService {
 				LIMIT $2`,
 				[userId, FAVORITE_LIMIT],
 			) as Promise<ItemRow[]>,
+			// RAW SQL: jsonb operators; no entity for recommendation_feedback
 			this.dataSource.query(
 				`SELECT f.feedback, i.id, i.type, i.title, i.year,
 					i.metadata ->> 'overview' AS overview,
