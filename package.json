@@ -15,7 +15,11 @@
 		"insomnia:update": "node scripts/update-insomnia.mjs",
 		"format": "node scripts/format.mjs --write",
 		"format:check": "node scripts/format.mjs --check",
-		"test": "npm run test:lint && npm run test:coverage"
+		"test:lint": "tsc --noEmit -p tsconfig.json && npm run format:check",
+		"test:unit": "vitest run",
+		"test:coverage": "vitest run --coverage",
+		"test:node": "node --test deploy/docker/installer.test.mjs deploy/coder/stack-logs.test.mjs deploy/proxy/nginx-config-init.test.mjs && npm test --prefix packages/flixer-api-client",
+		"test": "npm run test:lint && npm run test:coverage && npm run test:node"
 	},
 	"dependencies": {
 		"@dschz/try-catch": "^1.2.2",
@@ -104,6 +108,7 @@
 		"@types/tar-stream": "^3.1.5",
 		"@types/web-push": "^3.6.4",
 		"@types/ws": "^8.18.2",
+		"@vitest/coverage-v8": "^5.1.0",
 		"husky": "^9.1.7",
 		"orval": "^8.45.0",
 		"prettier": "^3.9.10",

@@ -1,8 +1,16 @@
 import { builtinModules } from "node:module";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	appType: "custom",
+	test: {
+		// Only unit specs; the .mjs suites use node:test and run via `npm run test:node`.
+		include: ["src/**/*.spec.ts"],
+		// Specs import large Ts.ED module graphs; the default 5s is too tight when files run in parallel.
+		testTimeout: 20_000,
+		hookTimeout: 20_000,
+		coverage: { provider: "v8", include: ["src/**/*.ts"], exclude: ["src/**/*.spec.ts", "src/migrations/**"] },
+	},
 	build: {
 		outDir: "dist",
 		target: "node24",

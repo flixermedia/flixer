@@ -3,3 +3,8 @@ dist/
 coverage/
 package-lock.json
 insomnia/flixer-user.json
+packages/flixer-api-client/openapi.json
+packages/flixer-api-client/src/generated.ts
+packages/flixer-api-client/src/routes.ts
+insomnia/flixer-insomnia.json
+resources/emails/
