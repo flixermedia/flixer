@@ -10,7 +10,7 @@ import { decryptSecret, encryptSecret } from "./shareSecrets.js";
 
 type ShareStatus = "connecting" | "connected" | "error";
 
-interface PublicNetworkShare {
+export interface PublicNetworkShare {
 	id: string;
 	name: string;
 	protocol: NetworkShareProtocol;
