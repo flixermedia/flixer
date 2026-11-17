@@ -18,8 +18,7 @@ const INBOX_LIMIT = 50;
 const RETENTION_DAYS = 60;
 const PUSH_TTL_SECONDS = 24 * 60 * 60;
 
-export const NOTIFICATION_SETTING_KEYS = ["notifications_enabled", "notifications_new_media_enabled", "notifications_permission_prompt", "notifications_vapid_subject"];
-export type PermissionPrompt = "button" | "load";
+type PermissionPrompt = "button" | "load";
 
 export interface NotificationConfig {
 	enabled: boolean;
@@ -33,7 +32,7 @@ export function isValidVapidSubject(value: string): boolean {
 	return /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || /^https:\/\/[^\s]+$/.test(value);
 }
 
-export interface NotificationInput {
+interface NotificationInput {
 	title: string;
 	body: string;
 	url?: string | null;
@@ -44,7 +43,7 @@ export interface NotificationEvent {
 	type: "changed";
 }
 
-export interface PushSubscriptionInput {
+interface PushSubscriptionInput {
 	endpoint: string;
 	p256dh: string;
 	auth: string;

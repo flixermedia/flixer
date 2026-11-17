@@ -13,7 +13,7 @@ const MAX_CLIENTS = 2_000;
 const MAX_CLIENT_MESSAGE_BYTES = 2_048;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
-export type NotificationAuthenticator = (token: string) => Promise<string>;
+type NotificationAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	authenticated: boolean;
