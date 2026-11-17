@@ -3,8 +3,8 @@ import { isIP } from "node:net";
 import { Client } from "ldapts";
 import type { HostCall, HostResult } from "./pluginHostCalls.ts";
 
-export type DirectoryBind = (url: URL, bindDN: string, password: string, signal: AbortSignal) => Promise<void>;
-export type DirectorySearch = (url: URL, bindDN: string, password: string, baseDN: string, filter: string, attributes: string[], signal: AbortSignal) => Promise<Array<Record<string, unknown>>>;
+type DirectoryBind = (url: URL, bindDN: string, password: string, signal: AbortSignal) => Promise<void>;
+type DirectorySearch = (url: URL, bindDN: string, password: string, baseDN: string, filter: string, attributes: string[], signal: AbortSignal) => Promise<Array<Record<string, unknown>>>;
 
 async function directoryClient(url: URL, signal: AbortSignal): Promise<Client> {
 	const hostname = url.hostname.replace(/^\[|\]$/g, "");

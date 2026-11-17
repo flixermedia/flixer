@@ -3,7 +3,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
 
-export interface PluginPageSummary {
+interface PluginPageSummary {
 	pluginId: string;
 	id: string;
 	title: string;

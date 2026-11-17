@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import { isPublicRepositoryAddress } from "./pluginRepositoryClient.ts";
 
-export const MAX_HOST_CALLS_PER_ROUND = 8;
+const MAX_HOST_CALLS_PER_ROUND = 8;
 export const MAX_HOST_CALL_ROUNDS = 4;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const HTTP_TIMEOUT_MS = 4_000;
@@ -22,14 +22,14 @@ export interface HostResult {
 	[key: string]: unknown;
 }
 
-export interface HttpOptions {
+interface HttpOptions {
 	method?: string;
 	headers?: Record<string, string>;
 	body?: string;
 }
 
 export type HttpRequest = (url: URL, options?: HttpOptions) => Promise<{ status: number; body: string }>;
-export type ServiceHandler = (call: HostCall) => Promise<HostResult>;
+type ServiceHandler = (call: HostCall) => Promise<HostResult>;
 
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "DELETE"]);
 const ALLOWED_HEADERS = new Set(["authorization", "x-api-key", "x-emby-token", "content-type", "accept"]);
@@ -37,13 +37,12 @@ const MAX_HEADERS = 8;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
 /** Permission that lets a plugin reach any public HTTPS host (user-configured servers). */
-export const HTTP_ANY_PERMISSION = "network.http.any";
-export type HttpGet = HttpRequest;
+const HTTP_ANY_PERMISSION = "network.http.any";
 
 const MAX_POST_BODY_BYTES = 16 * 1024;
 
 /** Permission a plugin must declare and be granted to reach this exact hostname. */
-export function httpHostPermission(hostname: string): string {
+function httpHostPermission(hostname: string): string {
 	return `network.http.${hostname.toLowerCase()}`;
 }
 

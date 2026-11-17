@@ -5,10 +5,10 @@ import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts"
 import { SEGMENT_TYPES, type SegmentType } from "../../entities/mediaSegment.entity.ts";
 import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
 
-export const SEGMENT_PROVIDER_CAPABILITY = "media.segments";
-export const SEGMENT_PROVIDER_PERMISSION = "media.segments.lookup";
+const SEGMENT_PROVIDER_CAPABILITY = "media.segments";
+const SEGMENT_PROVIDER_PERMISSION = "media.segments.lookup";
 
-export interface SegmentLookupItem {
+interface SegmentLookupItem {
 	type: "movie" | "episode";
 	durationMs: number;
 	providerIds: Record<string, string>;
@@ -16,14 +16,14 @@ export interface SegmentLookupItem {
 	episode?: number;
 }
 
-export interface ProvidedSegment {
+interface ProvidedSegment {
 	startMs: number;
 	endMs: number;
 	submissions: number;
 }
 
 /** Per-type result: a segment to store, or null when the provider has none and any stored one should go. */
-export type ProvidedSegments = Partial<Record<SegmentType, ProvidedSegment | null>>;
+type ProvidedSegments = Partial<Record<SegmentType, ProvidedSegment | null>>;
 
 function validSegment(value: unknown): value is ProvidedSegment {
 	const segment = value as Partial<ProvidedSegment> | null;

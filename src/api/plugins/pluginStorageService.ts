@@ -1,3 +1,4 @@
+import { isRecord } from "./isRecord.ts";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource, type EntityManager } from "typeorm";
@@ -12,19 +13,15 @@ const MAX_STORAGE_BYTES = 256 * 1024;
 const MAX_STORAGE_KEYS = 1024;
 const STORAGE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-export const PLUGIN_STORAGE_PERMISSIONS = {
+const PLUGIN_STORAGE_PERMISSIONS = {
 	pluginRead: "storage.plugin.read",
 	pluginWrite: "storage.plugin.write",
 	userRead: "storage.user.read",
 	userWrite: "storage.user.write",
 } as const;
 
-export type PluginStoragePermissions = ReadonlySet<string>;
-export type PluginStorageSnapshot = Partial<Record<PluginStorageScope, Record<string, PluginStorageJsonValue>>>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+type PluginStoragePermissions = ReadonlySet<string>;
+type PluginStorageSnapshot = Partial<Record<PluginStorageScope, Record<string, PluginStorageJsonValue>>>;
 
 function permissionFor(scope: PluginStorageScope, mode: "read" | "write"): string {
 	return scope === "plugin"

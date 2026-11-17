@@ -1,3 +1,4 @@
+import { isRecord } from "./isRecord.ts";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
@@ -30,8 +31,6 @@ const PERMISSION_OF: Record<string, string> = {
 	"notify.send": "notifications.send",
 };
 
-export const HOST_SERVICE_OPS = new Set(Object.keys(PERMISSION_OF));
-
 interface MatchCard {
 	key: string;
 	type: "movie" | "tv" | "music";
@@ -50,10 +49,6 @@ export function normalizeTitle(value: string): string {
 		.replace(/[\u0300-\u036f]/g, "")
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Host calls that reach Flixer's own data on a plugin's behalf, each behind an approved permission. */

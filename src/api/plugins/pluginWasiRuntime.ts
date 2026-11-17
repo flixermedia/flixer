@@ -1,3 +1,4 @@
+import { isRecord } from "./isRecord.ts";
 import { BadRequest, Exception, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
@@ -13,14 +14,10 @@ import { PluginStorageService } from "./pluginStorageService.ts";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
 
-export interface OAuthRuntimeProfile {
+interface OAuthRuntimeProfile {
 	settings: Record<string, string>;
 	tokenUrl: string;
 	userInfoUrl: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 @Injectable()

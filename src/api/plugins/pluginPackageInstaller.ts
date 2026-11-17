@@ -27,7 +27,7 @@ export async function inspectPluginPackage(pluginsPath: string, archive: Buffer)
 	}
 }
 
-export interface PluginPackageInstallResult {
+interface PluginPackageInstallResult {
 	pluginId: string;
 	version: string;
 	packageDigest: string;

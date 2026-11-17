@@ -1,18 +1,19 @@
+import { isRecord } from "./isRecord.ts";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.ts";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
 import { PluginWasiRuntime } from "./pluginWasiRuntime.ts";
 
-export const SEARCH_CAPABILITY = "search.results";
-export const SEARCH_PERMISSION = "api.routes.search";
+const SEARCH_CAPABILITY = "search.results";
+const SEARCH_PERMISSION = "api.routes.search";
 const SEARCH_TIMEOUT_MS = 7_000;
 const MAX_SECTIONS = 4;
 const MAX_ITEMS = 40;
 const SEARCH_TYPES = new Set(["movie", "series", "album"]);
 const TONES = new Set(["neutral", "info", "success", "warning", "danger"]);
 
-export interface PluginSearchItem {
+interface PluginSearchItem {
 	title: string;
 	subtitle?: string;
 	poster?: string;
@@ -22,14 +23,10 @@ export interface PluginSearchItem {
 	query: Record<string, string>;
 }
 
-export interface PluginSearchSection {
+interface PluginSearchSection {
 	pluginId: string;
 	title: string;
 	items: PluginSearchItem[];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function text(value: unknown, max: number): string | undefined {

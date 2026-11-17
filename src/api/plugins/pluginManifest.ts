@@ -2,7 +2,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import schema from "./plugin-manifest.schema.json" with { type: "json" };
 import type { PluginInstallation } from "../../entities/pluginInstallation.entity.ts";
 
-export type PluginTargetName = "flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web";
+type PluginTargetName = "flixer" | "flixer-indexer" | "flixer-streamer" | "flixer-web";
 
 export function updatePluginTargetHealth(
 	installation: Pick<PluginInstallation, "targetStatus" | "status" | "lastError">,
@@ -60,14 +60,14 @@ export interface PluginTableDefinition {
 }
 
 /** A page the plugin renders through the server-driven UI protocol. */
-export interface PluginUiPage {
+interface PluginUiPage {
 	id: string;
 	title: string;
 	nav?: "main";
 	adminOnly?: boolean;
 }
 
-export interface PluginUiSlot {
+interface PluginUiSlot {
 	id: string;
 	title: string;
 	location: "media.detail" | "player.controls";

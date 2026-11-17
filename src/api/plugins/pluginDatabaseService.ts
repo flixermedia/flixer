@@ -1,3 +1,4 @@
+import { isRecord } from "./isRecord.ts";
 import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
@@ -38,10 +39,6 @@ export class PluginDatabaseError extends Error {
 	constructor(readonly code: "invalid_request" | "not_found" | "request_failed") {
 		super(code);
 	}
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function invalid(): never {

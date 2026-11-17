@@ -1,3 +1,4 @@
+import { isRecord } from "./isRecord.ts";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -26,17 +27,13 @@ interface JsonSchemaProperty {
 	"x-flixer-secret"?: boolean;
 }
 
-export interface PluginSettingsSchema {
+interface PluginSettingsSchema {
 	type: "object";
 	properties: Record<string, JsonSchemaProperty>;
 	[key: string]: unknown;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function secretSettingNames(schema: PluginSettingsSchema): Set<string> {
+function secretSettingNames(schema: PluginSettingsSchema): Set<string> {
 	return new Set(
 		Object.entries(schema.properties ?? {})
 			.filter(([, definition]) => definition?.writeOnly === true || definition?.["x-flixer-secret"] === true)
