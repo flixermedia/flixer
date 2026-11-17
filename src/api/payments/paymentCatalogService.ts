@@ -1,12 +1,13 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource, ILike } from "typeorm";
+import { DataSource, ILike, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { PaymentCoupon } from "../../entities/paymentCoupon.entity.js";
 import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
 import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentConfigService, assertPriceCurrencies } from "./paymentConfigService.js";
 import { isUuid, parsePrices, parseScope, parseScopes, type PlanInterval, type RentalStart } from "./paymentTypes.js";
@@ -162,8 +163,8 @@ export class PaymentCatalogService {
 	}
 
 	async deletePlan(id: string): Promise<void> {
-		const subscribers = await this.dataSource.query(`SELECT 1 FROM payment_subscriptions WHERE plan_id = $1 AND status IN ('trialing','active','past_due') LIMIT 1`, [id]);
-		if (subscribers.length > 0) {
+		const hasSubscribers = await this.dataSource.getRepository(PaymentSubscription).existsBy({ planId: id, status: In(["trialing", "active", "past_due"]) });
+		if (hasSubscribers) {
 			throw new BadRequest("This plan still has subscribers. Turn it off to stop new sign-ups instead of deleting it.");
 		}
 		await this.plans.delete({ id });
@@ -246,6 +247,7 @@ export class PaymentCatalogService {
 			take: 25,
 			select: { id: true, title: true, type: true, year: true, parentId: true, seasonNumber: true, episodeNumber: true },
 		});
+		// RAW SQL: jsonb ->> operators with COALESCE over media_items.metadata
 		const artists: { artist: string }[] = await this.dataSource.query(
 			`SELECT DISTINCT COALESCE(metadata->>'albumArtist', metadata->>'artist') AS artist
 			 FROM media_items

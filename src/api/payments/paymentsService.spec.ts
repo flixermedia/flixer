@@ -87,13 +87,14 @@ describe("PaymentsService fulfilment", () => {
 });
 
 describe("PaymentsService webhook event persistence", () => {
-	function webhookService(query: ReturnType<typeof vi.fn>) {
+	function webhookService(execute: ReturnType<typeof vi.fn>) {
 
-		const events = { existsBy: vi.fn().mockResolvedValue(false) };
+		const orIgnore = vi.fn(() => ({ execute }));
+		const values = vi.fn(() => ({ orIgnore }));
+		const events = { existsBy: vi.fn().mockResolvedValue(false), createQueryBuilder: vi.fn(() => ({ insert: () => ({ values }) })) };
 		const orders = { findOneBy: vi.fn().mockResolvedValue(null) };
 		const dataSource = {
 			getRepository: vi.fn((entity: unknown) => (entity === PaymentEvent ? events : orders)),
-			query,
 		} as unknown as DataSource;
 		const config = {
 			get: vi.fn().mockResolvedValue({ provider: "stripe" }),
@@ -101,7 +102,7 @@ describe("PaymentsService webhook event persistence", () => {
 			webhookCredentials: vi.fn().mockResolvedValue({ stripeSecret: "secret" }),
 		};
 		const service = new PaymentsService(dataSource, config as never, {} as never, {} as never, {} as never);
-		return { service, dataSource };
+		return { service, dataSource, values, orIgnore };
 
 	}
 
@@ -112,17 +113,19 @@ describe("PaymentsService webhook event persistence", () => {
 	});
 
 	it("records webhook IDs with a unique-key conflict guard", async () => {
-		const query = vi.fn().mockResolvedValue(undefined);
-		const { service, dataSource } = webhookService(query);
+		const execute = vi.fn().mockResolvedValue(undefined);
+		const { service, dataSource, values, orIgnore } = webhookService(execute);
 
 		await expect(service.handleWebhook("stripe", body, "signature")).resolves.toEqual({ handled: false });
-		expect(query).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT ("provider", "event_id") DO NOTHING'), [expect.any(String), "stripe", "evt-1"]);
+		expect(values).toHaveBeenCalledWith({ id: expect.any(String), provider: "stripe", eventId: "evt-1" });
+		expect(orIgnore).toHaveBeenCalledOnce();
+		expect(execute).toHaveBeenCalledOnce();
 		expect(dataSource.getRepository).toHaveBeenCalledWith(PaymentEvent);
 	});
 
 	it("propagates failures to persist the webhook ID so the provider can retry", async () => {
-		const query = vi.fn().mockRejectedValue(new Error("database unavailable"));
-		const { service } = webhookService(query);
+		const execute = vi.fn().mockRejectedValue(new Error("database unavailable"));
+		const { service } = webhookService(execute);
 
 		await expect(service.handleWebhook("stripe", body, "signature")).rejects.toThrow("database unavailable");
 	});
