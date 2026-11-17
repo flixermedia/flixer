@@ -8,9 +8,9 @@ import type { MediaRoot } from "../mediaLibraries/mediaRootsService.ts";
 import { localPathFor, mountShare, MountError, unmountShare, type MountTarget } from "./shareMounter.ts";
 import { decryptSecret, encryptSecret } from "./shareSecrets.ts";
 
-export type ShareStatus = "connecting" | "connected" | "error";
+type ShareStatus = "connecting" | "connected" | "error";
 
-export interface PublicNetworkShare {
+interface PublicNetworkShare {
 	id: string;
 	name: string;
 	protocol: NetworkShareProtocol;
@@ -28,7 +28,7 @@ export interface PublicNetworkShare {
 	error: string | null;
 }
 
-export interface ShareInput {
+interface ShareInput {
 	name: string;
 	host: string;
 	share: string;
