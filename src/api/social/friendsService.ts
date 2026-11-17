@@ -6,7 +6,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { NotificationService } from "../notifications/notificationService.ts";
 import type { CreateFriendInviteRequest } from "./socialRequests.ts";
 
-export type FriendshipStatus = "self" | "none" | "outgoing" | "incoming" | "friends";
+type FriendshipStatus = "self" | "none" | "outgoing" | "incoming" | "friends";
 
 export interface FriendPerson {
 	id: string;

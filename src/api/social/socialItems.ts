@@ -16,7 +16,7 @@ export interface SocialItem {
 	at?: Date;
 }
 
-export type LoadedSocialItem = SocialItem & { raw: MediaItem; album: MediaItem | null };
+type LoadedSocialItem = SocialItem & { raw: MediaItem; album: MediaItem | null };
 
 export const FAVORITE_TYPES: MediaItemType[] = ["movie", "series", "album", "track", "video"];
 
