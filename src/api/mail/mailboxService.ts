@@ -43,6 +43,7 @@ export class MailboxService {
 	}
 
 	async list() {
+		// RAW SQL: FILTER aggregates over joined mailboxes/users/mail_messages
 		const rows = await this.dataSource.query(
 			`SELECT m.id, m.address, m.kind, m.display_name AS "displayName", m.user_id AS "userId", m.enabled, m.created_at AS "createdAt",
 				u.username AS "username",
