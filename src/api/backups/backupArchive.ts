@@ -14,15 +14,15 @@ import tar from "tar-stream";
  *   flag(1: final chunk) | uint32 BE sealed length | AES-256-GCM(ciphertext || tag)
  * with nonce = 4-byte prefix + 8-byte BE chunk counter and the exact header bytes as AAD.
  */
-export const MAGIC = "FLXBAK1\n";
-export const HEADER_LIMIT = 1 << 20;
+const MAGIC = "FLXBAK1\n";
+const HEADER_LIMIT = 1 << 20;
 export const CHUNK_SIZE = 64 << 10;
-export const KDF_ITERATIONS = 600_000;
+const KDF_ITERATIONS = 600_000;
 const GCM_TAG = 16;
 const CHECK_LABEL = "flixer-backup-passphrase-check";
 
 export const COMPONENTS = ["database", "config", "secrets", "cache"] as const;
-export type BackupComponent = (typeof COMPONENTS)[number];
+type BackupComponent = (typeof COMPONENTS)[number];
 
 export class BackupCorruptError extends Error {
 	constructor(message = "Backup is corrupt or unsupported.") {
@@ -36,7 +36,7 @@ export class BackupPassphraseError extends Error {
 	}
 }
 
-export interface BackupKdf {
+interface BackupKdf {
 	name: string;
 	iterations: number;
 	salt: string;
@@ -52,7 +52,7 @@ export interface BackupHeader {
 	kdf?: BackupKdf;
 }
 
-export interface BackupManifest {
+interface BackupManifest {
 	version: number;
 	createdAt: string;
 	components: string[];
@@ -61,7 +61,7 @@ export interface BackupManifest {
 	cacheFiles: number;
 }
 
-export interface DirectorySource {
+interface DirectorySource {
 	dir: string;
 	/** Relative (forward slash) paths that are not archived. */
 	exclude?: (relative: string) => boolean;
@@ -76,7 +76,7 @@ export interface ArchiveSources {
 	cache?: DirectorySource;
 }
 
-export interface WriteArchiveOptions {
+interface WriteArchiveOptions {
 	destination: string;
 	sources: ArchiveSources;
 	versions?: Record<string, string>;
@@ -136,7 +136,7 @@ function validateHeader(parsed: unknown): BackupHeader {
 	return { ...(h as BackupHeader), versions: { ...versions } };
 }
 
-export interface ReadHeaderResult {
+interface ReadHeaderResult {
 	header: BackupHeader;
 	/** The exact header bytes; they are the AAD of every encrypted chunk. */
 	raw: Buffer;
@@ -292,7 +292,7 @@ class DecryptChunks extends Transform {
 }
 
 /** Opens the tar.gz body of an archive, decrypting it when needed. Throws BackupPassphraseError before reading any data. */
-export async function openArchiveBody(file: string, passphrase?: string): Promise<{ header: BackupHeader; body: Readable }> {
+async function openArchiveBody(file: string, passphrase?: string): Promise<{ header: BackupHeader; body: Readable }> {
 	const { header, raw, bodyOffset } = await readArchiveHeader(file);
 	const source = createReadStream(file, { start: bodyOffset });
 	if (!header.encrypted) {
@@ -311,7 +311,7 @@ export async function openArchiveBody(file: string, passphrase?: string): Promis
 	return { header, body: source.pipe(decrypt) };
 }
 
-export function safeEntryName(name: string): string {
+function safeEntryName(name: string): string {
 	const clean = posix.normalize(name);
 	if (name === "" || name.includes("\\") || name.startsWith("/") || /^[A-Za-z]:/.test(name) || clean !== name || clean === "." || clean === ".." || clean.startsWith("../")) {
 		throw new BackupCorruptError();

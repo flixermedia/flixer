@@ -16,8 +16,8 @@ import { NotificationService } from "../notifications/notificationService.ts";
 import { UpdaterClient } from "../updates/updaterClient.ts";
 import { type ArchiveSources, type BackupHeader, readArchiveHeader, writeArchive } from "./backupArchive.ts";
 
-export const BACKUP_NAME_PATTERN = /^flixer-[0-9TZ-]+\.flxbak$/;
-export type BackupSchedule = "off" | "daily" | "weekly";
+const BACKUP_NAME_PATTERN = /^flixer-[0-9TZ-]+\.flxbak$/;
+type BackupSchedule = "off" | "daily" | "weekly";
 
 const CHECK_INTERVAL_MS = 60 * 60_000;
 const SCHEDULE_INTERVAL_MS: Record<Exclude<BackupSchedule, "off">, number> = { daily: 24 * 60 * 60_000, weekly: 7 * 24 * 60 * 60_000 };
@@ -38,9 +38,9 @@ export interface BackupEntry {
 	versions: Record<string, string>;
 }
 
-export type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
+type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
 
-export interface BackupRunStep {
+interface BackupRunStep {
 	name: string;
 	message: string;
 	status: "running" | "succeeded" | "failed";
@@ -79,7 +79,7 @@ interface BackupState {
 }
 
 /** Dumps the database into `file`. Replaceable so tests do not need PostgreSQL. */
-export type DatabaseDumper = (databaseUrl: string, file: string) => Promise<void>;
+type DatabaseDumper = (databaseUrl: string, file: string) => Promise<void>;
 
 /** The signature a download link carries; it proves an administrator asked for this exact file in the last few minutes. */
 export function signDownload(secret: string, name: string, expires: number): string {
@@ -110,7 +110,7 @@ export function isBackupDue(schedule: BackupSchedule, lastScheduledAt: string | 
 }
 
 /** Runs pg_dump with the connection details in the environment, so the password never appears in a process listing. */
-export const pgDump: DatabaseDumper = (databaseUrl, file) => {
+const pgDump: DatabaseDumper = (databaseUrl, file) => {
 	let parsed: URL;
 	try {
 		parsed = new URL(databaseUrl);
