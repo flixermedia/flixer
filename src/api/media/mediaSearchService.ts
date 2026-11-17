@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../../entities/mediaSearch.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 
@@ -249,7 +250,7 @@ export class MediaSearchService {
 	}
 
 	async enqueueRebuild(): Promise<{ queued: boolean }> {
-		// RAW SQL: no entity for media_search_outbox; ON CONFLICT ... WHERE partial-index upsert with RETURNING
+		// RAW SQL: ON CONFLICT ... WHERE partial-index upsert with RETURNING
 		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
 			INSERT INTO "media_search_outbox" ("operation")
 			VALUES ('rebuild')
@@ -263,7 +264,7 @@ export class MediaSearchService {
 	async resetAndRebuild(): Promise<{ queued: boolean }> {
 		await this.ensureAdminSettingsLoaded();
 		if (!this.enabled) throw new BadRequest("Enable Meilisearch before resetting its media index.");
-		// RAW SQL: no entity for media_search_outbox; ON CONFLICT ... WHERE partial-index upsert with RETURNING
+		// RAW SQL: ON CONFLICT ... WHERE partial-index upsert with RETURNING
 		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
 			INSERT INTO "media_search_outbox" ("operation")
 			VALUES ('reset')
@@ -286,7 +287,7 @@ export class MediaSearchService {
 
 		await this.dataSource.transaction(async (manager) => {
 			if (lyrics.trim()) {
-				// RAW SQL: no entity for media_search_lyrics; ON CONFLICT upsert
+				// RAW SQL: ON CONFLICT upsert refreshing updated_at with DB-side now()
 				await manager.query(
 					`INSERT INTO "media_search_lyrics" ("item_id", "lyrics")
 					VALUES ($1, $2)
@@ -294,11 +295,9 @@ export class MediaSearchService {
 					[itemId, lyrics],
 				);
 			} else {
-				// RAW SQL: no entity for media_search_lyrics
-				await manager.query(`DELETE FROM "media_search_lyrics" WHERE "item_id" = $1`, [itemId]);
+				await manager.delete(MediaSearchLyrics, { itemId });
 			}
-			// RAW SQL: no entity for media_search_outbox
-			await manager.query(`INSERT INTO "media_search_outbox" ("item_id", "operation") VALUES ($1, 'upsert')`, [itemId]);
+			await manager.insert(MediaSearchOutboxEvent, { itemId, operation: "upsert" });
 		});
 	}
 
@@ -317,7 +316,7 @@ export class MediaSearchService {
 
 	async getAdminStatus(): Promise<MediaSearchAdminStatus> {
 		await this.loadAdminSettings();
-		// RAW SQL: no entity for media_search_outbox; FILTER aggregates and scalar subquery
+		// RAW SQL: FILTER aggregates and scalar subquery
 		const outboxRows: Array<{ pending: number | string; failed: number | string; last_error: string | null }> = await this.dataSource.query(`
 				SELECT
 					COUNT(*) FILTER (WHERE "last_error" IS NULL)::int AS pending,
@@ -460,14 +459,12 @@ export class MediaSearchService {
 		const index = await this.request<MeilisearchIndex>(`/indexes/${INDEX_UID}`, {}, [404]);
 		// RAW SQL: settings read of the document version, kept raw alongside the settings upsert below
 		const documentVersions: Array<{ value: number }> = await this.dataSource.query('SELECT "value" FROM "settings" WHERE "key" = $1', [SEARCH_DOCUMENT_VERSION_SETTING]);
-		// RAW SQL: no entity for media_search_outbox
-		const pendingMaintenance: Array<{ operation: "rebuild" | "reset" }> = await this.dataSource.query(`
-			SELECT "operation"
-			FROM "media_search_outbox"
-			WHERE "operation" IN ('rebuild', 'reset')
-			ORDER BY "event_id"
-			LIMIT 1
-		`);
+		const pendingMaintenance = await this.dataSource.getRepository(MediaSearchOutboxEvent).find({
+			select: { operation: true },
+			where: { operation: In(["rebuild", "reset"]) },
+			order: { eventId: "ASC" },
+			take: 1,
+		});
 		const needsRebuild = documentVersions[0]?.value !== SEARCH_DOCUMENT_VERSION;
 		if (index.uid === INDEX_UID && needsRebuild) {
 			const deleted = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}`, { method: "DELETE" });
@@ -521,10 +518,9 @@ export class MediaSearchService {
 						await this.rebuildIndex();
 					}
 				}
-				// RAW SQL: no entity for media_search_outbox; bigint[] id match
-				await this.dataSource.query(`DELETE FROM "media_search_outbox" WHERE "event_id" = ANY($1::bigint[])`, [events.map((event) => event.event_id)]);
+				await this.dataSource.getRepository(MediaSearchOutboxEvent).delete(events.map((event) => event.event_id));
 			} catch (error) {
-				// RAW SQL: no entity for media_search_outbox; DB-side now() and interval
+				// RAW SQL: DB-side now() and interval arithmetic
 				await this.dataSource.query(
 					`UPDATE "media_search_outbox"
 					SET "locked_until" = NULL, "next_attempt_at" = now() + interval '30 seconds', "last_error" = $2
@@ -553,7 +549,7 @@ export class MediaSearchService {
 
 	private async claimEvents(): Promise<OutboxEvent[]> {
 		return this.dataSource.transaction(async (manager) => {
-			// RAW SQL: no entity for media_search_outbox; FOR UPDATE SKIP LOCKED claim
+			// RAW SQL: FOR UPDATE SKIP LOCKED claim
 			const rows: OutboxEvent[] = await manager.query(
 				`SELECT "event_id", "item_id", "operation", "document"
 				FROM "media_search_outbox"
@@ -566,7 +562,7 @@ export class MediaSearchService {
 			if (rows.length === 0) return [];
 			const maintenanceIndex = rows.findIndex((event) => event.operation === "rebuild" || event.operation === "reset");
 			const claimed = maintenanceIndex < 0 ? rows : rows.slice(0, maintenanceIndex + 1);
-			// RAW SQL: no entity for media_search_outbox; DB-side now() and interval
+			// RAW SQL: DB-side now() and interval arithmetic
 			await manager.query(
 				`UPDATE "media_search_outbox"
 				SET "locked_until" = now() + interval '30 minutes', "attempts" = "attempts" + 1
@@ -639,9 +635,8 @@ export class MediaSearchService {
 		const items = await this.dataSource.getRepository(MediaItem).find({ where: { id: In(relatedIds) } });
 		const byId = new Map(items.map((item) => [item.id, item]));
 		const trackIds = items.filter((item) => item.type === "track").map((item) => item.id);
-		// RAW SQL: no entity for media_search_lyrics
-		const lyricRows: Array<{ item_id: string; lyrics: string }> = trackIds.length > 0 ? await this.dataSource.query(`SELECT "item_id", "lyrics" FROM "media_search_lyrics" WHERE "item_id" = ANY($1::uuid[])`, [trackIds]) : [];
-		const lyricsById = new Map(lyricRows.map((row) => [row.item_id, row.lyrics]));
+		const lyricRows = trackIds.length > 0 ? await this.dataSource.getRepository(MediaSearchLyrics).find({ select: { itemId: true, lyrics: true }, where: { itemId: In(trackIds) } }) : [];
+		const lyricsById = new Map(lyricRows.map((row) => [row.itemId, row.lyrics]));
 		const seriesFor = (item: MediaItem): MediaItem | undefined => {
 			let parent = item.parentId ? byId.get(item.parentId) : undefined;
 			while (parent && parent.type !== "series") {

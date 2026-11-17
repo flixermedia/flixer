@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { RE2JS } from "re2js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { UserWebhook, UserWebhookConfig } from "../../entities/userWebhook.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaAccessService } from "../access/mediaAccessService.js";
 
@@ -11,7 +12,6 @@ type Audience = "admins" | "everyone";
 type Actor = { id: string; role: string };
 type Config = { enabled: boolean; audience: Audience; allowedUrls: string[] };
 type Hook = { id: string; name: string; url: string; enabled: boolean };
-type ConfigRow = { enabled: boolean; audience: Audience; allowed_urls: string[] };
 const EVENTS = ["playback.started", "playback.paused", "playback.resumed", "playback.stopped"] as const;
 const MAX_PENDING_DELIVERIES = 128;
 const compiledPatterns = new Map<string, RE2JS>();
@@ -98,23 +98,21 @@ export class UserWebhookService {
 	) {}
 
 	async config(): Promise<Config> {
-		// RAW SQL: no entity for user_webhook_config
-		const rows = (await this.dataSource.query("SELECT enabled, audience, allowed_urls FROM user_webhook_config WHERE id = 1")) as ConfigRow[];
-		if (!rows[0]) throw new Error("User webhook configuration is missing.");
-		return parseConfig({ enabled: rows[0].enabled, audience: rows[0].audience, allowedUrls: rows[0].allowed_urls });
+		const row = await this.dataSource.getRepository(UserWebhookConfig).findOneBy({ id: 1 });
+		if (!row) throw new Error("User webhook configuration is missing.");
+		return parseConfig({ enabled: row.enabled, audience: row.audience, allowedUrls: row.allowedUrls });
 	}
 
 	async updateConfig(raw: unknown): Promise<Config> {
 		const config = parseConfig(raw);
-		// RAW SQL: no entity for user_webhook_config; jsonb cast
-		await this.dataSource.query("UPDATE user_webhook_config SET enabled = $1, audience = $2, allowed_urls = $3::jsonb WHERE id = 1", [config.enabled, config.audience, JSON.stringify(config.allowedUrls)]);
+		await this.dataSource.getRepository(UserWebhookConfig).update({ id: 1 }, { enabled: config.enabled, audience: config.audience, allowedUrls: config.allowedUrls });
 		return config;
 	}
 
 	async list(actor: Actor) {
 		const config = await this.config();
-		// RAW SQL: no entity for user_webhooks
-		const hooks = (await this.dataSource.query("SELECT id, name, url, enabled FROM user_webhooks WHERE user_id = $1 ORDER BY created_at", [actor.id])) as Hook[];
+		const rows = await this.dataSource.getRepository(UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id }, order: { createdAt: "ASC" } });
+		const hooks: Hook[] = rows.map(({ id, name, url, enabled }) => ({ id, name, url, enabled }));
 		return { available: permitted(config, actor), hooks };
 	}
 
@@ -128,13 +126,13 @@ export class UserWebhookService {
 		const url = webhookUrl(value.url);
 		if (!allowsUrl(config, url)) throw new BadRequest("This webhook URL has not been approved by an administrator.");
 		if (id && !AuthService.isUuid(id)) throw new NotFound("Webhook not found.");
-		// RAW SQL: no entity for user_webhooks; single-statement UPDATE via CTE RETURNING
+		// RAW SQL: single-statement UPDATE ... RETURNING that doubles as the ownership check
 		const rows = id
 			? await this.dataSource.query("WITH updated AS (UPDATE user_webhooks SET name = $3, url = $4, enabled = $5 WHERE id = $1 AND user_id = $2 RETURNING id, name, url, enabled) SELECT * FROM updated", [id, actor.id, value.name.trim(), url, value.enabled])
 			: await this.dataSource.transaction(async (manager) => {
 					// RAW SQL: advisory transaction lock; no TypeORM equivalent
 					await manager.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`user-webhooks:${actor.id}`]);
-					// RAW SQL: no entity for user_webhooks; atomic INSERT ... SELECT enforcing the per-user cap
+					// RAW SQL: atomic INSERT ... SELECT enforcing the per-user cap, with RETURNING
 					return manager.query("INSERT INTO user_webhooks (id, user_id, name, url, enabled) SELECT $1, $2, $3, $4, $5 WHERE (SELECT count(*) FROM user_webhooks WHERE user_id = $2) < 10 RETURNING id, name, url, enabled", [randomUUID(), actor.id, (value.name as string).trim(), url, value.enabled]) as Promise<Hook[]>;
 				});
 		if (!rows.length) {
@@ -146,16 +144,14 @@ export class UserWebhookService {
 
 	async remove(actor: Actor, id: string): Promise<void> {
 		if (!AuthService.isUuid(id)) throw new NotFound("Webhook not found.");
-		// RAW SQL: no entity for user_webhooks; single-statement DELETE via CTE RETURNING
-		const rows = (await this.dataSource.query("WITH deleted AS (DELETE FROM user_webhooks WHERE id = $1 AND user_id = $2 RETURNING id) SELECT id FROM deleted", [id, actor.id])) as Array<{ id: string }>;
-		if (!rows.length) throw new NotFound("Webhook not found.");
+		const result = await this.dataSource.getRepository(UserWebhook).delete({ id, userId: actor.id });
+		if (!result.affected) throw new NotFound("Webhook not found.");
 	}
 
 	async report(actor: Actor, raw: unknown, authorization?: string): Promise<void> {
 		const config = await this.config();
 		if (!permitted(config, actor)) return;
-		// RAW SQL: no entity for user_webhooks
-		const hooks = (await this.dataSource.query("SELECT id, name, url, enabled FROM user_webhooks WHERE user_id = $1 AND enabled = true", [actor.id])) as Hook[];
+		const hooks = await this.dataSource.getRepository(UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id, enabled: true } });
 		if (!hooks.some((hook) => allowsUrl(config, hook.url))) return;
 		const value = object(raw);
 		if (typeof value.event !== "string" || !(EVENTS as readonly string[]).includes(value.event) || typeof value.position !== "number" || !Number.isFinite(value.position) || value.position < 0 || value.position > 604800) {
@@ -168,7 +164,7 @@ export class UserWebhookService {
 			const itemId = target.itemId.toLowerCase();
 			const policy = await this.access.resolve(authorization);
 			if (!(await this.access.visibleIds(policy, [itemId])).has(itemId)) throw new NotFound("Media item not found.");
-			// RAW SQL: ANY(text[]) type filter in a service that only talks raw SQL; kept raw with the webhook queries
+			// RAW SQL: ANY(text[]) type filter on media_items
 			const rows = (await this.dataSource.query("SELECT id, title, type FROM media_items WHERE id = $1 AND type = ANY($2::text[])", [itemId, target.kind === "music" ? ["track"] : ["movie", "episode", "video"]])) as Array<{ id: string; title: string; type: string }>;
 			if (!rows[0]) throw new NotFound("Media item not found.");
 			media = { kind: target.kind, ...rows[0] };
@@ -198,7 +194,7 @@ export class UserWebhookService {
 		try {
 			const config = await this.config();
 			if (!config.enabled || !allowsUrl(config, hook.url)) return;
-			// RAW SQL: no entity for user_webhooks; join with users and audience check
+			// RAW SQL: join with users and audience check
 			const rows = (await this.dataSource.query("SELECT h.id FROM user_webhooks h JOIN users u ON u.id = h.user_id WHERE h.id = $1 AND h.enabled = true AND h.url = $2 AND u.disabled_at IS NULL AND ($3 = 'everyone' OR u.role = 'admin')", [hook.id, hook.url, config.audience])) as Array<{ id: string }>;
 			if (!rows.length) return;
 			const response = await fetch(hook.url, {

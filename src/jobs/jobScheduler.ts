@@ -105,12 +105,12 @@ export class JobScheduler {
 			await boss.createQueue(ANALYTICS_RETENTION_JOB);
 			await boss.work(ANALYTICS_RETENTION_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
-					// RAW SQL: no entity for viewing_sessions; DB-side date_trunc retention cutoff
+					// RAW SQL: DB-side date_trunc retention cutoff
 					await this.dataSource.query(`
 						DELETE FROM viewing_sessions
 						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
 					`);
-					// RAW SQL: no entity for listening_events; DB-side date_trunc retention cutoff
+					// RAW SQL: DB-side date_trunc retention cutoff
 					await this.dataSource.query(`
 						DELETE FROM listening_events
 						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'

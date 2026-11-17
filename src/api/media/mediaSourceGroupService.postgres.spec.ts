@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
+import { ENTITIES } from "../../datasources/entityList.js";
 import { CreateMediaSourceGroups1798300000011 } from "../../migrations/createMediaSourceGroups1798300000011.js";
 import { MediaSourceGroupService } from "./mediaSourceGroupService.js";
 
@@ -25,7 +26,7 @@ describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
 		admin = new DataSource({ type: "postgres", url: databaseUrl });
 		await admin.initialize();
 		await admin.query(`CREATE SCHEMA "${schema}"`);
-		database = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` } });
+		database = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: ENTITIES });
 		await database.initialize();
 		await database.query("CREATE TABLE media_items (id uuid PRIMARY KEY, library_id uuid NOT NULL, type text NOT NULL, is_placeholder boolean NOT NULL, parent_id uuid REFERENCES media_items(id) ON DELETE CASCADE)");
 		await database.query("CREATE TABLE watch_progress (user_id uuid NOT NULL, item_id uuid NOT NULL REFERENCES media_items(id) ON DELETE CASCADE, completed boolean NOT NULL, PRIMARY KEY (user_id, item_id))");

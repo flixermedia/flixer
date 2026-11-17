@@ -243,7 +243,7 @@ export class AnalyticsService {
 	async music(days: number) {
 		if (![7, 30, 90].includes(days)) throw new BadRequest("Invalid music analytics range.");
 		const [tracks, daily] = await Promise.all([
-			// RAW SQL: reporting aggregate over listening_events (no entity)
+			// RAW SQL: reporting aggregate over listening_events
 			this.dataSource.query(
 				`
 				SELECT m.id, m.title, count(*)::int AS plays, count(DISTINCT e.user_id)::int AS listeners
@@ -253,7 +253,7 @@ export class AnalyticsService {
 			`,
 				[days],
 			),
-			// RAW SQL: reporting aggregate with to_char over listening_events (no entity)
+			// RAW SQL: reporting aggregate with to_char over listening_events
 			this.dataSource.query(
 				`
 				SELECT to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, count(*)::int AS plays

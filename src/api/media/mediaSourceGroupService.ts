@@ -1,7 +1,8 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaSourceGroup } from "../../entities/mediaSourceGroup.entity.js";
 
 interface SourceRow {
 	id: string;
@@ -10,7 +11,7 @@ interface SourceRow {
 	is_placeholder: boolean;
 }
 
-interface MediaSourceGroup {
+interface SourceGroup {
 	primaryId: string;
 	sourceIds: string[];
 }
@@ -24,8 +25,8 @@ export class MediaSourceGroupService {
 
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
-	async groupFor(itemId: string): Promise<MediaSourceGroup> {
-		// RAW SQL: no entity for media_source_groups; CTE with array_agg
+	async groupFor(itemId: string): Promise<SourceGroup> {
+		// RAW SQL: CTE with scalar subqueries and ARRAY() aggregation
 		const rows: Array<{ primary_id: string; source_ids: string[] }> = await this.dataSource.query(
 			`WITH target AS (
 				SELECT COALESCE((SELECT primary_id FROM media_source_groups WHERE source_id = item.id), item.id) AS primary_id
@@ -53,14 +54,13 @@ export class MediaSourceGroupService {
 			}
 			// RAW SQL: advisory transaction lock; no TypeORM equivalent
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:media-groups:${primary.library_id}`]);
-			// RAW SQL: no entity for media_source_groups
-			const memberships: Array<{ primary_id: string; source_id: string }> = await manager.query("SELECT primary_id, source_id FROM media_source_groups WHERE primary_id = ANY($1::uuid[]) OR source_id = ANY($1::uuid[])", [[primaryId, sourceId]]);
-			if (memberships.some((row) => row.source_id === primaryId || row.primary_id === sourceId || (row.source_id === sourceId && row.primary_id !== primaryId))) {
+			const ids = [primaryId, sourceId];
+			const memberships = await manager.find(MediaSourceGroup, { select: { primaryId: true, sourceId: true }, where: [{ primaryId: In(ids) }, { sourceId: In(ids) }] });
+			if (memberships.some((row) => row.sourceId === primaryId || row.primaryId === sourceId || (row.sourceId === sourceId && row.primaryId !== primaryId))) {
 				throw new BadRequest("Split the source from its existing group before merging it.");
 			}
-			if (!memberships.some((row) => row.primary_id === primaryId && row.source_id === sourceId)) {
-				// RAW SQL: no entity for media_source_groups
-				await manager.query("INSERT INTO media_source_groups (primary_id, source_id) VALUES ($1, $2)", [primaryId, sourceId]);
+			if (!memberships.some((row) => row.primaryId === primaryId && row.sourceId === sourceId)) {
+				await manager.insert(MediaSourceGroup, { primaryId, sourceId });
 			}
 		});
 	}
@@ -72,8 +72,7 @@ export class MediaSourceGroupService {
 			if (!rows[0]) throw new NotFound("Media item not found.");
 			// RAW SQL: advisory transaction lock; no TypeORM equivalent
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:media-groups:${rows[0].library_id}`]);
-			// RAW SQL: no entity for media_source_groups
-			await manager.query("DELETE FROM media_source_groups WHERE primary_id = $1 OR source_id = $1", [itemId]);
+			await manager.createQueryBuilder().delete().from(MediaSourceGroup).where("primary_id = :itemId OR source_id = :itemId", { itemId }).execute();
 		});
 	}
 }

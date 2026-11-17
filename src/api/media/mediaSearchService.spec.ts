@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../../entities/mediaSearch.entity.js";
 import { MEDIA_SEARCH_ENABLED_SETTING, MEDIA_SEARCH_URL_SETTING, MediaSearchService } from "./mediaSearchService.js";
 
 function response(body: unknown, status = 200): Response {
@@ -9,7 +10,7 @@ function response(body: unknown, status = 200): Response {
 
 function emptySettingsDataSource(query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : []))): DataSource {
 	return {
-		getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]) })),
+		getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]) })),
 		query,
 	} as unknown as DataSource;
 }
@@ -245,7 +246,7 @@ describe("MediaSearchService", () => {
 		const query = vi.fn().mockResolvedValue([]);
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({})));
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder) })),
+			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]) })),
 			query,
 		} as unknown as DataSource);
 		const worker = service as unknown as { rebuildIndex: () => Promise<void> };
@@ -303,10 +304,10 @@ describe("MediaSearchService", () => {
 				isPlaceholder: false,
 			},
 		].map((item) => ({ ...item, sortTitle: item.title, genres: [], createdAt: new Date() }) as unknown as MediaItem);
-		const query = vi.fn((sql: string) => Promise.resolve(sql.includes("WITH RECURSIVE") ? items.map(({ id }) => ({ id })) : sql.includes("media_search_lyrics") ? [{ item_id: "track", lyrics: "song lyric words" }] : []));
+		const query = vi.fn((sql: string) => Promise.resolve(sql.includes("WITH RECURSIVE") ? items.map(({ id }) => ({ id })) : []));
 		const service = new MediaSearchService({
 			query,
-			getRepository: vi.fn(() => ({ find: vi.fn().mockResolvedValue(items) })),
+			getRepository: vi.fn((entity: unknown) => ({ find: vi.fn().mockResolvedValue(entity === MediaSearchLyrics ? [{ itemId: "track", lyrics: "song lyric words" }] : items) })),
 		} as unknown as DataSource);
 		const worker = service as unknown as {
 			searchDocumentsFor: (ids: string[]) => Promise<Array<Record<string, unknown>>>;
@@ -345,7 +346,7 @@ describe("MediaSearchService", () => {
 
 	it("persists lyrics separately and queues the track for reindexing", async () => {
 		const managerQuery = vi.fn().mockResolvedValue([]);
-		const manager = { query: managerQuery };
+		const manager = { query: managerQuery, insert: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) };
 		const dataSource = {
 			getRepository: vi.fn(() => ({
 				findOne: vi.fn().mockResolvedValue({ id: "track-1" }),
@@ -358,8 +359,8 @@ describe("MediaSearchService", () => {
 
 		expect(managerQuery.mock.calls[0]?.[0]).toContain('INSERT INTO "media_search_lyrics"');
 		expect(managerQuery.mock.calls[0]?.[1]).toEqual(["track-1", "[00:01.00]lyrics"]);
-		expect(managerQuery.mock.calls[1]?.[0]).toContain(`VALUES ($1, 'upsert')`);
-		expect(managerQuery.mock.calls[1]?.[1]).toEqual(["track-1"]);
+		expect(manager.insert).toHaveBeenCalledWith(MediaSearchOutboxEvent, { itemId: "track-1", operation: "upsert" });
+		expect(manager.delete).not.toHaveBeenCalled();
 	});
 
 	it("creates the media index when it does not exist", async () => {
@@ -420,6 +421,7 @@ describe("MediaSearchService", () => {
 			getRepository: vi.fn(() => ({
 				count: vi.fn().mockResolvedValue(1),
 				findBy: vi.fn().mockResolvedValue([]),
+				find: vi.fn().mockResolvedValue([]),
 			})),
 			transaction: vi.fn(async (callback: (transactionManager: typeof manager) => Promise<unknown>) => callback(manager)),
 		} as unknown as DataSource;
@@ -495,7 +497,7 @@ describe("MediaSearchService", () => {
 		vi.stubGlobal("fetch", fetch);
 		const query = vi.fn().mockResolvedValue([]);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder) })),
+			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]) })),
 			query,
 		} as unknown as DataSource);
 		const worker = service as unknown as { resetIndex: () => Promise<void> };
@@ -567,7 +569,7 @@ describe("MediaSearchService", () => {
 			.mockResolvedValueOnce(response({ results: [task] }));
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]) })),
+			getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]) })),
 			query: vi.fn().mockResolvedValue([{ pending: 0, failed: 0, last_error: null }]),
 		} as unknown as DataSource);
 
