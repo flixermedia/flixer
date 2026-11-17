@@ -47,7 +47,7 @@ interface StreamSession extends StreamerSession {
 	user: { username: string; displayName: string } | null;
 }
 
-interface StreamSessionsResponse extends Omit<StreamerSessionsResponse, "sessions"> {
+export interface StreamSessionsResponse extends Omit<StreamerSessionsResponse, "sessions"> {
 	sessions: StreamSession[];
 }
 
