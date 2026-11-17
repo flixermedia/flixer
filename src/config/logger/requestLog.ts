@@ -23,7 +23,7 @@ export function logRequestResponse(ctx: DIContext): void {
 
 	const requestUrl = typeof ctx.request.url === "string" ? ctx.request.url.split("?")[0] : "";
 	if (!shouldLogRequestResponse(requestUrl, ctx.response.statusCode)) return;
-	defaultLogResponse(ctx);
+	defaultLogResponse(ctx as unknown as Parameters<typeof defaultLogResponse>[0]);
 
 }
 
