@@ -110,7 +110,7 @@ interface StoredMeta {
 	subject?: string;
 }
 
-interface MailTemplate {
+export interface MailTemplate {
 	name: string;
 	label: string;
 	description: string;
