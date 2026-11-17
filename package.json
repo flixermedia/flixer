@@ -69,6 +69,7 @@
 		"oidc-provider": "^9.13.3",
 		"pg": "^8.23.1",
 		"pg-boss": "^12.38.0",
+		"rate-limiter-flexible": "^11.5.0",
 		"re2js": "^2.9.1",
 		"redis": "^6.3.0",
 		"sanitize-html": "^2.18.1",

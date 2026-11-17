@@ -7,6 +7,7 @@ import { QuickConnectRequest } from "../../entities/quickConnectRequest.entity.j
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
+import { RateLimitService } from "../rateLimitService.js";
 
 const REQUEST_ID = "1b2f6d7e-9813-4f90-bd7d-9457af0ec0a1";
 const POLL_TOKEN = "Y".repeat(43);
@@ -53,7 +54,7 @@ function setup(enabled = true) {
 	} as unknown as AuthService;
 
 	return {
-		service: new QuickConnectService(dataSource, authService),
+		service: new QuickConnectService(dataSource, authService, new RateLimitService()),
 		dataSource,
 		requests,
 		settings,
@@ -145,5 +146,17 @@ describe("QuickConnectService", () => {
 			}),
 		);
 		expect(requests.update).toHaveBeenCalledWith(expect.objectContaining({ id: REQUEST_ID, status: "pending" }), { status: "approved", userId: USER_ID });
+	});
+
+	it("limits starts and shares the decision budget between approvals and denials", async () => {
+		const { service, requests } = setup();
+		for (let attempt = 0; attempt < 5; attempt++) await service.start();
+		await expect(service.start()).rejects.toThrow(/rate limited/i);
+		expect(requests.save).toHaveBeenCalledTimes(5);
+
+		for (let attempt = 0; attempt < 20; attempt++) {
+			await expect(service.approve("Bearer session-token", "invalid")).rejects.toThrow(/valid Quick Connect code/i);
+		}
+		await expect(service.deny("Bearer session-token", "invalid")).rejects.toThrow(/rate limited/i);
 	});
 });

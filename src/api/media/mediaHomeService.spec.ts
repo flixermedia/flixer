@@ -169,6 +169,24 @@ describe("MediaHomeService artist browsing", () => {
 });
 
 describe("MediaHomeService search ranking", () => {
+	it("uses PostgreSQL and preserves access restrictions when search is unavailable", async () => {
+		const query = {
+			select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([]),
+		};
+		const dataSource = { getRepository: () => ({ createQueryBuilder: () => query }) } as unknown as DataSource;
+		const search = { searchIds: vi.fn().mockResolvedValue(null) } as unknown as MediaSearchService;
+		const access = { restrict: vi.fn(), shape: vi.fn().mockResolvedValue([]) } as unknown as MediaAccessService;
+		const policy = {} as AccessPolicy;
+		const service = new MediaHomeService(dataSource, {} as IndexerClient, search, access);
+
+		await expect(service.search("user-1", "alien", { genre: "Sci-Fi" }, policy)).resolves.toEqual({ items: [], engine: "postgresql" });
+		expect(access.restrict).toHaveBeenCalledWith(query, "item", policy);
+		expect(access.shape).toHaveBeenCalledWith(policy, []);
+		expect(query.andWhere).toHaveBeenCalledWith(expect.stringContaining("item.title ILIKE :contains"), { contains: "%alien%" });
+		expect(query.andWhere).toHaveBeenCalledWith(expect.stringContaining("lower(g) = lower(:genre)"), { genre: "Sci-Fi" });
+	});
+
 	it("returns recommendation cards in AI-ranked order and ignores missing ids", async () => {
 		const items = [
 			{

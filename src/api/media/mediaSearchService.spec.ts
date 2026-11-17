@@ -23,8 +23,57 @@ describe("MediaSearchService", () => {
 	});
 
 	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 		vi.unstubAllEnvs();
+	});
+
+	it("falls back promptly while index setup is stalled and reuses the setup attempt", async () => {
+		vi.useFakeTimers();
+		const fetch = vi.fn(() => new Promise<Response>(() => undefined));
+		vi.stubGlobal("fetch", fetch);
+		const service = new MediaSearchService(emptySettingsDataSource());
+		const first = service.searchIds("alien");
+		const second = service.searchIds("planet");
+		await vi.advanceTimersByTimeAsync(2_000);
+		await expect(first).resolves.toBeNull();
+		await expect(second).resolves.toBeNull();
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("returns indexed results again when stalled setup completes", async () => {
+		vi.useFakeTimers();
+		let completeSetup!: (value: Response) => void;
+		const fetch = vi.fn()
+			.mockImplementationOnce(() => new Promise<Response>((resolve) => { completeSetup = resolve; }))
+			.mockResolvedValueOnce(response({}))
+			.mockResolvedValueOnce(response({ hits: [{ id: "item-1" }] }));
+		vi.stubGlobal("fetch", fetch);
+		const service = new MediaSearchService(emptySettingsDataSource());
+		const first = service.searchIds("alien");
+		await vi.advanceTimersByTimeAsync(2_000);
+		await expect(first).resolves.toBeNull();
+		completeSetup(response({ uid: "media" }));
+		await expect(service.searchIds("alien")).resolves.toEqual(["item-1"]);
+	});
+
+	it("falls back when a search request exceeds its deadline", async () => {
+		const controller = new AbortController();
+		const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => milliseconds === 2_000 ? controller.signal : new AbortController().signal);
+		const fetch = vi.fn()
+			.mockResolvedValueOnce(response({ uid: "media" }))
+			.mockResolvedValueOnce(response({}))
+			.mockImplementationOnce((_url, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+				init.signal?.addEventListener("abort", () => reject(new Error("search timed out")));
+			}));
+		vi.stubGlobal("fetch", fetch);
+		const service = new MediaSearchService(emptySettingsDataSource());
+		const result = service.searchIds("alien");
+		await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+		controller.abort();
+		await expect(result).resolves.toBeNull();
+		expect(timeout).toHaveBeenCalledWith(2_000);
 	});
 
 	it("returns matching IDs and applies index filters and sorting", async () => {

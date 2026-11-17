@@ -21,6 +21,7 @@ const REBUILD_PAGE_SIZE = 500;
 const MAX_TRACK_LYRICS_LENGTH = 2 << 20;
 const POLL_INTERVAL_MS = 3_000;
 const INITIAL_INDEX_CHECK_INTERVAL_MS = 60_000;
+const SEARCH_TIMEOUT_MS = 2_000;
 
 export interface MediaSearchFilters {
 	type?: string | string[];
@@ -237,7 +238,12 @@ export class MediaSearchService {
 		try {
 			await this.ensureAdminSettingsLoaded();
 			if (!this.enabled) return null;
-			await this.ensureIndex();
+			let timeout: ReturnType<typeof setTimeout> | undefined;
+			const indexReady = await Promise.race([
+				this.ensureIndex().then(() => true),
+				new Promise<false>((resolve) => { timeout = setTimeout(() => resolve(false), SEARCH_TIMEOUT_MS); }),
+			]).finally(() => clearTimeout(timeout));
+			if (!indexReady) return null;
 			if (this.rebuildPending) return null;
 			const filter: string[] = [];
 			if (filters.type) {
@@ -262,6 +268,7 @@ export class MediaSearchService {
 								: ["title:asc"];
 			const response = await this.request<MeilisearchSearchResponse>(`/indexes/${INDEX_UID}/search`, {
 				method: "POST",
+				signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
 				body: JSON.stringify({
 					q: query,
 					filter: filter.length > 0 ? filter.join(" AND ") : undefined,
@@ -816,7 +823,7 @@ export class MediaSearchService {
 		const response = await fetch(`${this.baseUrl}${path}`, {
 			...init,
 			headers,
-			signal: AbortSignal.timeout(10_000),
+			signal: init.signal ?? AbortSignal.timeout(10_000),
 		});
 		const raw = await response.text();
 		let body: unknown;

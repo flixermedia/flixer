@@ -1,5 +1,5 @@
-import { BadRequest, Forbidden, NotFound, TooManyRequests, Unauthorized } from "@tsed/exceptions";
-import { getContext, Inject, Injectable } from "@tsed/di";
+import { BadRequest, Forbidden, NotFound, Unauthorized } from "@tsed/exceptions";
+import { Inject, Injectable } from "@tsed/di";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DataSource, EntityManager, LessThan, MoreThan } from "typeorm";
 import { appConfig } from "../../config/store/appConfig.js";
@@ -7,37 +7,17 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { QuickConnectRequest, type QuickConnectStatus } from "../../entities/quickConnectRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { User } from "../../entities/user.entity.js";
+import { RateLimitService } from "../rateLimitService.js";
 import { AuthService, type AuthResult } from "./authService.js";
 
 const QUICK_CONNECT_SETTING = "quick_connect_enabled";
 const REQUEST_LIFETIME_MS = 5 * 60_000;
-const RATE_WINDOW_MS = 10 * 60_000;
-const MAX_STARTS_PER_WINDOW = 5;
-const MAX_DECISIONS_PER_WINDOW = 20;
 const USER_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-
-interface RequestContextLike {
-	request?: { get(name: string): unknown; raw?: { ip?: string } };
-}
-
-interface RateWindow {
-	count: number;
-	resetAt: number;
-}
 
 export type QuickConnectPollResult = { status: "pending" | "denied" | "expired" } | { status: "approved"; auth: AuthResult };
 
 function hash(value: string): string {
 	return createHash("sha256").update(value).digest("hex");
-}
-
-function getClientAddress(): string {
-
-	const request = getContext<RequestContextLike>()?.request;
-	const forwardedAddress = request?.get("x-real-ip");
-	const address = (typeof forwardedAddress === "string" && forwardedAddress.trim()) || request?.raw?.ip;
-	return typeof address === "string" && address ? address.slice(0, 64) : "unknown";
-
 }
 
 @Injectable()
@@ -46,9 +26,8 @@ export class QuickConnectService {
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,
+		private readonly rateLimit: RateLimitService,
 	) {}
-
-	private readonly rateWindows = new Map<string, RateWindow>();
 
 	async getStatus(): Promise<{ enabled: boolean }> {
 		return { enabled: await this.isEnabled() };
@@ -56,7 +35,7 @@ export class QuickConnectService {
 
 	async start(): Promise<{ requestId: string; userCode: string; pollToken: string; expiresAt: Date; appUrl?: string }> {
 		await this.requireEnabled();
-		this.assertRateLimit("start", MAX_STARTS_PER_WINDOW);
+		await this.rateLimit.consume("quickConnectStart", "Quick Connect is temporarily rate limited. Try again later.");
 
 		const repository = this.dataSource.getRepository(QuickConnectRequest);
 		const now = new Date();
@@ -143,7 +122,7 @@ export class QuickConnectService {
 
 	private async decide(user: User, submittedCode: string, status: Extract<QuickConnectStatus, "approved" | "denied">): Promise<Date> {
 		await this.requireEnabled();
-		this.assertRateLimit("decision", MAX_DECISIONS_PER_WINDOW);
+		await this.rateLimit.consume("quickConnectDecision", "Quick Connect is temporarily rate limited. Try again later.");
 
 		const userCode = submittedCode.replaceAll("-", "").toUpperCase();
 		if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(userCode)) {
@@ -178,23 +157,6 @@ export class QuickConnectService {
 	private createUserCode(): string {
 		const bytes = randomBytes(8);
 		return [...bytes].map((byte) => USER_CODE_ALPHABET[byte & 31]).join("");
-	}
-
-	private assertRateLimit(action: string, limit: number): void {
-		const now = Date.now();
-		const key = `${action}:${getClientAddress()}`;
-		const window = this.rateWindows.get(key);
-		if (!window || window.resetAt <= now) {
-			this.rateWindows.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
-			if (this.rateWindows.size > 1000) {
-				for (const [entry, value] of this.rateWindows) {
-					if (value.resetAt <= now) this.rateWindows.delete(entry);
-				}
-			}
-			return;
-		}
-		if (window.count >= limit) throw new TooManyRequests("Quick Connect is temporarily rate limited. Try again later.");
-		window.count += 1;
 	}
 
 	private isUniqueViolation(error: unknown): boolean {
