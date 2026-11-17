@@ -501,6 +501,7 @@ export class MediaItemsService {
 	}
 
 	private async lock(manager: EntityManager, libraryId: string, key: string): Promise<void> {
+		// RAW SQL: advisory transaction lock; no TypeORM equivalent
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:media-item:${libraryId}:${key}`]);
 	}
 
@@ -539,6 +540,7 @@ export class MediaItemsService {
 				throw new NotFound("Media library not found.");
 			}
 			const stale = await manager.createQueryBuilder().delete().from(MediaItem).where("library_id = :libraryId AND is_placeholder = false", { libraryId }).andWhere("(last_seen_at IS NULL OR last_seen_at < :cutoff)", { cutoff }).execute();
+			// RAW SQL: DELETE with correlated NOT EXISTS self-subquery; row count read from the driver result
 			const orphans = await manager.query(`DELETE FROM media_items p WHERE p.library_id = $1 AND p.is_placeholder = true AND NOT EXISTS (SELECT 1 FROM media_items c WHERE c.parent_id = p.id)`, [libraryId]);
 			const orphanCount = Array.isArray(orphans) ? Number(orphans[1] ?? 0) : 0;
 			return { removed: (stale.affected ?? 0) + orphanCount };
@@ -569,6 +571,7 @@ export class MediaItemsService {
 				params.push(target.path, target.recursive);
 				return `(path = ${pathParam} OR (${recursiveParam}::boolean AND (left(path, length(${pathParam}) + 1) = ${pathParam} || '/' OR left(path, length(${pathParam}) + 1) = ${pathParam} || chr(92))))`;
 			});
+			// RAW SQL: dynamic OR predicates with boolean casts and string functions; DELETE ... RETURNING
 			const removed = await manager.query(`DELETE FROM media_items WHERE library_id = $1 AND (${predicates.join(" OR ")}) RETURNING id`, params);
 			return { removed: Array.isArray(removed) ? removed.length : 0 };
 		});

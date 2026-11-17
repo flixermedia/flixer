@@ -117,6 +117,7 @@ export class IndexerIntroSegmentsService {
 
 	async replace(update: IntroSegmentUpdate): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: advisory transaction lock; no TypeORM equivalent
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:theintrodb:${update.itemId}`]);
 			const item = await manager.getRepository(MediaItem).findOneBy({ id: update.itemId });
 			if (!item || item.isPlaceholder) {
