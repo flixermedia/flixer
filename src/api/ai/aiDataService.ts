@@ -1,6 +1,10 @@
 import { Inject, Injectable } from "@tsed/di";
-import { DataSource } from "typeorm";
+import { DataSource, type ObjectLiteral, type SelectQueryBuilder } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Favorite } from "../../entities/favorite.entity.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { RecommendationFeedback } from "../../entities/userMediaQueue.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
 
 const CANDIDATE_LIMIT = 20_000;
 const HISTORY_LIMIT = 500;
@@ -76,86 +80,32 @@ export class AiDataService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async libraryContext() {
-		// RAW SQL: jsonb ->/->> operators over media_items.metadata
-		const candidates = (await this.dataSource.query(
-			`SELECT id, type, title, year,
-				metadata ->> 'overview' AS overview,
-				metadata ->> 'tagline' AS tagline,
-				metadata -> 'genres' AS genres,
-				metadata -> 'studios' AS studios,
-				metadata -> 'cast' AS cast,
-				metadata -> 'crew' AS crew,
-				COALESCE(metadata ->> 'artist', metadata ->> 'albumArtist') AS artist
-			FROM media_items
-			WHERE is_placeholder = false AND type IN ('movie', 'series', 'video', 'album', 'track')
-			ORDER BY id
-			LIMIT $1`,
-			[CANDIDATE_LIMIT],
-		)) as ItemRow[];
+		const candidates = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.select("item.id", "id")
+			.addSelect("item.type", "type")
+			.addSelect("item.title", "title")
+			.addSelect("item.year", "year")
+			// RAW SQL: PostgreSQL JSONB operators extract recommendation metadata.
+			.addSelect("item.metadata ->> 'overview'", "overview")
+			.addSelect("item.metadata ->> 'tagline'", "tagline")
+			.addSelect("item.metadata -> 'genres'", "genres")
+			.addSelect("item.metadata -> 'studios'", "studios")
+			.addSelect("item.metadata -> 'cast'", "cast")
+			.addSelect("item.metadata -> 'crew'", "crew")
+			.addSelect("COALESCE(item.metadata ->> 'artist', item.metadata ->> 'albumArtist')", "artist")
+			.where("item.isPlaceholder = false")
+			.andWhere("item.type IN ('movie', 'series', 'video', 'album', 'track')")
+			.orderBy("item.id", "ASC")
+			.take(CANDIDATE_LIMIT)
+			.getRawMany<ItemRow>();
 
 		return { candidates: candidates.map(mapItem), history: [], favorites: [] };
 	}
 
 	async recommendationContext(userId: string) {
-		const [library, history, favorites, feedback] = await Promise.all([
-			this.libraryContext(),
-			// RAW SQL: jsonb operators and CASE self-joins over media_items; watch_progress history
-			this.dataSource.query(
-				`SELECT i.id, i.type, i.title, i.year,
-					i.metadata ->> 'overview' AS overview,
-					i.metadata ->> 'tagline' AS tagline,
-					i.metadata -> 'genres' AS genres,
-					i.metadata -> 'studios' AS studios,
-					i.metadata -> 'cast' AS cast,
-					i.metadata -> 'crew' AS crew,
-					COALESCE(i.metadata ->> 'artist', i.metadata ->> 'albumArtist') AS artist,
-					parent.title AS parent_title,
-					parent.metadata -> 'genres' AS parent_genres,
-					w.position_seconds, w.duration_seconds, w.completed, w.updated_at
-				FROM watch_progress w
-				JOIN media_items i ON i.id = w.item_id
-				LEFT JOIN media_items season ON season.id = i.parent_id AND i.type = 'episode'
-				LEFT JOIN media_items parent ON parent.id = CASE WHEN i.type = 'episode' THEN season.parent_id ELSE i.parent_id END
-				WHERE w.user_id = $1 AND i.is_placeholder = false AND i.type IN ('movie', 'episode', 'video', 'album', 'track')
-				ORDER BY w.updated_at DESC
-				LIMIT $2`,
-				[userId, HISTORY_LIMIT],
-			) as Promise<ItemRow[]>,
-			// RAW SQL: jsonb operators over media_items joined to favorites
-			this.dataSource.query(
-				`SELECT i.id, i.type, i.title, i.year,
-					i.metadata ->> 'overview' AS overview,
-					i.metadata ->> 'tagline' AS tagline,
-					i.metadata -> 'genres' AS genres,
-					i.metadata -> 'studios' AS studios,
-					i.metadata -> 'cast' AS cast,
-					i.metadata -> 'crew' AS crew,
-					COALESCE(i.metadata ->> 'artist', i.metadata ->> 'albumArtist') AS artist,
-					f.created_at
-				FROM favorites f
-				JOIN media_items i ON i.id = f.item_id
-				WHERE f.user_id = $1 AND i.is_placeholder = false
-				ORDER BY f.created_at DESC
-				LIMIT $2`,
-				[userId, FAVORITE_LIMIT],
-			) as Promise<ItemRow[]>,
-			// RAW SQL: jsonb operators
-			this.dataSource.query(
-				`SELECT f.feedback, i.id, i.type, i.title, i.year,
-					i.metadata ->> 'overview' AS overview,
-					i.metadata ->> 'tagline' AS tagline,
-					i.metadata -> 'genres' AS genres,
-					i.metadata -> 'studios' AS studios,
-					i.metadata -> 'cast' AS cast,
-					i.metadata -> 'crew' AS crew,
-					COALESCE(i.metadata ->> 'artist', i.metadata ->> 'albumArtist') AS artist
-				FROM recommendation_feedback f
-				JOIN media_items i ON i.id = f.item_id
-				WHERE f.user_id = $1 AND i.is_placeholder = false
-				ORDER BY f.updated_at DESC`,
-				[userId],
-			) as Promise<ItemRow[]>,
-		]);
+		const [library, history, favorites, feedback] = await Promise.all([this.libraryContext(), this.historyQuery(userId), this.favoriteQuery(userId), this.feedbackQuery(userId)]);
 
 		return {
 			...library,
@@ -176,5 +126,54 @@ export class AiDataService {
 
 	static isUserId(value: string): boolean {
 		return UUID_PATTERN.test(value);
+	}
+
+	private itemProjection<T extends ObjectLiteral>(query: SelectQueryBuilder<T>): SelectQueryBuilder<T> {
+		return (
+			query
+				.select("item.id", "id")
+				.addSelect("item.type", "type")
+				.addSelect("item.title", "title")
+				.addSelect("item.year", "year")
+				// RAW SQL: PostgreSQL JSONB operators extract recommendation metadata.
+				.addSelect("item.metadata ->> 'overview'", "overview")
+				.addSelect("item.metadata ->> 'tagline'", "tagline")
+				.addSelect("item.metadata -> 'genres'", "genres")
+				.addSelect("item.metadata -> 'studios'", "studios")
+				.addSelect("item.metadata -> 'cast'", "cast")
+				.addSelect("item.metadata -> 'crew'", "crew")
+				.addSelect("COALESCE(item.metadata ->> 'artist', item.metadata ->> 'albumArtist')", "artist")
+		);
+	}
+
+	private async historyQuery(userId: string): Promise<ItemRow[]> {
+		return this.itemProjection(this.dataSource.getRepository(WatchProgress).createQueryBuilder("w").innerJoin(MediaItem, "item", "item.id = w.itemId").leftJoin(MediaItem, "season", "season.id = item.parentId AND item.type = 'episode'").leftJoin(MediaItem, "parent", "parent.id = CASE WHEN item.type = 'episode' THEN season.parentId ELSE item.parentId END"))
+			.addSelect("parent.title", "parent_title")
+			.addSelect("parent.metadata -> 'genres'", "parent_genres")
+			.addSelect("w.positionSeconds", "position_seconds")
+			.addSelect("w.durationSeconds", "duration_seconds")
+			.addSelect("w.completed", "completed")
+			.addSelect("w.updatedAt", "updated_at")
+			.where("w.userId = :userId", { userId })
+			.andWhere("item.isPlaceholder = false")
+			.andWhere("item.type IN ('movie', 'episode', 'video', 'album', 'track')")
+			.orderBy("w.updatedAt", "DESC")
+			.take(HISTORY_LIMIT)
+			.getRawMany<ItemRow>();
+	}
+
+	private async favoriteQuery(userId: string): Promise<ItemRow[]> {
+		return this.itemProjection(this.dataSource.getRepository(Favorite).createQueryBuilder("favorite").innerJoin(MediaItem, "item", "item.id = favorite.itemId"))
+			.addSelect("favorite.createdAt", "created_at")
+			.where("favorite.userId = :userId", { userId })
+			.andWhere("item.isPlaceholder = false")
+			.orderBy("favorite.createdAt", "DESC")
+			.take(FAVORITE_LIMIT)
+			.getRawMany<ItemRow>();
+	}
+
+	private async feedbackQuery(userId: string): Promise<ItemRow[]> {
+		const query = this.dataSource.getRepository(RecommendationFeedback).createQueryBuilder("feedback").innerJoin(MediaItem, "item", "item.id = feedback.itemId");
+		return this.itemProjection(query).addSelect("feedback.feedback", "feedback").where("feedback.userId = :userId", { userId }).andWhere("item.isPlaceholder = false").orderBy("feedback.updatedAt", "DESC").getRawMany<ItemRow>();
 	}
 }

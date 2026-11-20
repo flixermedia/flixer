@@ -3,10 +3,11 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
-import { ENTITIES } from "../../datasources/entityList.js";
-import { MIGRATIONS } from "../../datasources/migrationList.js";
+import { Favorite } from "../../entities/favorite.entity.js";
+import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
+import { Playlist } from "../../entities/playlist.entity.js";
 import { SocialFriendInvite, SocialFriendship } from "../../entities/social.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { UpNextQueueItem, WatchLaterItem } from "../../entities/userMediaQueue.entity.js";
@@ -17,18 +18,19 @@ import type { NotificationService } from "../notifications/notificationService.j
 import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
 import { UserMediaService } from "./userMediaService.js";
+import { ProfilesService } from "./profilesService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../../datasources/testPostgres.js";
 
 const databaseUrl = process.env.ENTITY_SCHEMA_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
-	const schema = `social_entities_test_${randomUUID().replaceAll("-", "")}`;
 	// Sorted so the friendship check constraint (low < high) is satisfied by (alex, sam).
 	const [alex, sam, kim] = [randomUUID(), randomUUID(), randomUUID()].sort();
 	const library = randomUUID();
 	const movies = [randomUUID(), randomUUID(), randomUUID()];
 	const tracks = [randomUUID(), randomUUID()];
 	const album = randomUUID();
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 	let friends: FriendsService;
 	let playlists: PlaylistsService;
@@ -36,12 +38,8 @@ describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
 	const send = vi.fn(async () => ({ recipients: 1, pushed: 0 }));
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, schema, entities: ENTITIES, migrations: MIGRATIONS, synchronize: false });
-		await db.initialize();
-		await db.runMigrations();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "social_entities_test" });
+		db = isolated.db;
 		await db.getRepository(MediaLibrary).save({ id: library, name: "Library", type: "mixed" });
 		await db.getRepository(User).save([
 			{ id: alex, username: "alex", displayName: "Alex", passwordHash: "unused" },
@@ -53,14 +51,10 @@ describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
 		friends = new FriendsService(db, { send } as unknown as NotificationService);
 		playlists = new PlaylistsService(db);
 		media = new UserMediaService(db, { restrict: vi.fn() } as unknown as MediaAccessService);
-	});
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("runs the friend request, accept and remove flow", async () => {
@@ -74,7 +68,9 @@ describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
 		expect(await friends.status(sam, alex)).toBe("incoming");
 		expect(await friends.list(sam)).toMatchObject({ friends: [], incoming: [{ username: "alex", displayName: "Alex" }], outgoing: [] });
 		expect(await friends.list(alex)).toMatchObject({ outgoing: [{ username: "sam" }] });
+		await expect(friends.accept(alex, "sam")).rejects.toThrow("There is no friend request to accept.");
 
+		expect(await friends.accept(sam, "alex")).toEqual({ status: "friends" });
 		expect(await friends.accept(sam, "alex")).toEqual({ status: "friends" });
 		expect(await friends.areFriends(sam, alex)).toBe(true);
 		expect(await friends.status(alex, sam)).toBe("friends");
@@ -86,6 +82,21 @@ describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
 		await friends.remove(alex, "sam");
 		expect(await friends.status(alex, sam)).toBe("none");
 		expect(await db.getRepository(SocialFriendship).count()).toBe(0);
+		await expect(friends.accept(sam, "alex")).rejects.toThrow("There is no friend request to accept.");
+	});
+
+	it("filters the profile directory and returns correlated counts", async () => {
+		await db.getRepository(UserPreference).save({ userId: sam, profileVisibility: "friends" });
+		await db.getRepository(SocialFriendship).save({ userLowId: alex, userHighId: sam, requestedBy: alex, acceptedAt: new Date() });
+		await db.getRepository(Favorite).save({ userId: sam, itemId: movies[0] });
+		await db.getRepository(Playlist).save({ id: randomUUID(), userId: sam, name: "Public", isPublic: true });
+		await db.getRepository(Playlist).save({ id: randomUUID(), userId: sam, name: "Private", isPublic: false });
+		await db.getRepository(ListeningHistory).save({ userId: sam, itemId: tracks[0], playCount: 4 });
+		const profiles = new ProfilesService(db, {} as never, {} as never, {} as never);
+		expect(await profiles.directory(alex, "sam")).toMatchObject({ profiles: [{ username: "sam", favoriteCount: 1, playlistCount: 1, playCount: 4, nowPlaying: null }] });
+		await db.getRepository(UserPreference).update({ userId: sam }, { profileVisibility: "hidden" });
+		expect(await profiles.directory(alex, "sam")).toEqual({ profiles: [] });
+		await db.getRepository(SocialFriendship).delete({ userLowId: alex, userHighId: sam });
 	});
 
 	it("creates and consumes invites", async () => {
@@ -161,7 +172,7 @@ describe.skipIf(!databaseUrl)("social entities with PostgreSQL", () => {
 
 		await media.removeCollectionItem(alex, created.id, movies[0]);
 		expect(await db.getRepository(VideoCollectionItem).countBy({ collectionId: created.id })).toBe(2);
-		await media.updateCollection(alex, created.id, { name: "Renamed", isPublic: false });
+		expect(await media.updateCollection(alex, created.id, { name: "Renamed", isPublic: false })).toMatchObject({ id: created.id, name: "Renamed", description: "Best", isPublic: false, itemCount: 2, createdAt: expect.any(Date), updatedAt: expect.any(Date) });
 		const stored = await db.getRepository(VideoCollection).findOneByOrFail({ id: created.id });
 		expect(stored).toMatchObject({ name: "Renamed", description: "Best", isPublic: false });
 		expect(stored.updatedAt.getTime()).toBeGreaterThanOrEqual(created.updatedAt.getTime());

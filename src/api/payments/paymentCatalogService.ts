@@ -247,14 +247,16 @@ export class PaymentCatalogService {
 			take: 25,
 			select: { id: true, title: true, type: true, year: true, parentId: true, seasonNumber: true, episodeNumber: true },
 		});
-		// RAW SQL: jsonb ->> operators with COALESCE over media_items.metadata
-		const artists: { artist: string }[] = await this.dataSource.query(
-			`SELECT DISTINCT COALESCE(metadata->>'albumArtist', metadata->>'artist') AS artist
-			 FROM media_items
-			 WHERE type IN ('album','track') AND COALESCE(metadata->>'albumArtist', metadata->>'artist') ILIKE $1
-			 LIMIT 10`,
-			[like],
-		);
+		const artists = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.select("COALESCE(item.metadata->>'albumArtist', item.metadata->>'artist')", "artist")
+			.distinct(true)
+			// RAW SQL: PostgreSQL JSONB ->> extraction supports artist search metadata.
+			.where("item.type IN ('album', 'track')")
+			.andWhere("COALESCE(item.metadata->>'albumArtist', item.metadata->>'artist') ILIKE :like", { like })
+			.take(10)
+			.getRawMany<{ artist: string | null }>();
 		return {
 			items: rows.map((row) => ({
 				id: row.id,

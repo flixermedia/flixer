@@ -1,6 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 import { AnalyticsController, AnalyticsReportController } from "./analyticsController.js";
 import { AnalyticsService } from "./analyticsService.js";
+import { Advertisement } from "../../entities/advertisement.entity.js";
+import { AdvertisementView } from "../../entities/analytics.entity.js";
+import { ListeningEvent } from "../../entities/analytics.entity.js";
+import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
+import { PaymentOrder } from "../../entities/paymentOrder.entity.js";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
+
+function videoBuilder(rows: unknown[] = []) {
+
+	const builder = { innerJoin: vi.fn(), leftJoin: vi.fn(), select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), groupBy: vi.fn(), addGroupBy: vi.fn(), orderBy: vi.fn(), addOrderBy: vi.fn(), limit: vi.fn(), getRawMany: vi.fn().mockResolvedValue(rows) };
+	for (const method of ["innerJoin", "leftJoin", "select", "addSelect", "where", "groupBy", "addGroupBy", "orderBy", "addOrderBy", "limit"] as const) builder[method].mockReturnValue(builder);
+	return builder;
+
+}
+
+function snapshotRepositories() {
+
+	const builders = new Map<unknown, ReturnType<typeof videoBuilder>>([
+		[WatchProgress, videoBuilder([{ id: "m", title: "Movie", type: "movie", viewers: 2, completed: 1 }])],
+		[ListeningHistory, videoBuilder([{ id: "t", title: "Track", plays: "4", listeners: 2 }])],
+		[ListeningEvent, videoBuilder()],
+		[PaymentOrder, videoBuilder([{ currency: "USD", status: "paid", orders: 1, total_minor: "500", refunded_minor: "0" }])],
+		[PaymentSubscription, videoBuilder([{ status: "active", count: 1 }])],
+		[Advertisement, videoBuilder([{ total: 3, enabled: 1 }])],
+		[AdvertisementView, videoBuilder()],
+	]);
+	const adViews = videoBuilder([{ id: "ad", name: "Example", views: 1, completed: 0, skipped: 1, clicked: 0, watched_seconds: 4 }]);
+	let advertisementCalls = 0;
+	return { builders, adViews, getRepository: (entity: unknown) => ({ createQueryBuilder: () => (entity === Advertisement && advertisementCalls++ > 0 ? adViews : builders.get(entity)) }) };
+
+}
 
 describe("admin analytics", () => {
 	it("requires an admin before querying analytics", async () => {
@@ -20,13 +52,18 @@ describe("admin analytics", () => {
 			if (sql.includes("advertisement_views")) return [{ id: "ad", name: "Example", views: 1, completed: 0, skipped: 1, clicked: 0, watched_seconds: 4 }];
 			return [{ total: 3, enabled: 1 }];
 		});
-		const result = await new AnalyticsService({ query } as never).snapshot();
+		const { builders, getRepository } = snapshotRepositories();
+		const builder = builders.get(WatchProgress)!;
+		const result = await new AnalyticsService({ query, getRepository } as never).snapshot();
 		expect(result.video[0]).toMatchObject({ viewers: 2, completed: 1 });
+		expect(builder.where).toHaveBeenCalledWith("m.type IN (:...types)", { types: ["movie", "episode", "video"] });
+		expect(builder.limit).toHaveBeenCalledWith(50);
 		expect(result.music[0]).toMatchObject({ plays: "4", listeners: 2 });
 		expect(result.orders[0]).toMatchObject({ currency: "USD", total_minor: "500" });
 		expect(result.advertisements).toEqual({ total: 3, enabled: 1 });
 		expect(result.adViews[0]).toMatchObject({ views: 1, skipped: 1, watched_seconds: 4 });
-		expect(query.mock.calls.find(([sql]) => sql.includes("payment_orders"))?.[0]).toContain("GROUP BY currency, status");
+		expect(builders.get(PaymentOrder)?.groupBy).toHaveBeenCalledWith("o.currency");
+		expect(builders.get(PaymentOrder)?.addGroupBy).toHaveBeenCalledWith("o.status");
 	});
 
 	it("validates and idempotently merges user-bound ad reports", async () => {
@@ -42,20 +79,19 @@ describe("admin analytics", () => {
 	});
 
 	it("bounds advertising reports to supported UTC calendar periods", async () => {
-		const query = vi.fn(async (sql: string, _params?: unknown[]) => {
-			if (sql.includes("WITH days")) return [{ day: "2026-01-01", views: 2, watched_seconds: 12 }];
-			if (sql.includes("FROM advertisements a")) return [{ id: "ad", name: "Example", views: 2 }];
-			if (sql.includes("FROM advertisements")) return [{ total: 1, enabled: 1 }];
-			return [];
-		});
-		const service = new AnalyticsService({ query } as never);
+		const daysBuilder = { fromDummy: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(), setParameter: vi.fn().mockReturnThis() };
+		const trendBuilder = { addCommonTableExpression: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(), addSelect: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(), leftJoin: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), getRawMany: vi.fn().mockResolvedValue([{ day: "2026-01-01", views: 2, watched_seconds: 12 }]) };
+		const repositories = snapshotRepositories();
+		const createQueryBuilder = vi.fn().mockReturnValueOnce(trendBuilder).mockReturnValueOnce(daysBuilder);
+		const service = new AnalyticsService({ ...repositories, createQueryBuilder } as never);
 		const result = await service.snapshot(7);
 		expect(result.adTrend).toEqual([{ day: "2026-01-01", views: 2, watched_seconds: 12 }]);
-		expect(query.mock.calls.find(([sql]) => sql.includes("WITH days"))?.[1]).toEqual([7]);
-		expect(query.mock.calls.find(([sql]) => sql.includes("FROM advertisements a"))?.[1]).toEqual([7]);
-		expect(query.mock.calls.find(([sql]) => sql.includes("WITH days"))?.[0]).toContain("AT TIME ZONE 'UTC'");
+		expect(daysBuilder.select.mock.calls[0]?.[0]).toContain("generate_series");
+		expect(daysBuilder.setParameter).toHaveBeenCalledWith("days", 7);
+		expect(repositories.adViews.leftJoin).toHaveBeenCalledWith(expect.anything(), "v", expect.stringContaining("AT TIME ZONE 'UTC'"), { adDays: 7 });
+		expect(trendBuilder.addCommonTableExpression).toHaveBeenCalledTimes(2);
 		await expect(service.snapshot(365)).rejects.toThrow("Invalid advertising analytics range");
-		expect(query).toHaveBeenCalledTimes(7);
+		expect(createQueryBuilder).toHaveBeenCalledTimes(2);
 	});
 
 	it("rejects unsupported range values after authorizing the admin", async () => {
@@ -94,16 +130,18 @@ describe("admin analytics", () => {
 	});
 
 	it("bounds music and order trends and keeps financial dimensions separate", async () => {
-		const query = vi.fn(async (_sql: string, _params?: unknown[]) => []);
-		const service = new AnalyticsService({ query } as never);
+		const { builders, getRepository } = snapshotRepositories();
+		const service = new AnalyticsService({ getRepository } as never);
 		await service.music(7);
 		await service.orders(30);
-		expect(query.mock.calls).toHaveLength(3);
-		expect(query.mock.calls[0]?.[1]).toEqual([7]);
-		expect(query.mock.calls[2]?.[1]).toEqual([30]);
-		expect(query.mock.calls[2]?.[0]).toContain("GROUP BY 1, kind, currency, status");
+		expect(builders.get(ListeningEvent)?.where).toHaveBeenCalledTimes(2);
+		expect(builders.get(ListeningEvent)?.where).toHaveBeenCalledWith(expect.stringContaining("AT TIME ZONE 'UTC'"), { days: 7 });
+		expect(builders.get(PaymentOrder)?.where).toHaveBeenCalledWith(expect.stringContaining("AT TIME ZONE 'UTC'"), { days: 30 });
+		expect(builders.get(PaymentOrder)?.addGroupBy).toHaveBeenCalledWith("o.currency");
+		expect(builders.get(PaymentOrder)?.addGroupBy).toHaveBeenCalledWith("o.kind");
+		expect(builders.get(PaymentOrder)?.addGroupBy).toHaveBeenCalledWith("o.status");
 		await expect(service.music(0)).rejects.toThrow();
 		await expect(service.orders(365)).rejects.toThrow();
-		expect(query).toHaveBeenCalledTimes(3);
+		expect(builders.get(ListeningEvent)?.where).toHaveBeenCalledTimes(2);
 	});
 });

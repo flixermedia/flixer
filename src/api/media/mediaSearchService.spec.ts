@@ -1,18 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DataSource } from "typeorm";
+import { In, type DataSource } from "typeorm";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../../entities/mediaSearch.entity.js";
+import { Setting } from "../../entities/setting.entity.js";
 import { MEDIA_SEARCH_ENABLED_SETTING, MEDIA_SEARCH_URL_SETTING, MediaSearchService } from "./mediaSearchService.js";
 
 function response(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-function emptySettingsDataSource(query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : []))): DataSource {
+function outboxBuilder(query: (sql: string, params?: unknown[]) => Promise<unknown[]>) {
+
+	let insertValues: Record<string, unknown> = {};
+	const builder = {
+		insert: vi.fn(),
+		into: vi.fn(),
+		values: vi.fn((value: Record<string, unknown>) => {
+			insertValues = value;
+			return builder;
+		}),
+		orIgnore: vi.fn(),
+		orUpdate: vi.fn(),
+		returning: vi.fn(),
+		execute: vi.fn(async () => ({ raw: await query(typeof insertValues.operation === "string" ? `outbox insert ${insertValues.operation}` : `settings insert ${JSON.stringify(insertValues)}`) })),
+		select: vi.fn(),
+		addSelect: vi.fn(),
+		where: vi.fn(),
+		andWhere: vi.fn(),
+		orderBy: vi.fn(),
+		limit: vi.fn(),
+		take: vi.fn(),
+		setLock: vi.fn(),
+		setOnLocked: vi.fn(),
+		getRawMany: vi.fn().mockResolvedValue([]),
+		getRawOne: vi.fn(async () => (await query("outbox status"))[0] ?? null),
+		getMany: vi.fn().mockResolvedValue([]),
+	};
+	for (const name of ["insert", "into", "orIgnore", "orUpdate", "returning", "select", "addSelect", "where", "andWhere", "orderBy", "limit", "take", "setLock", "setOnLocked"] as const) builder[name].mockReturnValue(builder);
+	return builder;
+
+}
+
+function emptySettingsDataSource(query = vi.fn().mockResolvedValue([]), version: number | null = 2): DataSource {
+
+	const repository = { findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]), findOne: vi.fn().mockResolvedValue(version === null ? null : { value: version }), delete: vi.fn().mockResolvedValue({}), createQueryBuilder: vi.fn(() => outboxBuilder(query)) };
 	return {
-		getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]) })),
+		getRepository: vi.fn(() => repository),
 		query,
 	} as unknown as DataSource;
+
 }
 
 describe("MediaSearchService", () => {
@@ -220,7 +256,8 @@ describe("MediaSearchService", () => {
 			.mockResolvedValueOnce(response({ status: "succeeded" }));
 		vi.stubGlobal("fetch", fetch);
 		const query = vi.fn().mockResolvedValue([]);
-		const service = new MediaSearchService(emptySettingsDataSource(query));
+		const dataSource = emptySettingsDataSource(query, null);
+		const service = new MediaSearchService(dataSource);
 
 		await expect(service.searchIds("alien")).resolves.toBeNull();
 
@@ -230,30 +267,25 @@ describe("MediaSearchService", () => {
 		expect(JSON.parse(String(fetch.mock.calls[5]?.[1]?.body))).not.toHaveProperty("embedders");
 		expect(fetch.mock.calls.some(([url]) => String(url).includes("/settings/embedders"))).toBe(false);
 		expect(fetch.mock.calls.some(([url]) => String(url).endsWith("/search"))).toBe(false);
-		expect(query.mock.calls.some(([sql]) => String(sql).includes("VALUES ('rebuild')"))).toBe(true);
-		expect(query.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM "settings"'))).toBe(true);
-		expect(query.mock.calls.some(([, parameters]) => Array.isArray(parameters) && parameters.includes("media_search_document_version"))).toBe(true);
+		expect(query).toHaveBeenCalledWith("outbox insert rebuild");
+		expect(dataSource.getRepository(Setting).delete).toHaveBeenCalledWith({ key: In(["media_search_vector_enabled", "media_search_semantic_ratio", "media_search_include_lyrics"]) });
 	});
 
 	it("records the search document version after a completed rebuild", async () => {
-		const builder = {
-			select: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			orderBy: vi.fn().mockReturnThis(),
-			take: vi.fn().mockReturnThis(),
-			getMany: vi.fn().mockResolvedValue([]),
-		};
 		const query = vi.fn().mockResolvedValue([]);
+		const builder = outboxBuilder(query);
+		const removeSettings = vi.fn().mockResolvedValue({});
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({})));
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]) })),
+			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]), delete: removeSettings })),
 			query,
 		} as unknown as DataSource);
 		const worker = service as unknown as { rebuildIndex: () => Promise<void> };
 
 		await worker.rebuildIndex();
 
-		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual(["media_search_document_version", "2"]);
+		expect(removeSettings).toHaveBeenCalledWith({ key: In(["media_search_vector_enabled", "media_search_semantic_ratio", "media_search_include_lyrics"]) });
+		expect(query).toHaveBeenCalledWith('settings insert {"key":"media_search_document_version","value":2,"isPublic":false}');
 	});
 
 	it("builds separate search fields for shows, episodes, albums, and tracks", async () => {
@@ -345,8 +377,9 @@ describe("MediaSearchService", () => {
 	});
 
 	it("persists lyrics separately and queues the track for reindexing", async () => {
-		const managerQuery = vi.fn().mockResolvedValue([]);
-		const manager = { query: managerQuery, insert: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) };
+		const lyricsBuilder = { insert: vi.fn(), into: vi.fn(), values: vi.fn(), orUpdate: vi.fn(), execute: vi.fn().mockResolvedValue({}) };
+		for (const name of ["insert", "into", "values", "orUpdate"] as const) lyricsBuilder[name].mockReturnValue(lyricsBuilder);
+		const manager = { createQueryBuilder: vi.fn(() => lyricsBuilder), insert: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) };
 		const dataSource = {
 			getRepository: vi.fn(() => ({
 				findOne: vi.fn().mockResolvedValue({ id: "track-1" }),
@@ -357,8 +390,10 @@ describe("MediaSearchService", () => {
 
 		await service.storeTrackLyrics("track-1", "[00:01.00]lyrics");
 
-		expect(managerQuery.mock.calls[0]?.[0]).toContain('INSERT INTO "media_search_lyrics"');
-		expect(managerQuery.mock.calls[0]?.[1]).toEqual(["track-1", "[00:01.00]lyrics"]);
+		expect(lyricsBuilder.into).toHaveBeenCalledWith(MediaSearchLyrics);
+		expect(lyricsBuilder.values).toHaveBeenCalledWith({ itemId: "track-1", lyrics: "[00:01.00]lyrics", updatedAt: expect.any(Function) });
+		expect(lyricsBuilder.orUpdate).toHaveBeenCalledWith(["lyrics", "updated_at"], ["item_id"]);
+		expect(lyricsBuilder.execute).toHaveBeenCalledOnce();
 		expect(manager.insert).toHaveBeenCalledWith(MediaSearchOutboxEvent, { itemId: "track-1", operation: "upsert" });
 		expect(manager.delete).not.toHaveBeenCalled();
 	});
@@ -415,13 +450,17 @@ describe("MediaSearchService", () => {
 
 	it("queues the initial index rebuild after Meilisearch becomes available", async () => {
 		const query = vi.fn((sql: string) => Promise.resolve(sql.startsWith('SELECT "value"') ? [{ value: 2 }] : []));
-		const manager = { query: vi.fn().mockResolvedValue([]) };
+		const builder = { select: vi.fn().mockReturnThis(), addSelect: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), setLock: vi.fn().mockReturnThis(), setOnLocked: vi.fn().mockReturnThis(), getRawMany: vi.fn().mockResolvedValue([]) };
+		const manager = { query: vi.fn().mockResolvedValue([]), createQueryBuilder: vi.fn(() => builder) };
 		const dataSource = {
 			query,
 			getRepository: vi.fn(() => ({
 				count: vi.fn().mockResolvedValue(1),
 				findBy: vi.fn().mockResolvedValue([]),
 				find: vi.fn().mockResolvedValue([]),
+				findOne: vi.fn().mockResolvedValue({ value: 2 }),
+				delete: vi.fn().mockResolvedValue({}),
+				createQueryBuilder: vi.fn(() => outboxBuilder(query)),
 			})),
 			transaction: vi.fn(async (callback: (transactionManager: typeof manager) => Promise<unknown>) => callback(manager)),
 		} as unknown as DataSource;
@@ -438,7 +477,9 @@ describe("MediaSearchService", () => {
 		await worker.processOutbox();
 		await worker.processOutbox();
 
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("VALUES ('rebuild')"));
+		expect(query).toHaveBeenCalledWith("outbox insert rebuild");
+		expect(builder.setLock).toHaveBeenCalledWith("pessimistic_write");
+		expect(builder.setOnLocked).toHaveBeenCalledWith("skip_locked");
 	});
 
 	it("reports whether a rebuild request was newly queued", async () => {
@@ -446,7 +487,7 @@ describe("MediaSearchService", () => {
 			.fn()
 			.mockResolvedValueOnce([{ event_id: "1" }])
 			.mockResolvedValueOnce([]);
-		const service = new MediaSearchService({ query } as unknown as DataSource);
+		const service = new MediaSearchService(emptySettingsDataSource(query));
 
 		await expect(service.enqueueRebuild()).resolves.toEqual({ queued: true });
 		await expect(service.enqueueRebuild()).resolves.toEqual({ queued: false });
@@ -459,8 +500,7 @@ describe("MediaSearchService", () => {
 
 		await expect(service.resetAndRebuild()).resolves.toEqual({ queued: true });
 
-		expect(query.mock.calls[0]?.[0]).toContain("VALUES ('reset')");
-		expect(query.mock.calls[0]?.[0]).toContain(`WHERE "operation" = 'reset'`);
+		expect(query).toHaveBeenCalledWith("outbox insert reset");
 	});
 
 	it("does not reset Meilisearch while it is disabled", async () => {
@@ -477,13 +517,6 @@ describe("MediaSearchService", () => {
 	});
 
 	it("recreates the media index with defaults before rebuilding its documents", async () => {
-		const builder = {
-			select: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			orderBy: vi.fn().mockReturnThis(),
-			take: vi.fn().mockReturnThis(),
-			getMany: vi.fn().mockResolvedValue([]),
-		};
 		const fetch = vi
 			.fn()
 			.mockResolvedValueOnce(response({ taskUid: 1 }))
@@ -496,8 +529,9 @@ describe("MediaSearchService", () => {
 			.mockResolvedValueOnce(response({ status: "succeeded" }));
 		vi.stubGlobal("fetch", fetch);
 		const query = vi.fn().mockResolvedValue([]);
+		const builder = outboxBuilder(query);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]) })),
+			getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder), find: vi.fn().mockResolvedValue([]), delete: vi.fn().mockResolvedValue({}) })),
 			query,
 		} as unknown as DataSource);
 		const worker = service as unknown as { resetIndex: () => Promise<void> };
@@ -520,7 +554,7 @@ describe("MediaSearchService", () => {
 			sortableAttributes: ["sortTitle", "year", "title", "createdAt"],
 			displayedAttributes: ["id"],
 		});
-		expect(query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO "settings"'))?.[1]).toEqual(["media_search_document_version", "2"]);
+		expect(query).toHaveBeenCalledWith('settings insert {"key":"media_search_document_version","value":2,"isPublic":false}');
 	});
 
 	it("reports saved settings and outbox status without contacting Meilisearch when disabled", async () => {
@@ -532,7 +566,7 @@ describe("MediaSearchService", () => {
 		const fetch = vi.fn();
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ findBy })),
+			getRepository: vi.fn(() => ({ findBy, createQueryBuilder: vi.fn(() => outboxBuilder(query)) })),
 			query,
 		} as unknown as DataSource);
 
@@ -569,7 +603,7 @@ describe("MediaSearchService", () => {
 			.mockResolvedValueOnce(response({ results: [task] }));
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]) })),
+			getRepository: vi.fn(() => ({ findBy: vi.fn().mockResolvedValue([]), find: vi.fn().mockResolvedValue([]), createQueryBuilder: vi.fn(() => outboxBuilder(vi.fn().mockResolvedValue([{ pending: 0, failed: 0, last_error: null }]))) })),
 			query: vi.fn().mockResolvedValue([{ pending: 0, failed: 0, last_error: null }]),
 		} as unknown as DataSource);
 
@@ -623,6 +657,7 @@ describe("MediaSearchService", () => {
 		};
 		const query = vi
 			.fn()
+			.mockResolvedValue([{ event_id: "1" }])
 			.mockResolvedValueOnce([{ event_id: "1" }])
 			.mockResolvedValueOnce([{ pending: 1, failed: 0, last_error: null }]);
 		const fetch = vi
@@ -632,7 +667,7 @@ describe("MediaSearchService", () => {
 			.mockResolvedValueOnce(response({ results: [] }));
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => repository),
+			getRepository: vi.fn(() => ({ ...repository, createQueryBuilder: vi.fn(() => outboxBuilder(query)) })),
 			query,
 		} as unknown as DataSource);
 
@@ -652,7 +687,7 @@ describe("MediaSearchService", () => {
 		});
 		expect(settings.get(MEDIA_SEARCH_ENABLED_SETTING)?.value).toBe(true);
 		expect(settings.get(MEDIA_SEARCH_URL_SETTING)?.value).toBe("http://meili.test");
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("VALUES ('rebuild')"));
+		expect(query).toHaveBeenCalledWith("outbox insert rebuild");
 	});
 
 	it("allows an empty URL to clear the Meilisearch override", async () => {
@@ -675,7 +710,7 @@ describe("MediaSearchService", () => {
 		vi.stubEnv("MEILISEARCH_URL", "http://meili.test");
 		vi.stubGlobal("fetch", fetch);
 		const service = new MediaSearchService({
-			getRepository: vi.fn(() => repository),
+			getRepository: vi.fn(() => ({ ...repository, createQueryBuilder: vi.fn(() => outboxBuilder(query)) })),
 			query,
 		} as unknown as DataSource);
 

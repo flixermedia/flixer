@@ -36,6 +36,23 @@ describe("IndexerSettingsService", () => {
 		});
 	});
 
+	it("accepts and masks an optional LRCLIB API key", () => {
+		const service = new IndexerSettingsService({} as DataSource);
+		const settings = service.validate(INDEXER_PROVIDERS_KEY, { lrclib: { enabled: true, apiKey: "lrclib-secret" } }, {}) as Record<string, { enabled: boolean; apiKey?: string }>;
+
+		expect(settings.lrclib).toEqual({ enabled: true, apiKey: "lrclib-secret" });
+		expect(service.mask(INDEXER_PROVIDERS_KEY, settings)).toMatchObject({
+			lrclib: { enabled: true, apiKey: "********" },
+		});
+	});
+
+	it("accepts Unison as a keyless lyric provider and preserves an explicit disable", () => {
+		const service = new IndexerSettingsService({} as DataSource);
+		const enabled = service.validate(INDEXER_PROVIDERS_KEY, { unison: { enabled: true } }, {});
+		expect(enabled).toMatchObject({ unison: { enabled: true } });
+		expect(service.validate(INDEXER_PROVIDERS_KEY, { unison: { enabled: false } }, enabled)).toMatchObject({ unison: { enabled: false } });
+	});
+
 	it("accepts and masks an optional TheIntroDB API key", () => {
 		const service = new IndexerSettingsService({} as DataSource);
 		const settings = service.validate(

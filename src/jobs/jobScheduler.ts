@@ -6,6 +6,7 @@ import { PgBoss, type Job, type JobWithMetadata, type QueueResult, type Schedule
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../entities/setting.entity.js";
+import { ListeningEvent, ViewingSession } from "../entities/analytics.entity.js";
 import { SentryService } from "../sentry/sentryService.js";
 import { appConfig } from "../config/store/appConfig.js";
 import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
@@ -105,16 +106,9 @@ export class JobScheduler {
 			await boss.createQueue(ANALYTICS_RETENTION_JOB);
 			await boss.work(ANALYTICS_RETENTION_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
-					// RAW SQL: DB-side date_trunc retention cutoff
-					await this.dataSource.query(`
-						DELETE FROM viewing_sessions
-						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
-					`);
-					// RAW SQL: DB-side date_trunc retention cutoff
-					await this.dataSource.query(`
-						DELETE FROM listening_events
-						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
-					`);
+					// RAW SQL: UTC date_trunc retention cutoff preserves database-clock retention semantics.
+					await this.dataSource.createQueryBuilder().delete().from(ViewingSession).where("createdAt < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'").execute();
+					await this.dataSource.createQueryBuilder().delete().from(ListeningEvent).where("createdAt < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'").execute();
 				});
 				if (jobError) {
 					logger().error(`Job ${ANALYTICS_RETENTION_JOB} failed.`, jobError);

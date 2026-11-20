@@ -24,7 +24,11 @@ describe("PluginStorageService", () => {
 		const remove = vi.fn().mockResolvedValue({});
 		const getRepository = vi.fn(() => ({ find, delete: remove }));
 		const query = vi.fn().mockResolvedValue([]);
-		const transaction = vi.fn(async (work: (manager: EntityManager) => Promise<void>) => work({ getRepository, query } as unknown as EntityManager));
+		const values = vi.fn();
+		const writeBuilder = { insert: vi.fn(), into: vi.fn(), values, orUpdate: vi.fn(), execute: vi.fn().mockResolvedValue({}) };
+		for (const name of ["insert", "into", "values", "orUpdate"] as const) writeBuilder[name].mockReturnValue(writeBuilder);
+		const createQueryBuilder = vi.fn().mockReturnValue(writeBuilder);
+		const transaction = vi.fn(async (work: (manager: EntityManager) => Promise<void>) => work({ getRepository, query, createQueryBuilder } as unknown as EntityManager));
 		const dataSource = { transaction } as unknown as DataSource;
 		const storage = new PluginStorageService(dataSource);
 
@@ -36,13 +40,13 @@ describe("PluginStorageService", () => {
 		expect(getRepository).toHaveBeenCalledWith(PluginStorageEntry);
 		expect(query).toHaveBeenCalledWith("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", ["flixer.example:plugin", "flixer.example"]);
 		expect(remove).toHaveBeenCalledWith({ pluginId: "flixer.example", scope: "plugin", ownerId: "flixer.example", key: In(["old-theme"]) });
-		expect(query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO "plugin_storage"'), ["flixer.example", "plugin", "flixer.example", "theme", '"dark"']);
+		expect(values).toHaveBeenCalledWith([{ pluginId: "flixer.example", scope: "plugin", ownerId: "flixer.example", key: "theme", value: "dark", updatedAt: expect.any(Function) }]);
 	});
 
 	it("enforces the limit against the combined stored document", async () => {
 		const find = vi.fn().mockResolvedValue([{ key: "existing", value: "x".repeat(250 * 1024) }]);
 		const getRepository = vi.fn(() => ({ find }));
-		const query = vi.fn();
+		const query = vi.fn().mockResolvedValue([]);
 		const dataSource = {
 			transaction: (work: (manager: EntityManager) => Promise<void>) => work({ getRepository, query } as unknown as EntityManager),
 		} as unknown as DataSource;

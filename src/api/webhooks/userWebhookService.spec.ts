@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { UserWebhook, UserWebhookConfig } from "../../entities/userWebhook.entity.js";
 import { AdminUserWebhookController, UserWebhookController } from "./userWebhookController.js";
 import { UserWebhookService, webhookUrl } from "./userWebhookService.js";
@@ -14,14 +15,40 @@ afterEach(() => vi.unstubAllGlobals());
 
 type ConfigRow = { enabled: boolean; audience: string; allowedUrls: string[] };
 
-/** A data source whose repositories and raw `query` are mocks. */
-function makeSource(options: { config?: () => ConfigRow | null; hooks?: unknown[]; deleted?: number; query?: ReturnType<typeof vi.fn> } = {}) {
+/** A data source whose repositories and query-builder results are mocked. */
+function makeSource(options: { config?: () => ConfigRow | null; hooks?: unknown[]; deleted?: number; query?: (sql: string, params?: unknown[]) => Promise<unknown[]> } = {}) {
 
 	const configs = { findOneBy: vi.fn(async () => (options.config ? options.config() : null)), update: vi.fn() };
 	const hooks = { find: vi.fn(async () => options.hooks ?? []), delete: vi.fn(async () => ({ affected: options.deleted ?? 0 })) };
-	const query = options.query ?? vi.fn().mockResolvedValue([]);
-	const dataSource = { getRepository: vi.fn((entity: unknown) => (entity === UserWebhookConfig ? configs : entity === UserWebhook ? hooks : undefined)), query };
-	return { dataSource, configs, hooks, query };
+	const query = options.query ?? (vi.fn().mockResolvedValue([]) as (sql: string, params?: unknown[]) => Promise<unknown[]>);
+	let update: Record<string, unknown> = {};
+	let criteria: Record<string, unknown> = {};
+	const updateBuilder = {
+		update: vi.fn(),
+		set: vi.fn((values: Record<string, unknown>) => {
+			update = values;
+			return updateBuilder;
+		}),
+		where: vi.fn((_sql: string, values: Record<string, unknown>) => {
+			criteria = values;
+			return updateBuilder;
+		}),
+		returning: vi.fn(),
+		execute: vi.fn(async () => ({ raw: await query("UPDATE user_webhooks", [criteria.id, criteria.userId, update.name, update.url, update.enabled]) })),
+		innerJoin: vi.fn(),
+		select: vi.fn(),
+		andWhere: vi.fn(),
+		getRawOne: vi.fn(async () => (await query("JOIN users"))[0] ?? null),
+	};
+	for (const name of ["update", "returning", "innerJoin", "select", "where", "andWhere"] as const) updateBuilder[name].mockReturnValue(updateBuilder);
+	const lockBuilder = { select: vi.fn(), setParameter: vi.fn(), getRawOne: vi.fn().mockResolvedValue({ locked: null }) };
+	for (const name of ["select", "setParameter"] as const) lockBuilder[name].mockReturnValue(lockBuilder);
+	const transaction = vi.fn(async (work: (manager: unknown) => Promise<unknown>) => work({ createQueryBuilder: () => lockBuilder, count: vi.fn().mockResolvedValue(0), insert: vi.fn().mockResolvedValue({}) }));
+	const dataSource = {
+		getRepository: vi.fn((entity: unknown) => (entity === UserWebhookConfig ? configs : entity === UserWebhook ? { ...hooks, createQueryBuilder: vi.fn(() => updateBuilder) } : entity === MediaItem ? { findOne: vi.fn(async () => (await query("FROM media_items"))[0] ?? null) } : undefined)),
+		transaction,
+	};
+	return { dataSource, configs, hooks, query, transaction };
 
 }
 

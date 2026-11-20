@@ -2,26 +2,17 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
 import { RepairOidcConfiguration1798300000016 } from "./repairOidcConfiguration1798300000016.js";
+import { createIsolatedSchema, type IsolatedSchema } from "../datasources/testPostgres.js";
 
 const databaseUrl = process.env.OIDC_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("OAuth configuration repair migration", () => {
-	const schema = `oidc_repair_${randomUUID().replaceAll("-", "")}`;
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({
-			type: "postgres",
-			url: databaseUrl,
-			schema,
-			extra: { options: `-c search_path=${schema}` },
-			migrations: [RepairOidcConfiguration1798300000016],
-		});
-		await db.initialize();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "oidc_repair", migrate: false, entities: [], migrations: [RepairOidcConfiguration1798300000016] });
+		db = isolated.db;
 		await db.query(`CREATE TABLE migrations (id SERIAL PRIMARY KEY, timestamp bigint NOT NULL, name varchar NOT NULL)`);
 		await db.query(`INSERT INTO migrations (timestamp, name) VALUES (1798300000015, 'CreateOidcProvider1798300000015')`);
 		await db.query(`CREATE TABLE oidc_clients (id text PRIMARY KEY)`);
@@ -29,11 +20,7 @@ describe.skipIf(!databaseUrl)("OAuth configuration repair migration", () => {
 	});
 
 	afterAll(async () => {
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("creates the missing table without changing existing OAuth data and records the repair", async () => {

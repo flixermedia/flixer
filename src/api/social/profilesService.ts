@@ -3,9 +3,14 @@ import { NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { Favorite } from "../../entities/favorite.entity.js";
 import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { Playlist } from "../../entities/playlist.entity.js";
+import { SocialFriendship } from "../../entities/social.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { FavoritesService } from "./favoritesService.js";
 import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
@@ -60,25 +65,23 @@ export class ProfilesService {
 
 	async directory(viewerId: string, query?: string) {
 		const term = query?.trim().slice(0, 64);
-		// RAW SQL: correlated count subqueries, friendship EXISTS and ILIKE ESCAPE search
-		const rows = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file,
-				(SELECT count(*) FROM favorites f WHERE f.user_id = u.id)::int AS favorite_count,
-				(SELECT count(*) FROM playlists p WHERE p.user_id = u.id AND p.is_public = true)::int AS playlist_count,
-				(SELECT COALESCE(SUM(h.play_count), 0) FROM listening_history h WHERE h.user_id = u.id)::int AS play_count
-			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE u.disabled_at IS NULL AND (
-				COALESCE(up.profile_visibility, 'public') = 'public'
-				OR (COALESCE(up.profile_visibility, 'public') = 'friends' AND EXISTS (
-					SELECT 1 FROM social_friendships sf
-					WHERE sf.accepted_at IS NOT NULL
-					AND ((sf.user_low_id = $1 AND sf.user_high_id = u.id) OR (sf.user_high_id = $1 AND sf.user_low_id = u.id))
-				))
-			)
-			${term ? `AND (u.username ILIKE $2 ESCAPE '\\' OR u.display_name ILIKE $2 ESCAPE '\\')` : ""}
-			ORDER BY lower(COALESCE(u.display_name, u.username)) LIMIT ${DIRECTORY_LIMIT}`,
-			term ? [viewerId, likePattern(term)] : [viewerId],
-		)) as Array<{
+		const queryBuilder = this.dataSource
+			.getRepository(User)
+			.createQueryBuilder("u")
+			.leftJoin(UserPreference, "up", "up.userId = u.id")
+			.select("u.id", "id")
+			.addSelect("u.username", "username")
+			.addSelect("u.displayName", "display_name")
+			.addSelect("u.createdAt", "created_at")
+			.addSelect("up.avatarFile", "avatar_file")
+			.addSelect((subQuery) => subQuery.select("COUNT(*)::int").from(Favorite, "favorite").where("favorite.userId = u.id"), "favorite_count")
+			.addSelect((subQuery) => subQuery.select("COUNT(*)::int").from(Playlist, "playlist").where("playlist.userId = u.id").andWhere("playlist.isPublic = true"), "playlist_count")
+			.addSelect((subQuery) => subQuery.select("COALESCE(SUM(history.playCount), 0)::int").from(ListeningHistory, "history").where("history.userId = u.id"), "play_count")
+			.where("u.disabledAt IS NULL")
+			// RAW SQL: correlated friendship EXISTS preserves friends-only visibility.
+			.andWhere("(COALESCE(up.profileVisibility, 'public') = 'public' OR (COALESCE(up.profileVisibility, 'public') = 'friends' AND EXISTS (SELECT 1 FROM social_friendships sf WHERE sf.accepted_at IS NOT NULL AND ((sf.user_low_id = :viewerId AND sf.user_high_id = u.id) OR (sf.user_high_id = :viewerId AND sf.user_low_id = u.id)))))", { viewerId });
+		if (term) queryBuilder.andWhere("(u.username ILIKE :term ESCAPE '\\' OR u.displayName ILIKE :term ESCAPE '\\')", { term: likePattern(term) });
+		const rows = await queryBuilder.orderBy("LOWER(COALESCE(u.displayName, u.username))", "ASC").take(DIRECTORY_LIMIT).getRawMany<{
 			id: string;
 			username: string;
 			display_name: string | null;
@@ -87,7 +90,7 @@ export class ProfilesService {
 			favorite_count: number;
 			playlist_count: number;
 			play_count: number;
-		}>;
+		}>();
 		const profiles = await Promise.all(
 			rows.map(async (row) => ({
 				username: row.username,
@@ -126,12 +129,11 @@ export class ProfilesService {
 	}
 
 	async ownProfile(viewerId: string) {
-		// RAW SQL: shared userSql join of users and user_preferences
-		const rows = (await this.dataSource.query(this.userSql(`u.id = $1`), [viewerId])) as UserRow[];
-		if (!rows[0]) {
+		const user = await this.userLookup().where("u.id = :id", { id: viewerId }).getRawOne<UserRow>();
+		if (!user) {
 			throw new NotFound("Profile not found.");
 		}
-		return this.build(rows[0], viewerId, true, true);
+		return this.build(user, viewerId, true, true);
 	}
 
 	/** Records that the user started, continued or stopped playing a song. */
@@ -176,16 +178,14 @@ export class ProfilesService {
 		}
 	}
 
-	private userSql(where: string): string {
-		// RAW SQL: shared SELECT joining users and user_preferences with a COALESCE default
-		return `SELECT u.id, u.username, u.display_name, u.created_at, up.avatar_file, COALESCE(up.profile_visibility, 'public') AS visibility
-			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE ${where} AND u.disabled_at IS NULL`;
+	private userLookup() {
+		return this.dataSource.getRepository(User).createQueryBuilder("u").leftJoin(UserPreference, "up", "up.userId = u.id").select("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("u.createdAt", "created_at").addSelect("up.avatarFile", "avatar_file").addSelect("COALESCE(up.profileVisibility, 'public')", "visibility").where("u.disabledAt IS NULL");
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
-		// RAW SQL: shared userSql join with case-insensitive lower() username match
-		const rows = (await this.dataSource.query(this.userSql(`lower(u.username) = lower($1)`), [username.slice(0, 64)])) as UserRow[];
-		return rows[0];
+		return this.userLookup()
+			.andWhere("LOWER(u.username) = LOWER(:username)", { username: username.slice(0, 64) })
+			.getRawOne<UserRow>();
 	}
 
 	private async build(user: UserRow, viewerId: string, isSelf: boolean, isFriend: boolean) {
@@ -215,12 +215,19 @@ export class ProfilesService {
 		}
 		const fresh = song && isFresh(song.at) ? song : undefined;
 
-		// RAW SQL: DB-side now() minus interval cast from a text parameter
-		const [progress] = (await this.dataSource.query(
-			`SELECT item_id, position_seconds, duration_seconds, updated_at FROM watch_progress
-			WHERE user_id = $1 AND completed = false AND updated_at > now() - ($2 || ' milliseconds')::interval ORDER BY updated_at DESC LIMIT 1`,
-			[userId, String(PRESENCE_MS)],
-		)) as Array<{ item_id: string; position_seconds: number; duration_seconds: number; updated_at: Date }>;
+		const progress = await this.dataSource
+			.getRepository(WatchProgress)
+			.createQueryBuilder("w")
+			.select("w.itemId", "item_id")
+			.addSelect("w.positionSeconds", "position_seconds")
+			.addSelect("w.durationSeconds", "duration_seconds")
+			.addSelect("w.updatedAt", "updated_at")
+			.where("w.userId = :userId", { userId })
+			.andWhere("w.completed = false")
+			.andWhere("w.updatedAt > now() - (:milliseconds || ' milliseconds')::interval", { milliseconds: String(PRESENCE_MS) })
+			.orderBy("w.updatedAt", "DESC")
+			.take(1)
+			.getRawOne<{ item_id: string; position_seconds: number; duration_seconds: number; updated_at: Date }>();
 
 		const watching = progress && (!fresh || progress.updated_at.getTime() > fresh.at);
 		const itemId = watching ? progress.item_id : fresh?.itemId;
@@ -247,12 +254,7 @@ export class ProfilesService {
 	}
 
 	private async recentlyWatched(userId: string): Promise<SocialItem[]> {
-		// RAW SQL: join of watch_progress and media_items
-		const rows = (await this.dataSource.query(
-			`SELECT w.item_id, w.updated_at FROM watch_progress w JOIN media_items m ON m.id = w.item_id
-			WHERE w.user_id = $1 AND m.type IN ('movie', 'episode', 'video') ORDER BY w.updated_at DESC LIMIT $2`,
-			[userId, RECENT_LIMIT],
-		)) as Array<{ item_id: string; updated_at: Date }>;
+		const rows = await this.dataSource.getRepository(WatchProgress).createQueryBuilder("w").innerJoin(MediaItem, "m", "m.id = w.itemId").select("w.itemId", "item_id").addSelect("w.updatedAt", "updated_at").where("w.userId = :userId", { userId }).andWhere("m.type IN ('movie', 'episode', 'video')").orderBy("w.updatedAt", "DESC").take(RECENT_LIMIT).getRawMany<{ item_id: string; updated_at: Date }>();
 		const cards = await loadSocialItems(
 			this.dataSource,
 			rows.map((row) => row.item_id),

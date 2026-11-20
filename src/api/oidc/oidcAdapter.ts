@@ -12,34 +12,36 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 
 	async function findArtifact(column: "id" | "uid" | "userCode", value: string): Promise<AdapterPayload | undefined> {
 
-		const predicate = column === "id" ? `"id" = $2` : `"payload"->>'${column}' = $2`;
-		// RAW SQL: jsonb ->> payload key lookup (uid/userCode use the expression indexes) with database-clock expiry check
-		const rows: ArtifactRow[] = await dataSource.query(`SELECT "payload" FROM "oidc_artifacts" WHERE "kind" = $1 AND ${predicate} AND ("expires_at" IS NULL OR "expires_at" > now()) LIMIT 1`, [kind, value]);
-		return rows[0]?.payload;
+		const query = dataSource.getRepository(OidcArtifact).createQueryBuilder("artifact").select("artifact.payload", "payload").where("artifact.kind = :kind", { kind });
+		if (column === "id") query.andWhere("artifact.id = :value", { value });
+		else query.andWhere(`artifact.payload ->> '${column}' = :value`, { value });
+		return (await query.andWhere("(artifact.expiresAt IS NULL OR artifact.expiresAt > now())").take(1).getRawOne<ArtifactRow>())?.payload;
 
 	}
 
 	return {
 		async upsert(id, payload, expiresIn) {
 			if (kind === "ReplayDetection") {
-				// RAW SQL: atomic INSERT ... ON CONFLICT ... WHERE ... RETURNING detects replays in one statement
-				const rows: Array<{ id: string }> = await dataSource.query(
-					`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
-					 VALUES ($1, $2, $3::jsonb, now() + $4 * interval '1 second')
-					 ON CONFLICT ("kind", "id") DO UPDATE SET "payload" = EXCLUDED."payload", "expires_at" = EXCLUDED."expires_at"
-					 WHERE "oidc_artifacts"."expires_at" <= now() RETURNING "id"`,
-					[kind, id, JSON.stringify(payload), expiresIn ?? 3600],
-				);
-				if (!rows.length) throw new Error("OAuth replay detected.");
+				const result = await dataSource
+					.getRepository(OidcArtifact)
+					.createQueryBuilder()
+					.insert()
+					.values({ kind, id, payload: payload as never, expiresAt: () => "now() + CAST(:expiresIn AS integer) * interval '1 second'" })
+					.setParameter("expiresIn", expiresIn ?? 3600)
+					.orUpdate(["payload", "expires_at"], ["kind", "id"], { overwriteCondition: { where: '"expires_at" <= now()' } })
+					.returning(["id"])
+					.execute();
+				if (!result.raw.length) throw new Error("OAuth replay detected.");
 				return;
 			}
-			// RAW SQL: upsert computing expires_at from the database clock (now() + interval) with a NULL-able lifetime
-			await dataSource.query(
-				`INSERT INTO "oidc_artifacts" ("kind", "id", "payload", "expires_at")
-				 VALUES ($1, $2, $3::jsonb, CASE WHEN $4::integer IS NULL THEN NULL ELSE now() + $4 * interval '1 second' END)
-				 ON CONFLICT ("kind", "id") DO UPDATE SET "payload" = EXCLUDED."payload", "expires_at" = EXCLUDED."expires_at"`,
-				[kind, id, JSON.stringify(payload), expiresIn ?? null],
-			);
+			await dataSource
+				.getRepository(OidcArtifact)
+				.createQueryBuilder()
+				.insert()
+				.values({ kind, id, payload: payload as never, expiresAt: () => "CASE WHEN CAST(:expiresIn AS integer) IS NULL THEN NULL ELSE now() + CAST(:expiresIn AS integer) * interval '1 second' END" })
+				.setParameter("expiresIn", expiresIn ?? null)
+				.orUpdate(["payload", "expires_at"], ["kind", "id"])
+				.execute();
 		},
 		async find(id) {
 			if (kind !== "Client") return findArtifact("id", id);
@@ -59,20 +61,22 @@ export function createOidcAdapter(dataSource: DataSource, kind: string): Adapter
 		findByUserCode: (code) => findArtifact("userCode", code),
 		findByUid: (uid) => findArtifact("uid", uid),
 		async consume(id) {
-			// RAW SQL: atomic UPDATE ... jsonb_set ... RETURNING consumes an artifact exactly once
-			const rows: Array<{ id: string }> = await dataSource.query(
-				`UPDATE "oidc_artifacts" SET "payload" = jsonb_set("payload", '{consumed}', to_jsonb(floor(extract(epoch from now()))::bigint))
-				 WHERE "kind" = $1 AND "id" = $2 AND NOT ("payload" ? 'consumed') AND ("expires_at" IS NULL OR "expires_at" > now()) RETURNING "id"`,
-				[kind, id],
-			);
-			if (!rows.length) throw new Error("The OAuth artifact was already consumed or expired.");
+			// RAW SQL: PostgreSQL JSONB mutation and presence operator keep consume atomic.
+			const result = await dataSource
+				.getRepository(OidcArtifact)
+				.createQueryBuilder()
+				.update(OidcArtifact)
+				.set({ payload: () => `jsonb_set("payload", '{consumed}', to_jsonb(floor(extract(epoch from now()))::bigint))` })
+				.where('"kind" = :kind AND "id" = :id AND NOT ("payload" ? \'consumed\') AND ("expires_at" IS NULL OR "expires_at" > now())', { kind, id })
+				.execute();
+			if (!result.affected) throw new Error("The OAuth artifact was already consumed or expired.");
 		},
 		async destroy(id) {
 			await dataSource.getRepository(OidcArtifact).delete({ kind, id });
 		},
 		async revokeByGrantId(grantId) {
-			// RAW SQL: delete by jsonb ->> payload predicate
-			await dataSource.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'grantId' = $1`, [grantId]);
+			// RAW SQL: PostgreSQL JSONB ->> payload predicate.
+			await dataSource.getRepository(OidcArtifact).createQueryBuilder().delete().from(OidcArtifact).where("\"payload\"->>'grantId' = :grantId", { grantId }).execute();
 		},
 	};
 

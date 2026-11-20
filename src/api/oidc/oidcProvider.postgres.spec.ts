@@ -4,7 +4,7 @@ import middie from "@fastify/middie";
 import type { PlatformContext } from "@tsed/platform-http";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DataSource } from "typeorm";
+import { DataSource, type QueryRunner } from "typeorm";
 import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
@@ -34,12 +34,12 @@ import type { EntitlementService } from "../payments/entitlementService.js";
 import { OIDC_RESOURCE_SCOPES } from "./oidcResourceScopes.js";
 import { Unauthorized } from "@tsed/exceptions";
 import type { AuthService } from "../auth/authService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../../datasources/testPostgres.js";
 
 const databaseUrl = process.env.OIDC_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
-	const schema = `oidc_test_${randomUUID().replaceAll("-", "")}`;
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 	let app: FastifyInstance;
 	let clients: OidcClientService;
@@ -54,11 +54,8 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 	beforeAll(async () => {
 		previousSecret = process.env.JWT_SECRET;
 		process.env.JWT_SECRET = "test-only-signing-secret-12345678901234567890";
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, entities: [User, UserPreference, PaymentSubscription, PaymentPlan, PaymentEntitlement, PaymentOrder, MediaItem, Favorite, Playlist, PlaylistItem, WatchProgress, ListeningHistory, OidcClient, OidcArtifact, OidcConfig, OidcConsent], synchronize: true });
-		await db.initialize();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "oidc_test", migrate: false, synchronize: true, entities: [User, UserPreference, PaymentSubscription, PaymentPlan, PaymentEntitlement, PaymentOrder, MediaItem, Favorite, Playlist, PlaylistItem, WatchProgress, ListeningHistory, OidcClient, OidcArtifact, OidcConfig, OidcConsent] });
+		db = isolated.db;
 		// The OIDC tables must come from the migrations replayed below, not from synchronize.
 		await db.query(`DROP TABLE oidc_consents, oidc_artifacts, oidc_config, oidc_clients`);
 		const runner = db.createQueryRunner();
@@ -158,15 +155,11 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 				lockState: async () => ({ locked: false }),
 			} as unknown as EntitlementService,
 		);
-	}, 30_000);
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
 		if (app) await app.close();
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 		if (previousSecret === undefined) delete process.env.JWT_SECRET;
 		else process.env.JWT_SECRET = previousSecret;
 	});
@@ -521,24 +514,33 @@ describe.skipIf(!databaseUrl)("OpenID Connect with PostgreSQL", () => {
 		const path = new URL(start.headers.location, issuer).pathname;
 		const login = await agent.post(path).send({ action: "login" }).expect(200);
 		const resume = new URL(login.body.redirect);
-		const originalQuery = db.query.bind(db);
 		let revoked = false;
-		const querySpy = vi.spyOn(db, "query").mockImplementation(async (sql, params, runner) => {
-			const result = await originalQuery(sql, params, runner);
-			if (!revoked && sql.includes(`INSERT INTO "oidc_artifacts"`) && (params as unknown[] | undefined)?.[0] === "Grant") {
-				revoked = true;
-				await new OidcConsentService(db).revoke(userId, client.id);
-			}
-			return result;
+		let grantInserted = false;
+		const createQueryRunner = db.createQueryRunner.bind(db);
+		const queryRunnerSpy = vi.spyOn(db, "createQueryRunner").mockImplementation((mode) => {
+			const runner = createQueryRunner(mode);
+			const query = runner.query.bind(runner);
+			const interceptQuery = async (sql: string, params?: Parameters<QueryRunner["query"]>[1], structured?: true) => {
+				if (!revoked && grantInserted && sql.trimStart().startsWith("SELECT") && sql.includes('"oidc_consents"')) {
+					grantInserted = false;
+					revoked = true;
+					await new OidcConsentService(db).revoke(userId, client.id);
+				}
+				const result = structured ? await query(sql, params, true) : await query(sql, params);
+				if (!revoked && sql.includes("oidc_artifacts") && sql.trimStart().startsWith("INSERT") && Array.isArray(params) && params.includes("Grant")) grantInserted = true;
+				return result;
+			};
+			vi.spyOn(runner, "query").mockImplementation(interceptQuery as never);
+			return runner;
 		});
 		try {
 			const next = await agent.get(`${resume.pathname}${resume.search}`).expect(303);
 			expect(revoked).toBe(true);
 			const consentPath = new URL(next.headers.location, issuer).pathname;
 			expect((await agent.get(`${consentPath}/details`).expect(200)).body.prompt).toBe("consent");
-			expect(await originalQuery(`SELECT id FROM oidc_artifacts WHERE kind = 'Grant' AND payload->>'clientId' = $1`, [client.id])).toEqual([]);
+			expect(await db.query(`SELECT id FROM oidc_artifacts WHERE kind = 'Grant' AND payload->>'clientId' = $1`, [client.id])).toEqual([]);
 		} finally {
-			querySpy.mockRestore();
+			queryRunnerSpy.mockRestore();
 		}
 	}, 15_000);
 

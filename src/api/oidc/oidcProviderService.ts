@@ -108,10 +108,9 @@ export class OidcProviderService {
 				grant.addOIDCClaims(consent.claims);
 				const grantId = await grant.save();
 				return dataSource.transaction(async (manager) => {
-					// RAW SQL: SELECT ... FOR UPDATE row lock inside the transaction
-					const current: Array<{ scopes: string[]; claims: string[] }> = await manager.query(`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2 FOR UPDATE`, [accountId, clientId]);
+					const current = await manager.getRepository(OidcConsent).createQueryBuilder("consent").select("consent.scopes", "scopes").addSelect("consent.claims", "claims").where("consent.accountId = :accountId AND consent.clientId = :clientId", { accountId, clientId }).setLock("pessimistic_write").getRawOne<{ scopes: string[]; claims: string[] }>();
 					const same = (left: string[], right: string[]) => left.length === right.length && left.every((item) => right.includes(item));
-					if (current[0] && same(consent.scopes, current[0].scopes) && same(consent.claims, current[0].claims)) return grant;
+					if (current && same(consent.scopes, current.scopes) && same(consent.claims, current.claims)) return grant;
 					await manager.delete(OidcArtifact, { kind: "Grant", id: grantId });
 					return undefined;
 				});

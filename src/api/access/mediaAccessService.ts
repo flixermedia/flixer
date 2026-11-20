@@ -464,8 +464,16 @@ export class MediaAccessService {
 
 	/** A user's tags and genres, to suggest in the admin editor. */
 	async knownTags(): Promise<string[]> {
-		// RAW SQL: jsonb_array_elements_text and CASE over jsonb metadata
-		const rows: Array<{ tag: string }> = await this.dataSource.query(`SELECT DISTINCT lower(btrim(v)) AS tag FROM media_items, jsonb_array_elements_text((CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) || (CASE WHEN jsonb_typeof(metadata -> 'tags') = 'array' THEN metadata -> 'tags' ELSE '[]'::jsonb END)) v WHERE is_placeholder = false AND btrim(v) <> '' ORDER BY 1 LIMIT 500`);
+		const rows = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.innerJoin((query) => query.select("jsonb_array_elements_text((CASE WHEN jsonb_typeof(source.metadata -> 'genres') = 'array' THEN source.metadata -> 'genres' ELSE '[]'::jsonb END) || (CASE WHEN jsonb_typeof(source.metadata -> 'tags') = 'array' THEN source.metadata -> 'tags' ELSE '[]'::jsonb END)", "value").from(MediaItem, "source").where("source.isPlaceholder = false"), "tags", "TRUE")
+			.select("DISTINCT lower(btrim(tags.value))", "tag")
+			.where("item.isPlaceholder = false")
+			.andWhere("btrim(tags.value) <> ''")
+			.orderBy("tag", "ASC")
+			.limit(500)
+			.getRawMany<{ tag: string }>();
 		return rows.map((row) => row.tag);
 	}
 

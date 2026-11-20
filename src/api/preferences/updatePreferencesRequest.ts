@@ -51,6 +51,10 @@ export class UpdatePreferencesRequest {
 	autoSkipIntroCredits?: boolean | null;
 
 	@Property()
+	@Nullable(Boolean)
+	emulateLyricWordTiming?: boolean | null;
+
+	@Property()
 	@Nullable(String)
 	themeId?: string | null;
 

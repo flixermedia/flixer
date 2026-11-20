@@ -93,8 +93,38 @@ describe("media organization service", () => {
 			}),
 			find: vi.fn(async () => audit),
 		});
+		const manager = {
+			createQueryBuilder: () => {
+				let values: Record<string, unknown> = {};
+				let criteria: Record<string, string> = {};
+				const builder = {
+					update: vi.fn(() => builder),
+					set: vi.fn((next: Record<string, unknown>) => {
+						values = next;
+						return builder;
+					}),
+					where: vi.fn((_sql: string, parameters: Record<string, string>) => {
+						criteria = parameters;
+						return builder;
+					}),
+					execute: vi.fn(async () => {
+						const plan = plans.find((entry) => entry.id === criteria.id && entry.libraryId === criteria.libraryId && entry.state === criteria.expected);
+						if (!plan) return { affected: 0 };
+						plan.state = values.state as MediaOrganizationPlan["state"];
+						plan.error = values.error as string | null;
+						return { affected: 1 };
+					}),
+				};
+				return builder;
+			},
+			insert: async (_entity: unknown, value: Partial<MediaOrganizationPlanAudit>) => {
+				audit.push(Object.assign(new MediaOrganizationPlanAudit(), value));
+				return {};
+			},
+		};
 		const source = {
 			getRepository: (entity: unknown) => repositories.get(entity),
+			transaction: async <T>(work: (transactionManager: typeof manager) => Promise<T>) => work(manager),
 			query: async (sql: string, params: unknown[]) => {
 				if (sql.includes("WITH claimed AS")) {
 					const [nextState, error, id, libraryId, expectedState, auditId, actorId, action, details] = params as string[];

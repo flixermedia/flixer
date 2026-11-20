@@ -144,7 +144,7 @@ export async function synchronizeSettings(dataSource: DataSource): Promise<void>
 		isPublic: false,
 	});
 	await dataSource.transaction(async (manager) => {
-		// RAW SQL: Postgres advisory transaction lock
+		// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:sync-settings"]);
 		await synchronizeDefinitions(manager, definitions);
 	});

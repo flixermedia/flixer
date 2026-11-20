@@ -8,3 +8,9 @@ packages/flixer-api-client/src/generated.ts
 packages/flixer-api-client/src/routes.ts
 insomnia/flixer-insomnia.json
 resources/emails/
+.agents/mcp_config.json
+.github/copilot-instructions.md
+.vexp/coverage.json
+.vexp/manifest.json
+AGENTS.md
+.vitest/**

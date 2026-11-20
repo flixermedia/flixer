@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
+import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { UpNextQueueItem } from "../../entities/userMediaQueue.entity.js";
+import { VideoCollection } from "../../entities/videoCollection.entity.js";
 import { FavoritesService } from "./favoritesService.js";
 import { FriendsService } from "./friendsService.js";
 import { PlaylistsService } from "./playlistsService.js";
@@ -78,12 +81,11 @@ describe("personal media", () => {
 	});
 
 	it("hides private or profile-hidden collections from other users", async () => {
-		const { source, query } = dataSource({ visibility: "hidden" });
 		const collection = { id: TRACK, user_id: OTHER, name: "Private", description: null, is_public: false, item_count: 0 };
-		query.mockResolvedValueOnce([collection]);
-		await expect(new UserMediaService(source, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
-		query.mockResolvedValueOnce([{ ...collection, is_public: true }]);
-		await expect(new UserMediaService(source, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
+		const { source: firstSource } = dataSource({ visibility: "hidden", collectionRows: [collection] });
+		await expect(new UserMediaService(firstSource, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
+		const { source: secondSource } = dataSource({ visibility: "hidden", collectionRows: [{ ...collection, is_public: true }] });
+		await expect(new UserMediaService(secondSource, {} as never).collection(USER, TRACK)).rejects.toThrow(/not found/i);
 	});
 
 	it("removes a queue item only for its owner", async () => {
@@ -105,27 +107,51 @@ describe("personal media", () => {
 		await service.reorderQueue(USER, [TRACK]);
 		expect(builder.setLock).toHaveBeenCalledWith("pessimistic_write");
 		expect(builder.where).toHaveBeenCalledWith("user.id = :userId", { userId: USER });
-		expect(manager.query).toHaveBeenCalledWith(expect.stringContaining("WITH ORDINALITY"), [USER, [TRACK]]);
+		expect(builder.update).toHaveBeenCalledWith(UpNextQueueItem);
+		expect(builder.set).toHaveBeenCalledWith({ position: expect.any(Function) });
+		expect(builder.where).toHaveBeenCalledWith(expect.stringContaining('"item_id" = ANY(:itemIds::uuid[])'), { userId: USER, itemIds: [TRACK] });
 	});
 });
 
 function lockingManager<T extends object>(base: T) {
 
-	const builder = { select: vi.fn(), setLock: vi.fn(), where: vi.fn(), getOne: vi.fn(async () => ({ id: USER })) };
-	for (const key of ["select", "setLock", "where"] as const) builder[key].mockReturnValue(builder);
+	const builder = { select: vi.fn(), setLock: vi.fn(), where: vi.fn(), getOne: vi.fn(async () => ({ id: USER })), update: vi.fn(), set: vi.fn(), execute: vi.fn().mockResolvedValue({ affected: 1 }) };
+	for (const key of ["select", "setLock", "where", "update", "set"] as const) builder[key].mockReturnValue(builder);
 	return { manager: { ...base, createQueryBuilder: vi.fn(() => builder) }, builder };
 
 }
 
-function dataSource(options: { item?: Partial<MediaItem> | null; queries?: Array<unknown[]>; visibility?: string } = {}) {
+function dataSource(options: { item?: Partial<MediaItem> | null; queries?: Array<unknown[]>; visibility?: string; profile?: Record<string, unknown> | null; collectionRows?: Array<Record<string, unknown>> } = {}) {
 
 	const query = vi.fn(async (sql: string): Promise<unknown[]> => {
 		options.queries?.push([sql]);
 		return [];
 	});
+	const userBuilder = {
+		leftJoin: vi.fn(),
+		select: vi.fn(),
+		addSelect: vi.fn(),
+		where: vi.fn(),
+		andWhere: vi.fn(),
+		getRawOne: vi.fn(async () => options.profile ?? null),
+	};
+	for (const name of ["leftJoin", "select", "addSelect", "where", "andWhere"] as const) userBuilder[name].mockReturnValue(userBuilder);
+	const collectionBuilder = {
+		leftJoin: vi.fn(),
+		select: vi.fn(),
+		addSelect: vi.fn(),
+		groupBy: vi.fn(),
+		where: vi.fn(),
+		orderBy: vi.fn(),
+		getRawMany: vi.fn(async () => options.collectionRows ?? []),
+		getRawOne: vi.fn(async () => options.collectionRows?.shift() ?? null),
+	};
+	for (const name of ["leftJoin", "select", "addSelect", "groupBy", "where", "orderBy"] as const) collectionBuilder[name].mockReturnValue(collectionBuilder);
 	const repos = new Map<unknown, unknown>([
 		[MediaItem, { findOne: vi.fn(async () => options.item ?? null) }],
 		[UserPreference, { findOne: vi.fn(async () => (options.visibility ? { profileVisibility: options.visibility } : null)) }],
+		[User, { createQueryBuilder: vi.fn(() => userBuilder) }],
+		[VideoCollection, { createQueryBuilder: vi.fn(() => collectionBuilder) }],
 	]);
 	const source = { query, getRepository: (entity: unknown) => repos.get(entity) ?? {} } as unknown as DataSource;
 	return { source, query };
@@ -216,7 +242,6 @@ describe("ProfilesService listening", () => {
 	});
 
 	it("hides a hidden profile from everyone but its owner", async () => {
-		const { source } = dataSource();
 		const row = {
 			id: OTHER,
 			username: "sam",
@@ -225,7 +250,7 @@ describe("ProfilesService listening", () => {
 			avatar_file: null,
 			visibility: "hidden" as const,
 		};
-		(source.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce([row]);
+		const { source } = dataSource({ profile: row });
 		const service = new ProfilesService(source, {} as FavoritesService, {} as PlaylistsService, {} as FriendsService);
 		await expect(service.profile(USER, "sam")).rejects.toThrow(/not found/i);
 	});
@@ -239,9 +264,28 @@ describe("PlaylistsService.addTrack with albums", () => {
 	function setup(type: string, albumTracks: string[], existing: string[]) {
 
 		const inserts: unknown[][] = [];
+		const insertBuilder = {
+			insert: vi.fn(),
+			into: vi.fn(),
+			values: vi.fn((values: unknown[]) => {
+				inserts.push(values);
+				return insertBuilder;
+			}),
+			orIgnore: vi.fn(),
+			updateEntity: vi.fn(),
+			execute: vi.fn().mockResolvedValue({}),
+		};
+		for (const key of ["insert", "into", "orIgnore", "updateEntity"] as const) insertBuilder[key].mockReturnValue(insertBuilder);
 		const manager = {
 			findOne: vi.fn(async () => ({ id: PLAYLIST })),
 			find: vi.fn(async (entity: unknown) => (entity === MediaItem ? albumTracks.map((id) => ({ id })) : existing.map((itemId) => ({ itemId })))),
+			getRepository: vi.fn((entity: unknown) => {
+				if (entity !== PlaylistItem) return {};
+				const aggregateBuilder = { select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), getRawOne: vi.fn(async () => ({ count: existing.length, next: existing.length })) };
+				for (const key of ["select", "addSelect", "where"] as const) aggregateBuilder[key].mockReturnValue(aggregateBuilder);
+				return { createQueryBuilder: vi.fn(() => aggregateBuilder) };
+			}),
+			createQueryBuilder: vi.fn(() => insertBuilder),
 			update: vi.fn(async () => ({})),
 			query: vi.fn(async (sql: string, params: unknown[] = []): Promise<unknown[]> => {
 				if (sql.includes("COUNT(*)")) return [{ count: existing.length, next: existing.length }];
@@ -264,7 +308,7 @@ describe("PlaylistsService.addTrack with albums", () => {
 	it("adds every song of an album in order and skips ones already present", async () => {
 		const { service, inserts } = setup("album", [T1, T2], [T1]);
 		expect(await service.addTrack(USER, PLAYLIST, TRACK)).toEqual({ added: 1 });
-		expect(inserts[0]).toEqual([PLAYLIST, [T2], 1]);
+		expect(inserts[0]).toEqual([{ playlistId: PLAYLIST, itemId: T2, position: 1 }]);
 	});
 
 	it("rejects an album without songs and items that are neither songs nor albums", async () => {

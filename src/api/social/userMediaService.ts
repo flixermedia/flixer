@@ -162,15 +162,7 @@ export class UserMediaService {
 	}
 
 	async collections(userId: string, policy: AccessPolicy) {
-		const collections = this.collectionRows(
-			// RAW SQL: LEFT JOIN with count aggregate and GROUP BY over video_collection_items
-			(await this.dataSource.query(
-				`SELECT c.*, count(ci.item_id)::int AS item_count
-				FROM video_collections c LEFT JOIN video_collection_items ci ON ci.collection_id = c.id
-				WHERE c.user_id = $1 GROUP BY c.id ORDER BY c.updated_at DESC`,
-				[userId],
-			)) as Array<CollectionRow & { item_count: number }>,
-		);
+		const collections = this.collectionRows(await this.collectionQuery().where("c.userId = :userId", { userId }).orderBy("c.updatedAt", "DESC").getRawMany<CollectionRow & { item_count: number }>());
 		if (!collections.length) return collections;
 		// RAW SQL: query builder joining collections to items with array_agg slice and count cast
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").innerJoin("video_collection_items", "entry", "entry.item_id = item.id").innerJoin("video_collections", "collection", "collection.id = entry.collection_id").where("collection.user_id = :userId", { userId }).andWhere("item.is_placeholder = false").select("entry.collection_id", "collectionId").addSelect("count(*)::int", "visibleItemCount").addSelect("(array_agg(item.id ORDER BY entry.position ASC))[1:8]", "itemIds").groupBy("entry.collection_id");
@@ -207,12 +199,17 @@ export class UserMediaService {
 		}
 		if (changes.description !== undefined) collection.description = this.cleanDescription(changes.description);
 		if (typeof changes.isPublic === "boolean") collection.isPublic = changes.isPublic;
-		// RAW SQL: UPDATE ... RETURNING with count subselect and DB-side now()
-		const rows = (await this.dataSource.query(
-			`UPDATE video_collections SET name = $3, description = $4, is_public = $5, updated_at = now()
-			WHERE id = $1 AND user_id = $2 RETURNING *, (SELECT count(*)::int FROM video_collection_items WHERE collection_id = $1) AS item_count`,
-			[id, userId, collection.name, collection.description, collection.isPublic],
-		)) as Array<CollectionRow & { item_count: number }>;
+		// RAW SQL: scalar count in RETURNING preserves same-statement item totals.
+		const result = await this.dataSource
+			.getRepository(VideoCollection)
+			.createQueryBuilder()
+			.update(VideoCollection)
+			.set({ name: collection.name, description: collection.description, isPublic: collection.isPublic, updatedAt: () => "now()" })
+			.where('"id" = :id AND "user_id" = :userId', { id, userId })
+			.returning('*, (SELECT count(*)::int FROM "video_collection_items" WHERE "collection_id" = :id) AS item_count')
+			.setParameter("id", id)
+			.execute();
+		const rows = result.raw as Array<CollectionRow & { item_count: number }>;
 		return this.collectionRows(rows)[0];
 	}
 
@@ -221,14 +218,7 @@ export class UserMediaService {
 	}
 
 	async collection(viewerId: string, id: string) {
-		// RAW SQL: LEFT JOIN with count aggregate and GROUP BY over video_collection_items
-		const rows = (await this.dataSource.query(
-			`SELECT c.*, count(ci.item_id)::int AS item_count
-			FROM video_collections c LEFT JOIN video_collection_items ci ON ci.collection_id = c.id
-			WHERE c.id = $1 GROUP BY c.id`,
-			[id],
-		)) as Array<CollectionRow & { item_count: number }>;
-		const collection = rows[0];
+		const collection = await this.collectionQuery().where("c.id = :id", { id }).getRawOne<CollectionRow & { item_count: number }>();
 		if (!collection) throw new NotFound("Collection not found.");
 		const isOwner = collection.user_id === viewerId;
 		if (!isOwner && (!collection.is_public || !(await this.ownerVisible(viewerId, collection.user_id)))) throw new NotFound("Collection not found.");
@@ -247,10 +237,10 @@ export class UserMediaService {
 		await this.dataSource.transaction(async (manager) => {
 			const owned = await manager.findOne(VideoCollection, { select: { id: true }, where: { id, userId }, lock: { mode: "pessimistic_write" } });
 			if (!owned) throw new NotFound("Collection not found.");
-			// RAW SQL: count/max aggregate with int casts
-			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM video_collection_items WHERE collection_id = $1", [id])) as Array<{ count: number; next: number }>;
-			if (rows[0].count >= MAX_COLLECTION_ITEMS) throw new BadRequest(`A collection can hold up to ${MAX_COLLECTION_ITEMS} items.`);
-			await manager.createQueryBuilder().insert().into(VideoCollectionItem).values({ collectionId: id, itemId, position: rows[0].next }).orIgnore().updateEntity(false).execute();
+			const aggregate = await manager.getRepository(VideoCollectionItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.collectionId = :id", { id }).getRawOne<{ count: number; next: number }>();
+			const { count = 0, next = 0 } = aggregate ?? {};
+			if (count >= MAX_COLLECTION_ITEMS) throw new BadRequest(`A collection can hold up to ${MAX_COLLECTION_ITEMS} items.`);
+			await manager.createQueryBuilder().insert().into(VideoCollectionItem).values({ collectionId: id, itemId, position: next }).orIgnore().updateEntity(false).execute();
 			await manager.update(VideoCollection, { id }, { updatedAt: () => "now()" });
 		});
 	}
@@ -271,10 +261,20 @@ export class UserMediaService {
 			if (!owned) throw new NotFound("Collection not found.");
 			const rows = await manager.find(VideoCollectionItem, { select: { itemId: true }, where: { collectionId: id } });
 			if (rows.length !== itemIds.length || rows.some((row) => !itemIds.includes(row.itemId))) throw new BadRequest("Order must contain every collection item exactly once.");
-			// RAW SQL: UPDATE with MAX subselect (shifts positions clear of the unique constraint)
-			await manager.query("UPDATE video_collection_items SET position = position + (SELECT COALESCE(MAX(position), 0) + 1 FROM video_collection_items WHERE collection_id = $1) WHERE collection_id = $1", [id]);
-			// RAW SQL: UPDATE ... FROM unnest WITH ORDINALITY
-			await manager.query("UPDATE video_collection_items entry SET position = ordered.ordinality - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS ordered(item_id, ordinality) WHERE entry.collection_id = $1 AND entry.item_id = ordered.item_id", [id, itemIds]);
+			// RAW SQL: max-position offset prevents collisions with the unique collection-position constraint.
+			await manager
+				.createQueryBuilder()
+				.update(VideoCollectionItem)
+				.set({ position: () => '"position" + (SELECT COALESCE(MAX("position"), 0) + 1 FROM "video_collection_items" WHERE "collection_id" = :collectionId)' })
+				.where('"collection_id" = :collectionId', { collectionId: id })
+				.execute();
+			// RAW SQL: PostgreSQL array_position maps the validated order list to unique positions in one update.
+			await manager
+				.createQueryBuilder()
+				.update(VideoCollectionItem)
+				.set({ position: () => 'array_position(:itemIds::uuid[], "item_id") - 1' })
+				.where('"collection_id" = :collectionId AND "item_id" = ANY(:itemIds::uuid[])', { collectionId: id, itemIds })
+				.execute();
 			await manager.update(VideoCollection, { id }, { updatedAt: () => "now()" });
 		});
 	}
@@ -294,10 +294,10 @@ export class UserMediaService {
 		await this.requireVideoItem(itemId, PLAYABLE_VIDEO_TYPES);
 		await this.dataSource.transaction(async (manager) => {
 			await this.lockUser(manager, userId);
-			// RAW SQL: count/max aggregate with int casts
-			const rows = (await manager.query("SELECT count(*)::int AS count, COALESCE(max(position) + 1, 0)::int AS next FROM up_next_queue_items WHERE user_id = $1", [userId])) as Array<{ count: number; next: number }>;
-			if (rows[0].count >= MAX_QUEUE_ITEMS) throw new BadRequest(`Up Next can hold up to ${MAX_QUEUE_ITEMS} items.`);
-			await manager.createQueryBuilder().insert().into(UpNextQueueItem).values({ userId, itemId, position: rows[0].next }).orIgnore().updateEntity(false).execute();
+			const aggregate = await manager.getRepository(UpNextQueueItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.userId = :userId", { userId }).getRawOne<{ count: number; next: number }>();
+			const { count = 0, next = 0 } = aggregate ?? {};
+			if (count >= MAX_QUEUE_ITEMS) throw new BadRequest(`Up Next can hold up to ${MAX_QUEUE_ITEMS} items.`);
+			await manager.createQueryBuilder().insert().into(UpNextQueueItem).values({ userId, itemId, position: next }).orIgnore().updateEntity(false).execute();
 		});
 	}
 
@@ -321,10 +321,20 @@ export class UserMediaService {
 			await this.lockUser(manager, userId);
 			const rows = await manager.find(UpNextQueueItem, { select: { itemId: true }, where: { userId } });
 			if (rows.length !== itemIds.length || rows.some((row) => !itemIds.includes(row.itemId))) throw new BadRequest("Order must contain every queued item exactly once.");
-			// RAW SQL: UPDATE with MAX subselect (shifts positions clear of the unique constraint)
-			await manager.query("UPDATE up_next_queue_items SET position = position + (SELECT COALESCE(MAX(position), 0) + 1 FROM up_next_queue_items WHERE user_id = $1) WHERE user_id = $1", [userId]);
-			// RAW SQL: UPDATE ... FROM unnest WITH ORDINALITY
-			await manager.query("UPDATE up_next_queue_items entry SET position = ordered.ordinality - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS ordered(item_id, ordinality) WHERE entry.user_id = $1 AND entry.item_id = ordered.item_id", [userId, itemIds]);
+			// RAW SQL: max-position offset prevents collisions with the unique queue-position constraint.
+			await manager
+				.createQueryBuilder()
+				.update(UpNextQueueItem)
+				.set({ position: () => '"position" + (SELECT COALESCE(MAX("position"), 0) + 1 FROM "up_next_queue_items" WHERE "user_id" = :userId)' })
+				.where('"user_id" = :userId', { userId })
+				.execute();
+			// RAW SQL: PostgreSQL array_position maps the validated order list to positions.
+			await manager
+				.createQueryBuilder()
+				.update(UpNextQueueItem)
+				.set({ position: () => 'array_position(:itemIds::uuid[], "item_id") - 1' })
+				.where('"user_id" = :userId AND "item_id" = ANY(:itemIds::uuid[])', { userId, itemIds })
+				.execute();
 		});
 	}
 
@@ -334,12 +344,7 @@ export class UserMediaService {
 			select: { id: true, type: true },
 		});
 		if (!item || !["movie", "series", "album", "video"].includes(item.type)) throw new NotFound("Recommendation item not found.");
-		// RAW SQL: ON CONFLICT DO UPDATE with DB-side now()
-		await this.dataSource.query(
-			`INSERT INTO recommendation_feedback (user_id, item_id, feedback) VALUES ($1, $2, $3)
-			ON CONFLICT (user_id, item_id) DO UPDATE SET feedback = EXCLUDED.feedback, updated_at = now()`,
-			[userId, itemId, feedback],
-		);
+		await this.dataSource.getRepository(RecommendationFeedback).upsert({ userId, itemId, feedback, updatedAt: () => "now()" }, ["userId", "itemId"]);
 	}
 
 	async clearRecommendationFeedback(userId: string, itemId: string): Promise<void> {
@@ -403,6 +408,10 @@ export class UserMediaService {
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		}));
+	}
+
+	private collectionQuery() {
+		return this.dataSource.getRepository(VideoCollection).createQueryBuilder("c").leftJoin("video_collection_items", "ci", "ci.collection_id = c.id").select("c.id", "id").addSelect("c.userId", "user_id").addSelect("c.name", "name").addSelect("c.description", "description").addSelect("c.isPublic", "is_public").addSelect("c.createdAt", "created_at").addSelect("c.updatedAt", "updated_at").addSelect("COUNT(ci.item_id)::int", "item_count").groupBy("c.id");
 	}
 
 	private cleanDescription(value: string | null | undefined): string | null {

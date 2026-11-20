@@ -4,8 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { ENTITIES } from "./entityList.js";
-import { MIGRATIONS } from "./migrationList.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "./testPostgres.js";
 
 const databaseUrl = process.env.ENTITY_SCHEMA_TEST_DATABASE_URL;
 
@@ -61,40 +60,22 @@ const KNOWN_DRIFT_TABLES = new Set<string>([
 ]);
 
 describe.skipIf(!databaseUrl)("entities match the migrated schema", () => {
-	const schema = `entity_schema_${randomUUID().replaceAll("-", "")}`;
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({
-			type: "postgres",
-			url: databaseUrl,
-			extra: { options: `-c search_path=${schema}` },
-			schema,
-			entities: ENTITIES,
-			migrations: MIGRATIONS,
-			synchronize: false,
-			migrationsRun: false,
-		});
-		await db.initialize();
-		await db.runMigrations();
-	});
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "entity_schema" });
+		db = isolated.db;
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("has no pending schema changes for entity-backed tables", async () => {
 		const log = await db.driver.createSchemaBuilder().log();
 		const entityTables = new Set(db.entityMetadatas.map((metadata) => metadata.tableName));
-		const indexRows: { indexname: string; tablename: string }[] = await db.query("SELECT indexname, tablename FROM pg_indexes WHERE schemaname = $1", [schema]);
+		const indexRows: { indexname: string; tablename: string }[] = await db.query("SELECT indexname, tablename FROM pg_indexes WHERE schemaname = $1", [isolated.schema]);
 		const indexTables = new Map(indexRows.map((row) => [row.indexname, row.tablename]));
 		const tableOf = (query: string) => /^ALTER TABLE "([^"]+)"/.exec(query)?.[1] ?? /^CREATE (?:UNIQUE )?INDEX .* ON "([^"]+)"/.exec(query)?.[1] ?? indexTables.get(/^DROP INDEX "[^"]+"\."([^"]+)"/.exec(query)?.[1] ?? "");
 		const pending = log.upQueries

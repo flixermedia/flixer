@@ -4,6 +4,8 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { SocialFriendInvite, SocialFriendship } from "../../entities/social.entity.js";
+import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { NotificationService } from "../notifications/notificationService.js";
 import type { CreateFriendInviteRequest } from "./socialRequests.js";
 
@@ -42,17 +44,7 @@ export class FriendsService {
 	) {}
 
 	async list(userId: string) {
-		// RAW SQL: joins users and user_preferences with CASE join condition and lower() ordering
-		const rows = (await this.dataSource.query(
-			`SELECT f.user_low_id, f.user_high_id, f.requested_by, f.accepted_at,
-				u.id, u.username, u.display_name, up.avatar_file
-			FROM social_friendships f
-			JOIN users u ON u.id = CASE WHEN f.user_low_id = $1 THEN f.user_high_id ELSE f.user_low_id END
-			LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE (f.user_low_id = $1 OR f.user_high_id = $1) AND u.disabled_at IS NULL
-			ORDER BY lower(COALESCE(u.display_name, u.username))`,
-			[userId],
-		)) as Array<FriendshipRow & UserRow>;
+		const rows = await this.dataSource.getRepository(SocialFriendship).createQueryBuilder("f").innerJoin(User, "u", "u.id = CASE WHEN f.userLowId = :userId THEN f.userHighId ELSE f.userLowId END", { userId }).leftJoin(UserPreference, "up", "up.userId = u.id").select("f.userLowId", "user_low_id").addSelect("f.userHighId", "user_high_id").addSelect("f.requestedBy", "requested_by").addSelect("f.acceptedAt", "accepted_at").addSelect("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file").where("(f.userLowId = :userId OR f.userHighId = :userId)", { userId }).andWhere("u.disabledAt IS NULL").orderBy("LOWER(COALESCE(u.displayName, u.username))", "ASC").getRawMany<FriendshipRow & UserRow>();
 		const friends: FriendPerson[] = [];
 		const incoming: FriendPerson[] = [];
 		const outgoing: FriendPerson[] = [];
@@ -117,18 +109,7 @@ export class FriendsService {
 			throw new NotFound("Friend invite not found.");
 		}
 		return this.dataSource.transaction(async (manager) => {
-			// RAW SQL: row lock (FOR UPDATE OF) over a join with users and DB-side now() expiry check
-			const rows = (await manager.query(
-				`SELECT invite.owner_id, invite.max_uses, invite.use_count, invite.expires_at
-				FROM social_friend_invites invite
-				JOIN users owner ON owner.id = invite.owner_id
-				WHERE invite.token = $1 AND owner.disabled_at IS NULL
-					AND (invite.expires_at IS NULL OR invite.expires_at > now())
-					AND (invite.max_uses IS NULL OR invite.use_count < invite.max_uses)
-				FOR UPDATE OF invite`,
-				[token.toLowerCase()],
-			)) as Array<{ owner_id: string; max_uses: number | null; use_count: number; expires_at: Date | null }>;
-			const invite = rows[0];
+			const invite = await manager.getRepository(SocialFriendInvite).createQueryBuilder("invite").innerJoin(User, "owner", "owner.id = invite.ownerId").select("invite.ownerId", "owner_id").addSelect("invite.maxUses", "max_uses").addSelect("invite.useCount", "use_count").addSelect("invite.expiresAt", "expires_at").where("invite.token = :token", { token: token.toLowerCase() }).andWhere("owner.disabledAt IS NULL").andWhere("(invite.expiresAt IS NULL OR invite.expiresAt > now())").andWhere("(invite.maxUses IS NULL OR invite.useCount < invite.maxUses)").setLock("pessimistic_write", undefined, ["invite"]).getRawOne<{ owner_id: string; max_uses: number | null; use_count: number; expires_at: Date | null }>();
 			if (!invite) throw new NotFound("Friend invite not found.");
 			if (invite.owner_id === userId) throw new BadRequest("You cannot add yourself as a friend.");
 			const [low, high] = pair(userId, invite.owner_id);
@@ -187,14 +168,14 @@ export class FriendsService {
 		const target = await this.findUser(username);
 		if (!target) throw new NotFound("Person not found.");
 		const [low, high] = pair(userId, target.id);
-		// RAW SQL: conditional UPDATE ... RETURNING with DB-side now()
-		const rows = (await this.dataSource.query(
-			`UPDATE social_friendships SET accepted_at = now()
-			WHERE user_low_id = $1 AND user_high_id = $2 AND accepted_at IS NULL AND requested_by <> $3
-			RETURNING accepted_at`,
-			[low, high, userId],
-		)) as unknown[];
-		if (!rows.length) {
+		const result = await this.dataSource
+			.getRepository(SocialFriendship)
+			.createQueryBuilder()
+			.update(SocialFriendship)
+			.set({ acceptedAt: () => "now()" })
+			.where('"user_low_id" = :low AND "user_high_id" = :high AND "accepted_at" IS NULL AND "requested_by" <> :userId', { low, high, userId })
+			.execute();
+		if (!result.affected) {
 			const status = await this.status(userId, target.id);
 			if (status !== "friends") throw new BadRequest("There is no friend request to accept.");
 		}
@@ -209,41 +190,23 @@ export class FriendsService {
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {
-		// RAW SQL: case-insensitive lower() username lookup joining user_preferences
-		const rows = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, up.avatar_file
-			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE lower(u.username) = lower($1) AND u.disabled_at IS NULL`,
-			[username.slice(0, 64)],
-		)) as UserRow[];
-		return rows[0];
+		return this.userLookup()
+			.where("LOWER(u.username) = LOWER(:username)", { username: username.slice(0, 64) })
+			.andWhere("u.disabledAt IS NULL")
+			.getRawOne<UserRow>();
 	}
 
 	private async findUserById(id: string): Promise<UserRow | undefined> {
-		// RAW SQL: join of users and user_preferences returning snake_case row
-		const rows = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, up.avatar_file
-			FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE u.id = $1 AND u.disabled_at IS NULL`,
-			[id],
-		)) as UserRow[];
-		return rows[0];
+		return this.userLookup().where("u.id = :id", { id }).andWhere("u.disabledAt IS NULL").getRawOne<UserRow>();
+	}
+
+	private userLookup() {
+		return this.dataSource.getRepository(User).createQueryBuilder("u").leftJoin(UserPreference, "up", "up.userId = u.id").select("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file");
 	}
 
 	private async findUserByInviteToken(token: string): Promise<UserRow | undefined> {
 		if (!/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(token)) return undefined;
-		// RAW SQL: join of social_friend_invites, users and user_preferences with DB-side now() expiry check
-		const rows = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, up.avatar_file
-			FROM social_friend_invites invite
-			JOIN users u ON u.id = invite.owner_id
-			LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE invite.token = $1 AND u.disabled_at IS NULL
-				AND (invite.expires_at IS NULL OR invite.expires_at > now())
-				AND (invite.max_uses IS NULL OR invite.use_count < invite.max_uses)`,
-			[token.toLowerCase()],
-		)) as UserRow[];
-		return rows[0];
+		return this.userLookup().innerJoin(SocialFriendInvite, "invite", "invite.ownerId = u.id").where("invite.token = :token", { token: token.toLowerCase() }).andWhere("u.disabledAt IS NULL").andWhere("(invite.expiresAt IS NULL OR invite.expiresAt > now())").andWhere("(invite.maxUses IS NULL OR invite.useCount < invite.maxUses)").getRawOne<UserRow>();
 	}
 
 	private person(row: UserRow): FriendPerson {

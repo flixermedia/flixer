@@ -4,9 +4,12 @@ import type { DataSource } from "typeorm";
 import type { NotificationService } from "../api/notifications/notificationService.js";
 import { ChatMember as ChatMemberEntity, ChatMessage as ChatMessageEntity } from "../entities/chat.entity.js";
 import { ChatConversation as ChatConversationEntity } from "../entities/chatConversation.entity.js";
-import { ChatMlsDevice, ChatMlsKeyPackage } from "../entities/chatMls.entity.js";
+import { ChatMlsDevice, ChatMlsHistoryBackup, ChatMlsKeyPackage, ChatMlsWelcome } from "../entities/chatMls.entity.js";
 import { IssueReport } from "../entities/issueReport.entity.js";
+import { Notification } from "../entities/notification.entity.js";
 import { Setting } from "../entities/setting.entity.js";
+import { User } from "../entities/user.entity.js";
+import { UserPreference } from "../entities/userPreference.entity.js";
 import { SendMessageRequest } from "./chatRequests.js";
 import { ChatService, cleanMessage, cleanName, directKey, MAX_MESSAGE_LENGTH } from "./chatService.js";
 
@@ -31,29 +34,131 @@ interface EntityReads {
 /** Raw `query` stays a mock for the statements still written as SQL; repository calls land on `em`, keyed by entity. */
 function mockDataSource(query: MockQuery, reads: EntityReads = {}) {
 
+	const builders: Array<{ entity: unknown; alias?: string; builder: object }> = [];
 	const em = {
-		find: vi.fn(async (entity: unknown, options: EntityOptions) => reads.find?.(entity, options) ?? []),
-		findOne: vi.fn(async (entity: unknown, options: EntityOptions) => (entity === Setting ? ((await query("SELECT value FROM settings"))[0] ?? null) : (reads.findOne?.(entity, options) ?? null))),
+		find: vi.fn(async (entity: unknown, options: EntityOptions) => reads.find?.(entity, options) ?? (entity === Setting ? query("SELECT value FROM settings") : [])),
+		findOne: vi.fn(async (entity: unknown, options: EntityOptions) => reads.findOne?.(entity, options) ?? (entity === Setting ? ((await query("SELECT value FROM settings"))[0] ?? null) : null)),
 		exists: vi.fn(async (entity: unknown, options: EntityOptions) => reads.exists?.(entity, options) ?? false),
 		insert: vi.fn(async (_entity: unknown, _values: unknown) => ({})),
 		update: vi.fn(async (_entity: unknown, _criteria: unknown, _values: unknown) => ({ affected: 1 })),
+		upsert: vi.fn(async (_entity: unknown, _values: unknown, _conflictPaths: unknown) => ({ identifiers: [] })),
 		delete: vi.fn(async (_entity: unknown, _criteria: unknown) => ({ affected: 1 })),
+	};
+	const createBuilder = (initialEntity?: unknown, initialAlias?: string) => {
+		let entity = initialEntity;
+		let selected = "";
+		let joins: unknown[] = [];
+		let action = "";
+		const sql = () => {
+			const joinNames = joins.map((join) => (typeof join === "string" ? join : (join as { name?: string })?.name));
+			if (entity === ChatConversationEntity && selected.includes("encryptionMode")) return "SELECT c.encryption_mode FROM chat_conversations c JOIN chat_members m";
+			if (entity === ChatConversationEntity && joinNames.includes("ChatMember")) return "SELECT c.kind, m.role FROM chat_conversations c JOIN chat_members m";
+			if (entity === ChatConversationEntity) return "SELECT c.id, c.kind, c.name, c.encryption_mode";
+			if (entity === ChatMemberEntity && joinNames.includes("User")) return selected.includes("member.userId") ? "SELECT m.user_id FROM chat_members m JOIN users u" : "FROM chat_members m JOIN users u";
+			if (entity === ChatMemberEntity && joinNames.includes("ChatMlsDevice")) return "JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'";
+			if (entity === ChatMessageEntity) return "SELECT m.id, m.sequence, m.conversation_id, m.kind, m.encrypted, m.body, m.created_at FROM chat_messages m";
+			if (entity === IssueReport) return "FROM issue_reports r";
+			if (entity === ChatMlsDevice && joins.includes(ChatMlsDevice)) return "JOIN chat_mls_devices approver";
+			if (entity === ChatMlsDevice) return "SELECT user_id, status, pairing_public_key, approval_challenge FROM chat_mls_devices";
+			if (entity === ChatMlsKeyPackage) return action === "update" ? "UPDATE chat_mls_key_packages" : "FROM chat_mls_key_packages";
+			if (entity === User) return "FROM users u LEFT JOIN user_preferences up";
+			if (action === "insert" && entity === ChatMemberEntity) return "INSERT INTO chat_members";
+			if (action === "update" && entity === ChatMlsKeyPackage) return "UPDATE chat_mls_key_packages";
+			return `QUERY ${initialAlias ?? ""}`;
+		};
+		const builder = {
+			innerJoin: vi.fn((target: unknown) => {
+				joins.push(target);
+				return builder;
+			}),
+			leftJoin: vi.fn((target: unknown) => {
+				joins.push(target);
+				return builder;
+			}),
+			select: vi.fn((selection: unknown) => {
+				selected = Array.isArray(selection) ? selection.join(" ") : String(selection);
+				return builder;
+			}),
+			addSelect: vi.fn(() => builder),
+			where: vi.fn(() => builder),
+			andWhere: vi.fn(() => builder),
+			orWhere: vi.fn(() => builder),
+			orderBy: vi.fn(() => builder),
+			addOrderBy: vi.fn(() => builder),
+			groupBy: vi.fn(() => builder),
+			distinctOn: vi.fn(() => builder),
+			skip: vi.fn(() => builder),
+			take: vi.fn(() => builder),
+			offset: vi.fn(() => builder),
+			limit: vi.fn(() => builder),
+			setLock: vi.fn(() => builder),
+			setOnLocked: vi.fn(() => builder),
+			setParameter: vi.fn(() => builder),
+			setParameters: vi.fn(() => builder),
+			set: vi.fn(() => builder),
+			update: vi.fn((target: unknown) => {
+				action = "update";
+				entity = target;
+				return builder;
+			}),
+			insert: vi.fn(() => {
+				action = "insert";
+				return builder;
+			}),
+			delete: vi.fn(() => {
+				action = "delete";
+				return builder;
+			}),
+			into: vi.fn((target: unknown) => {
+				entity = target;
+				return builder;
+			}),
+			from: vi.fn((target: unknown) => {
+				entity = target;
+				return builder;
+			}),
+			values: vi.fn(() => builder),
+			valuesFromSelect: vi.fn(() => builder),
+			orIgnore: vi.fn(() => builder),
+			returning: vi.fn(() => builder),
+			getRawOne: vi.fn(async () => (await query(sql()))[0] ?? null),
+			getRawMany: vi.fn(async () => query(sql())),
+			getOne: vi.fn(async () => {
+				const row = (await query(sql()))[0] as Record<string, unknown> | undefined;
+				return entity === ChatConversationEntity && row ? { encryptionMode: row.encryptionMode ?? row.encryption_mode } : (row ?? null);
+			}),
+			getMany: vi.fn(async () => query(sql())),
+			getCount: vi.fn(async () => 0),
+			getRawAndEntities: vi.fn(async () => ({ raw: await query(sql()), entities: [] })),
+			execute: vi.fn(async () => {
+				const result = await query(sql());
+				const raw = Array.isArray(result[0]) ? result[0] : result;
+				const affected = typeof result[1] === "number" ? result[1] : raw.length;
+				return { raw, affected };
+			}),
+		};
+		builders.push({ entity, alias: initialAlias, builder });
+		return builder;
 	};
 	const getRepository = (entity: unknown) => ({
 		find: (options: EntityOptions) => em.find(entity, options),
+		findBy: (where: Record<string, unknown>) => em.find(entity, { where }),
 		findOne: (options: EntityOptions) => em.findOne(entity, options),
 		exists: (options: EntityOptions) => em.exists(entity, options),
 		insert: (values: unknown) => em.insert(entity, values),
 		update: (criteria: unknown, values: unknown) => em.update(entity, criteria, values),
+		upsert: (values: unknown, conflictPaths: unknown) => em.upsert(entity, values, conflictPaths),
 		delete: (criteria: unknown) => em.delete(entity, criteria),
+		createQueryBuilder: (alias?: string) => createBuilder(entity, alias),
 	});
-	const manager = { query, getRepository, findOne: em.findOne };
+	const manager = { query, getRepository, findOne: em.findOne, insert: em.insert, update: em.update, createQueryBuilder: (entity?: unknown, alias?: string) => createBuilder(entity, alias) };
 	const dataSource = {
 		query,
 		getRepository,
+		createQueryBuilder: (entity?: unknown, alias?: string) => createBuilder(entity, alias),
 		transaction: async <T>(work: (manager: unknown) => Promise<T>) => work(manager),
 	} as unknown as DataSource;
-	return Object.assign(dataSource, { em });
+	return Object.assign(dataSource, { em, builders });
 
 }
 
@@ -61,8 +166,8 @@ function service(encryptionEnabled = false) {
 
 	const send = vi.fn(async () => ({ recipients: 1, pushed: 0 }));
 	const query = vi.fn(async (sql: string): Promise<unknown[]> => {
-		if (sql.includes("SELECT encryption_mode FROM chat_conversations")) {
-			return [{ encryption_mode: encryptionEnabled ? "encrypted" : "plaintext" }];
+		if (sql.includes("SELECT value FROM settings")) {
+			return [{ value: encryptionEnabled }];
 		}
 		if (sql.includes("FROM chat_conversations c JOIN chat_members m")) {
 			return [{ kind: "direct", role: "member" }];
@@ -77,7 +182,7 @@ function service(encryptionEnabled = false) {
 	});
 	const dataSource = mockDataSource(query, {
 		find: (entity) => (entity === ChatMemberEntity ? [{ userId: B }] : []),
-		findOne: (entity) => (entity === ChatConversationEntity ? { kind: "direct", name: null } : null),
+		findOne: (entity) => (entity === ChatConversationEntity ? { kind: "direct", name: null, encryptionMode: encryptionEnabled ? "encrypted" : "plaintext" } : null),
 		exists: (entity) => entity === ChatMlsDevice && encryptionEnabled,
 	});
 	const chat = new ChatService(dataSource, { send } as unknown as NotificationService);
@@ -113,23 +218,27 @@ describe("chat helpers", () => {
 
 	it("rejects encrypted messages from revoked or unknown devices", async () => {
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
-			if (sql.includes("SELECT encryption_mode FROM chat_conversations")) return [{ encryption_mode: "encrypted" }];
 			if (sql.includes("FROM chat_conversations c JOIN chat_members m")) return [{ kind: "direct", role: "member" }];
 			return [];
 		});
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const chat = new ChatService(mockDataSource(query, { findOne: (entity) => (entity === ChatConversationEntity ? { encryptionMode: "encrypted" } : null) }), {} as NotificationService);
 
 		await expect(chat.send(A, CONVERSATION, "AAAA", true, undefined, "44444444-4444-4444-8444-444444444444")).rejects.toThrow(/device is not active/i);
 	});
 
 	it("requires a Welcome for every other active chat device", async () => {
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
-			if (sql.includes("SELECT encryption_mode FROM chat_conversations")) return [{ encryption_mode: "encrypted" }];
 			if (sql.includes("FROM chat_conversations c JOIN chat_members m")) return [{ kind: "direct", role: "member" }];
 			if (sql.includes("JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'")) return [{ device_id: "55555555-5555-4555-8555-555555555555" }];
 			return [];
 		});
-		const chat = new ChatService(mockDataSource(query, { exists: (entity) => entity === ChatMlsDevice }), {} as NotificationService);
+		const chat = new ChatService(
+			mockDataSource(query, {
+				findOne: (entity) => (entity === ChatConversationEntity ? { encryptionMode: "encrypted" } : null),
+				exists: (entity) => entity === ChatMlsDevice,
+			}),
+			{} as NotificationService,
+		);
 
 		await expect(chat.send(A, CONVERSATION, "AAAA", true, undefined, "44444444-4444-4444-8444-444444444444")).rejects.toThrow(/Welcome for every other active chat device/i);
 	});
@@ -143,9 +252,8 @@ describe("chat helpers", () => {
 
 	it("allows an authorized member to downgrade an encrypted conversation", async () => {
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
-			if (sql.includes("SELECT c.encryption_mode, s.value AS downgrade_enabled")) {
-				return [{ encryption_mode: "encrypted", downgrade_enabled: true }];
-			}
+			if (sql.includes("SELECT c.encryption_mode")) return [{ encryption_mode: "encrypted" }];
+			if (sql.includes("SELECT value FROM settings")) return [{ value: true }];
 			return [];
 		});
 		const dataSource = mockDataSource(query, { find: (entity) => (entity === ChatMemberEntity ? [{ userId: B }] : []) });
@@ -200,7 +308,7 @@ describe("chat helpers", () => {
 	});
 
 	it("rejects a downgrade when the administrator has disabled it", async () => {
-		const query = vi.fn(async (sql: string): Promise<unknown[]> => (sql.includes("SELECT c.encryption_mode, s.value AS downgrade_enabled") ? [{ encryption_mode: "encrypted", downgrade_enabled: false }] : []));
+		const query = vi.fn(async (sql: string): Promise<unknown[]> => (sql.includes("SELECT c.encryption_mode") ? [{ encryption_mode: "encrypted" }] : sql.includes("SELECT value FROM settings") ? [{ value: false }] : []));
 		const dataSource = mockDataSource(query);
 		const chat = new ChatService(dataSource, {} as NotificationService);
 
@@ -209,8 +317,19 @@ describe("chat helpers", () => {
 	});
 
 	it("reports whether members are allowed to downgrade", async () => {
-		const query = vi.fn(async () => [{ enabled: true, allow_user_downgrade: true }]);
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const query = vi.fn(async () => []);
+		const chat = new ChatService(
+			mockDataSource(query, {
+				find: (entity) =>
+					entity === Setting
+						? [
+								{ key: "chat_e2ee_enabled", value: true },
+								{ key: "chat_user_downgrade_enabled", value: true },
+							]
+						: [],
+			}),
+			{} as NotificationService,
+		);
 
 		await expect(chat.encryptionStatus()).resolves.toEqual({
 			enabled: true,
@@ -244,11 +363,13 @@ describe("chat helpers", () => {
 			}
 			return [];
 		});
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const dataSource = mockDataSource(query);
+		const chat = new ChatService(dataSource, {} as NotificationService);
 
 		await chat.messages(A, CONVERSATION, { afterSequence: "1" });
 
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("m.sequence > $2::bigint"), [CONVERSATION, "1"]);
+		const messageBuilder = dataSource.builders.find(({ entity }) => entity === ChatMessageEntity)?.builder as { andWhere: ReturnType<typeof vi.fn> };
+		expect(messageBuilder.andWhere).toHaveBeenCalledWith("m.sequence > CAST(:afterSequence AS bigint)", { afterSequence: "1" });
 	});
 
 	it("rejects message cursors outside the database sequence range", async () => {
@@ -282,9 +403,8 @@ describe("ChatService", () => {
 			status: "active",
 			approvalChallenge: null,
 		});
+		expect(dataSource.em.insert).toHaveBeenCalledWith(ChatMlsDevice, expect.objectContaining({ id: "44444444-4444-4444-8444-444444444444", userId: A, name: "Browser", status: "active", pairingPublicKey, approvedAt: expect.any(Function) }));
 		expect(dataSource.em.insert).toHaveBeenCalledWith(ChatMlsKeyPackage, { id: expect.any(String), deviceId: "44444444-4444-4444-8444-444444444444", keyPackage: "AAAA" });
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_mls_devices"), expect.arrayContaining([A, "Browser", "active", pairingPublicKey, null]));
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("CASE WHEN $7::boolean THEN now()"), ["44444444-4444-4444-8444-444444444444", A, "Browser", "active", pairingPublicKey, null, true]);
 	});
 
 	it("activates a previously pending device and repairs its pairing key on registration", async () => {
@@ -296,18 +416,20 @@ describe("ChatService", () => {
 			}
 			return [];
 		});
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const dataSource = mockDataSource(query);
+		const chat = new ChatService(dataSource, {} as NotificationService);
 
 		await expect(chat.registerMlsDevice(A, "44444444-4444-4444-8444-444444444444", "Browser", "AAAA", pairingPublicKey)).resolves.toMatchObject({ status: "active" });
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("status = 'active', approval_challenge = NULL"), ["44444444-4444-4444-8444-444444444444", "Browser", pairingPublicKey]);
+		expect(dataSource.em.update).toHaveBeenCalledWith(ChatMlsDevice, { id: "44444444-4444-4444-8444-444444444444" }, expect.objectContaining({ name: "Browser", status: "active", approvalChallenge: null, pairingPublicKey, approvedAt: expect.any(Function) }));
 	});
 
 	it("stores only the user's opaque encrypted chat history backup", async () => {
 		const query = vi.fn(async () => []);
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const dataSource = mockDataSource(query);
+		const chat = new ChatService(dataSource, {} as NotificationService);
 
 		await chat.saveChatHistoryBackup(A, "encrypted-envelope");
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (user_id) DO UPDATE"), [A, "encrypted-envelope"]);
+		expect(dataSource.em.upsert).toHaveBeenCalledWith(ChatMlsHistoryBackup, { userId: A, backup: "encrypted-envelope", updatedAt: expect.any(Function) }, ["userId"]);
 		await expect(chat.saveChatHistoryBackup(A, "")).rejects.toThrow(/backup is invalid/i);
 	});
 
@@ -333,24 +455,26 @@ describe("ChatService", () => {
 
 	it("revokes only devices belonging to the authenticated user", async () => {
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
-			if (sql.includes("UPDATE chat_mls_devices")) return [{ id: "44444444-4444-4444-8444-444444444444" }];
+			if (sql.includes("UPDATE chat_mls_devices")) return [[{ id: "44444444-4444-4444-8444-444444444444" }], 1];
 			return [];
 		});
-		const chat = new ChatService(mockDataSource(query), {} as NotificationService);
+		const dataSource = mockDataSource(query);
+		const chat = new ChatService(dataSource, {} as NotificationService);
 
 		await expect(chat.revokeMlsDevice(A, "44444444-4444-4444-8444-444444444444")).resolves.toBeUndefined();
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE id = $1 AND user_id = $2 AND status <> 'revoked'"), ["44444444-4444-4444-8444-444444444444", A]);
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE chat_mls_key_packages SET used_at"), ["44444444-4444-4444-8444-444444444444"]);
+		expect(dataSource.em.update).toHaveBeenCalledWith(ChatMlsDevice, { id: "44444444-4444-4444-8444-444444444444", userId: A, status: expect.any(Object) }, { status: "revoked", revokedAt: expect.any(Function) });
+		expect(dataSource.em.update).toHaveBeenCalledWith(ChatMlsKeyPackage, { deviceId: "44444444-4444-4444-8444-444444444444" }, { usedAt: expect.any(Function) });
 	});
 
 	it("claims an MLS key package once for a conversation member", async () => {
 		let claimed = false;
 		const query = vi.fn(async (sql: string): Promise<unknown[]> => {
 			if (sql.includes("FROM chat_conversations c JOIN chat_members m")) return [{ kind: "direct", role: "member" }];
+			if (sql.includes("FROM chat_mls_key_packages")) return [{ user_id: B, device_id: "55555555-5555-4555-8555-555555555555", key_package_id: "66666666-6666-4666-8666-666666666666", key_package: "AAAA" }];
 			if (sql.includes("UPDATE chat_mls_key_packages")) {
-				if (claimed) return [];
+				if (claimed) return [[], 0];
 				claimed = true;
-				return [{ user_id: B, device_id: "55555555-5555-4555-8555-555555555555", key_package_id: "66666666-6666-4666-8666-666666666666", key_package: "AAAA" }];
+				return [[{ user_id: B, device_id: "55555555-5555-4555-8555-555555555555", key_package_id: "66666666-6666-4666-8666-666666666666", key_package: "AAAA" }], 1];
 			}
 			return [];
 		});
@@ -470,14 +594,15 @@ describe("ChatService", () => {
 		await chat.send(A, CONVERSATION, "Update");
 
 		expect(insertCalls).toHaveLength(1);
-		expect(insertCalls[0][0]).toContain("ON CONFLICT DO NOTHING RETURNING user_id");
+		expect(insertCalls[0][0]).toBe("INSERT INTO chat_members");
 		const rejoinIndex = query.mock.calls.findIndex(([sql]) => sql.includes("INSERT INTO chat_members"));
 		const messageIndex = dataSource.em.insert.mock.calls.findIndex(([entity, values]) => entity === ChatMessageEntity && (values as { kind: string }).kind === "text");
 		expect(messageIndex).toBeGreaterThanOrEqual(0);
 		expect(dataSource.em.insert.mock.invocationCallOrder[messageIndex]).toBeGreaterThan(query.mock.invocationCallOrder[rejoinIndex]);
 		expect(send).toHaveBeenCalledWith(expect.objectContaining({ url: `/chat/${CONVERSATION}` }), [B]);
 		expect(query).not.toHaveBeenCalledWith(expect.stringContaining("DELETE FROM chat_messages"), expect.anything());
-		expect(dataSource.em.delete).not.toHaveBeenCalled();
+		expect(dataSource.em.delete).not.toHaveBeenCalledWith(ChatMessageEntity, expect.anything());
+		expect(dataSource.em.delete).toHaveBeenCalledWith(Notification, expect.objectContaining({ kind: "message", url: `/chat/${CONVERSATION}` }));
 	});
 
 	it("creates an issue support chat when the administrator is also the requester", async () => {
@@ -506,6 +631,7 @@ describe("ChatService", () => {
 			transaction: vi.fn(async (work: (transactionManager: typeof manager) => Promise<unknown>) => work(manager)),
 		} as unknown as DataSource;
 		const chat = new ChatService(dataSource, {} as NotificationService);
+		vi.spyOn(chat, "conversation").mockResolvedValue({ id: CONVERSATION, kind: "group", encryptionMode: "plaintext", name: "Issue: Playback", supportChatOpen: true, members: [], lastMessage: null, unread: 0, updatedAt: new Date().toISOString() });
 
 		await chat.createSupportGroup(A, A, "Issue: Playback");
 

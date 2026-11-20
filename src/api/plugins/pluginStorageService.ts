@@ -1,7 +1,7 @@
 import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
-import { DataSource, In, type EntityManager, type FindOptionsWhere } from "typeorm";
+import { DataSource, In, type EntityManager, type FindOptionsWhere, type QueryDeepPartialEntity } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginStorageEntry, type PluginStorageJsonValue, type PluginStorageScope } from "../../entities/pluginStorageEntry.entity.js";
 
@@ -149,7 +149,7 @@ export class PluginStorageService {
 
 	private async applyPatch(manager: EntityManager, pluginId: string, userId: string, scope: PluginStorageScope, values: Record<string, PluginStorageJsonValue>, deleteKeys: string[]): Promise<void> {
 		const ownerId = ownerIdFor(scope, pluginId, userId);
-		// RAW SQL: advisory transaction lock; no TypeORM equivalent
+		// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [`${pluginId}:${scope}`, ownerId]);
 		const repository = manager.getRepository(PluginStorageEntry);
 		const currentEntries = await repository.find({ where: { pluginId, scope, ownerId } });
@@ -166,22 +166,15 @@ export class PluginStorageService {
 			value,
 		}));
 		if (entries.length > 0) {
-			const parameters: string[] = [];
-			const rows = entries.map((entry, index) => {
-				const offset = index * 5;
-				const serializedValue = JSON.stringify(entry.value);
-				if (serializedValue === undefined) throw new Error("Plugin storage value could not be serialized.");
-				parameters.push(pluginId, scope, ownerId, entry.key, serializedValue);
-				return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::jsonb, now())`;
-			});
-			// RAW SQL: multi-row upsert storing JSON null as jsonb 'null'; TypeORM would write SQL NULL
-			await manager.query(
-				`INSERT INTO "plugin_storage" ("plugin_id", "scope", "owner_id", "key", "value", "updated_at")
-				VALUES ${rows.join(", ")}
-				ON CONFLICT ("plugin_id", "scope", "owner_id", "key")
-				DO UPDATE SET "value" = EXCLUDED."value", "updated_at" = now()`,
-				parameters,
-			);
+			const rows = entries.map((entry) => ({
+				pluginId,
+				scope,
+				ownerId,
+				key: entry.key,
+				value: entry.value === null ? () => "'null'::jsonb" : entry.value,
+				updatedAt: () => "now()",
+			})) as unknown as QueryDeepPartialEntity<PluginStorageEntry>[];
+			await manager.createQueryBuilder().insert().into(PluginStorageEntry).values(rows).orUpdate(["value", "updated_at"], ["plugin_id", "scope", "owner_id", "key"]).execute();
 		}
 	}
 }

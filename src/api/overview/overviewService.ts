@@ -4,12 +4,13 @@ import { statfs } from "node:fs/promises";
 import { DataSource } from "typeorm";
 import { version } from "../../config/config.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { AdminIndexerService } from "../indexer/adminIndexerService.js";
 import { MediaRootsService } from "../mediaLibraries/mediaRootsService.js";
 import { StreamsService } from "../streams/streamsService.js";
-import { ACTIVITY_FROM, ACTIVITY_SELECT, mapActivityRow, type ActivityRow } from "./activityService.js";
+import { activityQuery, mapActivityRow, type ActivityRow } from "./activityService.js";
 
 const FILE_TYPES = ["movie", "episode", "track", "video"];
 const ACTIVITY_LIMIT = 10;
@@ -60,8 +61,8 @@ export class OverviewService {
 	}
 
 	private async counts() {
-		// RAW SQL: grouped COUNT with ::text cast to keep bigint results as strings
-		const rows: CountRow[] = await this.dataSource.query(`SELECT type, COUNT(*)::text AS count FROM media_items WHERE is_placeholder = false GROUP BY type`);
+		// RAW SQL: PostgreSQL text cast preserves the aggregate result shape.
+		const rows = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.type", "type").addSelect("COUNT(*)::text", "count").where("item.isPlaceholder = false").groupBy("item.type").getRawMany<CountRow>();
 		const byType = new Map(rows.map((row) => [row.type, Number(row.count)]));
 		return {
 			movies: byType.get("movie") ?? 0,
@@ -75,8 +76,8 @@ export class OverviewService {
 	private async libraries() {
 		const [entities, rows] = await Promise.all([
 			this.dataSource.getRepository(MediaLibrary).find({ order: { name: "ASC" } }),
-			// RAW SQL: grouped COUNT/SUM with ::text casts to keep bigint results as strings
-			this.dataSource.query(`SELECT library_id, COUNT(*)::text AS items, SUM(size_bytes)::text AS size FROM media_items WHERE is_placeholder = false AND type = ANY($1) GROUP BY library_id`, [FILE_TYPES]) as Promise<LibraryRow[]>,
+			// RAW SQL: PostgreSQL text casts preserve aggregate result shapes.
+			this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.libraryId", "library_id").addSelect("COUNT(*)::text", "items").addSelect("SUM(item.sizeBytes)::text", "size").where("item.isPlaceholder = false").andWhere("item.type IN (:...types)", { types: FILE_TYPES }).groupBy("item.libraryId").getRawMany<LibraryRow>(),
 		]);
 		const byLibrary = new Map(rows.map((row) => [row.library_id, row]));
 		return entities.map((library) => {
@@ -86,8 +87,7 @@ export class OverviewService {
 	}
 
 	private async activity() {
-		// RAW SQL: multi-join activity query built from shared SQL fragments
-		const rows: ActivityRow[] = await this.dataSource.query(`SELECT ${ACTIVITY_SELECT} ${ACTIVITY_FROM} ORDER BY w.updated_at DESC LIMIT $1`, [ACTIVITY_LIMIT]);
+		const rows = await activityQuery(this.dataSource).orderBy("w.updatedAt", "DESC").limit(ACTIVITY_LIMIT).getRawMany<ActivityRow>();
 		return rows.map(mapActivityRow);
 	}
 

@@ -4,7 +4,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { createHash, randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
-import { DataSource, EntityManager, In } from "typeorm";
+import { Brackets, DataSource, EntityManager, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MATCH_CONFIDENCES, MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaCredit, personIdOf, personKeyOf } from "../../entities/mediaCredit.entity.js";
@@ -501,7 +501,7 @@ export class MediaItemsService {
 	}
 
 	private async lock(manager: EntityManager, libraryId: string, key: string): Promise<void> {
-		// RAW SQL: advisory transaction lock; no TypeORM equivalent
+		// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:media-item:${libraryId}:${key}`]);
 	}
 
@@ -540,10 +540,9 @@ export class MediaItemsService {
 				throw new NotFound("Media library not found.");
 			}
 			const stale = await manager.createQueryBuilder().delete().from(MediaItem).where("library_id = :libraryId AND is_placeholder = false", { libraryId }).andWhere("(last_seen_at IS NULL OR last_seen_at < :cutoff)", { cutoff }).execute();
-			// RAW SQL: DELETE with correlated NOT EXISTS self-subquery; row count read from the driver result
-			const orphans = await manager.query(`DELETE FROM media_items p WHERE p.library_id = $1 AND p.is_placeholder = true AND NOT EXISTS (SELECT 1 FROM media_items c WHERE c.parent_id = p.id)`, [libraryId]);
-			const orphanCount = Array.isArray(orphans) ? Number(orphans[1] ?? 0) : 0;
-			return { removed: (stale.affected ?? 0) + orphanCount };
+			// RAW SQL: correlated NOT EXISTS removes only childless placeholders.
+			const orphans = await manager.createQueryBuilder().delete().from(MediaItem).where('"library_id" = :libraryId AND "is_placeholder" = true AND NOT EXISTS (SELECT 1 FROM "media_items" child WHERE child."parent_id" = "media_items"."id")', { libraryId }).execute();
+			return { removed: (stale.affected ?? 0) + (orphans.affected ?? 0) };
 		});
 	}
 
@@ -560,20 +559,27 @@ export class MediaItemsService {
 
 	/** Removes indexed items at changed filesystem paths without scanning or pruning the rest of the library. */
 	async removePaths(libraryId: string, targets: IndexerPathRemoval[]): Promise<{ removed: number }> {
+		if (targets.length === 0) return { removed: 0 };
 		return this.dataSource.transaction(async (manager) => {
 			if (!(await manager.existsBy(MediaLibrary, { id: libraryId }))) {
 				throw new NotFound("Media library not found.");
 			}
-			const params: unknown[] = [libraryId];
-			const predicates = targets.map((target, index) => {
-				const pathParam = `$${index * 2 + 2}`;
-				const recursiveParam = `$${index * 2 + 3}`;
-				params.push(target.path, target.recursive);
-				return `(path = ${pathParam} OR (${recursiveParam}::boolean AND (left(path, length(${pathParam}) + 1) = ${pathParam} || '/' OR left(path, length(${pathParam}) + 1) = ${pathParam} || chr(92))))`;
-			});
-			// RAW SQL: dynamic OR predicates with boolean casts and string functions; DELETE ... RETURNING
-			const removed = await manager.query(`DELETE FROM media_items WHERE library_id = $1 AND (${predicates.join(" OR ")}) RETURNING id`, params);
-			return { removed: Array.isArray(removed) ? removed.length : 0 };
+			const query = manager.createQueryBuilder().delete().from(MediaItem).where('"library_id" = :libraryId', { libraryId });
+			query.andWhere(
+				new Brackets((conditions) => {
+					targets.forEach((target, index) => {
+						const path = `path${index}`;
+						const recursive = `recursive${index}`;
+						// RAW SQL: PostgreSQL path-boundary checks use left/length/chr in a parameterized DELETE.
+						const predicate = `("path" = :${path} OR (:${recursive} = true AND (left("path", length(:${path}) + 1) = (:${path} || '/') OR left("path", length(:${path}) + 1) = (:${path} || chr(92)))))`;
+						const parameters = { [path]: target.path, [recursive]: target.recursive };
+						if (index === 0) conditions.where(predicate, parameters);
+						else conditions.orWhere(predicate, parameters);
+					});
+				}),
+			);
+			const result = await query.execute();
+			return { removed: result.affected ?? 0 };
 		});
 	}
 

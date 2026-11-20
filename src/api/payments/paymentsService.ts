@@ -492,7 +492,7 @@ export class PaymentsService {
 		const provider = await this.requireActive();
 		// The lock serialises one user's checkouts, so a second tab cannot pass the ownership check while the first is still being recorded.
 		const { quote, order } = await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: advisory transaction lock; no TypeORM equivalent
+			// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${user.id}`]);
 			const quote = await this.quote(user, request);
 			if (quote.productId) {
@@ -615,7 +615,7 @@ export class PaymentsService {
 			}
 			const order = await manager.getRepository(PaymentOrder).findOneByOrFail({ id: orderId });
 			// Two checkouts can both be waiting on card verification; whichever completes second is a duplicate and is refunded instead of granted.
-			// RAW SQL: advisory transaction lock; no TypeORM equivalent
+			// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${order.userId}`]);
 			if (order.productId && (order.kind === "purchase" || order.kind === "rental")) {
 				const product = await manager.getRepository(PaymentProduct).findOneBy({ id: order.productId });
@@ -1009,16 +1009,12 @@ export class PaymentsService {
 	}
 
 	async stats() {
-		// RAW SQL: grouped SUM/COUNT with ::int casts and DB-side interval; kept for identical numeric types
-		const revenue = await this.dataSource.query(
-			`SELECT currency, COALESCE(SUM(total_minor - refunded_minor), 0)::int AS "amountMinor", COUNT(*)::int AS orders
-			 FROM payment_orders WHERE status IN ('paid','partially_refunded') AND created_at > now() - interval '30 days' GROUP BY currency`,
-		);
-		// RAW SQL: grouped COUNT with ::int cast; kept for identical numeric types
-		const subs = await this.dataSource.query(`SELECT status, COUNT(*)::int AS count FROM payment_subscriptions GROUP BY status`);
-		// RAW SQL: COUNT with ::int cast and DB-side interval; kept for identical numeric types and clock
-		const failed = await this.dataSource.query(`SELECT COUNT(*)::int AS count FROM payment_orders WHERE status = 'failed' AND created_at > now() - interval '30 days'`);
-		return { revenue30d: revenue, subscriptions: subs, failed30d: failed[0]?.count ?? 0 };
+		const [revenue, subscriptions, failed] = await Promise.all([
+			this.dataSource.getRepository(PaymentOrder).createQueryBuilder("order").select("order.currency", "currency").addSelect("COALESCE(SUM(order.totalMinor - order.refundedMinor), 0)::int", "amountMinor").addSelect("COUNT(*)::int", "orders").where("order.status IN ('paid', 'partially_refunded')").andWhere("order.createdAt > now() - interval '30 days'").groupBy("order.currency").getRawMany<{ currency: string; amountMinor: number; orders: number }>(),
+			this.dataSource.getRepository(PaymentSubscription).createQueryBuilder("subscription").select("subscription.status", "status").addSelect("COUNT(*)::int", "count").groupBy("subscription.status").getRawMany<{ status: string; count: number }>(),
+			this.dataSource.getRepository(PaymentOrder).createQueryBuilder("order").select("COUNT(*)::int", "count").where("order.status = 'failed'").andWhere("order.createdAt > now() - interval '30 days'").getRawOne<{ count: number }>(),
+		]);
+		return { revenue30d: revenue, subscriptions, failed30d: failed?.count ?? 0 };
 	}
 
 	async refund(orderId: string, amountMinor?: number) {

@@ -3,8 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
-import { ENTITIES } from "../../datasources/entityList.js";
-import { MIGRATIONS } from "../../datasources/migrationList.js";
 import { ChatConversation } from "../../entities/chatConversation.entity.js";
 import { IssueReport, IssueReportUpdate } from "../../entities/issueReport.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
@@ -12,24 +10,20 @@ import { User } from "../../entities/user.entity.js";
 import type { ChatService } from "../../chat/chatService.js";
 import type { AuthService } from "../auth/authService.js";
 import { IssueReportsService } from "./issueReportsService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../../datasources/testPostgres.js";
 
 const databaseUrl = process.env.ENTITY_SCHEMA_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("issue reports with PostgreSQL", () => {
-	const schema = `issue_reports_test_${randomUUID().replaceAll("-", "")}`;
 	const userId = randomUUID();
 	const adminId = randomUUID();
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 	let service: IssueReportsService;
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, schema, entities: ENTITIES, migrations: MIGRATIONS, synchronize: false });
-		await db.initialize();
-		await db.runMigrations();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "issue_reports_test" });
+		db = isolated.db;
 		await db.getRepository(User).save([
 			{ id: userId, username: "reporter", passwordHash: "unused" },
 			{ id: adminId, username: "moderator", passwordHash: "unused" },
@@ -56,14 +50,10 @@ describe.skipIf(!databaseUrl)("issue reports with PostgreSQL", () => {
 			supportChatChanged: vi.fn(),
 		} as unknown as ChatService;
 		service = new IssueReportsService(db, auth, chat);
-	});
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("creates, lists, updates and deletes a report", async () => {
@@ -105,5 +95,15 @@ describe.skipIf(!databaseUrl)("issue reports with PostgreSQL", () => {
 
 		const closed = await service.setChat(created.id, false, "Bearer admin");
 		expect(closed).toMatchObject({ chatOpen: false, chatConversationId: opened.chatConversationId });
+	});
+
+	it("counts only the user's reports from the last 24 hours", async () => {
+		const reporterId = randomUUID();
+		await db.getRepository(User).save({ id: reporterId, username: "rate-limit-reporter", passwordHash: "unused" });
+		const auth = { getAuthenticatedUser: vi.fn(async () => ({ id: reporterId, username: "rate-limit-reporter" })) } as unknown as AuthService;
+		const limited = new IssueReportsService(db, auth, {} as ChatService);
+		await db.getRepository(IssueReport).insert([...Array.from({ length: 4 }, () => ({ id: randomUUID(), userId: reporterId, title: "Recent", category: "Other", description: "Details" })), { id: randomUUID(), userId: reporterId, title: "Old", category: "Other", description: "Details", createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) }]);
+		await expect(limited.create(undefined, { title: "Fifth", category: "Other", description: "Details" })).resolves.toMatchObject({ title: "Fifth" });
+		await expect(limited.create(undefined, { title: "Sixth", category: "Other", description: "Details" })).rejects.toThrow("up to five issue reports per day");
 	});
 });

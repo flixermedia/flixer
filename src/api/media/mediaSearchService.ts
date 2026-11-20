@@ -250,29 +250,17 @@ export class MediaSearchService {
 	}
 
 	async enqueueRebuild(): Promise<{ queued: boolean }> {
-		// RAW SQL: ON CONFLICT ... WHERE partial-index upsert with RETURNING
-		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
-			INSERT INTO "media_search_outbox" ("operation")
-			VALUES ('rebuild')
-			ON CONFLICT ("operation") WHERE "operation" = 'rebuild' DO NOTHING
-			RETURNING "event_id"
-		`);
+		const { raw } = await this.dataSource.getRepository(MediaSearchOutboxEvent).createQueryBuilder().insert().values({ operation: "rebuild" }).orIgnore().returning(["eventId"]).execute();
 		this.rebuildPending = true;
-		return { queued: rows.length > 0 };
+		return { queued: raw.length > 0 };
 	}
 
 	async resetAndRebuild(): Promise<{ queued: boolean }> {
 		await this.ensureAdminSettingsLoaded();
 		if (!this.enabled) throw new BadRequest("Enable Meilisearch before resetting its media index.");
-		// RAW SQL: ON CONFLICT ... WHERE partial-index upsert with RETURNING
-		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
-			INSERT INTO "media_search_outbox" ("operation")
-			VALUES ('reset')
-			ON CONFLICT ("operation") WHERE "operation" = 'reset' DO NOTHING
-			RETURNING "event_id"
-		`);
+		const { raw } = await this.dataSource.getRepository(MediaSearchOutboxEvent).createQueryBuilder().insert().values({ operation: "reset" }).orIgnore().returning(["eventId"]).execute();
 		this.rebuildPending = true;
-		return { queued: rows.length > 0 };
+		return { queued: raw.length > 0 };
 	}
 
 	async storeTrackLyrics(itemId: string, lyrics: string): Promise<void> {
@@ -287,13 +275,13 @@ export class MediaSearchService {
 
 		await this.dataSource.transaction(async (manager) => {
 			if (lyrics.trim()) {
-				// RAW SQL: ON CONFLICT upsert refreshing updated_at with DB-side now()
-				await manager.query(
-					`INSERT INTO "media_search_lyrics" ("item_id", "lyrics")
-					VALUES ($1, $2)
-					ON CONFLICT ("item_id") DO UPDATE SET "lyrics" = EXCLUDED."lyrics", "updated_at" = now()`,
-					[itemId, lyrics],
-				);
+				await manager
+					.createQueryBuilder()
+					.insert()
+					.into(MediaSearchLyrics)
+					.values({ itemId, lyrics, updatedAt: () => "now()" })
+					.orUpdate(["lyrics", "updated_at"], ["item_id"])
+					.execute();
 			} else {
 				await manager.delete(MediaSearchLyrics, { itemId });
 			}
@@ -316,15 +304,14 @@ export class MediaSearchService {
 
 	async getAdminStatus(): Promise<MediaSearchAdminStatus> {
 		await this.loadAdminSettings();
-		// RAW SQL: FILTER aggregates and scalar subquery
-		const outboxRows: Array<{ pending: number | string; failed: number | string; last_error: string | null }> = await this.dataSource.query(`
-				SELECT
-					COUNT(*) FILTER (WHERE "last_error" IS NULL)::int AS pending,
-					COUNT(*) FILTER (WHERE "last_error" IS NOT NULL)::int AS failed,
-					(SELECT "last_error" FROM "media_search_outbox" WHERE "last_error" IS NOT NULL ORDER BY "event_id" DESC LIMIT 1) AS last_error
-				FROM "media_search_outbox"
-			`);
-		const outbox = outboxRows[0];
+		// RAW SQL: PostgreSQL FILTER aggregates retain separate pending/failed counts.
+		const outbox = await this.dataSource
+			.getRepository(MediaSearchOutboxEvent)
+			.createQueryBuilder("event")
+			.select("COUNT(*) FILTER (WHERE event.lastError IS NULL)::int", "pending")
+			.addSelect("COUNT(*) FILTER (WHERE event.lastError IS NOT NULL)::int", "failed")
+			.addSelect((subQuery) => subQuery.select("latest.lastError").from(MediaSearchOutboxEvent, "latest").where("latest.lastError IS NOT NULL").orderBy("latest.eventId", "DESC").take(1), "last_error")
+			.getRawOne<{ pending: number | string; failed: number | string; last_error: string | null }>();
 		const status: MediaSearchAdminStatus = {
 			enabled: this.enabled,
 			url: this.displayUrl,
@@ -457,15 +444,14 @@ export class MediaSearchService {
 
 	private async createIndex(): Promise<void> {
 		const index = await this.request<MeilisearchIndex>(`/indexes/${INDEX_UID}`, {}, [404]);
-		// RAW SQL: settings read of the document version, kept raw alongside the settings upsert below
-		const documentVersions: Array<{ value: number }> = await this.dataSource.query('SELECT "value" FROM "settings" WHERE "key" = $1', [SEARCH_DOCUMENT_VERSION_SETTING]);
+		const documentVersion = await this.dataSource.getRepository(Setting).findOne({ select: { value: true }, where: { key: SEARCH_DOCUMENT_VERSION_SETTING } });
 		const pendingMaintenance = await this.dataSource.getRepository(MediaSearchOutboxEvent).find({
 			select: { operation: true },
 			where: { operation: In(["rebuild", "reset"]) },
 			order: { eventId: "ASC" },
 			take: 1,
 		});
-		const needsRebuild = documentVersions[0]?.value !== SEARCH_DOCUMENT_VERSION;
+		const needsRebuild = documentVersion?.value !== SEARCH_DOCUMENT_VERSION;
 		if (index.uid === INDEX_UID && needsRebuild) {
 			const deleted = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}`, { method: "DELETE" });
 			if (deleted.taskUid !== undefined) await this.waitForTask(deleted.taskUid);
@@ -477,8 +463,7 @@ export class MediaSearchService {
 		}
 		await this.configureIndex();
 		if (needsRebuild) await this.enqueueRebuild();
-		// RAW SQL: settings cleanup, kept raw alongside the settings upsert below
-		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [LEGACY_VECTOR_SEARCH_SETTINGS]);
+		await this.dataSource.getRepository(Setting).delete({ key: In(LEGACY_VECTOR_SEARCH_SETTINGS) });
 		this.ready = true;
 	}
 
@@ -520,13 +505,7 @@ export class MediaSearchService {
 				}
 				await this.dataSource.getRepository(MediaSearchOutboxEvent).delete(events.map((event) => event.event_id));
 			} catch (error) {
-				// RAW SQL: DB-side now() and interval arithmetic
-				await this.dataSource.query(
-					`UPDATE "media_search_outbox"
-					SET "locked_until" = NULL, "next_attempt_at" = now() + interval '30 seconds', "last_error" = $2
-					WHERE "event_id" = ANY($1::bigint[])`,
-					[events.map((event) => event.event_id), error instanceof Error ? error.message.slice(0, 2000) : String(error)],
-				);
+				await this.dataSource.getRepository(MediaSearchOutboxEvent).update({ eventId: In(events.map((event) => event.event_id)) }, { lockedUntil: null, nextAttemptAt: () => "now() + interval '30 seconds'", lastError: error instanceof Error ? error.message.slice(0, 2000) : String(error) });
 				throw error;
 			}
 		} catch (error) {
@@ -549,26 +528,11 @@ export class MediaSearchService {
 
 	private async claimEvents(): Promise<OutboxEvent[]> {
 		return this.dataSource.transaction(async (manager) => {
-			// RAW SQL: FOR UPDATE SKIP LOCKED claim
-			const rows: OutboxEvent[] = await manager.query(
-				`SELECT "event_id", "item_id", "operation", "document"
-				FROM "media_search_outbox"
-				WHERE "next_attempt_at" <= now() AND ("locked_until" IS NULL OR "locked_until" < now())
-				ORDER BY "event_id"
-				LIMIT $1
-				FOR UPDATE SKIP LOCKED`,
-				[OUTBOX_BATCH_SIZE],
-			);
+			const rows = await manager.createQueryBuilder(MediaSearchOutboxEvent, "event").select("event.eventId", "event_id").addSelect("event.itemId", "item_id").addSelect("event.operation", "operation").addSelect("event.document", "document").where("event.nextAttemptAt <= now()").andWhere("(event.lockedUntil IS NULL OR event.lockedUntil < now())").orderBy("event.eventId", "ASC").limit(OUTBOX_BATCH_SIZE).setLock("pessimistic_write").setOnLocked("skip_locked").getRawMany<OutboxEvent>();
 			if (rows.length === 0) return [];
 			const maintenanceIndex = rows.findIndex((event) => event.operation === "rebuild" || event.operation === "reset");
 			const claimed = maintenanceIndex < 0 ? rows : rows.slice(0, maintenanceIndex + 1);
-			// RAW SQL: DB-side now() and interval arithmetic
-			await manager.query(
-				`UPDATE "media_search_outbox"
-				SET "locked_until" = now() + interval '30 minutes', "attempts" = "attempts" + 1
-				WHERE "event_id" = ANY($1::bigint[])`,
-				[claimed.map((event) => event.event_id)],
-			);
+			await manager.update(MediaSearchOutboxEvent, { eventId: In(claimed.map((event) => event.event_id)) }, { lockedUntil: () => "now() + interval '30 minutes'", attempts: () => '"attempts" + 1' });
 			return claimed;
 		});
 	}
@@ -687,15 +651,8 @@ export class MediaSearchService {
 			afterId = items[items.length - 1].id;
 		}
 		logger().info("Rebuilt the Meilisearch media index.");
-		// RAW SQL: settings cleanup, kept raw alongside the settings upsert below
-		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [LEGACY_VECTOR_SEARCH_SETTINGS]);
-		// RAW SQL: settings entity declares no unique key; ON CONFLICT (key) upsert
-		await this.dataSource.query(
-			`INSERT INTO "settings" ("key", "value", "is_public")
-			VALUES ($1, $2::jsonb, false)
-			ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "is_public" = false`,
-			[SEARCH_DOCUMENT_VERSION_SETTING, JSON.stringify(SEARCH_DOCUMENT_VERSION)],
-		);
+		await this.dataSource.getRepository(Setting).delete({ key: In(LEGACY_VECTOR_SEARCH_SETTINGS) });
+		await this.dataSource.getRepository(Setting).createQueryBuilder().insert().values({ key: SEARCH_DOCUMENT_VERSION_SETTING, value: SEARCH_DOCUMENT_VERSION, isPublic: false }).orUpdate(["value", "is_public"], ["key"]).execute();
 		this.rebuildPending = false;
 	}
 

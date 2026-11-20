@@ -3,7 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { OidcClient } from "../../entities/oidc.entity.js";
+import { OidcArtifact, OidcClient, OidcConsent } from "../../entities/oidc.entity.js";
 import type { CreateOidcClientRequest } from "./oidcClientRequests.js";
 import { encryptOidcSecret } from "./oidcSecrets.js";
 import { isOidcResourceScope } from "./oidcResourceScopes.js";
@@ -72,16 +72,21 @@ export class OidcClientService {
 	async setResourceScopes(id: string, scopes: string[]): Promise<void> {
 		if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== "string" || !isOidcResourceScope(scope)) || new Set(scopes).size !== scopes.length) throw new BadRequest("Invalid resource permissions.");
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: SELECT ... FOR UPDATE row lock inside the transaction
-			const rows: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR UPDATE`, [id]);
-			if (!rows.length) throw new NotFound("OAuth client not found.");
-			const removed = rows[0].resource_scopes.filter((scope) => !scopes.includes(scope));
+			const client = await manager.getRepository(OidcClient).createQueryBuilder("client").select("client.resourceScopes", "resource_scopes").where("client.id = :id", { id }).setLock("pessimistic_write").getRawOne<{ resource_scopes: string[] }>();
+			if (!client) throw new NotFound("OAuth client not found.");
+			const removed = client.resource_scopes.filter((scope) => !scopes.includes(scope));
 			await manager.update(OidcClient, { id }, { resourceScopes: scopes });
 			if (removed.length) {
-				// RAW SQL: text[] EXCEPT/unnest set difference
-				await manager.query(`UPDATE "oidc_consents" SET "scopes" = ARRAY(SELECT unnest("scopes") EXCEPT SELECT unnest($2::text[])) WHERE "client_id" = $1`, [id, removed]);
-				// RAW SQL: delete by jsonb ->> payload predicates with a Grant subselect
-				await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1 OR "payload"->>'grantId' IN (SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant' AND "payload"->>'clientId' = $1)`, [id]);
+				// RAW SQL: PostgreSQL text[] EXCEPT/unnest set difference.
+				await manager
+					.createQueryBuilder()
+					.update(OidcConsent)
+					.set({ scopes: () => 'ARRAY(SELECT unnest("scopes") EXCEPT SELECT unnest(:removed::text[]))' })
+					.where('"client_id" = :id', { id })
+					.setParameter("removed", removed)
+					.execute();
+				// RAW SQL: PostgreSQL JSONB ->> payload predicates and Grant subquery.
+				await manager.createQueryBuilder().delete().from(OidcArtifact).where("\"payload\"->>'clientId' = :id OR \"payload\"->>'grantId' IN (SELECT id FROM \"oidc_artifacts\" WHERE kind = 'Grant' AND \"payload\"->>'clientId' = :id)", { id }).execute();
 			}
 		});
 	}
@@ -90,8 +95,8 @@ export class OidcClientService {
 		await this.dataSource.transaction(async (manager) => {
 			const { affected } = await manager.delete(OidcClient, { id });
 			if (!affected) throw new NotFound("OAuth client not found.");
-			// RAW SQL: delete by jsonb ->> payload predicate
-			await manager.query(`DELETE FROM "oidc_artifacts" WHERE "payload"->>'clientId' = $1`, [id]);
+			// RAW SQL: PostgreSQL JSONB ->> payload predicate.
+			await manager.createQueryBuilder().delete().from(OidcArtifact).where("\"payload\"->>'clientId' = :id", { id }).execute();
 		});
 	}
 }

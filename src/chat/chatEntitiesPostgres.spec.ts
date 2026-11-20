@@ -5,8 +5,6 @@ import { BadRequest, Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
 import type { NotificationService } from "../api/notifications/notificationService.js";
-import { ENTITIES } from "../datasources/entityList.js";
-import { MIGRATIONS } from "../datasources/migrationList.js";
 import { ChatMember, ChatMessage } from "../entities/chat.entity.js";
 import { ChatConversation } from "../entities/chatConversation.entity.js";
 import { ChatMlsDevice, ChatMlsHistoryBackup, ChatMlsKeyPackage, ChatMlsWelcome } from "../entities/chatMls.entity.js";
@@ -16,13 +14,13 @@ import { User } from "../entities/user.entity.js";
 import type { PartiesService } from "../party/partiesService.js";
 import { CallService } from "./callService.js";
 import { ChatService } from "./chatService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../datasources/testPostgres.js";
 
 const databaseUrl = process.env.ENTITY_SCHEMA_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
-	const schema = `chat_entities_test_${randomUUID().replaceAll("-", "")}`;
 	const [alex, sam, kim, lee] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 	const send = vi.fn(async () => ({ recipients: 1, pushed: 0 }));
 
@@ -39,12 +37,8 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 	}
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, schema, entities: ENTITIES, migrations: MIGRATIONS, synchronize: false });
-		await db.initialize();
-		await db.runMigrations();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "chat_entities_test" });
+		db = isolated.db;
 		await db.getRepository(User).save([
 			{ id: alex, username: "alex", displayName: "Alex", passwordHash: "unused" },
 			{ id: sam, username: "sam", displayName: "Sam", passwordHash: "unused" },
@@ -57,14 +51,10 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 			{ key: "issue_reports_chat_enabled", value: true },
 			{ key: "calls_enabled", value: true },
 		]);
-	});
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("starts one direct conversation per pair and stores both members", async () => {
@@ -232,6 +222,7 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 		// Revoking marks the device and burns its key packages; repeating it changes nothing.
 		await chat.revokeMlsDevice(alex, trusted.id);
 		await chat.revokeMlsDevice(alex, trusted.id);
+		await expect(chat.revokeMlsDevice(sam, trusted.id)).rejects.toBeInstanceOf(NotFound);
 		expect(await db.getRepository(ChatMlsDevice).findOneByOrFail({ id: trusted.id })).toMatchObject({ status: "revoked" });
 		expect((await db.getRepository(ChatMlsDevice).findOneByOrFail({ id: trusted.id })).revokedAt).toBeInstanceOf(Date);
 		const burned = await db.getRepository(ChatMlsKeyPackage).find({ where: { deviceId: trusted.id } });
@@ -269,8 +260,8 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 			expect(await messageRows(direct.id)).toEqual([]);
 			await expect(chat.send(lee, direct.id, "AAAA", true, undefined, samDevice.id)).rejects.toBeInstanceOf(Forbidden);
 
-			// The claim marks the package used; the raw UPDATE ... RETURNING result shape is not asserted here.
-			await chat.claimMlsKeyPackage(lee, direct.id, samRegistration.keyPackageId);
+			expect(await chat.claimMlsKeyPackage(lee, direct.id, samRegistration.keyPackageId)).toEqual({ userId: sam, deviceId: samDevice.id, keyPackageId: samRegistration.keyPackageId, keyPackage: "BBBB", available: false });
+			await expect(chat.claimMlsKeyPackage(lee, direct.id, samRegistration.keyPackageId)).rejects.toBeInstanceOf(Conflict);
 			expect((await db.getRepository(ChatMlsKeyPackage).findOneByOrFail({ id: samRegistration.keyPackageId })).usedAt).toBeInstanceOf(Date);
 			await expect(chat.claimMlsKeyPackage(alex, direct.id, leeRegistration.keyPackageId)).rejects.toBeInstanceOf(NotFound);
 
@@ -284,6 +275,7 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 			await expect(chat.pendingMlsWelcomes(sam, direct.id, leeDevice.id)).rejects.toBeInstanceOf(NotFound);
 			await chat.acknowledgeMlsWelcome(sam, direct.id, samDevice.id, pending[0].id);
 			expect(await chat.pendingMlsWelcomes(sam, direct.id, samDevice.id)).toEqual([]);
+			await expect(chat.acknowledgeMlsWelcome(sam, direct.id, samDevice.id, randomUUID())).rejects.toBeInstanceOf(NotFound);
 
 			// Storing the identical Welcome again is idempotent; a different one conflicts.
 			await chat.storeMlsWelcome(lee, direct.id, message.id, welcome.recipients, "WWWW", "TTTT");
@@ -293,6 +285,29 @@ describe.skipIf(!databaseUrl)("chat entities with PostgreSQL", () => {
 		} finally {
 			await setSetting("chat_e2ee_enabled", false);
 		}
+	});
+
+	it("lists active party key packages and atomically claims a peer package once", async () => {
+		const chat = fresh();
+		const callerDevice = device();
+		const peerDevice = device();
+		await chat.registerMlsDevice(alex, callerDevice.id, "Caller", "AAAA", callerDevice.pairingPublicKey);
+		const peer = await chat.registerMlsDevice(sam, peerDevice.id, "Peer", "BBBB", peerDevice.pairingPublicKey);
+		const calls = new CallService(db, { isMember: async () => true } as unknown as PartiesService);
+		expect(await calls.partyKeyPackages(alex, "party", sam, true)).toEqual(
+			expect.arrayContaining([
+				{ userId: alex, deviceId: callerDevice.id, keyPackageId: expect.any(String), keyPackage: "AAAA", available: true },
+				{ userId: sam, deviceId: peerDevice.id, keyPackageId: peer.keyPackageId, keyPackage: "BBBB", available: true },
+			]),
+		);
+		const claimed = await calls.claimPartyKeyPackage(alex, "party", peer.keyPackageId);
+		expect(claimed.userId).toBe(sam);
+		expect(claimed.deviceId).toBe(peerDevice.id);
+		expect(claimed.keyPackageId).toBe(peer.keyPackageId);
+		expect(claimed.keyPackage).toBe("BBBB");
+		expect(claimed.available).toBe(false);
+		await expect(calls.claimPartyKeyPackage(alex, "party", peer.keyPackageId)).rejects.toBeInstanceOf(Conflict);
+		expect((await db.getRepository(ChatMlsKeyPackage).findOneByOrFail({ id: peer.keyPackageId })).usedAt).toBeInstanceOf(Date);
 	});
 
 	it("lists the other members of a conversation for calls", async () => {

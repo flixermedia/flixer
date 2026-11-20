@@ -4,6 +4,7 @@ import type { DataSource } from "typeorm";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { AdminMediaService } from "./adminMediaService.js";
 
 describe("AdminMediaService", () => {
@@ -46,37 +47,46 @@ describe("AdminMediaService", () => {
 	});
 
 	it("shows the most-watched 13 items per section on the unfiltered overview", async () => {
-		const query = vi.fn().mockResolvedValue([
-			{
-				id: "00000000-0000-4000-8000-000000000001",
-				libraryId: "00000000-0000-4000-8000-000000000002",
-				parentId: null,
-				type: "movie",
-				title: "Popular movie",
-				year: 2020,
-				seasonNumber: null,
-				episodeNumber: null,
-				path: "/movies/popular.mkv",
-				providerIds: { tmdb: "1" },
-				sizeBytes: "42",
-				editedFields: [],
-				images: [{ type: "poster", path: "/poster.jpg" }],
-				updatedAt: new Date("2026-01-01T00:00:00Z"),
-				parentTitle: null,
-				total: "80",
-				section: "movies",
-				sectionTotal: "20",
-			},
-		]);
-		const dataSource = { query } as unknown as DataSource;
+		const row = {
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null,
+			type: "movie",
+			title: "Popular movie",
+			year: 2020,
+			seasonNumber: null,
+			episodeNumber: null,
+			path: "/movies/popular.mkv",
+			providerIds: { tmdb: "1" },
+			sizeBytes: "42",
+			editedFields: [],
+			images: [{ type: "poster", path: "/poster.jpg" }],
+			updatedAt: new Date("2026-01-01T00:00:00Z"),
+			parentTitle: null,
+			total: "80",
+			section: "movies",
+			sectionTotal: "20",
+		};
+		const makeBuilder = (raw: unknown[] = []) => {
+			const builder = { leftJoin: vi.fn(), innerJoin: vi.fn(), select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), andWhere: vi.fn(), groupBy: vi.fn(), from: vi.fn(), orderBy: vi.fn(), addOrderBy: vi.fn(), addCommonTableExpression: vi.fn(), getRawMany: vi.fn().mockResolvedValue(raw) };
+			for (const name of ["leftJoin", "innerJoin", "select", "addSelect", "where", "andWhere", "groupBy", "from", "orderBy", "addOrderBy", "addCommonTableExpression"] as const) builder[name].mockReturnValue(builder);
+			return builder;
+		};
+		const watcherCounts = makeBuilder();
+		const candidates = makeBuilder();
+		const ranked = makeBuilder();
+		const popular = makeBuilder([row]);
+		const mediaRepository = { createQueryBuilder: vi.fn().mockReturnValueOnce(candidates).mockReturnValueOnce(popular) };
+		const dataSource = { getRepository: vi.fn((entity: unknown) => (entity === WatchProgress ? { createQueryBuilder: () => watcherCounts } : mediaRepository)), createQueryBuilder: () => ranked } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, {} as IndexerClient);
 
 		const result = await service.list({});
 
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("ROW_NUMBER() OVER"), [13]);
-		expect(query.mock.calls[0]?.[0]).toContain("COUNT(*) AS watcher_count");
-		expect(query.mock.calls[0]?.[0]).toContain("PARTITION BY section");
-		expect(query.mock.calls[0]?.[0]).toContain("section_rank <= $1");
+		expect(watcherCounts.groupBy).toHaveBeenCalledWith("progress.itemId");
+		expect(candidates.leftJoin).toHaveBeenCalledWith("watcher_counts", "watcher", "watcher.item_id = item.id");
+		expect(ranked.addSelect).toHaveBeenCalledWith(expect.stringContaining("ROW_NUMBER() OVER (PARTITION BY candidate.section"), "section_rank");
+		expect(popular.addCommonTableExpression).toHaveBeenNthCalledWith(1, watcherCounts, "watcher_counts");
+		expect(popular.where).toHaveBeenCalledWith("ranked.section_rank <= :limit", { limit: 13 });
 		expect(result).toMatchObject({
 			page: 1,
 			size: 13,
@@ -128,16 +138,24 @@ describe("AdminMediaService", () => {
 				raw: [{ parentTitle: null }],
 			}),
 		};
-		const query = vi.fn().mockResolvedValue([]);
-		const dataSource = { getRepository: () => ({ createQueryBuilder: () => builder }), query } as unknown as DataSource;
+		const categoryCounts = {
+			select: vi.fn(),
+			addSelect: vi.fn(),
+			where: vi.fn(),
+			andWhere: vi.fn(),
+			groupBy: vi.fn(),
+			getRawMany: vi.fn().mockResolvedValue([]),
+		};
+		for (const name of ["select", "addSelect", "where", "andWhere", "groupBy"] as const) categoryCounts[name].mockReturnValue(categoryCounts);
+		const createQueryBuilder = vi.fn().mockReturnValueOnce(builder).mockReturnValueOnce(categoryCounts);
+		const dataSource = { getRepository: () => ({ createQueryBuilder }) } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, {} as IndexerClient);
 
 		const result = await service.list({ reviewOnly: true });
 
 		expect(builder.andWhere).toHaveBeenCalledWith(expect.stringContaining("EXISTS ("));
 		expect(builder.andWhere).toHaveBeenCalledWith("item.parent_id IS NULL");
-		expect(query.mock.calls[0]?.[0]).toContain("parent_id IS NULL");
-		expect(query.mock.calls[0]?.[0]).toContain("match_confidence IN ('low', 'unidentified', 'unknown')");
+		expect(categoryCounts.andWhere).toHaveBeenCalledWith(expect.stringContaining("match_confidence IN ('low', 'unidentified', 'unknown')"));
 		expect(result.items[0]).toMatchObject({ id: item.id, title: "My Series", matchConfidence: "high" });
 	});
 

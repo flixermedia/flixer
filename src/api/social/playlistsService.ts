@@ -7,6 +7,7 @@ import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
 import { SocialFriendship } from "../../entities/social.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
@@ -157,16 +158,22 @@ export class PlaylistsService {
 			if (!trackIds.length) {
 				throw new BadRequest("This album has no songs to add.");
 			}
-			// RAW SQL: aggregate with COUNT/MAX and int casts over playlist_items
-			const [{ count, next }] = (await manager.query(`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{ count: number; next: number }>;
+			const aggregate = await manager.getRepository(PlaylistItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.playlistId = :id", { id }).getRawOne<{ count: number; next: number }>();
+			const { count = 0, next = 0 } = aggregate ?? {};
 			const existing = new Set((await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } })).map((row) => row.itemId));
 			const fresh = trackIds.filter((trackId) => !existing.has(trackId));
 			if (count + fresh.length > MAX_TRACKS) {
 				throw new BadRequest(`A playlist can hold up to ${MAX_TRACKS} songs.`);
 			}
 			if (fresh.length) {
-				// RAW SQL: INSERT ... SELECT from unnest WITH ORDINALITY with ON CONFLICT DO NOTHING
-				await manager.query(`INSERT INTO playlist_items (playlist_id, item_id, position) SELECT $1, v.item_id, $3 + v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) ON CONFLICT DO NOTHING`, [id, fresh, next]);
+				await manager
+					.createQueryBuilder()
+					.insert()
+					.into(PlaylistItem)
+					.values(fresh.map((trackId, index) => ({ playlistId: id, itemId: trackId, position: next + index })))
+					.orIgnore()
+					.updateEntity(false)
+					.execute();
 			}
 			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 			return { added: fresh.length };
@@ -189,16 +196,20 @@ export class PlaylistsService {
 			if (wanted.size !== itemIds.length || wanted.size !== current.length || current.some((row) => !wanted.has(row.itemId))) {
 				throw new BadRequest("The order must list every song in the playlist exactly once.");
 			}
-			// RAW SQL: UPDATE ... FROM unnest WITH ORDINALITY
-			await manager.query(`UPDATE playlist_items p SET position = v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) WHERE p.playlist_id = $1 AND p.item_id = v.item_id`, [id, itemIds]);
+			// RAW SQL: PostgreSQL array_position maps the validated list order to positions.
+			await manager
+				.createQueryBuilder()
+				.update(PlaylistItem)
+				.set({ position: () => 'array_position(:itemIds::uuid[], "item_id") - 1' })
+				.where('"playlist_id" = :id AND "item_id" = ANY(:itemIds::uuid[])', { id, itemIds })
+				.execute();
 			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 		});
 	}
 
 	/** The user's own playlists that already hold the song. */
 	async containing(userId: string, itemId: string): Promise<string[]> {
-		// RAW SQL: join of playlists and playlist_items
-		const rows = (await this.dataSource.query(`SELECT p.id FROM playlists p JOIN playlist_items pi ON pi.playlist_id = p.id WHERE p.user_id = $1 AND pi.item_id = $2`, [userId, itemId])) as Array<{ id: string }>;
+		const rows = await this.dataSource.getRepository(Playlist).createQueryBuilder("p").innerJoin(PlaylistItem, "pi", "pi.playlistId = p.id").select("p.id", "id").where("p.userId = :userId", { userId }).andWhere("pi.itemId = :itemId", { itemId }).getRawMany<{ id: string }>();
 		return rows.map((row) => row.id);
 	}
 
@@ -238,19 +249,20 @@ export class PlaylistsService {
 		const ownerIds = [...new Set(playlists.map((playlist) => playlist.userId))];
 
 		const [stats, firsts, owners] = await Promise.all([
-			// RAW SQL: aggregate with jsonb ->> duration parsing and regex over playlist_items
-			this.dataSource.query(
-				`SELECT pi.playlist_id, COUNT(*)::int AS n,
-					COALESCE(SUM(CASE WHEN (m.technical->>'duration') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (m.technical->>'duration')::numeric ELSE 0 END), 0)::float AS dur
-				FROM playlist_items pi JOIN media_items m ON m.id = pi.item_id
-				WHERE pi.playlist_id = ANY($1::uuid[]) GROUP BY pi.playlist_id`,
-				[ids],
-			) as Promise<Array<{ playlist_id: string; n: number; dur: number }>>,
-			// RAW SQL: DISTINCT ON (playlist_id) first-item pick
-			this.dataSource.query(`SELECT DISTINCT ON (playlist_id) playlist_id, item_id FROM playlist_items WHERE playlist_id = ANY($1::uuid[]) ORDER BY playlist_id, position ASC`, [ids]) as Promise<Array<{ playlist_id: string; item_id: string }>>,
-			// RAW SQL: join of users and user_preferences returning snake_case rows
-			this.dataSource.query(`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE u.id = ANY($1::uuid[])`, [ownerIds]) as Promise<OwnerRow[]>,
-		]);
+			this.dataSource
+				.getRepository(PlaylistItem)
+				.createQueryBuilder("entry")
+				.innerJoin(MediaItem, "item", "item.id = entry.itemId")
+				.select("entry.playlistId", "playlist_id")
+				.addSelect("COUNT(*)::int", "n")
+				// RAW SQL: PostgreSQL JSONB extraction, regex validation and numeric conversion.
+				.addSelect("COALESCE(SUM(CASE WHEN (item.technical->>'duration') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.technical->>'duration')::numeric ELSE 0 END), 0)::float", "dur")
+				.where("entry.playlistId IN (:...ids)", { ids })
+				.groupBy("entry.playlistId")
+				.getRawMany<{ playlist_id: string; n: number; dur: number }>(),
+			this.dataSource.getRepository(PlaylistItem).createQueryBuilder("entry").distinctOn(["entry.playlistId"]).select("entry.playlistId", "playlist_id").addSelect("entry.itemId", "item_id").where("entry.playlistId IN (:...ids)", { ids }).orderBy("entry.playlistId", "ASC").addOrderBy("entry.position", "ASC").getRawMany<{ playlist_id: string; item_id: string }>(),
+			this.dataSource.getRepository(User).createQueryBuilder("u").leftJoin(UserPreference, "up", "up.userId = u.id").select("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file").where("u.id IN (:...ownerIds)", { ownerIds }).getRawMany<OwnerRow>(),
+		] as const);
 
 		const cards = await loadSocialItems(
 			this.dataSource,

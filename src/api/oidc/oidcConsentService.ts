@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
-import { OidcConsent } from "../../entities/oidc.entity.js";
+import { OidcArtifact, OidcConsent } from "../../entities/oidc.entity.js";
 
 /** Manages an account's approved third-party applications. */
 @Injectable()
@@ -16,16 +16,8 @@ export class OidcConsentService {
 	async revoke(accountId: string, clientId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
 			await manager.delete(OidcConsent, { accountId, clientId });
-			// RAW SQL: delete by jsonb ->> payload predicates with a Grant subselect
-			await manager.query(
-				`DELETE FROM "oidc_artifacts" WHERE
-					("payload"->>'accountId' = $1 AND "payload"->>'clientId' = $2)
-					OR "payload"->>'grantId' IN (
-						SELECT id FROM "oidc_artifacts" WHERE kind = 'Grant'
-						AND "payload"->>'accountId' = $1 AND "payload"->>'clientId' = $2
-					)`,
-				[accountId, clientId],
-			);
+			// RAW SQL: PostgreSQL JSONB ->> payload predicates and Grant subquery.
+			await manager.createQueryBuilder().delete().from(OidcArtifact).where("(\"payload\"->>'accountId' = :accountId AND \"payload\"->>'clientId' = :clientId) OR \"payload\"->>'grantId' IN (SELECT id FROM \"oidc_artifacts\" WHERE kind = 'Grant' AND \"payload\"->>'accountId' = :accountId AND \"payload\"->>'clientId' = :clientId)", { accountId, clientId }).execute();
 		});
 	}
 }

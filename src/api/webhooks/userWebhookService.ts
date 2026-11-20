@@ -1,10 +1,12 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Forbidden, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
 import { RE2JS } from "re2js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { UserWebhook, UserWebhookConfig } from "../../entities/userWebhook.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { MediaAccessService } from "../access/mediaAccessService.js";
 
@@ -120,20 +122,22 @@ export class UserWebhookService {
 		const config = await this.config();
 		if (!permitted(config, actor)) throw new Forbidden("Webhooks are not enabled for this account.");
 		const value = object(raw);
-		if (typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 100 || typeof value.enabled !== "boolean") {
+		const enabled = value.enabled;
+		if (typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 100 || typeof enabled !== "boolean") {
 			throw new BadRequest("Invalid webhook name or status.");
 		}
 		const url = webhookUrl(value.url);
 		if (!allowsUrl(config, url)) throw new BadRequest("This webhook URL has not been approved by an administrator.");
 		if (id && !AuthService.isUuid(id)) throw new NotFound("Webhook not found.");
-		// RAW SQL: single-statement UPDATE ... RETURNING that doubles as the ownership check
-		const rows = id
-			? await this.dataSource.query("WITH updated AS (UPDATE user_webhooks SET name = $3, url = $4, enabled = $5 WHERE id = $1 AND user_id = $2 RETURNING id, name, url, enabled) SELECT * FROM updated", [id, actor.id, value.name.trim(), url, value.enabled])
+		const rows: Hook[] = id
+			? ((await this.dataSource.getRepository(UserWebhook).createQueryBuilder().update(UserWebhook).set({ name: value.name.trim(), url, enabled }).where('"id" = :id AND "user_id" = :userId', { id, userId: actor.id }).returning(["id", "name", "url", "enabled"]).execute()).raw as Hook[])
 			: await this.dataSource.transaction(async (manager) => {
-					// RAW SQL: advisory transaction lock; no TypeORM equivalent
-					await manager.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`user-webhooks:${actor.id}`]);
-					// RAW SQL: atomic INSERT ... SELECT enforcing the per-user cap, with RETURNING
-					return manager.query("INSERT INTO user_webhooks (id, user_id, name, url, enabled) SELECT $1, $2, $3, $4, $5 WHERE (SELECT count(*) FROM user_webhooks WHERE user_id = $2) < 10 RETURNING id, name, url, enabled", [randomUUID(), actor.id, (value.name as string).trim(), url, value.enabled]) as Promise<Hook[]>;
+					// RAW SQL: PostgreSQL advisory transaction lock function serializes per-user cap changes.
+					await manager.createQueryBuilder().select("pg_advisory_xact_lock(hashtextextended(:lockKey, 0))", "locked").setParameter("lockKey", `user-webhooks:${actor.id}`).getRawOne();
+					if ((await manager.count(UserWebhook, { where: { userId: actor.id } })) >= 10) return [];
+					const hook = { id: randomUUID(), userId: actor.id, name: (value.name as string).trim(), url, enabled };
+					await manager.insert(UserWebhook, hook);
+					return [{ id: hook.id, name: hook.name, url: hook.url, enabled: hook.enabled }];
 				});
 		if (!rows.length) {
 			if (id) throw new NotFound("Webhook not found.");
@@ -164,10 +168,9 @@ export class UserWebhookService {
 			const itemId = target.itemId.toLowerCase();
 			const policy = await this.access.resolve(authorization);
 			if (!(await this.access.visibleIds(policy, [itemId])).has(itemId)) throw new NotFound("Media item not found.");
-			// RAW SQL: ANY(text[]) type filter on media_items
-			const rows = (await this.dataSource.query("SELECT id, title, type FROM media_items WHERE id = $1 AND type = ANY($2::text[])", [itemId, target.kind === "music" ? ["track"] : ["movie", "episode", "video"]])) as Array<{ id: string; title: string; type: string }>;
-			if (!rows[0]) throw new NotFound("Media item not found.");
-			media = { kind: target.kind, ...rows[0] };
+			const item = await this.dataSource.getRepository(MediaItem).findOne({ select: { id: true, title: true, type: true }, where: { id: itemId, type: In(target.kind === "music" ? ["track"] : ["movie", "episode", "video"]) } });
+			if (!item) throw new NotFound("Media item not found.");
+			media = { kind: target.kind, ...item };
 		} else if (target.kind === "live" && typeof target.channelId === "string" && target.channelId.length > 0 && target.channelId.length <= 256 && typeof target.channelName === "string" && target.channelName.trim().length > 0 && target.channelName.length <= 256) {
 			media = { kind: "live", id: target.channelId, title: target.channelName };
 		} else throw new BadRequest("Invalid playback target.");
@@ -194,9 +197,8 @@ export class UserWebhookService {
 		try {
 			const config = await this.config();
 			if (!config.enabled || !allowsUrl(config, hook.url)) return;
-			// RAW SQL: join with users and audience check
-			const rows = (await this.dataSource.query("SELECT h.id FROM user_webhooks h JOIN users u ON u.id = h.user_id WHERE h.id = $1 AND h.enabled = true AND h.url = $2 AND u.disabled_at IS NULL AND ($3 = 'everyone' OR u.role = 'admin')", [hook.id, hook.url, config.audience])) as Array<{ id: string }>;
-			if (!rows.length) return;
+			const allowed = await this.dataSource.getRepository(UserWebhook).createQueryBuilder("hook").innerJoin(User, "user", "user.id = hook.userId").select("hook.id", "id").where("hook.id = :id AND hook.enabled = true AND hook.url = :url", { id: hook.id, url: hook.url }).andWhere("user.disabledAt IS NULL").andWhere("(:audience = 'everyone' OR user.role = 'admin')", { audience: config.audience }).getRawOne<{ id: string }>();
+			if (!allowed) return;
 			const response = await fetch(hook.url, {
 				method: "POST",
 				headers: { "content-type": "application/json", "user-agent": "Flixer-Webhook/1" },

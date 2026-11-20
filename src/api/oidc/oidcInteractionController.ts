@@ -5,6 +5,7 @@ import { BodyParams, Context, HeaderParams, PathParams } from "@tsed/platform-pa
 import { Enum, Get, Post, Property, Required, Security } from "@tsed/schema";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { OidcClient } from "../../entities/oidc.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { OidcProviderService } from "./oidcProviderService.js";
 import { isOidcResourceScope } from "./oidcResourceScopes.js";
@@ -92,10 +93,9 @@ export class OidcInteractionController {
 			const grantId = await grant.save();
 			destination = await provider.interactionResult(ctx.request.req, ctx.response.res, { consent: { grantId } }, { mergeWithLastSubmission: true });
 			await this.dataSource.transaction(async (manager) => {
-				// RAW SQL: SELECT ... FOR SHARE row lock
-				const clients: Array<{ resource_scopes: string[] }> = await manager.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1 FOR SHARE`, [clientId]);
-				if (!clients.length) throw new NotFound("OAuth client not found.");
-				const scopes = [...grant.getOIDCScope().split(" "), ...grant.getResourceScope(resource).split(" ")].filter((scope) => scope && (!isOidcResourceScope(scope) || clients[0].resource_scopes.includes(scope)));
+				const client = await manager.getRepository(OidcClient).createQueryBuilder("client").select("client.resourceScopes", "resource_scopes").where("client.id = :clientId", { clientId }).setLock("pessimistic_read").getRawOne<{ resource_scopes: string[] }>();
+				if (!client) throw new NotFound("OAuth client not found.");
+				const scopes = [...grant.getOIDCScope().split(" "), ...grant.getResourceScope(resource).split(" ")].filter((scope) => scope && (!isOidcResourceScope(scope) || client.resource_scopes.includes(scope)));
 				const claims = grant.getOIDCClaims();
 				// RAW SQL: ON CONFLICT upsert merging text[] columns with DISTINCT unnest
 				await manager.query(

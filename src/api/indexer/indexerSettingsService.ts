@@ -15,7 +15,7 @@ export const INDEXER_SETTING_KEYS = [INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY
 
 /** Providers that need an API key (or client name) and the ones that work without one. */
 const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
-const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
+const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "lrclib", "unison", "theintrodb", "introdb"];
 const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
@@ -28,6 +28,7 @@ const INDEXER_MAX_CONCURRENCY = 64;
 export interface IndexerProviderSetting {
 	enabled: boolean;
 	apiKey?: string;
+	appId?: string;
 }
 
 export interface IndexerSubtitleSetting {
@@ -52,7 +53,6 @@ const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()
 export class IndexerSettingsService {
-
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Validates a new value for an indexer setting; masked secrets keep the stored value. */
@@ -101,6 +101,7 @@ export class IndexerSettingsService {
 				providers[name] = {
 					enabled: provider.enabled !== false,
 					apiKey: typeof provider.apiKey === "string" ? provider.apiKey : "",
+					...(typeof provider.appId === "string" ? { appId: provider.appId } : {}),
 				};
 			}
 		}
@@ -203,6 +204,17 @@ export class IndexerSettingsService {
 			const entry: IndexerProviderSetting = { enabled: provider.enabled };
 			const previous = current[name];
 			const previousKey = isRecord(previous) && typeof previous.apiKey === "string" ? previous.apiKey : "";
+			if (name === "lrclib") {
+				const appId = provider.appId;
+				if (appId !== undefined) {
+					if (typeof appId !== "string" || appId.length > 128) {
+						throw new BadRequest('The App ID for "lrclib" must be text up to 128 characters.');
+					}
+					entry.appId = appId.trim();
+				} else if (isRecord(previous) && typeof previous.appId === "string") {
+					entry.appId = previous.appId;
+				}
+			}
 			if (provider.apiKey !== undefined) {
 				if (typeof provider.apiKey !== "string" || provider.apiKey.length > 512) {
 					throw new BadRequest(`The API key for "${name}" must be text up to 512 characters.`);
@@ -222,6 +234,7 @@ export class IndexerSettingsService {
 				result[name] = {
 					enabled: previous.enabled,
 					...(typeof previous.apiKey === "string" ? { apiKey: previous.apiKey } : {}),
+					...(typeof previous.appId === "string" ? { appId: previous.appId } : {}),
 				};
 			} else if (name === "theintrodb") {
 				result[name] = { enabled: true };

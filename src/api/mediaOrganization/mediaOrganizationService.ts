@@ -3,7 +3,7 @@ import { BadRequest, Conflict, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { lstat, link, mkdir, readdir, realpath, unlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { DataSource, In } from "typeorm";
+import { DataSource, In, type QueryDeepPartialEntity } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaLibrary, type MediaLibraryFolder } from "../../entities/mediaLibrary.entity.js";
@@ -524,9 +524,18 @@ export class MediaOrganizationService {
 	}
 
 	private async claimStateWithAudit(plan: MediaOrganizationPlan, expected: string, next: string, actorId: string, action: string, details: Record<string, unknown>, error: string | null = null): Promise<void> {
-		// RAW SQL: single-statement state claim: UPDATE ... RETURNING inside a CTE
-		const rows = await this.dataSource.query<Array<{ id: string }>>('WITH claimed AS (UPDATE "media_organization_plans" SET "state" = $1, "error" = $2, "updated_at" = now() WHERE "id" = $3 AND "library_id" = $4 AND "state" = $5 RETURNING "id") INSERT INTO "media_organization_plan_audit" ("id", "plan_id", "actor_id", "action", "details") SELECT $6, "id", $7, $8, $9::jsonb FROM claimed RETURNING "plan_id" AS "id"', [next, error, plan.id, plan.libraryId, expected, randomUUID(), actorId, action, JSON.stringify(details)]);
-		if (rows.length !== 1) throw new Conflict("This organization plan has already changed state.");
+		const claimed = await this.dataSource.transaction(async (manager) => {
+			const result = await manager
+				.createQueryBuilder()
+				.update(MediaOrganizationPlan)
+				.set({ state: next as MediaOrganizationPlan["state"], error, updatedAt: () => "now()" })
+				.where('"id" = :id AND "library_id" = :libraryId AND "state" = :expected', { id: plan.id, libraryId: plan.libraryId, expected })
+				.execute();
+			if (!result.affected) return false;
+			await manager.insert(MediaOrganizationPlanAudit, { id: randomUUID(), planId: plan.id, actorId, action, details } as QueryDeepPartialEntity<MediaOrganizationPlanAudit>);
+			return true;
+		});
+		if (!claimed) throw new Conflict("This organization plan has already changed state.");
 	}
 
 	private async audit(planId: string, actorId: string, action: string, details: Record<string, unknown>): Promise<void> {

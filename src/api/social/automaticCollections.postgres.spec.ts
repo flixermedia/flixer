@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
+import { ENTITIES } from "../../datasources/entityList.js";
 import { describe, expect, it } from "vitest";
 import { AutomaticCollectionsService } from "./automaticCollectionsService.js";
 import { UserMediaService } from "./userMediaService.js";
+import { VideoCollection, VideoCollectionItem } from "../../entities/videoCollection.entity.js";
 
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (isolated PostgreSQL)", () => {
 	it("groups metadata case-insensitively and only counts or returns permitted movies", async () => {
@@ -12,6 +14,7 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (i
 			port: 55441,
 			username: process.env.USER,
 			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			entities: ENTITIES,
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();
@@ -36,8 +39,8 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("automatic collections (i
 			const card = (id: string, title: string) => ({ id, title, type: "movie", year: 2020, images: [{ type: "poster", path: "poster.jpg" }], metadata: {}, parentId: null, updatedAt });
 			const dataSource = {
 				query: (sql: string, parameters: unknown[]) => runner.query(sql, parameters),
-				getRepository: () => ({
-					createQueryBuilder: (alias: string) => source.createQueryBuilder(runner).from("media_items", alias),
+				getRepository: (entity: unknown) => ({
+					createQueryBuilder: (alias: string) => source.createQueryBuilder(runner).from(entity === VideoCollection ? VideoCollection : "media_items", alias),
 					find: async () => [card(first, "Second"), card(second, "First"), card(other, "Other")],
 				}),
 			} as unknown as DataSource;

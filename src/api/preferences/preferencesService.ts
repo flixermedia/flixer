@@ -20,6 +20,7 @@ export interface Preferences {
 	adminDashboardGrid?: DashboardGridItem[];
 	browseColumns?: number;
 	autoSkipIntroCredits: boolean;
+	emulateLyricWordTiming: boolean;
 	themeId?: string;
 }
 
@@ -67,6 +68,7 @@ const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	adminDashboardGrid: isDashboardGrid,
 	browseColumns: isBrowseColumns,
 	autoSkipIntroCredits: isAutoSkipIntroCredits,
+	emulateLyricWordTiming: (value) => typeof value === "boolean",
 	themeId: isThemeId,
 };
 
@@ -74,6 +76,7 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 
 	const preferences: Preferences = {
 		autoSkipIntroCredits: isAutoSkipIntroCredits(data.autoSkipIntroCredits) ? data.autoSkipIntroCredits : true,
+		emulateLyricWordTiming: typeof data.emulateLyricWordTiming === "boolean" ? data.emulateLyricWordTiming : true,
 	};
 	if (typeof data.language === "string" && PREFERENCE_VALIDATORS.language(data.language)) {
 		preferences.language = data.language;

@@ -3,8 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
-import { ENTITIES } from "../../datasources/entityList.js";
-import { MIGRATIONS } from "../../datasources/migrationList.js";
 import { OidcArtifact, OidcConfig, OidcConsent } from "../../entities/oidc.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { cleanupExpiredOidcArtifacts } from "./oidcCleanup.js";
@@ -12,13 +10,13 @@ import { createOidcAdapter } from "./oidcAdapter.js";
 import { OidcClientService } from "./oidcClientService.js";
 import { OidcConsentService } from "./oidcConsentService.js";
 import { OidcProviderService } from "./oidcProviderService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../../datasources/testPostgres.js";
 
 const databaseUrl = process.env.OIDC_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("OIDC entity-backed queries with PostgreSQL", () => {
-	const schema = `oidc_entities_test_${randomUUID().replaceAll("-", "")}`;
 	const userId = randomUUID();
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let db: DataSource;
 	let clients: OidcClientService;
 	let consents: OidcConsentService;
@@ -27,25 +25,17 @@ describe.skipIf(!databaseUrl)("OIDC entity-backed queries with PostgreSQL", () =
 	beforeAll(async () => {
 		previousSecret = process.env.JWT_SECRET;
 		process.env.JWT_SECRET = "test-only-signing-secret-12345678901234567890";
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		db = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` }, schema, entities: ENTITIES, migrations: MIGRATIONS, synchronize: false });
-		await db.initialize();
-		await db.runMigrations();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "oidc_entities_test" });
+		db = isolated.db;
 		await db.getRepository(User).save({ id: userId, username: "oidc-entities", passwordHash: "unused" });
 		clients = new OidcClientService(db);
 		consents = new OidcConsentService(db);
-	});
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
 		if (previousSecret === undefined) delete process.env.JWT_SECRET;
 		else process.env.JWT_SECRET = previousSecret;
-		if (db?.isInitialized) await db.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("creates and lists clients with database defaults, newest first", async () => {
@@ -74,6 +64,16 @@ describe.skipIf(!databaseUrl)("OIDC entity-backed queries with PostgreSQL", () =
 		expect(await sessions.find("session-1")).toEqual({ uid: "u1" });
 		await sessions.destroy("session-1");
 		expect(await sessions.find("session-1")).toBeUndefined();
+	});
+
+	it("consumes an artifact once and rejects missing or expired artifacts", async () => {
+		const adapter = createOidcAdapter(db, "AuthorizationCode");
+		await adapter.upsert("consume-once", {}, 60);
+		await expect(adapter.consume("consume-once")).resolves.toBeUndefined();
+		await expect(adapter.consume("consume-once")).rejects.toThrow("already consumed or expired");
+		await expect(adapter.consume("missing")).rejects.toThrow("already consumed or expired");
+		await adapter.upsert("expired-code", {}, -1);
+		await expect(adapter.consume("expired-code")).rejects.toThrow("already consumed or expired");
 	});
 
 	it("updates resource scopes and removes clients with NotFound on a missing id", async () => {

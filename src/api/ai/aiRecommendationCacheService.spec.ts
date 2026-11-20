@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { AiRecommendationCacheService } from "./aiRecommendationCacheService.js";
 
 describe("AiRecommendationCacheService", () => {
@@ -83,18 +84,18 @@ describe("AiRecommendationCacheService", () => {
 
 	it("lists cached results by user with media titles", async () => {
 		const key = "a".repeat(64);
+		const row = {
+			userId: "user-id",
+			username: "ashley",
+			displayName: "Ashley",
+			entries: { [key]: { items: [{ id: "media-id", score: 0.8 }] } },
+			entryScopes: { [key]: "music" },
+			lastRefreshAt: new Date("2026-11-02T00:00:00.000Z"),
+		};
+		const userBuilder = { leftJoin: vi.fn(), select: vi.fn(), addSelect: vi.fn(), orderBy: vi.fn(), getRawMany: vi.fn().mockResolvedValue([row]) };
+		for (const name of ["leftJoin", "select", "addSelect", "orderBy"] as const) userBuilder[name].mockReturnValue(userBuilder);
 		const dataSource = {
-			query: vi.fn(async () => [
-				{
-					userId: "user-id",
-					username: "ashley",
-					displayName: "Ashley",
-					entries: { [key]: { items: [{ id: "media-id", score: 0.8 }] } },
-					entryScopes: { [key]: "music" },
-					lastRefreshAt: new Date("2026-11-02T00:00:00.000Z"),
-				},
-			]),
-			getRepository: vi.fn((entity) => (entity === MediaItem ? { find: vi.fn(async () => [{ id: "media-id", title: "Movie title", type: "movie" }]) } : {})),
+			getRepository: vi.fn((entity) => (entity === MediaItem ? { find: vi.fn(async () => [{ id: "media-id", title: "Movie title", type: "movie" }]) } : entity === User ? { createQueryBuilder: vi.fn(() => userBuilder) } : {})),
 		} as unknown as DataSource;
 		const users = await new AiRecommendationCacheService(dataSource).listUsers();
 

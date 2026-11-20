@@ -408,15 +408,14 @@ describe("mergeIndexerProviderIds", () => {
 					{ path: "/movies/removed.mkv", recursive: false },
 					{ path: "/movies/removed-show", recursive: true },
 				];
-				let query = "";
-				let params: unknown[] = [];
+				const where = vi.fn();
+				const andWhere = vi.fn();
+				const execute = vi.fn().mockResolvedValue({ affected: 2 });
+				const builder = { delete: vi.fn(), from: vi.fn(), where, andWhere, execute };
+				for (const name of ["delete", "from", "where", "andWhere"] as const) builder[name].mockReturnValue(builder);
 				const manager = {
 					existsBy: async () => true,
-					query: async (sql: string, values: unknown[]) => {
-						query = sql;
-						params = values;
-						return [{ id: "removed-1" }, { id: "removed-2" }];
-					},
+					createQueryBuilder: () => builder,
 				};
 				const dataSource = {
 					transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never),
@@ -424,9 +423,17 @@ describe("mergeIndexerProviderIds", () => {
 				const service = new MediaItemsService(dataSource, {} as never);
 
 				await expect(service.removePaths("library-id", targets)).resolves.toEqual({ removed: 2 });
-				expect(query).toContain("DELETE FROM media_items");
-				expect(query).toContain("RETURNING id");
-				expect(params).toEqual(["library-id", "/movies/removed.mkv", false, "/movies/removed-show", true]);
+				expect(where).toHaveBeenCalledWith('"library_id" = :libraryId', { libraryId: "library-id" });
+				expect(andWhere).toHaveBeenCalledWith(expect.objectContaining({ whereFactory: expect.any(Function) }));
+				expect(execute).toHaveBeenCalledOnce();
+			});
+
+			it.each([0, 1, 3])("reports the number of deleted rows: %i", async (count) => {
+				const builder = { delete: vi.fn(), from: vi.fn(), where: vi.fn(), andWhere: vi.fn(), execute: vi.fn().mockResolvedValue({ affected: count }) };
+				for (const name of ["delete", "from", "where", "andWhere"] as const) builder[name].mockReturnValue(builder);
+				const manager = { existsBy: async () => true, createQueryBuilder: () => builder };
+				const dataSource = { transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never) } as unknown as DataSource;
+				await expect(new MediaItemsService(dataSource, {} as never).removePaths("library-id", [{ path: "/movies/a.mkv", recursive: false }])).resolves.toEqual({ removed: count });
 			});
 
 			it("does not delete paths when the library does not exist", async () => {

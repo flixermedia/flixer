@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { User } from "../../entities/user.entity.js";
 
 interface CachedRecommendationResponse {
 	items: Array<{
@@ -106,19 +107,7 @@ export class AiRecommendationCacheService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listUsers() {
-		// RAW SQL: reporting join with snake_case-to-camelCase aliases and COALESCE; kept for identical row shape
-		const rows = (await this.dataSource.query(`
-			SELECT
-				u.id AS "userId",
-				u.username AS "username",
-				COALESCE(u.display_name, u.username) AS "displayName",
-				c.entries AS "entries",
-				c.entry_scopes AS "entryScopes",
-				c.last_refresh_at AS "lastRefreshAt"
-			FROM users u
-			LEFT JOIN ai_recommendation_caches c ON c.user_id = u.id
-			ORDER BY u.username
-		`)) as RecommendationCacheUserRow[];
+		const rows = await this.dataSource.getRepository(User).createQueryBuilder("user").leftJoin(AiRecommendationCache, "cache", "cache.userId = user.id").select("user.id", "userId").addSelect("user.username", "username").addSelect("COALESCE(user.displayName, user.username)", "displayName").addSelect("cache.entries", "entries").addSelect("cache.entryScopes", "entryScopes").addSelect("cache.lastRefreshAt", "lastRefreshAt").orderBy("user.username", "ASC").getRawMany<RecommendationCacheUserRow>();
 		const mediaIds = new Set<string>();
 		for (const row of rows) {
 			for (const response of Object.values(row.entries ?? {})) {

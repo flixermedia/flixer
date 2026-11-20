@@ -3,10 +3,12 @@ import { BadRequest, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, In, IsNull } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { ChatConversation } from "../../entities/chatConversation.entity.js";
 import { IssueReport as IssueReportEntity, IssueReportUpdate as IssueReportUpdateEntity } from "../../entities/issueReport.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Notification } from "../../entities/notification.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
+import { User } from "../../entities/user.entity.js";
 import { AuthService, type PublicUser } from "../auth/authService.js";
 import { ChatService } from "../../chat/chatService.js";
 
@@ -69,12 +71,6 @@ interface UpdateRow {
 	username: string | null;
 	display_name: string | null;
 }
-
-// RAW SQL: join with users and media_items; COALESCE of media title
-const REPORT_SELECT = `SELECT r.id, r.title, r.category, r.description, r.status, r.media_item_id, COALESCE(r.media_title, mi.title) AS media_title,
-	r.chat_open, r.conversation_id, r.created_at, r.updated_at, r.resolved_at,
-	u.username, u.display_name
-	FROM issue_reports r JOIN users u ON u.id = r.user_id LEFT JOIN media_items mi ON mi.id = r.media_item_id`;
 
 const iso = (value: Date | null): string | null => (value ? value.toISOString() : null);
 
@@ -151,9 +147,9 @@ export class IssueReportsService {
 			mediaTitle = media.title;
 		}
 
-		// RAW SQL: count with DB-side now() and interval
-		const recent = (await this.dataSource.query(`SELECT count(*)::int AS count FROM issue_reports WHERE user_id = $1 AND created_at > now() - interval '24 hours'`, [user.id])) as Array<{ count: number }>;
-		if ((recent[0]?.count ?? 0) >= 5) {
+		// RAW SQL: use the database clock for the rolling 24-hour limit.
+		const recent = await this.dataSource.getRepository(IssueReportEntity).createQueryBuilder("report").where("report.userId = :userId", { userId: user.id }).andWhere("report.createdAt > now() - interval '24 hours'").getCount();
+		if (recent >= 5) {
 			throw new TooManyRequests("You can submit up to five issue reports per day.");
 		}
 
@@ -167,8 +163,7 @@ export class IssueReportsService {
 
 	async mine(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		// RAW SQL: shared REPORT_SELECT join with users and media_items
-		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.user_id = $1 ORDER BY r.updated_at DESC`, [user.id])) as IssueReportRow[];
+		const rows = await this.reportQuery().where("r.userId = :userId", { userId: user.id }).orderBy("r.updatedAt", "DESC").getRawMany<IssueReportRow>();
 		return { reports: rows.map(reportOf) };
 	}
 
@@ -177,12 +172,11 @@ export class IssueReportsService {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
-		// RAW SQL: shared REPORT_SELECT join with users and media_items
-		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1 AND r.user_id = $2`, [id, actor.id])) as IssueReportRow[];
-		if (!rows[0]) {
+		const row = await this.reportQuery().where("r.id = :id AND r.userId = :userId", { id, userId: actor.id }).getRawOne<IssueReportRow>();
+		if (!row) {
 			throw new NotFound("Issue report not found.");
 		}
-		const report = reportOf(rows[0]);
+		const report = reportOf(row);
 		report.updates = await this.updates(id, false);
 		if (!report.chatOpen) {
 			report.chatConversationId = null;
@@ -192,8 +186,7 @@ export class IssueReportsService {
 
 	async adminList(authorization?: string): Promise<{ reports: IssueReport[] }> {
 		await this.authService.requireAdmin(authorization);
-		// RAW SQL: shared REPORT_SELECT join with users and media_items
-		const rows = (await this.dataSource.query(`${REPORT_SELECT} ORDER BY r.updated_at DESC`)) as IssueReportRow[];
+		const rows = await this.reportQuery().orderBy("r.updatedAt", "DESC").getRawMany<IssueReportRow>();
 		return { reports: rows.map(reportOf) };
 	}
 
@@ -210,9 +203,7 @@ export class IssueReportsService {
 			throw new NotFound("Issue report not found.");
 		}
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: row lock (FOR UPDATE)
-			const rows = (await manager.query(`SELECT status, conversation_id FROM issue_reports WHERE id = $1 FOR UPDATE`, [id])) as Array<{ status: IssueReportStatus; conversation_id: string | null }>;
-			const report = rows[0];
+			const report = await manager.findOne(IssueReportEntity, { select: { status: true, conversationId: true }, where: { id }, lock: { mode: "pessimistic_write" } });
 			if (!report) {
 				throw new NotFound("Issue report not found.");
 			}
@@ -220,16 +211,11 @@ export class IssueReportsService {
 				throw new BadRequest("Only closed issue reports can be deleted.");
 			}
 			await manager.getRepository(IssueReportEntity).delete({ id });
-			if (report.conversation_id) {
-				// RAW SQL: DELETE ... NOT EXISTS with RETURNING
-				const deletedConversations = (await manager.query(
-					`DELETE FROM chat_conversations WHERE id = $1 AND NOT EXISTS (
-						SELECT 1 FROM issue_reports WHERE conversation_id = $1
-					) RETURNING id`,
-					[report.conversation_id],
-				)) as Array<{ id: string }>;
-				if (deletedConversations.length > 0) {
-					await manager.getRepository(Notification).delete({ kind: "message", url: `/chat/${report.conversation_id}` });
+			if (report.conversationId) {
+				// RAW SQL: correlated NOT EXISTS protects a conversation still shared by other reports.
+				const deletedConversation = await manager.createQueryBuilder().delete().from(ChatConversation).where('"id" = :conversationId AND NOT EXISTS (SELECT 1 FROM "issue_reports" WHERE "conversation_id" = :conversationId)', { conversationId: report.conversationId }).execute();
+				if (deletedConversation.affected) {
+					await manager.getRepository(Notification).delete({ kind: "message", url: `/chat/${report.conversationId}` });
 				}
 			}
 		});
@@ -243,8 +229,7 @@ export class IssueReportsService {
 		const report = await this.find(id);
 		if (report.status !== status) {
 			await this.dataSource.transaction(async (manager) => {
-				// RAW SQL: CASE and DB-side now()
-				await manager.query(`UPDATE issue_reports SET status = $2, resolved_at = CASE WHEN $3 THEN now() ELSE NULL END, updated_at = now() WHERE id = $1`, [id, status, status === "resolved" || status === "closed"]);
+				await manager.update(IssueReportEntity, { id }, { status, resolvedAt: status === "resolved" || status === "closed" ? () => "now()" : null, updatedAt: () => "now()" });
 				await manager.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: `Status changed to ${status.replace("_", " ")}.` });
 			});
 		}
@@ -257,8 +242,7 @@ export class IssueReportsService {
 		const isInternal = internal === true;
 		await this.find(id);
 		await this.dataSource.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: text, isInternal });
-		// RAW SQL: DB-side now()
-		await this.dataSource.query(`UPDATE issue_reports SET updated_at = now() WHERE id = $1`, [id]);
+		await this.dataSource.getRepository(IssueReportEntity).update({ id }, { updatedAt: () => "now()" });
 		return this.adminDetail(id, authorization);
 	}
 
@@ -284,8 +268,7 @@ export class IssueReportsService {
 			return this.adminDetail(id, authorization);
 		}
 		await this.dataSource.transaction(async (manager) => {
-			// RAW SQL: DB-side now()
-			await manager.query(`UPDATE issue_reports SET chat_open = $2, updated_at = now() WHERE id = $1`, [id, open]);
+			await manager.getRepository(IssueReportEntity).update({ id }, { chatOpen: open, updatedAt: () => "now()" });
 			await manager.getRepository(IssueReportUpdateEntity).insert({ id: randomUUID(), reportId: id, actorId: user.id, body: open ? "Live chat is now open for this issue." : "Live chat has been closed for this issue." });
 		});
 		if (report.chatConversationId) {
@@ -306,22 +289,17 @@ export class IssueReportsService {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("Issue report not found.");
 		}
-		// RAW SQL: shared REPORT_SELECT join with users and media_items
-		const rows = (await this.dataSource.query(`${REPORT_SELECT} WHERE r.id = $1`, [id])) as IssueReportRow[];
-		if (!rows[0]) {
+		const row = await this.reportQuery().where("r.id = :id", { id }).getRawOne<IssueReportRow>();
+		if (!row) {
 			throw new NotFound("Issue report not found.");
 		}
-		return reportOf(rows[0]);
+		return reportOf(row);
 	}
 
 	private async updates(id: string, includeInternal: boolean): Promise<IssueReportUpdate[]> {
-		// RAW SQL: LEFT JOIN with users
-		const rows = (await this.dataSource.query(
-			`SELECT i.id, i.body, i.is_internal, i.created_at, u.username, u.display_name
-			FROM issue_report_updates i LEFT JOIN users u ON u.id = i.actor_id
-			WHERE i.report_id = $1 AND ($2 = true OR i.is_internal = false) ORDER BY i.created_at ASC`,
-			[id, includeInternal],
-		)) as UpdateRow[];
+		const query = this.dataSource.getRepository(IssueReportUpdateEntity).createQueryBuilder("update").leftJoin(User, "user", "user.id = update.actorId").select("update.id", "id").addSelect("update.body", "body").addSelect("update.isInternal", "is_internal").addSelect("update.createdAt", "created_at").addSelect("user.username", "username").addSelect("user.displayName", "display_name").where("update.reportId = :id", { id });
+		if (!includeInternal) query.andWhere("update.isInternal = false");
+		const rows = await query.orderBy("update.createdAt", "ASC").getRawMany<UpdateRow>();
 		return rows.map((row) => ({
 			id: row.id,
 			body: row.body,
@@ -329,6 +307,10 @@ export class IssueReportsService {
 			createdAt: row.created_at.toISOString(),
 			author: row.username ? { username: row.username, displayName: row.display_name || row.username } : null,
 		}));
+	}
+
+	private reportQuery() {
+		return this.dataSource.getRepository(IssueReportEntity).createQueryBuilder("r").innerJoin(User, "u", "u.id = r.userId").leftJoin(MediaItem, "mi", "mi.id = r.mediaItemId").select("r.id", "id").addSelect("r.title", "title").addSelect("r.category", "category").addSelect("r.description", "description").addSelect("r.status", "status").addSelect("r.mediaItemId", "media_item_id").addSelect("COALESCE(r.mediaTitle, mi.title)", "media_title").addSelect("r.chatOpen", "chat_open").addSelect("r.conversationId", "conversation_id").addSelect("r.createdAt", "created_at").addSelect("r.updatedAt", "updated_at").addSelect("r.resolvedAt", "resolved_at").addSelect("u.username", "username").addSelect("u.displayName", "display_name");
 	}
 
 	private cleanText(value: unknown, maxLength: number, message: string): string {
