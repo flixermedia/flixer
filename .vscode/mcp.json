@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "vexp": {
+      "type": "stdio",
+      "command": "/home/coder/.vscode-server/cli/servers/Stable-a717861c07586a53d83b80d742cd3f59b20a6273/server/node",
+      "args": [
+        "/home/coder/.vscode-server/extensions/vexp.vexp-vscode-3.5.1-linux-x64/dist/mcp-server.cjs"
+      ],
+      "env": {
+        "VEXP_WORKSPACE": "${workspaceFolder}"
+      }
+    }
+  }
+}

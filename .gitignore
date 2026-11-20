@@ -58,3 +58,4 @@ test/**/*.js.map
 .env.development
 core
 tsconfig.tsbuildinfo
+/.vitest/
