@@ -27,12 +27,8 @@ jobs:
               shell: pwsh
             - run: ./deploy/docker/installer.test.ps1
               shell: powershell
-    deploy:
-        needs: windows-test
+    build:
         runs-on: ubuntu-latest
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
         steps:
             - uses: actions/checkout@v4
             - name: Lint installer
@@ -52,5 +48,12 @@ jobs:
             - uses: actions/upload-pages-artifact@v3
               with:
                   path: site
+    deploy:
+        needs: [windows-test, build]
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
             - id: deployment
               uses: actions/deploy-pages@v4

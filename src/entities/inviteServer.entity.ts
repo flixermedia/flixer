@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
-export const INVITE_SERVER_TYPES = ["jellyfin", "emby", "plex", "other"] as const;
+export const INVITE_SERVER_TYPES = ["flixer", "jellyfin", "emby", "plex", "other"] as const;
 export type InviteServerType = (typeof INVITE_SERVER_TYPES)[number];
 
 /**

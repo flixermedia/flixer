@@ -59,11 +59,28 @@ describe("media server client", () => {
 		await expect(testMediaServerConnection("other", "https://example.com", null)).resolves.toBeUndefined();
 	});
 
-	it("requires credentials before talking to Jellyfin or Plex", async () => {
+	it("requires credentials before talking to Jellyfin or Plex or remote Flixer", async () => {
 		const account = { username: "sam", password: "secret", email: "sam@example.com", libraryIds: [], allowDownloads: true };
+		await expect(provisionExternalAccount("flixer", "https://example.com", null, account)).rejects.toThrow("no API key");
 		await expect(provisionExternalAccount("jellyfin", "https://example.com", null, account)).rejects.toThrow("no API key");
 		await expect(provisionExternalAccount("plex", "https://example.com", null, account)).rejects.toThrow("no token");
+		await expect(testMediaServerConnection("flixer", "https://example.com", null)).rejects.toThrow("API key is required");
 		await expect(testMediaServerConnection("emby", "https://example.com", null)).rejects.toThrow("An API key is required.");
+	});
+
+	it("creates a user on remote Flixer with Bearer token authentication", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "flx-usr-123" }), { status: 200 }));
+		vi.stubGlobal("fetch", fetchMock);
+		try {
+			const account = { username: "sam", password: "secret", email: "sam@example.com", libraryIds: [], allowDownloads: true };
+			const result = await provisionExternalAccount("flixer", "https://remote-flixer.example.com", "flx_secret_key", account);
+			expect(result).toEqual({ externalUserId: "flx-usr-123", invitedEmail: null });
+			const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+			expect(url).toBe("https://remote-flixer.example.com/api/admin/users");
+			expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer flx_secret_key");
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("authenticates with both the legacy and the MediaBrowser header, which Jellyfin 12 requires", async () => {

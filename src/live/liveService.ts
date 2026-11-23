@@ -7,6 +7,7 @@ import { DevicesService } from "../api/devices/devicesService.js";
 import { NetworkSharesService } from "../api/networkShares/networkSharesService.js";
 import { OverviewService } from "../api/overview/overviewService.js";
 import { StreamsService } from "../api/streams/streamsService.js";
+import { isInvitesOnlyMode } from "../config/runtimeMode.js";
 import { LiveHub, type LiveTopic } from "./liveHub.js";
 import { LIVE_PATH, LiveSocketServer } from "./liveSocketServer.js";
 
@@ -27,10 +28,12 @@ export class LiveService {
 		@Inject(PlatformApplication) private readonly platformApp: PlatformApplication<{ server?: Server }>,
 	) {
 		this.hub.define("overview", { intervalMs: 10_000, load: () => this.overview.get() });
-		this.hub.define("streams", { intervalMs: 2_000, load: () => this.streams.fetchSessions() });
-		this.hub.define("devices", { intervalMs: 15_000, perSession: true, load: ({ sessionId }) => this.devices.list(sessionId) });
-		this.hub.define("indexer", { intervalMs: 2_000, load: () => this.indexer.status() });
-		this.hub.define("shares", { intervalMs: 3_000, load: async () => this.shares.list() });
+		if (!isInvitesOnlyMode()) {
+			this.hub.define("streams", { intervalMs: 2_000, load: () => this.streams.fetchSessions() });
+			this.hub.define("devices", { intervalMs: 15_000, perSession: true, load: ({ sessionId }) => this.devices.list(sessionId) });
+			this.hub.define("indexer", { intervalMs: 2_000, load: () => this.indexer.status() });
+			this.hub.define("shares", { intervalMs: 3_000, load: async () => this.shares.list() });
+		}
 	}
 
 	/** Pushes fresh data for a topic to its subscribers right away. */

@@ -162,8 +162,17 @@ export class AuthService {
 		await this.requireAdminSession(authorization);
 	}
 
-	/** Requires a real login session; used for actions an API key must not perform. */
+	/** Requires a real login session or an admin API key. */
 	async requireAdminSession(authorization?: string): Promise<AuthenticatedSession> {
+		const token = /^Bearer\s+(\S+)$/i.exec(authorization ?? "")?.[1];
+		if (token && this.apiKeys.isApiKey(token)) {
+			const user = await this.apiKeys.authenticate(token);
+			if (user.role !== "admin") {
+				throw new Forbidden("Administrator access is required.");
+			}
+			return { user, session: { id: "api-key", userId: user.id } as any };
+		}
+
 		const authenticated = await this.requireAuthenticatedSession(authorization);
 		if (authenticated.user.role !== "admin") {
 			throw new Forbidden("Administrator access is required.");

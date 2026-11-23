@@ -18,6 +18,7 @@ import { disableExpiredInviteAccounts, INVITE_EXPIRY_JOB } from "./inviteExpiryJ
 import { INVITE_EXTERNAL_SYNC_JOB, syncExternalInviteAccounts } from "./inviteSyncJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
+import { isInvitesOnlyMode } from "../config/runtimeMode.js";
 import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
@@ -151,19 +152,21 @@ export class JobScheduler {
 				}
 			});
 			await boss.schedule(INVITE_EXTERNAL_SYNC_JOB, "* * * * *");
-			for (const task of ADMIN_SCHEDULED_TASKS) {
-				await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });
-				await boss.work(task.queue, { localConcurrency: 1, groupConcurrency: 1 }, (jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs));
-			}
-			await boss.unschedule("admin-task-clean-logs");
-			const configs = await this.getAdminTaskConfigs(true);
-			for (const task of ADMIN_SCHEDULED_TASKS) {
-				const schedule = configs[task.id];
-				if (schedule.enabled) {
-					await boss.schedule(task.queue, schedule.cron, { taskId: task.id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id: task.id } });
-				} else {
-					await boss.unschedule(task.queue);
-					await this.cancelQueuedAdminTaskJobs(task.id, boss);
+			if (!isInvitesOnlyMode()) {
+				for (const task of ADMIN_SCHEDULED_TASKS) {
+					await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });
+					await boss.work(task.queue, { localConcurrency: 1, groupConcurrency: 1 }, (jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs));
+				}
+				await boss.unschedule("admin-task-clean-logs");
+				const configs = await this.getAdminTaskConfigs(true);
+				for (const task of ADMIN_SCHEDULED_TASKS) {
+					const schedule = configs[task.id];
+					if (schedule.enabled) {
+						await boss.schedule(task.queue, schedule.cron, { taskId: task.id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id: task.id } });
+					} else {
+						await boss.unschedule(task.queue);
+						await this.cancelQueuedAdminTaskJobs(task.id, boss);
+					}
 				}
 			}
 		});

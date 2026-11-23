@@ -11,7 +11,7 @@ export class CreateInviteServerRequest {
 
 	@Property()
 	@Required()
-	@Enum("jellyfin", "emby", "plex", "other")
+	@Enum("flixer", "jellyfin", "emby", "plex", "other")
 	type!: InviteServerType;
 
 	@Property()

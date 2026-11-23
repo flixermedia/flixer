@@ -8,6 +8,7 @@ import { updateRuntime } from "./bootstrap/setupStatus.js";
 import { waitForDatabase } from "./bootstrap/waitForDatabase.js";
 import { ensureSecrets } from "./config/store/sharedSecret.js";
 import { appConfig } from "./config/store/appConfig.js";
+import { isInvitesOnlyMode } from "./config/runtimeMode.js";
 import { Server } from "./server.js";
 import { freePortIfBusy } from "./utils/freePort.js";
 
@@ -25,6 +26,9 @@ async function startServer(): Promise<void> {
 	await stopBootstrapServer(bootstrapServer);
 
 	const [bootstrapError, platform] = await tryCatch(async () => {
+		if (isInvitesOnlyMode()) {
+			$log.info("Running Flixer in standalone invites mode (FLIXER_MODE=invites). Media services are stripped down.");
+		}
 		const platform = await PlatformFastify.bootstrap(Server);
 		await platform.listen();
 		updateRuntime({ mode: "ready" });

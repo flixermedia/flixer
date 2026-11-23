@@ -64,7 +64,7 @@ export class InviteFulfillmentService {
 				email: credentials.email,
 				libraryIds: invitation.externalLibraryIds,
 				allowDownloads: invitation.allowDownloads,
-				disabled: requireVerification && (server.type === "jellyfin" || server.type === "emby"),
+				disabled: requireVerification && (server.type === "jellyfin" || server.type === "emby" || server.type === "flixer"),
 				plexUserToken: credentials.plexUserToken,
 				disableOnlineMediaSources: invitation.disablePlexOnlineSources,
 			});
@@ -136,7 +136,7 @@ export class InviteFulfillmentService {
 			try {
 				if (invitation.serverId && server && server.type !== "other") {
 					const apiKey = server.apiKeyEncrypted ? decryptSecret(server.apiKeyEncrypted) : null;
-					if ((server.type === "jellyfin" || server.type === "emby") && usage.externalUserId) {
+					if ((server.type === "jellyfin" || server.type === "emby" || server.type === "flixer") && usage.externalUserId) {
 						await setExternalAccountDisabled(server.type, server.url, apiKey, usage.externalUserId, false);
 						usage.status = "completed";
 						usage.error = null;

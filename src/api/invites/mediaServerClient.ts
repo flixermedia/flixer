@@ -884,11 +884,102 @@ async function deletePlexUser(baseUrl: string, token: string, account: ExternalA
 	}
 }
 
+// ---- Flixer (Remote) ---------------------------------------------------------------------------------------------
+
+function flixerAuthHeaders(apiKey: string): Record<string, string> {
+	return {
+		"Content-Type": "application/json",
+		Authorization: `Bearer ${apiKey.trim()}`,
+	};
+}
+
+async function testFlixer(baseUrl: string, apiKey: string): Promise<void> {
+	await request(`${normalizeUrl(baseUrl)}/api/admin/users`, { method: "GET", headers: flixerAuthHeaders(apiKey) }, "The remote Flixer server could not be reached");
+}
+
+async function createFlixerUser(baseUrl: string, apiKey: string, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
+	const headers = flixerAuthHeaders(apiKey);
+	const response = await request(
+		`${normalizeUrl(baseUrl)}/api/admin/users`,
+		{
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				username: account.username,
+				password: account.password,
+				email: account.email || undefined,
+				displayName: account.username,
+			}),
+		},
+		"The account could not be created on the remote Flixer server",
+	);
+
+	const body: unknown = await response.json().catch(() => null);
+	const userId = isRecord(body) && typeof body.id === "string" ? body.id : null;
+	if (!userId) {
+		throw new MediaServerError("The remote Flixer server did not return the new account id.");
+	}
+
+	if (account.disabled) {
+		await request(
+			`${normalizeUrl(baseUrl)}/api/admin/users/${encodeURIComponent(userId)}`,
+			{
+				method: "PATCH",
+				headers,
+				body: JSON.stringify({ disabled: true }),
+			},
+			"The account could not be disabled on the remote Flixer server",
+		).catch((err) => {
+			logger().warn(`[invites] Failed to disable new remote Flixer user ${userId}:`, err);
+		});
+	}
+
+	return { externalUserId: userId, invitedEmail: null };
+}
+
+async function setFlixerUserDisabled(baseUrl: string, apiKey: string, externalUserId: string, disabled: boolean): Promise<void> {
+	await request(
+		`${normalizeUrl(baseUrl)}/api/admin/users/${encodeURIComponent(externalUserId)}`,
+		{
+			method: "PATCH",
+			headers: flixerAuthHeaders(apiKey),
+			body: JSON.stringify({ disabled }),
+		},
+		"The account status could not be updated on the remote Flixer server",
+	);
+}
+
+async function deleteFlixerUser(baseUrl: string, apiKey: string, account: ExternalAccountIdentity): Promise<void> {
+	if (!account.externalUserId) return;
+	await request(
+		`${normalizeUrl(baseUrl)}/api/admin/users/${encodeURIComponent(account.externalUserId)}`,
+		{
+			method: "DELETE",
+			headers: flixerAuthHeaders(apiKey),
+		},
+		"The account could not be deleted on the remote Flixer server",
+	);
+}
+
+async function listFlixerUsers(baseUrl: string, apiKey: string): Promise<ExternalAccountSummary[]> {
+	const response = await request(`${normalizeUrl(baseUrl)}/api/admin/users`, { method: "GET", headers: flixerAuthHeaders(apiKey) }, "The accounts could not be read from the remote Flixer server");
+	const body: unknown = await response.json().catch(() => null);
+	if (!Array.isArray(body)) return [];
+	return body.map((u: any) => ({
+		id: String(u.id ?? ""),
+		username: typeof u.username === "string" ? u.username : null,
+		email: typeof u.email === "string" ? u.email : null,
+	}));
+}
+
 // ---- Shared entry points ---------------------------------------------------------------------------------------
 
 /** Creates (or invites) an account on the media server. "other" servers have no API, so there is nothing to do. */
 export function provisionExternalAccount(type: InviteServerType, url: string, apiKey: string | null, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
 	switch (type) {
+		case "flixer":
+			if (!apiKey) return Promise.reject(new MediaServerError("The remote Flixer server has no API key saved."));
+			return createFlixerUser(url, apiKey, account);
 		case "jellyfin":
 		case "emby":
 			if (!apiKey) return Promise.reject(new MediaServerError("The media server has no API key saved."));
@@ -904,6 +995,10 @@ export function provisionExternalAccount(type: InviteServerType, url: string, ap
 /** Enables or disables an existing account on Jellyfin or Emby. No-op for Plex and "other". */
 export async function setExternalAccountDisabled(type: InviteServerType, url: string, apiKey: string | null, externalUserId: string, disabled: boolean): Promise<void> {
 	switch (type) {
+		case "flixer":
+			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
+			await setFlixerUserDisabled(url, apiKey, externalUserId, disabled);
+			return;
 		case "jellyfin":
 		case "emby":
 			if (!apiKey) throw new MediaServerError("The media server has no API key saved.");
@@ -918,6 +1013,10 @@ export async function setExternalAccountDisabled(type: InviteServerType, url: st
 /** Deletes (or revokes) an account on the linked media server. "other" servers have no API. */
 export async function deleteExternalAccount(type: InviteServerType, url: string, apiKey: string | null, account: ExternalAccountIdentity): Promise<void> {
 	switch (type) {
+		case "flixer":
+			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
+			await deleteFlixerUser(url, apiKey, account);
+			return;
 		case "jellyfin":
 		case "emby":
 			if (!apiKey) throw new MediaServerError("The media server has no API key saved.");
@@ -935,6 +1034,9 @@ export async function deleteExternalAccount(type: InviteServerType, url: string,
 /** Lists existing accounts/shares on the media server for deletion sync. Returns null for "other" servers. */
 export async function listExternalAccounts(type: InviteServerType, url: string, apiKey: string | null): Promise<ExternalAccountSummary[] | null> {
 	switch (type) {
+		case "flixer":
+			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
+			return listFlixerUsers(url, apiKey);
 		case "jellyfin":
 		case "emby":
 			if (!apiKey) throw new MediaServerError("The media server has no API key saved.");
@@ -952,6 +1054,10 @@ export async function listExternalAccounts(type: InviteServerType, url: string, 
 /** Verifies the saved URL and credentials actually reach the server. */
 export async function testMediaServerConnection(type: InviteServerType, url: string, apiKey: string | null): Promise<void> {
 	switch (type) {
+		case "flixer":
+			if (!apiKey) throw new MediaServerError("An API key is required for remote Flixer.");
+			await testFlixer(url, apiKey);
+			return;
 		case "jellyfin":
 		case "emby":
 			if (!apiKey) throw new MediaServerError("An API key is required.");
