@@ -26,15 +26,15 @@ describe("url rules", () => {
 		expect("values" in result && result.values.passkeyRpId).toBe("example.com");
 	});
 
-	it("rejects an rp id that does not cover the origins, IP addresses and insecure origins", () => {
+	it("rejects an rp id that does not cover the origins and invalid urls", () => {
 		expect(resolveUrls({ publicUrl: "https://a.example.com", passkeyRpId: "other.com" })).toHaveProperty("errors.passkeyRpId");
-		expect(resolveUrls({ publicUrl: "https://10.0.0.5" })).toHaveProperty("errors.passkeyRpId");
-		expect(resolveUrls({ publicUrl: "http://flix.example.com" })).toHaveProperty("errors.passkeyOrigins");
 		expect(resolveUrls({ publicUrl: "nonsense" })).toHaveProperty("errors.publicUrl");
 	});
 
-	it("allows http on localhost", () => {
+	it("allows http on localhost and non-localhost addresses", () => {
 		expect(resolveUrls({ publicUrl: "http://localhost:5173" })).toHaveProperty("values.passkeyRpId", "localhost");
+		expect(resolveUrls({ publicUrl: "http://172.16.0.19:8080" })).toHaveProperty("values.passkeyRpId", "172.16.0.19");
+		expect(resolveUrls({ publicUrl: "http://flix.example.com" })).toHaveProperty("values.passkeyRpId", "flix.example.com");
 	});
 });
 

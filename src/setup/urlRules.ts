@@ -16,15 +16,12 @@ interface UrlSettings {
 
 export type FieldErrors = Record<string, string>;
 
-const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
 function clean(value: string | undefined): string {
 	return typeof value === "string" ? value.trim() : "";
 }
 
 /**
- * Fills in what can be derived and enforces the WebAuthn rules: origins are plain http(s) origins, https is required
- * except on loopback, and the relying party id must be the host of every origin or a parent domain of it.
+ * Fills in what can be derived for public and app URLs. Accepts both HTTP and HTTPS origins for all installations.
  */
 export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors: FieldErrors } {
 
@@ -55,8 +52,8 @@ export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors
 	for (const origin of origins) {
 		try {
 			const url = new URL(origin);
-			if ((url.protocol !== "https:" && !(url.protocol === "http:" && LOOPBACK.has(url.hostname))) || url.origin !== origin) {
-				errors.passkeyOrigins = `${origin} must be an https origin without a path (http only for localhost).`;
+			if ((url.protocol !== "https:" && url.protocol !== "http:") || url.origin !== origin) {
+				errors.passkeyOrigins = `${origin} must be an http or https origin without a path.`;
 			}
 			parsed.push(url);
 		} catch {
@@ -66,9 +63,6 @@ export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors
 	const rpId = (clean(input.passkeyRpId) || appUrl.hostname).toLowerCase();
 	if (!errors.passkeyOrigins && parsed.some((url) => url.hostname !== rpId && !url.hostname.endsWith(`.${rpId}`))) {
 		errors.passkeyRpId = `Must be the host of every passkey origin or a parent domain of it (${rpId} is not).`;
-	}
-	if (/^[\d.]+$/.test(rpId) && rpId !== "127.0.0.1") {
-		errors.passkeyRpId = "Passkeys need a domain name, not an IP address.";
 	}
 	if (Object.keys(errors).length > 0) {
 		return { errors };
