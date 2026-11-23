@@ -14,6 +14,7 @@ import { InvitesService } from "./invitesService.js";
 @Controller("/admin/invites")
 @Security("BearerAuth")
 export class InvitesAdminController {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,

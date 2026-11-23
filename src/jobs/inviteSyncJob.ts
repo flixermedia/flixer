@@ -17,6 +17,7 @@ const NEW_ACCOUNT_GRACE_MS = 30_000;
  * and removes the matching Flixer user so deletions stay in sync both ways.
  */
 export async function syncExternalInviteAccounts(dataSource: DataSource, purgePayments?: (userId: string) => Promise<void>): Promise<{ checkedServers: number; deletedUsers: number }> {
+
 	// Snapshot DB usages BEFORE querying external servers so accounts created mid-sync are never mistaken for missing.
 	const usages = await dataSource.getRepository(InvitationUsage).find({
 		where: { status: In(["completed", "pending_verification"]), userId: Not(IsNull()) },
@@ -96,4 +97,5 @@ export async function syncExternalInviteAccounts(dataSource: DataSource, purgePa
 	}
 
 	return { checkedServers, deletedUsers };
+
 }

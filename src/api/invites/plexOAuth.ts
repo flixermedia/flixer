@@ -70,16 +70,19 @@ function plexHeaders(clientId: string, token?: string): Record<string, string> {
 
 /** Builds the official Plex web sign-in / sign-up URL for a strong OAuth PIN. */
 export function buildPlexAuthUrl(clientId: string, pinCode: string, product = appProductName()): string {
+
 	const params = new URLSearchParams({
 		clientID: clientId,
 		code: pinCode,
 		"context[device][product]": product,
 	});
 	return `https://app.plex.tv/auth#?${params.toString()}`;
+
 }
 
 /** Starts a Plex OAuth PIN session for an invite code and returns the URL to open in a popup window. */
 export async function startPlexInviteAuth(inviteCode: string): Promise<PlexAuthStartResult> {
+
 	const clientId = randomUUID();
 	let response: Response;
 	try {
@@ -110,10 +113,12 @@ export async function startPlexInviteAuth(inviteCode: string): Promise<PlexAuthS
 	};
 	const sessionToken = aesGcmEncrypt(JSON.stringify(session), oauthKey(SESSION_CONTEXT), SESSION_AAD);
 	return { sessionToken, authUrl: buildPlexAuthUrl(clientId, pinCode) };
+
 }
 
 /** Polls Plex for the PIN's auth token; once authorised, fetches the user's Plex profile and seals it into a short-lived ticket. */
 export async function pollPlexInviteAuth(inviteCode: string, sessionToken: string): Promise<PlexAuthPollResult> {
+
 	let session: PlexSessionPayload;
 	try {
 		session = JSON.parse(aesGcmDecrypt(sessionToken, oauthKey(SESSION_CONTEXT), SESSION_AAD, "This Plex sign-in session is invalid.")) as PlexSessionPayload;
@@ -182,10 +187,12 @@ export async function pollPlexInviteAuth(inviteCode: string, sessionToken: strin
 		plexAuthTicket,
 		account: { username, displayName, email, avatarUrl },
 	};
+
 }
 
 /** Decrypts and validates a Plex OAuth ticket returned by `pollPlexInviteAuth`. */
 export function readPlexAuthTicket(inviteCode: string, ticket: string): PlexAuthTicketPayload {
+
 	let payload: PlexAuthTicketPayload;
 	try {
 		payload = JSON.parse(aesGcmDecrypt(ticket, oauthKey(TICKET_CONTEXT), TICKET_AAD, "Your Plex sign-in session is invalid. Please sign in with Plex again.")) as PlexAuthTicketPayload;
@@ -196,4 +203,5 @@ export function readPlexAuthTicket(inviteCode: string, ticket: string): PlexAuth
 		throw new BadRequest("Your Plex sign-in session expired. Please sign in with Plex again.");
 	}
 	return payload;
+
 }

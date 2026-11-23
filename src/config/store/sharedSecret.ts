@@ -18,8 +18,8 @@ export function publishAppSecret(config: AppConfig = appConfig(), file = (proces
 	}
 	try {
 		const fileContent = readFileSync(file, "utf8");
-		const actual = createHash('sha256').update(fileContent).digest();
-		const expected = createHash('sha256').update(secret).digest();
+		const actual = createHash("sha256").update(fileContent).digest();
+		const expected = createHash("sha256").update(secret).digest();
 		if (timingSafeEqual(actual, expected)) {
 			return true;
 		}

@@ -36,6 +36,7 @@ export function decryptPendingCredentials(encrypted: string): PendingInviteCrede
  */
 @Injectable()
 export class InviteFulfillmentService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/**

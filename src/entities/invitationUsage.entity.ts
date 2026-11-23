@@ -9,6 +9,7 @@ export type InvitationUsageStatus = "pending_payment" | "pending_verification" |
 @Index("IDX_invitation_usages_invitation", ["invitationId"])
 @Index("IDX_invitation_usages_user", ["userId"])
 export class InvitationUsage {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

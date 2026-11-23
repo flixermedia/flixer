@@ -23,6 +23,7 @@ interface VerificationPayload {
 
 @Injectable()
 export class EmailVerificationService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly mailService: MailService,

@@ -16,7 +16,7 @@ export class AppearanceController {
 	}
 
 	@Get("/manifest.webmanifest")
-	async manifest(@QueryParams("theme") theme: string | undefined, @Context() ctx: PlatformContext) {
+	async manifest(@QueryParams("theme", String) theme: string | undefined, @Context() ctx: PlatformContext) {
 		ctx.response.setHeader("Content-Type", "application/manifest+json");
 		ctx.response.setHeader("Cache-Control", "no-cache");
 		return this.appearance.manifest(theme);

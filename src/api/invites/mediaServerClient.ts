@@ -52,6 +52,7 @@ function normalizeUrl(url: string): string {
 }
 
 async function request(url: string, init: RequestInit, failure: string): Promise<Response> {
+
 	let response: Response;
 	try {
 		response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
@@ -65,6 +66,7 @@ async function request(url: string, init: RequestInit, failure: string): Promise
 		throw new MediaServerError(`${failure}: the server answered with status ${response.status}.`);
 	}
 	return response;
+
 }
 
 // ---- Jellyfin / Emby -------------------------------------------------------------------------------------------
@@ -74,15 +76,18 @@ async function request(url: string, init: RequestInit, failure: string): Promise
  * authorization scheme; Emby and older Jellyfin still accept the legacy header, so both are sent.
  */
 function jellyfinAuthHeaders(apiKey: string): Record<string, string> {
+
 	const token = apiKey.replaceAll('"', "");
 	return {
 		"X-Emby-Token": apiKey,
 		Authorization: `MediaBrowser Token="${token}", Client="Flixer", Device="Flixer", DeviceId="flixer-invites", Version="1.0.0"`,
 	};
+
 }
 
 /** Creates a user and applies the invite's library and download policy. Jellyfin and Emby share this API. */
 async function createJellyfinUser(baseUrl: string, apiKey: string, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
+
 	const headers = { "Content-Type": "application/json", ...jellyfinAuthHeaders(apiKey) };
 	const created = await request(`${normalizeUrl(baseUrl)}/Users/New`, { method: "POST", headers, body: JSON.stringify({ Name: account.username, Password: account.password }) }, "The account could not be created on the media server");
 	const body: unknown = await created.json().catch(() => null);
@@ -105,25 +110,31 @@ async function createJellyfinUser(baseUrl: string, apiKey: string, account: Exte
 	await request(`${normalizeUrl(baseUrl)}/Users/${encodeURIComponent(userId)}/Policy`, { method: "POST", headers, body: JSON.stringify(policy) }, "The account was created but its library access could not be set");
 
 	return { externalUserId: userId, invitedEmail: null };
+
 }
 
 /** Enables or disables an existing Jellyfin or Emby user account while preserving the rest of its policy. */
 async function setJellyfinUserDisabled(baseUrl: string, apiKey: string, userId: string, disabled: boolean): Promise<void> {
+
 	const headers = { "Content-Type": "application/json", ...jellyfinAuthHeaders(apiKey) };
 	const existing = await request(`${normalizeUrl(baseUrl)}/Users/${encodeURIComponent(userId)}`, { headers: jellyfinAuthHeaders(apiKey) }, "Could not load the media server account");
 	const body: unknown = await existing.json().catch(() => null);
 	const current = isRecord(body) && isRecord(body.Policy) ? body.Policy : {};
 	await request(`${normalizeUrl(baseUrl)}/Users/${encodeURIComponent(userId)}/Policy`, { method: "POST", headers, body: JSON.stringify({ ...current, IsDisabled: disabled }) }, disabled ? "Could not disable the media server account" : "Could not enable the media server account");
+
 }
 
 /** Confirms the URL and API key work by asking for the server's system info with the key attached. */
 async function testJellyfin(baseUrl: string, apiKey: string): Promise<void> {
+
 	const response = await request(`${normalizeUrl(baseUrl)}/System/Info`, { headers: jellyfinAuthHeaders(apiKey) }, "The connection test failed");
 	await response.body?.cancel();
+
 }
 
 /** Lists all user accounts on a Jellyfin or Emby server. */
 async function listJellyfinUsers(baseUrl: string, apiKey: string): Promise<ExternalAccountSummary[]> {
+
 	const response = await request(`${normalizeUrl(baseUrl)}/Users`, { headers: jellyfinAuthHeaders(apiKey) }, "Could not list accounts on the media server");
 	const body: unknown = await response.json().catch(() => null);
 	if (!Array.isArray(body)) {
@@ -135,10 +146,12 @@ async function listJellyfinUsers(baseUrl: string, apiKey: string): Promise<Exter
 		accounts.push({ id: entry.Id, username: typeof entry.Name === "string" ? entry.Name : null, email: null });
 	}
 	return accounts;
+
 }
 
 /** Deletes a user from Jellyfin or Emby; treats 404 as already deleted. */
 async function deleteJellyfinUser(baseUrl: string, apiKey: string, account: ExternalAccountIdentity): Promise<void> {
+
 	let targetId = account.externalUserId;
 	if (!targetId) {
 		const users = await listJellyfinUsers(baseUrl, apiKey);
@@ -167,6 +180,7 @@ async function deleteJellyfinUser(baseUrl: string, apiKey: string, account: Exte
 	if (!response.ok) {
 		throw new MediaServerError(`Could not remove the account from the media server: the server answered with status ${response.status}.`);
 	}
+
 }
 
 // ---- Plex ------------------------------------------------------------------------------------------------------
@@ -176,6 +190,7 @@ export const MIN_SUPPORTED_PLEX_VERSION = "1.43.3.10861";
 
 /** Compares dotted numeric Plex version strings (ignoring trailing commit hashes like `-5bce000f7`). */
 export function comparePlexVersions(left: string, right: string): number {
+
 	const parse = (value: string) =>
 		value
 			.trim()
@@ -191,10 +206,12 @@ export function comparePlexVersions(left: string, right: string): number {
 		if (diff !== 0) return diff > 0 ? 1 : -1;
 	}
 	return 0;
+
 }
 
 /** Reads the server's machine identifier and version from `/identity`. */
 async function plexIdentity(baseUrl: string, token: string | null): Promise<{ machineIdentifier: string; version: string | null }> {
+
 	const headers: Record<string, string> = { Accept: "application/json" };
 	if (token) headers["X-Plex-Token"] = token;
 	const response = await request(`${normalizeUrl(baseUrl)}/identity`, { headers }, "The Plex server could not be reached");
@@ -206,6 +223,7 @@ async function plexIdentity(baseUrl: string, token: string | null): Promise<{ ma
 		throw new MediaServerError("The Plex server did not report its machine identifier.");
 	}
 	return { machineIdentifier, version };
+
 }
 
 /** Reads the server's machine identifier, which plex.tv needs to address the share. */
@@ -218,6 +236,7 @@ async function plexMachineIdentifier(baseUrl: string, token: string): Promise<st
  * not flagged by plex.tv with `SERVER_NOT_SUPPORTED` for shared users.
  */
 export async function validatePlexServerVersion(baseUrl: string, token: string | null): Promise<{ machineIdentifier: string; version: string | null }> {
+
 	const identity = await plexIdentity(baseUrl, token);
 	if (identity.version && comparePlexVersions(identity.version, MIN_SUPPORTED_PLEX_VERSION) < 0) {
 		throw new MediaServerError(`This Plex Media Server is running version ${identity.version}, which is out of date and blocked by plex.tv for shared users. Update Plex Media Server to version ${MIN_SUPPORTED_PLEX_VERSION} or newer and try again.`);
@@ -243,15 +262,19 @@ export async function validatePlexServerVersion(baseUrl: string, token: string |
 		}
 	}
 	return identity;
+
 }
 
 function xmlAttribute(tag: string, name: string): string | null {
+
 	const match = new RegExp(`\\b${name}="([^"]*)"`, "i").exec(tag);
 	return match?.[1] ? match[1] : null;
+
 }
 
 /** Parses Plex's shared_servers XML response into account summaries (covers both active shares and pending invites). */
 export function parsePlexSharedServersXml(xml: string): ExternalAccountSummary[] {
+
 	if (!/<MediaContainer\b/i.test(xml)) {
 		throw new MediaServerError("Plex returned an unexpected shared servers response.");
 	}
@@ -267,13 +290,16 @@ export function parsePlexSharedServersXml(xml: string): ExternalAccountSummary[]
 		});
 	}
 	return accounts;
+
 }
 
 async function listPlexShares(baseUrl: string, token: string): Promise<{ machineIdentifier: string; shares: ExternalAccountSummary[] }> {
+
 	const machineIdentifier = await plexMachineIdentifier(baseUrl, token);
 	const response = await request(`https://plex.tv/api/servers/${encodeURIComponent(machineIdentifier)}/shared_servers`, { headers: { "X-Plex-Token": token, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, Accept: "application/xml" } }, "Could not list shared Plex users");
 	const xml = await response.text();
 	return { machineIdentifier, shares: parsePlexSharedServersXml(xml) };
+
 }
 
 interface PlexOwnerIdentity {
@@ -290,6 +316,7 @@ const PLEX_DISCOVER_WHATS_NEW_ID = "fd9f56d8-8858-490d-aede-05c29b06d584";
 const PLEX_AUTO_PINNED_CLOUD_PROVIDERS = ["myPlex--tv.plex.provider.discover--home", "myPlex--tv.plex.provider.discover--watchlist", "myPlex--tv.plex.provider.vod--movies", "myPlex--tv.plex.provider.vod--store", "myPlex--tv.plex.provider.epg--home", "myPlex--tv.plex.provider.music--home"];
 
 async function plexUserIdentity(token: string): Promise<PlexOwnerIdentity | null> {
+
 	try {
 		const response = await fetch("https://plex.tv/api/v2/user", {
 			headers: { "X-Plex-Token": token, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, Accept: "application/json" },
@@ -307,6 +334,7 @@ async function plexUserIdentity(token: string): Promise<PlexOwnerIdentity | null
 	} catch {
 		return null;
 	}
+
 }
 
 export interface PlexServerSection {
@@ -323,6 +351,7 @@ export interface PlexServerInfo {
 
 /** Parses Plex's server XML (<Server name="..."><Section id="..." key="..." type="..." title="..."/></Server>). */
 export function parsePlexServerXml(xml: string): PlexServerInfo {
+
 	const serverTag = /<Server\b[^>]*>/i.exec(xml)?.[0] ?? "";
 	const friendlyName = xmlAttribute(serverTag, "name") ?? "Plex";
 	const sections: PlexServerSection[] = [];
@@ -338,6 +367,7 @@ export function parsePlexServerXml(xml: string): PlexServerInfo {
 		}
 	}
 	return { friendlyName, sections };
+
 }
 
 /** Parses Plex's server XML into section summaries. */
@@ -346,6 +376,7 @@ export function parsePlexServerSectionsXml(xml: string): PlexServerSection[] {
 }
 
 async function fetchPlexServerInfo(machineIdentifier: string, token: string): Promise<PlexServerInfo> {
+
 	try {
 		const response = await fetch(`https://plex.tv/api/servers/${encodeURIComponent(machineIdentifier)}`, {
 			headers: { "X-Plex-Token": token, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, Accept: "application/xml" },
@@ -358,10 +389,12 @@ async function fetchPlexServerInfo(machineIdentifier: string, token: string): Pr
 		// Return empty fallback below.
 	}
 	return { friendlyName: "Plex", sections: [] };
+
 }
 
 /** Resolves admin-supplied library identifiers (local PMS keys, cloud section IDs, or titles) into Plex cloud section IDs. */
 function resolvePlexLibrarySectionIds(sections: PlexServerSection[], requestedIds: string[]): number[] {
+
 	const cleaned = requestedIds.map((value) => value.trim()).filter(Boolean);
 	if (cleaned.length === 0) return [];
 
@@ -388,9 +421,11 @@ function resolvePlexLibrarySectionIds(sections: PlexServerSection[], requestedId
 		}
 	}
 	return [...resolved];
+
 }
 
 function plexPinnedSourceType(sectionType: string): string {
+
 	switch (sectionType.toLowerCase()) {
 		case "movie":
 			return "movies";
@@ -403,6 +438,7 @@ function plexPinnedSourceType(sectionType: string): string {
 		default:
 			return sectionType.toLowerCase();
 	}
+
 }
 
 /**
@@ -414,6 +450,7 @@ function plexPinnedSourceType(sectionType: string): string {
  * providers as already processed in `autoPinnedProviders` so Plex Web will not auto-pin them.
  */
 async function pinPlexLibrariesForUser(userToken: string, machineIdentifier: string, serverInfo: PlexServerInfo, sharedSectionIds: number[], removeOnlineSources: boolean): Promise<void> {
+
 	const targetSections = sharedSectionIds.length > 0 ? serverInfo.sections.filter((section) => sharedSectionIds.includes(section.id)) : serverInfo.sections;
 	if (targetSections.length === 0) return;
 
@@ -533,10 +570,12 @@ async function pinPlexLibrariesForUser(userToken: string, machineIdentifier: str
 	} catch (error) {
 		logger().warn("Could not save Plex pinned libraries setting.", error);
 	}
+
 }
 
 /** Best-effort opt-out of Plex's built-in Discover, Watchlist search metadata, and ad-supported online media sources for a newly invited Plex user. */
 async function disablePlexOnlineMediaSources(userToken: string): Promise<void> {
+
 	const identity = await plexUserIdentity(userToken);
 	if (!identity?.uuid) return;
 	const headers = { "X-Plex-Token": userToken, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, Accept: "application/json" };
@@ -579,9 +618,11 @@ async function disablePlexOnlineMediaSources(userToken: string): Promise<void> {
 			}
 		}),
 	);
+
 }
 
 async function tryAcceptPlexInviteOnce(machineIdentifier: string, sharedServerId: string | null, owner: PlexOwnerIdentity | null, userToken: string): Promise<boolean> {
+
 	let acceptedAny = false;
 	const baseHeaders = { "X-Plex-Token": userToken, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, "X-Plex-Product": "Flixer" };
 
@@ -660,6 +701,7 @@ async function tryAcceptPlexInviteOnce(machineIdentifier: string, sharedServerId
 		return false;
 	}
 	return false;
+
 }
 
 /**
@@ -668,6 +710,7 @@ async function tryAcceptPlexInviteOnce(machineIdentifier: string, sharedServerId
  * the Plex server URL so PMS registers the user in /accounts immediately.
  */
 async function warmPlexUserAccess(baseUrl: string, machineIdentifier: string, ownerToken: string, invitedEmail: string, userToken: string): Promise<boolean> {
+
 	const resourceHeaders = { "X-Plex-Token": userToken, "X-Plex-Client-Identifier": PLEX_CLIENT_ID, "X-Plex-Product": "Flixer", Accept: "application/json" };
 	let serverAccessToken: string | null = null;
 	for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -745,10 +788,12 @@ async function warmPlexUserAccess(baseUrl: string, machineIdentifier: string, ow
 		}
 	}
 	return false;
+
 }
 
 /** Attempts to accept a pending Plex server/home invite on behalf of the invited user, retrying briefly for Plex propagation. */
 async function acceptPlexServerInvite(machineIdentifier: string, sharedServerId: string | null, owner: PlexOwnerIdentity | null, userToken: string): Promise<boolean> {
+
 	for (let attempt = 0; attempt < 3; attempt += 1) {
 		if (attempt > 0) {
 			await new Promise((resolve) => setTimeout(resolve, 600));
@@ -759,9 +804,11 @@ async function acceptPlexServerInvite(machineIdentifier: string, sharedServerId:
 	}
 	logger().warn(`Could not auto-accept Plex share invite for machine ${machineIdentifier}; user can still accept via Plex email.`);
 	return false;
+
 }
 
 function readPlexErrorMessage(body: unknown): string | null {
+
 	if (!isRecord(body)) return null;
 	if (typeof body.message === "string" && body.message.trim()) return body.message.trim();
 	if (Array.isArray(body.errors)) {
@@ -769,10 +816,12 @@ function readPlexErrorMessage(body: unknown): string | null {
 		if (first && isRecord(first) && typeof first.message === "string") return first.message.trim();
 	}
 	return null;
+
 }
 
 /** Asks plex.tv to share the server with the given address; auto-accepts and pins libraries when the user signed in via Plex OAuth. */
 async function invitePlexUser(baseUrl: string, token: string, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
+
 	const [machineIdentifier, owner] = await Promise.all([plexMachineIdentifier(baseUrl, token), account.plexUserToken ? plexUserIdentity(token) : Promise.resolve(null)]);
 	const needsServerInfo = account.libraryIds.some((value) => value.trim().length > 0) || Boolean(account.plexUserToken);
 	const serverInfo = needsServerInfo ? await fetchPlexServerInfo(machineIdentifier, token) : { friendlyName: "Plex", sections: [] };
@@ -840,10 +889,12 @@ async function invitePlexUser(baseUrl: string, token: string, account: ExternalA
 		}
 	}
 	return { externalUserId: sharedId, invitedEmail: account.email, inviteAccepted };
+
 }
 
 /** Revokes a Plex server share or pending invite by shared_server id or invited email; treats 404 as already removed. */
 async function deletePlexUser(baseUrl: string, token: string, account: ExternalAccountIdentity): Promise<void> {
+
 	if (account.externalUserId) {
 		let response: Response;
 		try {
@@ -882,6 +933,7 @@ async function deletePlexUser(baseUrl: string, token: string, account: ExternalA
 	if (!response.ok) {
 		throw new MediaServerError(`Could not revoke the Plex share: Plex answered with status ${response.status}.`);
 	}
+
 }
 
 // ---- Flixer (Remote) ---------------------------------------------------------------------------------------------
@@ -894,10 +946,13 @@ function flixerAuthHeaders(apiKey: string): Record<string, string> {
 }
 
 async function testFlixer(baseUrl: string, apiKey: string): Promise<void> {
+
 	await request(`${normalizeUrl(baseUrl)}/api/admin/users`, { method: "GET", headers: flixerAuthHeaders(apiKey) }, "The remote Flixer server could not be reached");
+
 }
 
 async function createFlixerUser(baseUrl: string, apiKey: string, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
+
 	const headers = flixerAuthHeaders(apiKey);
 	const response = await request(
 		`${normalizeUrl(baseUrl)}/api/admin/users`,
@@ -935,9 +990,11 @@ async function createFlixerUser(baseUrl: string, apiKey: string, account: Extern
 	}
 
 	return { externalUserId: userId, invitedEmail: null };
+
 }
 
 async function setFlixerUserDisabled(baseUrl: string, apiKey: string, externalUserId: string, disabled: boolean): Promise<void> {
+
 	await request(
 		`${normalizeUrl(baseUrl)}/api/admin/users/${encodeURIComponent(externalUserId)}`,
 		{
@@ -947,9 +1004,11 @@ async function setFlixerUserDisabled(baseUrl: string, apiKey: string, externalUs
 		},
 		"The account status could not be updated on the remote Flixer server",
 	);
+
 }
 
 async function deleteFlixerUser(baseUrl: string, apiKey: string, account: ExternalAccountIdentity): Promise<void> {
+
 	if (!account.externalUserId) return;
 	await request(
 		`${normalizeUrl(baseUrl)}/api/admin/users/${encodeURIComponent(account.externalUserId)}`,
@@ -959,9 +1018,11 @@ async function deleteFlixerUser(baseUrl: string, apiKey: string, account: Extern
 		},
 		"The account could not be deleted on the remote Flixer server",
 	);
+
 }
 
 async function listFlixerUsers(baseUrl: string, apiKey: string): Promise<ExternalAccountSummary[]> {
+
 	const response = await request(`${normalizeUrl(baseUrl)}/api/admin/users`, { method: "GET", headers: flixerAuthHeaders(apiKey) }, "The accounts could not be read from the remote Flixer server");
 	const body: unknown = await response.json().catch(() => null);
 	if (!Array.isArray(body)) return [];
@@ -970,12 +1031,14 @@ async function listFlixerUsers(baseUrl: string, apiKey: string): Promise<Externa
 		username: typeof u.username === "string" ? u.username : null,
 		email: typeof u.email === "string" ? u.email : null,
 	}));
+
 }
 
 // ---- Shared entry points ---------------------------------------------------------------------------------------
 
 /** Creates (or invites) an account on the media server. "other" servers have no API, so there is nothing to do. */
 export function provisionExternalAccount(type: InviteServerType, url: string, apiKey: string | null, account: ExternalAccountRequest): Promise<ExternalAccountResult> {
+
 	switch (type) {
 		case "flixer":
 			if (!apiKey) return Promise.reject(new MediaServerError("The remote Flixer server has no API key saved."));
@@ -990,10 +1053,12 @@ export function provisionExternalAccount(type: InviteServerType, url: string, ap
 		case "other":
 			return Promise.resolve({ externalUserId: null, invitedEmail: null });
 	}
+
 }
 
 /** Enables or disables an existing account on Jellyfin or Emby. No-op for Plex and "other". */
 export async function setExternalAccountDisabled(type: InviteServerType, url: string, apiKey: string | null, externalUserId: string, disabled: boolean): Promise<void> {
+
 	switch (type) {
 		case "flixer":
 			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
@@ -1008,10 +1073,12 @@ export async function setExternalAccountDisabled(type: InviteServerType, url: st
 		case "other":
 			return;
 	}
+
 }
 
 /** Deletes (or revokes) an account on the linked media server. "other" servers have no API. */
 export async function deleteExternalAccount(type: InviteServerType, url: string, apiKey: string | null, account: ExternalAccountIdentity): Promise<void> {
+
 	switch (type) {
 		case "flixer":
 			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
@@ -1029,10 +1096,12 @@ export async function deleteExternalAccount(type: InviteServerType, url: string,
 		case "other":
 			return;
 	}
+
 }
 
 /** Lists existing accounts/shares on the media server for deletion sync. Returns null for "other" servers. */
 export async function listExternalAccounts(type: InviteServerType, url: string, apiKey: string | null): Promise<ExternalAccountSummary[] | null> {
+
 	switch (type) {
 		case "flixer":
 			if (!apiKey) throw new MediaServerError("The remote Flixer server has no API key saved.");
@@ -1049,10 +1118,12 @@ export async function listExternalAccounts(type: InviteServerType, url: string, 
 		case "other":
 			return null;
 	}
+
 }
 
 /** Verifies the saved URL and credentials actually reach the server. */
 export async function testMediaServerConnection(type: InviteServerType, url: string, apiKey: string | null): Promise<void> {
+
 	switch (type) {
 		case "flixer":
 			if (!apiKey) throw new MediaServerError("An API key is required for remote Flixer.");
@@ -1070,4 +1141,5 @@ export async function testMediaServerConnection(type: InviteServerType, url: str
 		case "other":
 			return;
 	}
+
 }

@@ -35,6 +35,7 @@ export type RedemptionResult = (AuthResult | VerificationPending | PaymentPendin
 
 @Injectable()
 export class InviteRedemptionService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly invites: InvitesService,

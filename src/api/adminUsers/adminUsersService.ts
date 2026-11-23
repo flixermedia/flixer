@@ -56,6 +56,7 @@ interface UserStats {
 /** User management for the admin dashboard. */
 @Injectable()
 export class AdminUsersService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,

@@ -43,6 +43,7 @@ interface RequestContextLike {
 
 /** Reads the caller's User-Agent and address from the current request, if there is one. */
 function readClientInfo(): { userAgent: string | null; ipAddress: string | null } {
+
 	const request = getContext<RequestContextLike>()?.request;
 	if (!request) {
 		return { userAgent: null, ipAddress: null };
@@ -56,6 +57,7 @@ function readClientInfo(): { userAgent: string | null; ipAddress: string | null 
 		userAgent: typeof userAgent === "string" && userAgent ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
 		ipAddress: (forwardedFor || request.raw?.ip || "").slice(0, 64) || null,
 	};
+
 }
 
 export interface AuthResult {
@@ -125,12 +127,14 @@ function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer> {
 				return;
 			}
 			resolve(key);
-		});
+		},
+		);
 	});
 }
 
 @Injectable()
 export class AuthService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly emailVerification: EmailVerificationService,

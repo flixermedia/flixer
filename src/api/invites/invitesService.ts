@@ -63,16 +63,19 @@ export interface AdminInvitationUsage {
 }
 
 function generateCode(): string {
+
 	const bytes = randomBytes(GENERATED_CODE_LENGTH);
 	let code = "";
 	for (let index = 0; index < GENERATED_CODE_LENGTH; index += 1) {
 		code += CODE_ALPHABET[bytes[index] % CODE_ALPHABET.length];
 	}
 	return code;
+
 }
 
 @Injectable()
 export class InvitesService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	// ---- Media servers -------------------------------------------------------------------------------------------

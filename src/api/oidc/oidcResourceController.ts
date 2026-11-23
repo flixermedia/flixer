@@ -89,7 +89,7 @@ export class OidcResourceController {
 	}
 
 	@Get("/subscriptions")
-	async subscriptions(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async subscriptions(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "subscriptions:read", ctx);
 		const query = this.dataSource
 			.getRepository(PaymentSubscription)
@@ -111,7 +111,7 @@ export class OidcResourceController {
 	}
 
 	@Get("/entitlements")
-	async grants(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async grants(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "entitlements:read", ctx);
 		// RAW SQL: SQL passed to shared paging helper
 		return this.pageRaw(
@@ -130,7 +130,7 @@ export class OidcResourceController {
 	}
 
 	@Get("/purchases")
-	async purchases(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async purchases(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "purchases:read", ctx);
 		const query = this.dataSource.getRepository(PaymentOrder).createQueryBuilder("order").select("order.id", "id").addSelect("order.kind", "kind").addSelect("order.productId", "productId").addSelect("order.description", "description").addSelect("order.status", "status").addSelect("order.createdAt", "createdAt").where("order.userId = :userId", { userId: user.id }).andWhere("order.kind IN ('purchase', 'rental')").orderBy("order.createdAt", "DESC").addOrderBy("order.id", "ASC");
 		return this.page(query, limit, offset);
@@ -151,7 +151,7 @@ export class OidcResourceController {
 	}
 
 	@Get("/library")
-	async library(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async library(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "library:read", ctx);
 		const page = this.pagination(limit, offset);
 		const policy = await this.access.forUser(user.id);
@@ -174,7 +174,7 @@ export class OidcResourceController {
 	}
 
 	@Get("/favorites")
-	async favorites(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async favorites(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "favorites:read", ctx);
 		const query = this.dataSource.getRepository(Favorite).createQueryBuilder("favorite").select("favorite.itemId", "itemId").addSelect("favorite.createdAt", "createdAt").where("favorite.userId = :userId", { userId: user.id }).orderBy("favorite.createdAt", "DESC").addOrderBy("favorite.itemId", "ASC");
 		return this.visiblePage(query, user, limit, offset);
@@ -191,14 +191,14 @@ export class OidcResourceController {
 	}
 
 	@Get("/playlists")
-	async playlists(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async playlists(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "playlists:read", ctx);
 		const query = this.dataSource.getRepository(Playlist).createQueryBuilder("playlist").select("playlist.id", "id").addSelect("playlist.name", "name").addSelect("playlist.description", "description").addSelect("playlist.isPublic", "isPublic").addSelect("playlist.updatedAt", "updatedAt").where("playlist.userId = :userId", { userId: user.id }).orderBy("playlist.id", "ASC");
 		return this.page(query, limit, offset);
 	}
 
 	@Get("/playlists/:id/items")
-	async playlistItems(@PathParams("id") id: string, @HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async playlistItems(@PathParams("id") id: string, @HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "playlists:read", ctx);
 		if (!isUuid(id)) throw new BadRequest("Invalid playlist.");
 		const page = this.pagination(limit, offset);
@@ -222,14 +222,14 @@ export class OidcResourceController {
 	}
 
 	@Get("/progress")
-	async progress(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async progress(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "progress:read", ctx);
 		const query = this.dataSource.getRepository(WatchProgress).createQueryBuilder("progress").select("progress.itemId", "itemId").addSelect("progress.positionSeconds", "positionSeconds").addSelect("progress.durationSeconds", "durationSeconds").addSelect("progress.completed", "completed").addSelect("progress.updatedAt", "updatedAt").where("progress.userId = :userId", { userId: user.id }).orderBy("progress.updatedAt", "DESC").addOrderBy("progress.itemId", "ASC");
 		return this.visiblePage(query, user, limit, offset);
 	}
 
 	@Get("/history")
-	async history(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit") limit: string | undefined, @QueryParams("offset") offset: string | undefined, @Context() ctx: PlatformContext) {
+	async history(@HeaderParams("authorization") auth: string | undefined, @QueryParams("limit", String) limit: string | undefined, @QueryParams("offset", String) offset: string | undefined, @Context() ctx: PlatformContext) {
 		const user = await this.authorize(auth, "history:read", ctx);
 		const query = this.dataSource.getRepository(ListeningHistory).createQueryBuilder("history").select("history.itemId", "itemId").addSelect("history.playedAt", "playedAt").addSelect("history.playCount", "playCount").where("history.userId = :userId", { userId: user.id }).orderBy("history.playedAt", "DESC").addOrderBy("history.itemId", "ASC");
 		return this.visiblePage(query, user, limit, offset);

@@ -9,6 +9,7 @@ import type { LibraryAccessMode } from "./userAccessPolicy.entity.js";
 @Entity("invitations")
 @Index("UQ_invitations_code", ["code"], { unique: true })
 export class Invitation {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

@@ -18,6 +18,7 @@ vi.mock("../../config/store/appConfig.js", () => ({
 }));
 
 function buildHarness(options: { invitation: Invitation; users?: User[]; usages?: InvitationUsage[]; signupPending?: boolean; cardRequired?: boolean; verificationRequired?: boolean; passwordMatches?: boolean }) {
+
 	const users = options.users ?? [];
 	const usages = options.usages ?? [];
 	const saveUsage = vi.fn().mockImplementation(async (usage: InvitationUsage) => usage);
@@ -83,6 +84,7 @@ function buildHarness(options: { invitation: Invitation; users?: User[]; usages?
 
 	const service = new InviteRedemptionService(dataSource, invites, auth, payments, fulfillment);
 	return { service, invites, auth, payments, fulfillment, saveUsage };
+
 }
 
 const plexInvitation = (overrides: Partial<Invitation> = {}): Invitation =>
@@ -146,6 +148,7 @@ describe("invite resume flow for existing users", () => {
 			plexUsername: "plexgal",
 			plexDisplayName: "Plex Gal",
 			plexEmail: "plex@example.com",
+			exp: Math.floor(Date.now() / 1000) + 3600,
 		});
 
 		const result = await service.redeemWithPlex("PLEX1234", "ticket-1");
@@ -175,6 +178,7 @@ describe("invite resume flow for existing users", () => {
 			plexUsername: "plexgal",
 			plexDisplayName: "Plex Gal",
 			plexEmail: "plex@example.com",
+			exp: Math.floor(Date.now() / 1000) + 3600,
 		});
 
 		const result = await service.redeemWithPlex("PLEX1234", "ticket-1");
@@ -203,6 +207,7 @@ describe("invite resume flow for existing users", () => {
 			plexUsername: "plexgal",
 			plexDisplayName: "Plex Gal",
 			plexEmail: "plex@example.com",
+			exp: Math.floor(Date.now() / 1000) + 3600,
 		});
 
 		const result = await service.redeemWithPlex("PLEX1234", "ticket-1");

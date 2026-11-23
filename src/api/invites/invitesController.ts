@@ -10,6 +10,7 @@ const CODE_PATTERN = /^[a-zA-Z0-9-]{4,64}$/;
 /** The public side of invitations: what an invite link shows and how it is redeemed. */
 @Controller("/invites")
 export class InvitesController {
+
 	constructor(private readonly redemption: InviteRedemptionService) {}
 
 	@Get("/:code")

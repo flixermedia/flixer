@@ -80,7 +80,7 @@ export class PaymentsController {
 
 	/** The poster shown in receipt emails. Public because mail clients can't log in; the signature ties it to one item. */
 	@Get("/receipt-art/:itemId")
-	async receiptArt(@PathParams("itemId") itemId: string, @QueryParams("sig") sig: string | undefined, @QueryParams("i", Number) index: number | undefined, @Context() ctx: PlatformContext) {
+	async receiptArt(@PathParams("itemId") itemId: string, @QueryParams("sig", String) sig: string | undefined, @QueryParams("i", Number) index: number | undefined, @Context() ctx: PlatformContext) {
 		const itemRef = id(itemId, "Image");
 		if (!sig || !verifyReceiptArt(itemRef, sig) || !Number.isInteger(index) || (index ?? 0) < 0) {
 			throw new NotFound("Image not found.");

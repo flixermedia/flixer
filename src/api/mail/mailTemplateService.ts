@@ -198,11 +198,13 @@ function escapeHtml(value: string): string {
 }
 
 export function templateVariables(...sources: string[]): string[] {
+
 	const found = new Set<string>();
 	for (const source of sources) {
 		for (const match of source.matchAll(PLACEHOLDER)) found.add(match[1]);
 	}
 	return [...found].sort();
+
 }
 
 const CONDITIONAL = /{{#if\s+(\w+)\s*}}([\s\S]*?){{\/if}}/g;
@@ -215,6 +217,7 @@ export function fillTemplate(source: string, values: Record<string, string>, esc
 /** Reads, edits and renders email templates. Edited and new templates are stored in DATA_DIR/emails. */
 @Injectable()
 export class MailTemplateService {
+
 	private get directory(): string {
 		return dataPath("emails");
 	}

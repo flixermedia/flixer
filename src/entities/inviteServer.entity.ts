@@ -10,6 +10,7 @@ export type InviteServerType = (typeof INVITE_SERVER_TYPES)[number];
 @Entity("invite_servers")
 @Index("UQ_invite_servers_name", ["name"], { unique: true })
 export class InviteServer {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

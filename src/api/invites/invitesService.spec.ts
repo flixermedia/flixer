@@ -8,10 +8,12 @@ import { InvitesService } from "./invitesService.js";
 import { MIN_SUPPORTED_PLEX_VERSION, comparePlexVersions, provisionExternalAccount, testMediaServerConnection } from "./mediaServerClient.js";
 
 function serviceWith(invitation: Partial<Invitation> | null): InvitesService {
+
 	const dataSource = {
 		getRepository: () => ({ findOneBy: async () => invitation }),
 	} as unknown as DataSource;
 	return new InvitesService(dataSource);
+
 }
 
 const validInvitation: Partial<Invitation> = {
@@ -163,6 +165,7 @@ describe("media server client", () => {
 
 describe("updateInvitation", () => {
 	function createUpdateService(invitation: Invitation, servers: InviteServer[] = []) {
+
 		const save = vi.fn().mockImplementation(async (entity: Invitation) => entity);
 		const dataSource = {
 			getRepository: (target: { name?: string }) => {
@@ -176,6 +179,7 @@ describe("updateInvitation", () => {
 			},
 		} as unknown as DataSource;
 		return { service: new InvitesService(dataSource), save };
+
 	}
 
 	const baseInvitation = (): Invitation =>

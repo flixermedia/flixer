@@ -53,6 +53,7 @@ const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()
 export class IndexerSettingsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Validates a new value for an indexer setting; masked secrets keep the stored value. */

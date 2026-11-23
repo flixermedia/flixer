@@ -3,6 +3,7 @@ import type { InviteServerType } from "../../entities/inviteServer.entity.js";
 import type { LibraryAccessMode } from "../../entities/userAccessPolicy.entity.js";
 
 export class CreateInviteServerRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)
@@ -42,6 +43,7 @@ export class CreateInviteServerRequest {
 }
 
 export class UpdateInviteServerRequest {
+
 	@Property()
 	@MinLength(1)
 	@MaxLength(100)
@@ -74,6 +76,7 @@ export class UpdateInviteServerRequest {
 }
 
 export class CreateInvitationRequest {
+
 	/** Generated when left out. */
 	@Property()
 	@MinLength(4)
@@ -130,6 +133,7 @@ export class CreateInvitationRequest {
 }
 
 export class UpdateInvitationRequest {
+
 	@Property()
 	@MinLength(4)
 	@MaxLength(64)
@@ -196,6 +200,7 @@ export class UpdateInvitationRequest {
 }
 
 export class AcceptInvitationRequest {
+
 	@Property()
 	@Required()
 	@MinLength(3)
@@ -222,6 +227,7 @@ export class AcceptInvitationRequest {
 }
 
 export class PlexInvitePollRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)
@@ -230,6 +236,7 @@ export class PlexInvitePollRequest {
 }
 
 export class AcceptPlexInvitationRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)
@@ -238,6 +245,7 @@ export class AcceptPlexInvitationRequest {
 }
 
 export class LoginInvitationRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)
@@ -252,6 +260,7 @@ export class LoginInvitationRequest {
 }
 
 export class ResendInviteVerificationRequest {
+
 	@Property()
 	@Required()
 	@MinLength(1)

@@ -56,6 +56,7 @@ interface IndexerScanState {
 
 @Injectable()
 export class JobScheduler {
+
 	private boss?: PgBoss;
 	private readonly activeTaskControllers = new Map<string, AbortController>();
 	private readonly activeTaskProgress = new Map<string, number>();
@@ -514,9 +515,11 @@ export class JobScheduler {
 			const timer = setTimeout(done, delayMs);
 			const onAbort = () => done();
 			function done() {
+
 				clearTimeout(timer);
 				signal.removeEventListener("abort", onAbort);
 				resolve();
+
 			}
 			signal.addEventListener("abort", onAbort, { once: true });
 		});
