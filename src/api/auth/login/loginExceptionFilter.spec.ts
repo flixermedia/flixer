@@ -65,7 +65,7 @@ describe("LoginExceptionFilter", () => {
 
 			const { AuthService } = await import("../authService.js");
 			const findOneBy = vi.fn();
-			timingService = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+			timingService = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 			const passwordHash = await timingService.hashPassword("correct-password");
 			findOneBy.mockImplementation(async ({ username }: { username: string }) => (username === "known" ? { id: "known", passwordHash } : null));
 			const samples: Record<"known" | "unknown", number[]> = { known: [], unknown: [] };

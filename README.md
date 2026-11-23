@@ -323,6 +323,16 @@ source-based development, clone the sibling services and run
 [FEATURES.md](FEATURES.md), [VERSION.md](VERSION.md) and
 [SECURITY.md](SECURITY.md) for additional information.
 
+For optional local queue and Redis inspection, run
+`docker compose -f docker-compose.dev.yml --profile debug up -d --build pgboss-dashboard redis-insight`.
+The read-only pg-boss dashboard is at http://localhost:3001 and Redis Insight is
+at http://localhost:5540; add a Redis connection with host `redis` and port
+`6379`. These ports bind to loopback only. Redis Insight can modify Redis data,
+so keep access limited to trusted developers. The dashboard defaults to the
+bundled development database; set `PGBOSS_DASHBOARD_DATABASE_URL` when Flixer
+uses a different PostgreSQL database. The dashboard version must match the
+pg-boss schema version when upgrading pg-boss.
+
 <details>
 <summary>Development and integration test notes</summary>
 

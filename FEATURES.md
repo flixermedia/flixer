@@ -35,6 +35,14 @@ Under **Video Player > Player Settings**, administrators can enable automatic re
 - Revoke all sessions of a user.
 - Upload and remove avatars for other users.
 
+### Invitations
+
+- Administrators create shareable invite links (Admin → Settings → Invites) that let people create an account even while public registration is off. Codes can be custom or generated.
+- Each invitation can target this Flixer installation or a linked media server: Jellyfin, Emby, Plex, or "other". Jellyfin and Emby accounts are created with the chosen username and password and the configured library and download policy; Plex invitees receive a plex.tv share invite by email; "other" servers simply show the saved URL and instructions after joining. Media server API keys and tokens are stored encrypted.
+- Invitations support a usage limit, an expiry date, Flixer library access (applied as a user access policy), and an optional membership length after which a daily job disables the created account.
+- Paid registration applies to invites exactly like public signup: while payments are active, the invited person saves a card and pays any registration fee before the account is released, and the media server account is only provisioned once the payment clears. Individual invitations can waive payment.
+- A redemption that cannot complete on the media server is rolled back; deferred provisioning failures after payment are recorded on the invitation's usage list instead of blocking sign-in.
+
 ### Libraries and media roots
 
 - Movie, TV show, music and mixed libraries, each made of one or more folders.

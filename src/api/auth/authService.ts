@@ -20,6 +20,8 @@ import { EmailVerificationService } from "./emailVerificationService.js";
 import { LoginThrottle } from "./login/loginThrottle.js";
 import { getLoginSecurity } from "./login/loginSecurity.js";
 import { PaymentsService, type SignupAction, type SignupPayment } from "../payments/paymentsService.js";
+import { InviteFulfillmentService } from "../invites/inviteFulfillmentService.js";
+import type { InviteDestination } from "../invites/inviteDestination.js";
 import { validateRegistrationFields, type RegistrationFieldValue } from "./registrationFields.js";
 import type { BuilderPage } from "../appearance/pageBuilderSchema.js";
 
@@ -41,7 +43,6 @@ interface RequestContextLike {
 
 /** Reads the caller's User-Agent and address from the current request, if there is one. */
 function readClientInfo(): { userAgent: string | null; ipAddress: string | null } {
-
 	const request = getContext<RequestContextLike>()?.request;
 	if (!request) {
 		return { userAgent: null, ipAddress: null };
@@ -55,7 +56,6 @@ function readClientInfo(): { userAgent: string | null; ipAddress: string | null 
 		userAgent: typeof userAgent === "string" && userAgent ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
 		ipAddress: (forwardedFor || request.raw?.ip || "").slice(0, 64) || null,
 	};
-
 }
 
 export interface AuthResult {
@@ -78,6 +78,7 @@ export interface AuthResult {
 export interface VerificationPending {
 	verificationRequired: true;
 	email: string;
+	resendToken?: string;
 }
 
 /** The account exists but has to save a card first. The token lets the holder finish paying without signing in. */
@@ -124,20 +125,19 @@ function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer> {
 				return;
 			}
 			resolve(key);
-		},
-		);
+		});
 	});
 }
 
 @Injectable()
 export class AuthService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly emailVerification: EmailVerificationService,
 		private readonly accountEmail: AccountEmailService,
 		private readonly apiKeys: ApiKeyService,
 		private readonly payments: PaymentsService,
+		private readonly inviteFulfillment: InviteFulfillmentService,
 	) {}
 
 	private readonly resendCooldowns = new Map<string, number>();
@@ -276,6 +276,7 @@ export class AuthService {
 			}
 		}
 
+		await this.inviteFulfillment.deprovisionForUser(user.id);
 		await this.payments.purgeUser(user.id).catch(() => undefined);
 		await this.dataSource.getRepository(User).delete({ id: user.id });
 		await deleteAvatarFile(user.preferences?.avatarFile);
@@ -345,6 +346,55 @@ export class AuthService {
 		return this.createAuthResult(user, tokenSecret);
 	}
 
+	/**
+	 * Creates an account for an invitation. The caller has already validated and claimed the
+	 * invite, so the public-registration switch does not apply. `collectPayment` parks the account
+	 * behind the signup payment exactly like paid public registration.
+	 */
+	async registerForInvitation(details: { username: string; password: string; email: string; displayName?: string }, collectPayment: boolean, options?: { sendVerification?: boolean; skipEmailVerification?: boolean }): Promise<{ user: User; result: AuthResult | VerificationPending | PaymentPending }> {
+		const tokenSecret = this.getTokenSecret();
+		const verificationRequired = !options?.skipEmailVerification && (await this.emailVerification.isRequired());
+		const user = this.dataSource.getRepository(User).create({
+			id: randomUUID(),
+			username: this.normalizeUsername(details.username),
+			displayName: details.displayName?.trim() || details.username.trim(),
+			email: this.normalizeEmail(details.email),
+			role: "user",
+			emailVerifiedAt: verificationRequired ? null : new Date(),
+			passwordHash: await this.hashPassword(details.password),
+		});
+		const [saveError] = await tryCatch(() => this.dataSource.getRepository(User).save(user));
+		if (saveError) {
+			if (isUniqueViolation(saveError)) {
+				throw new Conflict("An account with this username or email already exists.");
+			}
+			throw saveError;
+		}
+
+		if (collectPayment) {
+			await this.payments.markSignupPending(user.id);
+			return { user, result: { paymentRequired: true, token: this.payments.issueSignupToken(user.id) } };
+		}
+		if (verificationRequired) {
+			if (options?.sendVerification !== false) {
+				await this.trySendVerification(user);
+			}
+			return { user, result: { verificationRequired: true, email: user.email ?? "" } };
+		}
+		return { user, result: await this.createAuthResult(user, tokenSecret) };
+	}
+
+	async sendInviteVerification(user: User, destination: InviteDestination): Promise<void> {
+		await this.trySendVerification(user, destination);
+	}
+
+	async sendInviteWelcome(user: User, destination: InviteDestination): Promise<void> {
+		const [error] = await tryCatch(() => this.emailVerification.sendInviteWelcomeEmail(user, destination));
+		if (error) {
+			console.error("[auth] failed to send invite welcome email", error);
+		}
+	}
+
 	async getRegistrationFields(authorization?: string): Promise<RegistrationFieldValue[]> {
 		const user = await this.getAuthenticatedUser(authorization);
 		const preference = await this.dataSource.getRepository(UserPreference).findOneBy({ userId: user.id });
@@ -353,18 +403,102 @@ export class AuthService {
 	}
 
 	/** Finishes a registration that is waiting for payment, then signs the account in (or asks for email verification). */
-	async completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<AuthResult | VerificationPending | SignupAction> {
+	async completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<((AuthResult | VerificationPending) & { destination?: InviteDestination }) | SignupAction> {
 		const user = await this.payments.completePendingSignup(token, payment, orderId);
 		if ("requiresAction" in user) return user;
-		if (await this.emailVerification.isRequired()) {
-			await this.trySendVerification(user);
-			return { verificationRequired: true, email: user.email ?? "" };
+		const globalVerificationRequired = await this.emailVerification.isRequired();
+		// The account may have been created through an invitation whose media server account waited for the fee.
+		const fulfilled = await this.inviteFulfillment.fulfillPendingForUser(user.id, { isEmailVerificationRequired: globalVerificationRequired });
+		const inviteDestination = fulfilled?.destination ?? null;
+		const verificationRequired = fulfilled ? fulfilled.verificationRequired : globalVerificationRequired;
+		if (verificationRequired) {
+			await this.trySendVerification(user, inviteDestination);
+			return {
+				verificationRequired: true,
+				email: user.email ?? "",
+				...(inviteDestination ? { destination: inviteDestination } : {}),
+			};
 		}
-		return this.createAuthResult(user, this.getTokenSecret());
+		if (!user.emailVerifiedAt) {
+			user.emailVerifiedAt = new Date();
+			await this.dataSource.getRepository(User).save(user);
+		}
+		if (inviteDestination) {
+			await this.sendInviteWelcome(user, inviteDestination);
+		}
+		return { ...(await this.createAuthResult(user, this.getTokenSecret())), ...(inviteDestination ? { destination: inviteDestination } : {}) };
 	}
 
-	async verifyEmail(token: string): Promise<{ verified: true }> {
+	async verifyEmail(token: string): Promise<{ verified: true; destination?: InviteDestination }> {
 		return this.emailVerification.verify(token);
+	}
+
+	async isEmailVerificationRequired(): Promise<boolean> {
+		return this.emailVerification.isRequired();
+	}
+
+	async verifyUserPassword(user: User, password: string): Promise<boolean> {
+		return this.verifyPassword(password, user.passwordHash);
+	}
+
+	/** Authenticates a user by username or email, using constant-time scrypt verification for unknown identities. */
+	async verifyCredentialsByIdentifier(identifier: string, password: string): Promise<User> {
+		const normalized = this.normalizeIdentity(identifier);
+		const users = this.dataSource.getRepository(User);
+		const user = (await users.findOneBy({ username: normalized })) ?? (await users.findOneBy({ email: normalized }));
+		const matches = await this.verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+		if (!user || !matches) {
+			throw new Unauthorized("Invalid username or password.");
+		}
+		return user;
+	}
+
+	/** Short-lived signed token allowing an unverified invited user (including Plex OAuth users) to resend their verification email. */
+	issueInviteVerificationResendToken(userId: string): string {
+		const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Math.floor(Date.now() / 1000) + 60 * 60, pur: "invite-resend-verification" })).toString("base64url");
+		const signature = createHmac("sha256", this.getTokenSecret()).update(`invite-resend.${payload}`).digest("base64url");
+		return `${payload}.${signature}`;
+	}
+
+	async resendInviteVerification(resendToken: string, destination?: InviteDestination): Promise<{ sent: true }> {
+		const [payload, signature, extra] = resendToken.split(".");
+		if (!payload || !signature || extra !== undefined) {
+			throw new Unauthorized("This verification session expired. Sign in again to resend the email.");
+		}
+		const expected = Buffer.from(createHmac("sha256", this.getTokenSecret()).update(`invite-resend.${payload}`).digest("base64url"));
+		const actual = Buffer.from(signature);
+		if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+			throw new Unauthorized("This verification session expired. Sign in again to resend the email.");
+		}
+		let claims: { sub?: string; exp?: number; pur?: string };
+		try {
+			claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string; exp?: number; pur?: string };
+		} catch {
+			throw new Unauthorized("This verification session expired. Sign in again to resend the email.");
+		}
+		if (typeof claims.sub !== "string" || typeof claims.exp !== "number" || claims.pur !== "invite-resend-verification" || claims.exp < Math.floor(Date.now() / 1000)) {
+			throw new Unauthorized("This verification session expired. Sign in again to resend the email.");
+		}
+
+		const user = await this.dataSource.getRepository(User).findOneBy({ id: claims.sub });
+		if (!user || user.disabledAt) {
+			throw new Unauthorized("Account not found or disabled.");
+		}
+		if (user.emailVerifiedAt) {
+			return { sent: true };
+		}
+
+		const lastSent = this.resendCooldowns.get(user.id) ?? 0;
+		if (Date.now() - lastSent < RESEND_COOLDOWN_MS) {
+			throw new TooManyRequests("Please wait a minute before requesting another verification email.");
+		}
+		this.resendCooldowns.set(user.id, Date.now());
+		const [sendError] = await tryCatch(() => this.emailVerification.sendVerificationEmail(user, undefined, destination));
+		if (sendError) {
+			this.resendCooldowns.delete(user.id);
+			throw sendError;
+		}
+		return { sent: true };
 	}
 
 	async resendVerification(username: string, password: string): Promise<{ sent: true }> {
@@ -387,8 +521,8 @@ export class AuthService {
 		return { sent: true };
 	}
 
-	private async trySendVerification(user: User): Promise<void> {
-		const [error] = await tryCatch(() => this.emailVerification.sendVerificationEmail(user));
+	private async trySendVerification(user: User, inviteDestination?: InviteDestination | null): Promise<void> {
+		const [error] = await tryCatch(() => this.emailVerification.sendVerificationEmail(user, undefined, inviteDestination));
 		if (error) {
 			console.error("[auth] failed to send verification email", error);
 		}
@@ -439,6 +573,7 @@ export class AuthService {
 			throw new Unauthorized("Your current password is required to delete your account.");
 		}
 
+		await this.inviteFulfillment.deprovisionForUser(target.id);
 		await this.payments.purgeUser(target.id).catch(() => undefined);
 		await repository.remove(target);
 		return { id: target.id, deleted: true };

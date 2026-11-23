@@ -65,3 +65,5 @@ export { PaymentsController, AdminPaymentsController } from "./api/payments/paym
 export { AdvertisementController } from "./api/advertisements/advertisementController.js";
 export { AnalyticsController, AnalyticsReportController } from "./api/analytics/analyticsController.js";
 export { AdminUserWebhookController, UserWebhookController } from "./api/webhooks/userWebhookController.js";
+export { InvitesAdminController } from "./api/invites/invitesAdminController.js";
+export { InvitesController } from "./api/invites/invitesController.js";

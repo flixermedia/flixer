@@ -18,6 +18,7 @@ import { User } from "../../entities/user.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { imageIndexOf } from "../social/socialItems.js";
 import { MailService } from "../auth/mailService.js";
+import { destinationLabel, destinationOpenUrl, findInviteDestinationForUser } from "../invites/inviteDestination.js";
 import { NotificationService } from "../notifications/notificationService.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentConfigService } from "./paymentConfigService.js";
@@ -87,7 +88,6 @@ function bodyOf(value: unknown): Record<string, unknown> {
 
 @Injectable()
 export class PaymentsService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly config: PaymentConfigService,
@@ -1164,12 +1164,17 @@ export class PaymentsService {
 			return;
 		}
 		const money = (amount: number) => formatMinor(amount, order.currency);
+		const appName = appConfig().get("passkeyRpName") || "Flixer";
 		const appUrl = (appConfig().get("appUrl") || "").replace(/\/+$/, "");
 		const apiUrl = (appConfig().get("publicUrl") || appUrl).replace(/\/+$/, "");
 		const product = order.productId ? await this.dataSource.getRepository(PaymentProduct).findOneBy({ id: order.productId }) : null;
 		const plan = order.planId ? await this.dataSource.getRepository(PaymentPlan).findOneBy({ id: order.planId }) : null;
 		const item = product?.scope.type === "item" && product.scope.ref && isUuid(product.scope.ref) ? await this.dataSource.getRepository(MediaItem).findOneBy({ id: product.scope.ref }) : null;
 		const posterIndex = item ? imageIndexOf(item.images, ["poster", "thumb", "cover"]) : null;
+		const inviteDestination = !item && (order.kind === "registration" || order.kind === "subscription") ? await findInviteDestinationForUser(this.dataSource, order.userId) : null;
+		const useInviteTemplate = Boolean(inviteDestination && (order.kind === "registration" || inviteDestination.type !== "flixer"));
+		const serverName = inviteDestination ? destinationLabel(inviteDestination, appName) : appName;
+		const serverUrl = inviteDestination ? destinationOpenUrl(inviteDestination, appUrl) : appUrl;
 
 		const kinds: Record<string, string> = { purchase: "Purchase", rental: "Rental", subscription: "Subscription", registration: "Account access" };
 		let detail = "";
@@ -1181,9 +1186,11 @@ export class PaymentsService {
 		} else if (plan) {
 			detail = `Renews every ${plan.interval}`;
 		}
-		const title = item?.title ?? product?.name ?? plan?.name ?? order.description;
+		const title = item?.title ?? product?.name ?? plan?.name ?? (inviteDestination && inviteDestination.type !== "flixer" && order.kind === "registration" ? `${serverName} access` : order.description);
 		const lines = [`${title}: ${money(order.subtotalMinor)}`, ...(order.discountMinor ? [`Discount: -${money(order.discountMinor)}`] : []), ...(order.taxMinor ? [`Tax: ${money(order.taxMinor)}`] : [])].join("\n");
-		const rendered = await this.mail.renderMessage("purchase-receipt", {
+		const watchUrl = item ? `${appUrl}/media/${item.id}` : useInviteTemplate ? serverUrl : appUrl;
+		const watchLabel = item ? "Watch now" : `Open ${useInviteTemplate ? serverName : appName}`;
+		const rendered = await this.mail.renderMessage(useInviteTemplate ? "invite-purchase-receipt" : "purchase-receipt", {
 			displayName: user.displayName || user.username,
 			kind: kinds[order.kind] ?? "Payment",
 			title,
@@ -1197,8 +1204,16 @@ export class PaymentsService {
 			discountLabel: order.couponCode ? `Discount (${order.couponCode})` : "Discount",
 			orderId: order.id.slice(0, 8).toUpperCase(),
 			date: new Date().toUTCString().slice(0, 16),
-			watchUrl: item ? `${appUrl}/media/${item.id}` : appUrl,
-			watchLabel: item ? "Watch now" : "Open Flixer",
+			watchUrl,
+			watchLabel,
+			...(useInviteTemplate && inviteDestination
+				? {
+						serverName,
+						serverType: inviteDestination.type,
+						serverUrl,
+						instructions: inviteDestination.instructions ?? "",
+					}
+				: {}),
 		});
 		await this.mail.send({ to: user.email, ...rendered });
 	}

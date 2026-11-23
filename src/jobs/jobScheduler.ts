@@ -14,6 +14,8 @@ import { IndexerClient } from "../api/indexer/indexerClient.js";
 import { GuideService } from "../api/guide/guideService.js";
 import { ADMIN_SCHEDULED_TASKS, ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs, isAdminScheduledTaskId, readAdminScheduledTaskConfigs, type AdminScheduledTaskConfig, type AdminScheduledTaskConfigs, type AdminScheduledTaskId } from "./adminScheduledTasks.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
+import { disableExpiredInviteAccounts, INVITE_EXPIRY_JOB } from "./inviteExpiryJob.js";
+import { INVITE_EXTERNAL_SYNC_JOB, syncExternalInviteAccounts } from "./inviteSyncJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
@@ -25,7 +27,7 @@ const PAGE_PUBLICATION_JOB = "page-publication";
 const SESSION_CLEANUP_CRON = "0 * * * *";
 const PG_BOSS_CONNECTION_POOL_SIZE = 2;
 const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
-const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
+const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, INVITE_EXPIRY_JOB, INVITE_EXTERNAL_SYNC_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AdminTaskRunStatus {
@@ -53,7 +55,6 @@ interface IndexerScanState {
 
 @Injectable()
 export class JobScheduler {
-
 	private boss?: PgBoss;
 	private readonly activeTaskControllers = new Map<string, AbortController>();
 	private readonly activeTaskProgress = new Map<string, number>();
@@ -130,6 +131,26 @@ export class JobScheduler {
 				}
 			});
 			await boss.schedule(PAYMENTS_RENEWAL_JOB, "0 * * * *");
+			await boss.createQueue(INVITE_EXPIRY_JOB);
+			await boss.work(INVITE_EXPIRY_JOB, async () => {
+				const [jobError] = await tryCatch(() => disableExpiredInviteAccounts(this.dataSource));
+				if (jobError) {
+					logger().error(`Job ${INVITE_EXPIRY_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(INVITE_EXPIRY_JOB, "30 0 * * *", undefined, { tz: "UTC" });
+			await boss.createQueue(INVITE_EXTERNAL_SYNC_JOB);
+			await boss.work(INVITE_EXTERNAL_SYNC_JOB, async () => {
+				const [jobError] = await tryCatch(() => syncExternalInviteAccounts(this.dataSource, (userId) => this.payments.purgeUser(userId)));
+				if (jobError) {
+					logger().error(`Job ${INVITE_EXTERNAL_SYNC_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(INVITE_EXTERNAL_SYNC_JOB, "* * * * *");
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });
 				await boss.work(task.queue, { localConcurrency: 1, groupConcurrency: 1 }, (jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs));
@@ -490,11 +511,9 @@ export class JobScheduler {
 			const timer = setTimeout(done, delayMs);
 			const onAbort = () => done();
 			function done() {
-
 				clearTimeout(timer);
 				signal.removeEventListener("abort", onAbort);
 				resolve();
-
 			}
 			signal.addEventListener("abort", onAbort, { once: true });
 		});

@@ -12,7 +12,7 @@ vi.mock("node:crypto", async (importOriginal) => {
 describe("password authentication", () => {
 	it.each(["login", "resendVerification"] as const)("performs scrypt for known and unknown users in %s", async (method) => {
 		const findOneBy = vi.fn();
-		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const passwordHash = await service.hashPassword("correct-password");
 		findOneBy.mockResolvedValueOnce({ id: "known", passwordHash }).mockResolvedValueOnce(null);
 		vi.mocked(scrypt).mockClear();
@@ -29,7 +29,7 @@ describe("password authentication", () => {
 	});
 
 	it("does not authenticate an unknown user even if dummy verification succeeds", async () => {
-		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const verifier = service as unknown as { verifyPassword: (password: string, hash: string) => Promise<boolean> };
 		vi.spyOn(verifier, "verifyPassword").mockResolvedValue(true);
 		await expect(service.login("unknown", "password")).rejects.toThrow("Invalid username or password.");
@@ -37,7 +37,7 @@ describe("password authentication", () => {
 	});
 
 	it("performs scrypt and rejects an account with a malformed password hash", async () => {
-		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => ({ passwordHash: "invalid" }) }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => ({ passwordHash: "invalid" }) }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		vi.mocked(scrypt).mockClear();
 		await expect(service.login("known", "wrong-password")).rejects.toMatchObject({ status: 401, message: "Invalid username or password." });
 		expect(scrypt).toHaveBeenCalledOnce();
@@ -45,7 +45,7 @@ describe("password authentication", () => {
 
 	it("keeps known and unknown login failure latency distributions comparable", async () => {
 		const findOneBy = vi.fn();
-		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const passwordHash = await service.hashPassword("correct-password");
 		findOneBy.mockImplementation(async ({ username }: { username: string }) => (username === "known" ? { id: "known", passwordHash } : null));
 		const samples: Record<"known" | "unknown", number[]> = { known: [], unknown: [] };
@@ -66,7 +66,7 @@ describe("password authentication", () => {
 
 	it("throttles parallel attempts before password verification", async () => {
 		const findOneBy = vi.fn().mockResolvedValue(null);
-		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const results = await Promise.allSettled(Array.from({ length: 11 }, (_, index) => service.login(index % 2 ? "Same-User" : "same-user", "wrong-password")));
 		expect(findOneBy).toHaveBeenCalledTimes(10);
 		expect(results.filter((result) => result.status === "rejected" && result.reason.status === 401)).toHaveLength(10);
@@ -76,7 +76,7 @@ describe("password authentication", () => {
 
 	it("continues to authenticate valid credentials", async () => {
 		const findOneBy = vi.fn();
-		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const passwordHash = await service.hashPassword("correct-password");
 		const user = { id: "known", passwordHash };
 		findOneBy.mockResolvedValue(user);
@@ -88,7 +88,7 @@ describe("password authentication", () => {
 
 	it("does not consume failure quotas for successful logins", async () => {
 		const user = { id: "known", passwordHash: "hash" };
-		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => user }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => user }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const verifier = service as unknown as { verifyPassword: (password: string, hash: string) => Promise<boolean> };
 		vi.spyOn(verifier, "verifyPassword").mockResolvedValue(true);
 		vi.spyOn(service, "completePrimaryAuthentication").mockResolvedValue({ passkeyRequired: true, ticket: "ticket" });
@@ -98,7 +98,7 @@ describe("password authentication", () => {
 	});
 
 	it("can disable timing and throttling while still rejecting invalid credentials", async () => {
-		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const verifier = service as unknown as { verifyPassword: (password: string, hash: string) => Promise<boolean> };
 		vi.spyOn(verifier, "verifyPassword").mockResolvedValue(false);
 		setLoginSecurity({ ...DEFAULT_LOGIN_SECURITY, timingEnabled: false, throttleEnabled: false });
@@ -112,7 +112,7 @@ describe("password authentication", () => {
 	});
 
 	it("applies changed throttle settings to the running service", async () => {
-		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never);
+		const service = new AuthService({ getRepository: () => ({ findOneBy: async () => null }) } as unknown as DataSource, {} as never, {} as never, {} as never, {} as never, {} as never);
 		const verifier = service as unknown as { verifyPassword: (password: string, hash: string) => Promise<boolean> };
 		vi.spyOn(verifier, "verifyPassword").mockResolvedValue(false);
 		const settings = { ...DEFAULT_LOGIN_SECURITY, timingEnabled: false, ipLimit: 2, usernameLimit: 2 };

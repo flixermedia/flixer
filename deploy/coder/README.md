@@ -13,6 +13,8 @@ A [Coder](https://coder.com) template that gives each workspace the whole stack:
 | flixer-docs (Docusaurus dev server, **Flixer Docs** app) | workspace                             | 3000    |
 | PostgreSQL 16                                            | sidecar container (`postgres`)        | 5432    |
 | Redis 7                                                  | sidecar container (`redis`)           | 6379    |
+| Job Queues (read-only pg-boss dashboard)                 | owner-only Coder app                  | 3000    |
+| Redis Insight                                            | owner-only Coder app                  | 5540    |
 | Meilisearch 1.12                                         | sidecar container (`meilisearch`)     | 7700    |
 | Tailscale                                                | sidecar sharing the workspace network | tailnet |
 | SMB                                                      | sidecar sharing the Tailscale network | 445     |
@@ -78,6 +80,15 @@ flixer-stack logs ai
 flixer-stack logs api        # service-filtered workspace supervisor output
 docker ps
 ```
+
+After pushing the updated template and updating the workspace, open **Job Queues**
+or **Redis Insight** from its Coder apps. The job dashboard uses the bundled
+PostgreSQL database and is read-only. In Redis Insight, add a connection to host
+`redis` on port `6379`. Redis Insight can modify Redis data; its Coder app is
+restricted to the workspace owner. The dashboard version must be updated when
+pg-boss changes to an incompatible schema version. If Flixer is configured to
+use an external database or Redis server, these tools do not automatically
+follow that configuration.
 
 The setup starts `flixer-updater` on loopback in development mode. It exposes
 authenticated status and logging, but does not update native checkouts or

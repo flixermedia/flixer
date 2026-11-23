@@ -32,7 +32,7 @@ describe("registration profile metadata", () => {
 		const preferences = { save: vi.fn(async () => undefined) };
 		const getRepository = (entity: unknown) => (entity === User ? users : entity === Setting ? settings : entity === UserPreference ? preferences : null);
 		const source = { getRepository, transaction: async (run: (manager: unknown) => Promise<unknown>) => run({ getRepository, query: async () => undefined }) };
-		const service = new AuthService(source as never, { isRequired: async () => false } as never, {} as never, {} as never, { cardRequiredForSignup: async () => false } as never);
+		const service = new AuthService(source as never, { isRequired: async () => false } as never, {} as never, {} as never, { cardRequiredForSignup: async () => false } as never, {} as never);
 		const internal = service as unknown as { getTokenSecret: () => string; createAuthResult: () => Promise<unknown> };
 		vi.spyOn(internal, "getTokenSecret").mockReturnValue("test-secret");
 		vi.spyOn(internal, "createAuthResult").mockResolvedValue({ accessToken: "test" });

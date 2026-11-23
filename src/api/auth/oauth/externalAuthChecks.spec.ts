@@ -9,7 +9,7 @@ describe("external primary authentication checks", () => {
 		const dataSource = { getRepository: vi.fn(() => credentialRepository) } as unknown as DataSource;
 		const email = { isRequired: vi.fn().mockResolvedValue(true) };
 		const payments = { isSignupPending: vi.fn().mockResolvedValue(false), issueSignupToken: vi.fn().mockReturnValue("payment-token") };
-		const service = new AuthService(dataSource, email as never, {} as never, {} as never, payments as never);
+		const service = new AuthService(dataSource, email as never, {} as never, {} as never, payments as never, {} as never);
 		const user = { id: "user", disabledAt: new Date(), emailVerifiedAt: null, preferences: { passkeyRequired: true } } as unknown as User;
 		await expect(service.completePrimaryAuthentication(user)).rejects.toThrow("disabled");
 		user.disabledAt = null;

@@ -60,11 +60,69 @@ const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 		text: 'Goodbye, {{displayName}}.\n\nYour Flixer account "{{username}}" was permanently deleted on {{deletedAt}}. Your passkeys and sessions have been removed.\n\nDidn\'t delete your account? Contact your server administrator right away.',
 		variables: { displayName: "Alex", username: "alex", deletedAt: "Mon, 01 Jan 2029 12:00:00 GMT", appUrl: "https://flixer.example.com" },
 	},
+	"invite-verify-email": {
+		label: "Invite: verify email address",
+		description: "Sent when someone registers through an invitation and email verification is required.",
+		subject: "Verify your email for {{serverName}}",
+		text: "Welcome, {{displayName}}.\n\nConfirm your email address to finish setting up your {{serverName}} account (link expires in {{expiresIn}}):\n{{verifyUrl}}\n\nDidn't accept an invitation to {{serverName}}? You can safely ignore this email.",
+		variables: {
+			displayName: "Alex",
+			username: "alex",
+			verifyUrl: "https://flixer.example.com/verify-email?token=example",
+			expiresIn: "24 hours",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			instructions: "",
+		},
+	},
+	"invite-purchase-receipt": {
+		label: "Invite: purchase receipt",
+		description: "Sent after a registration payment made through an invitation.",
+		subject: "Your {{serverName}} receipt: {{title}}",
+		text: "Thanks for your payment, {{displayName}}.\n\n{{kind}}: {{title}}\n{{detail}}\n\n{{lines}}\nTotal paid: {{total}}\n\nOrder {{orderId}} · {{date}}\n{{#if instructions}}\n{{instructions}}\n{{/if}}\n{{watchLabel}}: {{watchUrl}}",
+		variables: {
+			displayName: "Alex",
+			kind: "Account access",
+			title: "Jellyfin access",
+			detail: "",
+			lines: "Jellyfin access: £5.00",
+			subtotal: "£5.00",
+			discount: "",
+			discountLabel: "Discount",
+			tax: "",
+			total: "£5.00",
+			orderId: "a1b2c3d4",
+			date: "Mon, 01 Jan 2029",
+			watchUrl: "https://jellyfin.example.com",
+			watchLabel: "Open Jellyfin",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			instructions: "",
+		},
+	},
+	"invite-welcome": {
+		label: "Invite: welcome",
+		description: "Sent when an invited person's account is ready to use.",
+		subject: "Welcome to {{serverName}}",
+		text: "Welcome, {{displayName}}.\n\nYour {{serverName}} account ({{username}}) is ready.\n{{#if credentialsNote}}\n{{credentialsNote}}\n{{/if}}{{#if instructions}}\n{{instructions}}\n{{/if}}\n{{watchLabel}}: {{serverUrl}}",
+		variables: {
+			displayName: "Alex",
+			username: "alex",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			watchLabel: "Open Jellyfin",
+			instructions: "",
+			credentialsNote: "Sign in with the username and password you chose when accepting the invitation.",
+		},
+	},
 };
 
 interface TemplateKey {
 	key: string;
-	group: "global" | "account" | "payments";
+	group: "global" | "account" | "payments" | "invites";
 	description: string;
 	sample: string;
 }
@@ -93,6 +151,11 @@ const TEMPLATE_KEYS: TemplateKey[] = [
 	{ key: "date", group: "payments", description: "Date of the payment.", sample: "Mon, 01 Jan 2029" },
 	{ key: "watchUrl", group: "payments", description: "Link to the purchased title, or to Flixer.", sample: "https://flixer.example.com" },
 	{ key: "watchLabel", group: "payments", description: "Button text for the watch link.", sample: "Watch now" },
+	{ key: "serverName", group: "invites", description: "Name of the invited server, e.g. Jellyfin, Plex, Emby or Flixer.", sample: "Jellyfin" },
+	{ key: "serverType", group: "invites", description: "Type of the invited server: flixer, jellyfin, emby, plex or other.", sample: "jellyfin" },
+	{ key: "serverUrl", group: "invites", description: "Link to open the invited server.", sample: "https://jellyfin.example.com" },
+	{ key: "instructions", group: "invites", description: "Setup instructions configured on the invited media server.", sample: "" },
+	{ key: "credentialsNote", group: "invites", description: "How to sign in on the invited server (invite-welcome only).", sample: "Sign in with the username and password you chose when accepting the invitation." },
 ];
 
 /** Values every template can use without the sender providing them. */
@@ -135,13 +198,11 @@ function escapeHtml(value: string): string {
 }
 
 export function templateVariables(...sources: string[]): string[] {
-
 	const found = new Set<string>();
 	for (const source of sources) {
 		for (const match of source.matchAll(PLACEHOLDER)) found.add(match[1]);
 	}
 	return [...found].sort();
-
 }
 
 const CONDITIONAL = /{{#if\s+(\w+)\s*}}([\s\S]*?){{\/if}}/g;
@@ -154,7 +215,6 @@ export function fillTemplate(source: string, values: Record<string, string>, esc
 /** Reads, edits and renders email templates. Edited and new templates are stored in DATA_DIR/emails. */
 @Injectable()
 export class MailTemplateService {
-
 	private get directory(): string {
 		return dataPath("emails");
 	}

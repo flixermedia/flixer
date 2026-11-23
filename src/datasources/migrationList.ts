@@ -13,6 +13,11 @@ import { CreateMediaOrganization1798300000032 } from "../migrations/createMediaO
 import { AddMediaItemContentHash1798300000033 } from "../migrations/addMediaItemContentHash1798300000033.js";
 import { AddMediaLibraryWritePermissions1798300000034 } from "../migrations/addMediaLibraryWritePermissions1798300000034.js";
 import { AlignOidcResourceScopesDefault1798300000035 } from "../migrations/alignOidcResourceScopesDefault1798300000035.js";
+import { CreateInvites1798300000036 } from "../migrations/createInvites1798300000036.js";
+import { RepairInvitationUsages1798300000037 } from "../migrations/repairInvitationUsages1798300000037.js";
+import { AddInviteEmailVerificationControl1798300000038 } from "../migrations/addInviteEmailVerificationControl1798300000038.js";
+import { AddInviteDisablePlexOnlineSources1798300000039 } from "../migrations/addInviteDisablePlexOnlineSources1798300000039.js";
+import { AddInviteServerExternalUrl1798300000040 } from "../migrations/addInviteServerExternalUrl1798300000040.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
@@ -198,4 +203,9 @@ export const MIGRATIONS = [
 	AddMediaItemContentHash1798300000033,
 	AddMediaLibraryWritePermissions1798300000034,
 	AlignOidcResourceScopesDefault1798300000035,
+	CreateInvites1798300000036,
+	RepairInvitationUsages1798300000037,
+	AddInviteEmailVerificationControl1798300000038,
+	AddInviteDisablePlexOnlineSources1798300000039,
+	AddInviteServerExternalUrl1798300000040,
 ];

@@ -69,6 +69,9 @@ import { AdvertisementView, ListeningEvent, PlaybackHistoryHiddenSession, Viewin
 import { UserWebhook, UserWebhookConfig } from "../entities/userWebhook.entity.js";
 import { MediaSourceGroup } from "../entities/mediaSourceGroup.entity.js";
 import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../entities/mediaSearch.entity.js";
+import { InviteServer } from "../entities/inviteServer.entity.js";
+import { Invitation } from "../entities/invitation.entity.js";
+import { InvitationUsage } from "../entities/invitationUsage.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -162,4 +165,7 @@ export const ENTITIES = [
 	MediaSourceGroup,
 	MediaSearchOutboxEvent,
 	MediaSearchLyrics,
+	InviteServer,
+	Invitation,
+	InvitationUsage,
 ];
