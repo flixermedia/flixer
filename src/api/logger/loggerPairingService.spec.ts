@@ -35,7 +35,8 @@ describe("logger pairing control plane", () => {
 	it("reports manual, configured local, and unavailable local renewal separately", async () => {
 		const service = new LoggerService({ requireAdmin });
 		store.setMany({
-			loggerUrl: "http://127.0.0.1:8098", loggerManageToken: manage,
+			loggerUrl: "http://127.0.0.1:8098",
+			loggerManageToken: manage,
 			loggerManageExpiry: "2099-01-01T00:00:00.000Z",
 		});
 		vi.stubEnv("FLIXER_LOGGER_LOCAL_OWNER_FILE", "/private/owner");
@@ -60,10 +61,14 @@ describe("logger pairing control plane", () => {
 			if (url.endsWith("/pairings/redeem")) {
 				expect(new Headers(init?.headers).has("authorization")).toBe(false);
 				expect(JSON.parse(String(init?.body))).toEqual({ token: pairingToken });
-				return new Response(JSON.stringify({
-					deployment_id: "tenant", token: manage,
-					credential: { scope: "manage", expires_at: new Date(Date.now() + 86_400_000).toISOString() },
-				}), { status: 201 });
+				return new Response(
+					JSON.stringify({
+						deployment_id: "tenant",
+						token: manage,
+						credential: { scope: "manage", expires_at: new Date(Date.now() + 86_400_000).toISOString() },
+					}),
+					{ status: 201 },
+				);
 			}
 			expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${manage}`);
 			if (url.endsWith("/retention")) {
@@ -98,21 +103,30 @@ describe("logger pairing control plane", () => {
 
 	it("clears the stored pairing expiry and pending secret on manual replacement", async () => {
 		store.setMany({
-			loggerUrl: "https://old.example", loggerManageToken: manage,
-			loggerAiIngestToken: "a".repeat(43), loggerAiIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
-			loggerIndexerIngestToken: "b".repeat(43), loggerIndexerIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
-			loggerStreamerIngestToken: "c".repeat(43), loggerStreamerIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
-			loggerUpdaterIngestToken: "d".repeat(43), loggerUpdaterIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
+			loggerUrl: "https://old.example",
+			loggerManageToken: manage,
+			loggerAiIngestToken: "a".repeat(43),
+			loggerAiIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
+			loggerIndexerIngestToken: "b".repeat(43),
+			loggerIndexerIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
+			loggerStreamerIngestToken: "c".repeat(43),
+			loggerStreamerIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
+			loggerUpdaterIngestToken: "d".repeat(43),
+			loggerUpdaterIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
 			loggerManageExpiry: new Date(Date.now() + 60_000).toISOString(),
 			loggerLocalManaged: "true",
-			loggerPendingPairingUrl: "https://old.example", loggerPendingPairingToken: manage,
+			loggerPendingPairingUrl: "https://old.example",
+			loggerPendingPairingToken: manage,
 			loggerPendingPairingExpiry: new Date(Date.now() + 60_000).toISOString(),
 		});
-		vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-			if (url.endsWith("/retention")) return new Response(JSON.stringify({ enabled: false, days: 0 }));
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "i".repeat(43), credential: { scope: "ingest", app: "flixer", expires_at: body.expires_at } }), { status: 201 });
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string, init?: RequestInit) => {
+				if (url.endsWith("/retention")) return new Response(JSON.stringify({ enabled: false, days: 0 }));
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(JSON.stringify({ token: "i".repeat(43), credential: { scope: "ingest", app: "flixer", expires_at: body.expires_at } }), { status: 201 });
+			}),
+		);
 		const service = new LoggerService({ requireAdmin });
 		await service.configure({ endpoint: "https://logger.example", manageToken: manage }, "admin");
 		expect(await service.configuration("admin")).toEqual({ configured: true, endpoint: "https://logger.example" });
@@ -146,14 +160,21 @@ describe("logger pairing control plane", () => {
 		store.setMany({ loggerUrl: "https://old.example", loggerManageToken: manage });
 		let release!: () => void;
 		let started!: () => void;
-		const blocked = new Promise<void>((resolve) => { release = resolve; });
-		const entered = new Promise<void>((resolve) => { started = resolve; });
-		vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-			started();
-			await blocked;
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "a".repeat(43), credential: { scope: "ingest", app: "flixer-ai", expires_at: body.expires_at } }), { status: 201 });
-		}));
+		const blocked = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const entered = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: string, init?: RequestInit) => {
+				started();
+				await blocked;
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(JSON.stringify({ token: "a".repeat(43), credential: { scope: "ingest", app: "flixer-ai", expires_at: body.expires_at } }), { status: 201 });
+			}),
+		);
 		const service = new LoggerService({ requireAdmin });
 		const pending = service.producerIngestConfiguration("flixer-ai");
 		await entered;
@@ -167,18 +188,34 @@ describe("logger pairing control plane", () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: manage });
 		let release!: () => void;
 		let entered!: () => void;
-		const blocked = new Promise<void>((resolve) => { release = resolve; });
-		const started = new Promise<void>((resolve) => { entered = resolve; });
+		const blocked = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const started = new Promise<void>((resolve) => {
+			entered = resolve;
+		});
 		const id = "a".repeat(32);
-		vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-			if (init?.method === "DELETE") return new Response(null, { status: 204 });
-			entered();
-			await blocked;
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "b".repeat(43), credential: {
-				id, scope: "ingest", app: "flixer-ai", expires_at: body.expires_at,
-			} }), { status: 201 });
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: string, init?: RequestInit) => {
+				if (init?.method === "DELETE") return new Response(null, { status: 204 });
+				entered();
+				await blocked;
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(
+					JSON.stringify({
+						token: "b".repeat(43),
+						credential: {
+							id,
+							scope: "ingest",
+							app: "flixer-ai",
+							expires_at: body.expires_at,
+						},
+					}),
+					{ status: 201 },
+				);
+			}),
+		);
 		const service = new LoggerService({ requireAdmin });
 		const pending = service.producerIngestConfiguration("flixer-ai");
 		await started;
@@ -223,8 +260,10 @@ describe("logger pairing control plane", () => {
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		const endpoint = "http://127.0.0.1:8098";
 		store.setMany({
-			loggerLocalDeploymentId: "coder-test", loggerLocalPending: "true",
-			loggerPendingPairingUrl: endpoint, loggerPendingPairingToken: "p".repeat(43),
+			loggerLocalDeploymentId: "coder-test",
+			loggerLocalPending: "true",
+			loggerPendingPairingUrl: endpoint,
+			loggerPendingPairingToken: "p".repeat(43),
 			loggerPendingPairingExpiry: new Date(Date.now() - 60_000).toISOString(),
 		});
 		const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -250,15 +289,20 @@ describe("logger pairing control plane", () => {
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		const endpoint = "http://127.0.0.1:8098";
 		store.setMany({
-			loggerLocalDeploymentId: "coder-test", loggerLocalPending: "true",
-			loggerPendingPairingUrl: endpoint, loggerPendingPairingToken: "p".repeat(43),
+			loggerLocalDeploymentId: "coder-test",
+			loggerLocalPending: "true",
+			loggerPendingPairingUrl: endpoint,
+			loggerPendingPairingToken: "p".repeat(43),
 			loggerPendingPairingExpiry: new Date(Date.now() - 60_000).toISOString(),
 		});
-		vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-			store.setMany({ loggerPendingPairingToken: "x".repeat(43) });
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: manage, credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: string, init?: RequestInit) => {
+				store.setMany({ loggerPendingPairingToken: "x".repeat(43) });
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(JSON.stringify({ token: manage, credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
+			}),
+		);
 		await expect(new LoggerService({ requireAdmin }).bootstrapLocal(ownerPath, endpoint)).rejects.toThrow("configuration changed");
 		expect(store.get("loggerUrl")).toBeUndefined();
 		expect(store.get("loggerPendingPairingToken")).toBe("x".repeat(43));
@@ -268,23 +312,32 @@ describe("logger pairing control plane", () => {
 		const ownerPath = join(directory, "owner");
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		store.setMany({
-			loggerUrl: "http://127.0.0.1:8098", loggerManageToken: manage,
+			loggerUrl: "http://127.0.0.1:8098",
+			loggerManageToken: manage,
 			loggerManageExpiry: new Date(Date.now() + 60_000).toISOString(),
-			loggerLocalManaged: "true", loggerLocalDeploymentId: "coder-test",
+			loggerLocalManaged: "true",
+			loggerLocalDeploymentId: "coder-test",
 		});
 		let release!: () => void;
 		let started!: () => void;
-		const blocked = new Promise<void>((resolve) => { release = resolve; });
-		const entered = new Promise<void>((resolve) => { started = resolve; });
-		vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-			if (url.endsWith("/owner/credentials")) {
-				started();
-				await blocked;
-				const body = JSON.parse(String(init?.body)) as { expires_at: string };
-				return new Response(JSON.stringify({ token: "n".repeat(43), credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
-			}
-			return new Response(JSON.stringify({ enabled: false, days: 0 }));
-		}));
+		const blocked = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const entered = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string, init?: RequestInit) => {
+				if (url.endsWith("/owner/credentials")) {
+					started();
+					await blocked;
+					const body = JSON.parse(String(init?.body)) as { expires_at: string };
+					return new Response(JSON.stringify({ token: "n".repeat(43), credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
+				}
+				return new Response(JSON.stringify({ enabled: false, days: 0 }));
+			}),
+		);
 		const service = new LoggerService({ requireAdmin });
 		const pending = service.bootstrapLocal(ownerPath, "http://127.0.0.1:8098");
 		await entered;
@@ -299,8 +352,11 @@ describe("logger pairing control plane", () => {
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		const expiry = new Date(Date.now() + 60_000).toISOString();
 		store.setMany({
-			loggerUrl: "http://127.0.0.1:8098", loggerManageToken: manage, loggerManageExpiry: expiry,
-			loggerLocalManaged: "true", loggerLocalDeploymentId: "coder-test",
+			loggerUrl: "http://127.0.0.1:8098",
+			loggerManageToken: manage,
+			loggerManageExpiry: expiry,
+			loggerLocalManaged: "true",
+			loggerLocalDeploymentId: "coder-test",
 		});
 		let fail = true;
 		const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -329,11 +385,18 @@ describe("logger pairing control plane", () => {
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		const endpoint = "http://127.0.0.1:8098";
 		const expiry = new Date(Date.now() - 60_000).toISOString();
-		const binding = createHash("sha256").update(JSON.stringify([endpoint, "coder-test", manage, expiry])).digest("hex");
+		const binding = createHash("sha256")
+			.update(JSON.stringify([endpoint, "coder-test", manage, expiry]))
+			.digest("hex");
 		store.setMany({
-			loggerUrl: endpoint, loggerManageToken: manage, loggerManageExpiry: expiry,
-			loggerLocalManaged: "true", loggerLocalDeploymentId: "coder-test",
-			loggerLocalRenewalToken: "p".repeat(43), loggerLocalRenewalExpiry: expiry, loggerLocalRenewalBinding: binding,
+			loggerUrl: endpoint,
+			loggerManageToken: manage,
+			loggerManageExpiry: expiry,
+			loggerLocalManaged: "true",
+			loggerLocalDeploymentId: "coder-test",
+			loggerLocalRenewalToken: "p".repeat(43),
+			loggerLocalRenewalExpiry: expiry,
+			loggerLocalRenewalBinding: binding,
 			loggerIngestToken: "i".repeat(43),
 		});
 		const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -356,17 +419,27 @@ describe("logger pairing control plane", () => {
 		writeFileSync(ownerPath, "o".repeat(43), { mode: 0o600 });
 		const endpoint = "http://127.0.0.1:8098";
 		const expiry = new Date(Date.now() - 60_000).toISOString();
-		const binding = createHash("sha256").update(JSON.stringify([endpoint, "coder-test", manage, expiry])).digest("hex");
+		const binding = createHash("sha256")
+			.update(JSON.stringify([endpoint, "coder-test", manage, expiry]))
+			.digest("hex");
 		store.setMany({
-			loggerUrl: endpoint, loggerManageToken: manage, loggerManageExpiry: expiry,
-			loggerLocalManaged: "true", loggerLocalDeploymentId: "coder-test",
-			loggerLocalRenewalToken: "p".repeat(43), loggerLocalRenewalExpiry: expiry, loggerLocalRenewalBinding: binding,
+			loggerUrl: endpoint,
+			loggerManageToken: manage,
+			loggerManageExpiry: expiry,
+			loggerLocalManaged: "true",
+			loggerLocalDeploymentId: "coder-test",
+			loggerLocalRenewalToken: "p".repeat(43),
+			loggerLocalRenewalExpiry: expiry,
+			loggerLocalRenewalBinding: binding,
 		});
-		vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-			store.setMany({ loggerLocalRenewalToken: "x".repeat(43) });
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "n".repeat(43), credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: string, init?: RequestInit) => {
+				store.setMany({ loggerLocalRenewalToken: "x".repeat(43) });
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(JSON.stringify({ token: "n".repeat(43), credential: { scope: "manage", expires_at: body.expires_at } }), { status: 201 });
+			}),
+		);
 		await expect(new LoggerService({ requireAdmin }).bootstrapLocal(ownerPath, endpoint)).rejects.toThrow("configuration changed");
 		expect(store.get("loggerManageToken")).toBe(manage);
 		expect(store.get("loggerLocalRenewalToken")).toBe("x".repeat(43));
@@ -402,7 +475,8 @@ describe("logger pairing control plane", () => {
 
 	it("allows an administrator to discard a pending credential without revoking it at the logger", async () => {
 		store.setMany({
-			loggerPendingPairingUrl: "https://logger.example", loggerPendingPairingToken: manage,
+			loggerPendingPairingUrl: "https://logger.example",
+			loggerPendingPairingToken: manage,
 			loggerPendingPairingExpiry: new Date(Date.now() - 1_000).toISOString(),
 		});
 		const service = new LoggerService({ requireAdmin });
@@ -415,22 +489,30 @@ describe("logger pairing control plane", () => {
 
 	it("does not overwrite a discard performed while manual registration is in flight", async () => {
 		store.setMany({
-			loggerPendingPairingUrl: "https://old.example", loggerPendingPairingToken: manage,
+			loggerPendingPairingUrl: "https://old.example",
+			loggerPendingPairingToken: manage,
 			loggerPendingPairingExpiry: new Date(Date.now() + 60_000).toISOString(),
 		});
 		let releaseRetention!: () => void;
 		let startedRetention!: () => void;
-		const started = new Promise<void>((resolve) => { startedRetention = resolve; });
-		const blocked = new Promise<void>((resolve) => { releaseRetention = resolve; });
-		vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-			if (url.endsWith("/retention")) {
-				startedRetention();
-				await blocked;
-				return new Response(JSON.stringify({ enabled: false, days: 0 }));
-			}
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "i".repeat(43), credential: { scope: "ingest", app: "flixer", expires_at: body.expires_at } }), { status: 201 });
-		}));
+		const started = new Promise<void>((resolve) => {
+			startedRetention = resolve;
+		});
+		const blocked = new Promise<void>((resolve) => {
+			releaseRetention = resolve;
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string, init?: RequestInit) => {
+				if (url.endsWith("/retention")) {
+					startedRetention();
+					await blocked;
+					return new Response(JSON.stringify({ enabled: false, days: 0 }));
+				}
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(JSON.stringify({ token: "i".repeat(43), credential: { scope: "ingest", app: "flixer", expires_at: body.expires_at } }), { status: 201 });
+			}),
+		);
 		const service = new LoggerService({ requireAdmin });
 		const registration = service.configure({ endpoint: "https://logger.example", manageToken: manage }, "admin");
 		await started;
@@ -443,10 +525,17 @@ describe("logger pairing control plane", () => {
 
 	it("rejects unsafe endpoints, malformed tokens and mismatched deployment responses", async () => {
 		const service = new LoggerService({ requireAdmin });
-		const fetcher = vi.fn(async () => new Response(JSON.stringify({
-			deployment_id: "other", token: manage,
-			credential: { scope: "manage", expires_at: new Date(Date.now() + 60_000).toISOString() },
-		}), { status: 201 }));
+		const fetcher = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						deployment_id: "other",
+						token: manage,
+						credential: { scope: "manage", expires_at: new Date(Date.now() + 60_000).toISOString() },
+					}),
+					{ status: 201 },
+				),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		await expect(service.pair({ endpoint: "http://remote.example", deploymentId: "tenant", pairingToken }, "admin")).rejects.toThrow();
 		await expect(service.pair({ endpoint: "https://logger.example", deploymentId: "tenant", pairingToken: "invalid" }, "admin")).rejects.toThrow();
@@ -457,13 +546,20 @@ describe("logger pairing control plane", () => {
 
 	it("requires owner access and validates management credential responses and revocation input", async () => {
 		store.setMany({
-			loggerUrl: "https://logger.example", loggerManageToken: manage,
-			loggerOwnerUrl: "https://logger.example", loggerOwnerToken: "o".repeat(43),
+			loggerUrl: "https://logger.example",
+			loggerManageToken: manage,
+			loggerOwnerUrl: "https://logger.example",
+			loggerOwnerToken: "o".repeat(43),
 		});
 		const service = new LoggerService({ requireAdmin });
-		const fetcher = vi.fn(async () => new Response(JSON.stringify({
-			credentials: [{ id: "a".repeat(32), scope: "query", expires_at: new Date(Date.now() + 60_000).toISOString() }],
-		})));
+		const fetcher = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						credentials: [{ id: "a".repeat(32), scope: "query", expires_at: new Date(Date.now() + 60_000).toISOString() }],
+					}),
+				),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		await expect(service.listOwnerCredentials("tenant", "bad")).rejects.toThrow("forbidden");
 		await expect(service.revokeOwnerCredential("tenant", "../invalid", "admin")).rejects.toThrow("Invalid credential");

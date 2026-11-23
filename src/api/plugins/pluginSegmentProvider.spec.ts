@@ -6,6 +6,7 @@ import type { PluginWasiRuntime } from "./pluginWasiRuntime.js";
 const item = { type: "movie" as const, durationMs: 1000, providerIds: { tmdb: "1" } };
 
 function setup(overrides: Record<string, unknown> = {}, execute = vi.fn()) {
+
 	const installation = {
 		pluginId: "example.segment-provider",
 		enabled: true,
@@ -16,11 +17,11 @@ function setup(overrides: Record<string, unknown> = {}, execute = vi.fn()) {
 	};
 	const dataSource = {
 		getRepository: () => ({
-			findBy: async (where: { enabled: boolean }) =>
-				installation.enabled === where.enabled ? [installation] : [],
+			findBy: async (where: { enabled: boolean }) => (installation.enabled === where.enabled ? [installation] : []),
 		}),
 	} as unknown as DataSource;
 	return { execute, provider: new PluginSegmentProvider(dataSource, { execute } as unknown as PluginWasiRuntime) };
+
 }
 
 describe("PluginSegmentProvider", () => {
@@ -47,12 +48,7 @@ describe("PluginSegmentProvider", () => {
 			status: "ok",
 			segments: { intro: { startMs: 1, endMs: 9, submissions: 2 }, recap: null },
 		});
-		expect(execute).toHaveBeenCalledWith(
-			expect.anything(),
-			"lookup",
-			{ id: "system", role: "system" },
-			{ item, baseUrl: "https://x" },
-		);
+		expect(execute).toHaveBeenCalledWith(expect.anything(), "lookup", { id: "system", role: "system" }, { item, baseUrl: "https://x" });
 	});
 
 	it("prefers the plugin's own URL setting and treats an empty URL as off", async () => {

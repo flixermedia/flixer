@@ -2,10 +2,10 @@ import { appConfig, type AppConfig } from "../config/store/appConfig.js";
 import type { SetupState } from "../config/store/configStore.js";
 import { needsRecovery } from "../setup/recovery.js";
 
-export type DatabaseStatus = "ok" | "unconfigured" | "unavailable";
+type DatabaseStatus = "ok" | "unconfigured" | "unavailable";
 
 /** What the process is doing right now: "bootstrap" serves only setup endpoints, "ready" is the full application. */
-export interface RuntimeState {
+interface RuntimeState {
 	mode: "bootstrap" | "ready";
 	database: DatabaseStatus;
 }
@@ -17,7 +17,9 @@ export function runtimeState(): RuntimeState {
 }
 
 export function updateRuntime(next: Partial<RuntimeState>): void {
+
 	Object.assign(runtime, next);
+
 }
 
 /**
@@ -33,9 +35,11 @@ export interface SetupStatus {
 }
 
 export function setupStatus(config: AppConfig = appConfig()): SetupStatus {
+
 	const store = config.persistent;
 	const state: SetupState = needsRecovery(config) ? "recovery_required" : (store?.setupState() ?? (config.get("databaseUrl") ? "completed" : "not_started"));
 	return { state, mode: runtime.mode, database: runtime.database, persistent: store !== null };
+
 }
 
 /**
@@ -43,6 +47,7 @@ export function setupStatus(config: AppConfig = appConfig()): SetupStatus {
  * The values stay in the environment (it overrides the store), so nothing is copied and no secret is regenerated.
  */
 export function adoptEnvironmentInstall(config: AppConfig = appConfig()): void {
+
 	const store = config.persistent;
 	if (!store || store.setupState() === "completed") {
 		return;
@@ -51,6 +56,7 @@ export function adoptEnvironmentInstall(config: AppConfig = appConfig()): void {
 	if (configured) {
 		store.setSetupState("completed");
 	}
+
 }
 
 /**
@@ -58,8 +64,10 @@ export function adoptEnvironmentInstall(config: AppConfig = appConfig()): void {
  * such a database on purpose is the exception: it keeps going until its remaining steps are done.
  */
 export function adoptExistingUsers(hasUsers: boolean, config: AppConfig = appConfig()): void {
+
 	const store = config.persistent;
 	if (hasUsers && store && store.setupState() !== "completed" && !store.wizardProgress().adoptedAccounts) {
 		store.setSetupState("completed");
 	}
+
 }

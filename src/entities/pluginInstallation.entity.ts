@@ -1,12 +1,12 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
 import type { PluginManifest } from "../api/plugins/pluginManifest.js";
 
-export type PluginInstallationStatus =
-	"installed" | "initializing" | "enabled" | "running" | "disabled" | "error" | "updating";
+export type PluginInstallationStatus = "installed" | "initializing" | "enabled" | "running" | "disabled" | "error" | "updating";
 
 @Entity("plugin_installations")
 @Index("idx_plugin_installations_repository", ["repositoryId"])
 export class PluginInstallation {
+
 	@PrimaryColumn({ name: "plugin_id", type: "varchar", length: 128 })
 	pluginId!: string;
 

@@ -8,8 +8,7 @@ describe("AiDataService", () => {
 	});
 
 	it("maps provider genre and studio objects to recommendation text fields", async () => {
-		const dataSource = new DataSource({ type: "postgres", host: "127.0.0.1", database: "flixer" });
-		vi.spyOn(dataSource, "query").mockResolvedValue([
+		const rows = [
 			{
 				id: "media-id",
 				type: "movie",
@@ -23,7 +22,10 @@ describe("AiDataService", () => {
 				crew: [],
 				artist: null,
 			},
-		]);
+		];
+		const builder = { select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), andWhere: vi.fn(), orderBy: vi.fn(), take: vi.fn(), getRawMany: vi.fn().mockResolvedValue(rows) };
+		for (const name of ["select", "addSelect", "where", "andWhere", "orderBy", "take"] as const) builder[name].mockReturnValue(builder);
+		const dataSource = { getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => builder) })) } as unknown as DataSource;
 
 		const result = await new AiDataService(dataSource).libraryContext();
 
@@ -32,5 +34,6 @@ describe("AiDataService", () => {
 			genres: ["Science Fiction", "Adventure"],
 			studios: ["Example Studio"],
 		});
+		expect(builder.take).toHaveBeenCalledWith(20_000);
 	});
 });

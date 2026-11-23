@@ -4,13 +4,13 @@ import { join } from "node:path";
 import { Injectable } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { dataPath } from "../../config/dataPath.js";
-import { detectAvatarType } from "../auth/avatarStorage.js";
+import { detectAvatarType } from "../auth/avatar/avatarStorage.js";
 
 const TMDB_IMAGE_HOST = "https://image.tmdb.org/t/p";
 const TIMEOUT_MS = 10_000;
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export const TMDB_IMAGE_SIZES = ["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"] as const;
+const TMDB_IMAGE_SIZES = ["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"] as const;
 const FILE_PATTERN = /^[A-Za-z0-9_-]{5,64}\.(jpg|png|webp)$/;
 const URL_PATTERN = /^https:\/\/image\.tmdb\.org\/t\/p\/([a-z0-9]+)\/([A-Za-z0-9_-]{5,64}\.(?:jpg|png|webp))$/;
 
@@ -23,29 +23,36 @@ const DISCOGS_HOSTS = new Set(["i.discogs.com", "img.discogs.com", "st.discogs.c
 
 /** Parses a Discogs image URL, accepting only https on the known Discogs image hosts. */
 function parseDiscogsUrl(value: string): URL | null {
+
 	try {
 		const url = new URL(value);
 		return url.protocol === "https:" && DISCOGS_HOSTS.has(url.hostname) && !url.username && !url.password && url.port === "" ? url : null;
 	} catch {
 		return null;
 	}
+
 }
 
 /** Path the cached copy of a Discogs image is served from, or null when the URL is not a Discogs image. */
 export function discogsImagePath(url: string | null): string | null {
+
 	const parsed = url ? parseDiscogsUrl(url) : null;
 	return parsed ? `/requests/images/discogs?u=${encodeURIComponent(parsed.href)}` : null;
+
 }
 
 /** Rewrites a stored TMDB or Discogs image URL to its cached route; anything else is returned unchanged. */
 export function cachedImageUrl(url: string | null): string | null {
+
 	const match = url ? URL_PATTERN.exec(url) : null;
 	return match ? tmdbImagePath(match[1], match[2]) : (discogsImagePath(url) ?? url);
+
 }
 
 /** Downloads TMDB images once and serves them from DATA_DIR/cache/tmdb afterwards. */
 @Injectable()
 export class TmdbImageCache {
+
 	private readonly pending = new Map<string, Promise<Buffer>>();
 
 	async get(size: string, file: string): Promise<{ data: Buffer; mime: string }> {
@@ -98,6 +105,7 @@ export class TmdbImageCache {
 /** Downloads Discogs images once and serves them from DATA_DIR/cache/discogs afterwards. */
 @Injectable()
 export class DiscogsImageCache {
+
 	private readonly pending = new Map<string, Promise<Buffer>>();
 
 	async get(source: string): Promise<{ data: Buffer; mime: string }> {

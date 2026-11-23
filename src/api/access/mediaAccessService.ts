@@ -12,10 +12,10 @@ import { User } from "../../entities/user.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { RATING_LIMITS, ratingAgeSql } from "./contentRatings.js";
 
-export type RestrictedDisplay = "hidden" | "locked";
-export type BlockReason = "library" | "rating" | "unrated" | "tags";
+type RestrictedDisplay = "hidden" | "locked";
+type BlockReason = "library" | "rating" | "unrated" | "tags";
 
-export const UNLOCK_MINUTES = 30;
+const UNLOCK_MINUTES = 30;
 const PIN_PATTERN = /^\d{6}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_TAGS = 50;
@@ -97,6 +97,7 @@ function minutesOf(time: string): number {
 
 /** Whether `windows` allow viewing at the given weekday (0 = Sunday) and minute of the day. */
 export function scheduleAllows(schedule: AccessSchedule | null, day: number, minute: number): boolean {
+
 	if (!schedule || schedule.windows.length === 0) return true;
 	return schedule.windows.some((window) => {
 		const from = minutesOf(window.from);
@@ -106,22 +107,26 @@ export function scheduleAllows(schedule: AccessSchedule | null, day: number, min
 		// Overnight window: the tail of it falls on the next day.
 		return (window.days.includes(day) && minute >= from) || (window.days.includes((day + 6) % 7) && minute < to);
 	});
+
 }
 
 function localParts(at: Date, timezone: string): { day: number; minute: number } {
+
 	const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at);
 	const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
 	const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(value("weekday"));
 	return { day, minute: Number(value("hour")) * 60 + Number(value("minute")) };
+
 }
 
-export interface ScheduleStatus {
+interface ScheduleStatus {
 	allowed: boolean;
 	/** When viewing is next allowed, if it is not allowed now. */
 	nextAllowedAt: string | null;
 }
 
 export function scheduleStatus(schedule: AccessSchedule | null, now = new Date()): ScheduleStatus {
+
 	if (!schedule || schedule.windows.length === 0) return { allowed: true, nextAllowedAt: null };
 	const check = (at: Date) => {
 		const { day, minute } = localParts(at, schedule.timezone);
@@ -133,6 +138,7 @@ export function scheduleStatus(schedule: AccessSchedule | null, now = new Date()
 		if (check(at)) return { allowed: false, nextAllowedAt: at.toISOString() };
 	}
 	return { allowed: false, nextAllowedAt: null };
+
 }
 
 /** Decides what each user may see and play, and applies those rules inside the media queries. */
@@ -194,6 +200,7 @@ export class MediaAccessService {
 
 	private effectiveRating(alias: string): string {
 		const clean = (column: string) => `NULLIF(btrim(${column}), '')`;
+		// RAW SQL: SQL fragment: nested COALESCE/NULLIF with correlated subselects on parent rows
 		return `COALESCE(${clean(`${alias}.metadata ->> 'contentRating'`)}, (SELECT ${clean("p.metadata ->> 'contentRating'")} FROM media_items p WHERE p.id = ${alias}.parent_id), (SELECT ${clean("g.metadata ->> 'contentRating'")} FROM media_items p JOIN media_items g ON g.id = p.parent_id WHERE p.id = ${alias}.parent_id))`;
 	}
 
@@ -212,6 +219,7 @@ export class MediaAccessService {
 
 	private hasTag(alias: string, param: string): string {
 		const list = (column: string) => `CASE WHEN jsonb_typeof(${column}) = 'array' THEN ${column} ELSE '[]'::jsonb END`;
+		// RAW SQL: SQL fragment: jsonb array EXISTS over the item and its ancestors
 		return `EXISTS (SELECT 1 FROM media_items t WHERE t.id IN (${alias}.id, ${alias}.parent_id, (SELECT p.parent_id FROM media_items p WHERE p.id = ${alias}.parent_id)) AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(${list("t.metadata -> 'genres'")} || ${list("t.metadata -> 'tags'")}) v WHERE lower(btrim(v)) = ANY(:${param})))`;
 	}
 
@@ -285,13 +293,7 @@ export class MediaAccessService {
 		const params: Record<string, unknown> = { accIds: ids };
 		for (const [, condition] of active) Object.assign(params, condition.params);
 		const reasonSql = active.map(([reason, condition]) => `WHEN NOT (${condition.sql}) THEN '${reason}'`).join(" ");
-		const rows = await this.dataSource
-			.getRepository(MediaItem)
-			.createQueryBuilder("item")
-			.select("item.id", "id")
-			.addSelect(`CASE ${reasonSql} END`, "reason")
-			.where("item.id IN (:...accIds)", params)
-			.getRawMany<{ id: string; reason: BlockReason | null }>();
+		const rows = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("item.id", "id").addSelect(`CASE ${reasonSql} END`, "reason").where("item.id IN (:...accIds)", params).getRawMany<{ id: string; reason: BlockReason | null }>();
 		for (const row of rows) if (row.reason) result.set(row.id, row.reason);
 		return result;
 	}
@@ -303,7 +305,10 @@ export class MediaAccessService {
 	/** In locked mode, lists keep rating- and tag-blocked items; this marks them so the client shows a lock. */
 	async markLocked<T extends { id: string }>(policy: AccessPolicy, cards: T[]): Promise<Array<T & { locked?: true; lockReason?: BlockReason }>> {
 		if (!policy.enforced || policy.displayMode !== "locked" || cards.length === 0) return cards;
-		const reasons = await this.blockReasons(policy, cards.map((card) => card.id));
+		const reasons = await this.blockReasons(
+			policy,
+			cards.map((card) => card.id),
+		);
 		return cards.map((card) => {
 			const reason = reasons.get(card.id);
 			return reason && reason !== "library" ? { ...card, locked: true as const, lockReason: reason } : card;
@@ -313,7 +318,10 @@ export class MediaAccessService {
 	/** Applies the caller's display mode to a list of cards: blocked ones disappear, or are flagged in locked mode. */
 	async shape<T extends { id: string }>(policy: AccessPolicy, cards: T[]): Promise<Array<T & { locked?: true; lockReason?: BlockReason }>> {
 		if (!policy.enforced || cards.length === 0) return cards;
-		const reasons = await this.blockReasons(policy, cards.map((card) => card.id));
+		const reasons = await this.blockReasons(
+			policy,
+			cards.map((card) => card.id),
+		);
 		return cards.flatMap((card) => {
 			const reason = reasons.get(card.id);
 			if (!reason) return [card];
@@ -456,9 +464,16 @@ export class MediaAccessService {
 
 	/** A user's tags and genres, to suggest in the admin editor. */
 	async knownTags(): Promise<string[]> {
-		const rows: Array<{ tag: string }> = await this.dataSource.query(
-			`SELECT DISTINCT lower(btrim(v)) AS tag FROM media_items, jsonb_array_elements_text((CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) || (CASE WHEN jsonb_typeof(metadata -> 'tags') = 'array' THEN metadata -> 'tags' ELSE '[]'::jsonb END)) v WHERE is_placeholder = false AND btrim(v) <> '' ORDER BY 1 LIMIT 500`,
-		);
+		const rows = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.innerJoin((query) => query.select("jsonb_array_elements_text((CASE WHEN jsonb_typeof(source.metadata -> 'genres') = 'array' THEN source.metadata -> 'genres' ELSE '[]'::jsonb END) || (CASE WHEN jsonb_typeof(source.metadata -> 'tags') = 'array' THEN source.metadata -> 'tags' ELSE '[]'::jsonb END)", "value").from(MediaItem, "source").where("source.isPlaceholder = false"), "tags", "TRUE")
+			.select("DISTINCT lower(btrim(tags.value))", "tag")
+			.where("item.isPlaceholder = false")
+			.andWhere("btrim(tags.value) <> ''")
+			.orderBy("tag", "ASC")
+			.limit(500)
+			.getRawMany<{ tag: string }>();
 		return rows.map((row) => row.tag);
 	}
 
@@ -491,7 +506,14 @@ export class MediaAccessService {
 		const blockedQuery = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.title", "item.type", "item.year"]).where("item.is_placeholder = false").andWhere(`item.type IN (${types})`);
 		const blockedIds = (await blockedQuery.clone().orderBy("item.created_at", "DESC").limit(400).getMany()).map((item) => item.id);
 		const reasons = await this.blockReasons(enforced, blockedIds);
-		const blocked = (await this.dataSource.getRepository(MediaItem).findBy(blockedIds.filter((id) => reasons.has(id)).slice(0, 12).map((id) => ({ id })))).map((item) => ({ id: item.id, title: item.title, type: item.type, year: item.year, reason: reasons.get(item.id) as BlockReason }));
+		const blocked = (
+			await this.dataSource.getRepository(MediaItem).findBy(
+				blockedIds
+					.filter((id) => reasons.has(id))
+					.slice(0, 12)
+					.map((id) => ({ id })),
+			)
+		).map((item) => ({ id: item.id, title: item.title, type: item.type, year: item.year, reason: reasons.get(item.id) as BlockReason }));
 		const status = scheduleStatus(policy.schedule);
 		return { libraries: perLibrary, blocked, schedule: { configured: Boolean(policy.schedule && policy.schedule.windows.length > 0), allowedNow: status.allowed, nextAllowedAt: status.nextAllowedAt } };
 	}

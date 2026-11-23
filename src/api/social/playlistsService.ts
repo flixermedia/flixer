@@ -1,11 +1,14 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource } from "typeorm";
+import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
+import { SocialFriendship } from "../../entities/social.entity.js";
+import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { artistOf, durationOf, loadSocialItems, toSocialItem, type SocialItem } from "./socialItems.js";
 
 const MAX_PLAYLISTS = 200;
@@ -41,12 +44,11 @@ interface OwnerRow {
 /** Playlists are made of songs only; public playlists follow their owner's profile visibility. */
 @Injectable()
 export class PlaylistsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listOwn(userId: string): Promise<PlaylistSummary[]> {
-		const rows = await this.dataSource
-			.getRepository(Playlist)
-			.find({ where: { userId }, order: { updatedAt: "DESC" } });
+		const rows = await this.dataSource.getRepository(Playlist).find({ where: { userId }, order: { updatedAt: "DESC" } });
 		return this.summaries(rows);
 	}
 
@@ -59,10 +61,7 @@ export class PlaylistsService {
 		return this.summaries(rows);
 	}
 
-	async create(
-		userId: string,
-		input: { name: string; description?: string | null; isPublic?: boolean },
-	): Promise<PlaylistSummary> {
+	async create(userId: string, input: { name: string; description?: string | null; isPublic?: boolean }): Promise<PlaylistSummary> {
 		const name = input.name?.trim();
 		if (!name || name.length > 100) {
 			throw new BadRequest("Playlist name must be 1 to 100 characters.");
@@ -72,17 +71,11 @@ export class PlaylistsService {
 		if ((await repo.countBy({ userId })) >= MAX_PLAYLISTS) {
 			throw new BadRequest(`You can have up to ${MAX_PLAYLISTS} playlists.`);
 		}
-		const playlist = await repo.save(
-			repo.create({ id: randomUUID(), userId, name, description, isPublic: input.isPublic ?? true }),
-		);
+		const playlist = await repo.save(repo.create({ id: randomUUID(), userId, name, description, isPublic: input.isPublic ?? true }));
 		return (await this.summaries([playlist]))[0];
 	}
 
-	async update(
-		userId: string,
-		id: string,
-		changes: { name?: string; description?: string | null; isPublic?: boolean },
-	): Promise<PlaylistSummary> {
+	async update(userId: string, id: string, changes: { name?: string; description?: string | null; isPublic?: boolean }): Promise<PlaylistSummary> {
 		const repo = this.dataSource.getRepository(Playlist);
 		const playlist = await repo.findOneBy({ id, userId });
 		if (!playlist) {
@@ -120,9 +113,7 @@ export class PlaylistsService {
 			throw new NotFound("Playlist not found.");
 		}
 
-		const entries = await this.dataSource
-			.getRepository(PlaylistItem)
-			.find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
+		const entries = await this.dataSource.getRepository(PlaylistItem).find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
 		const loaded = await loadSocialItems(
 			this.dataSource,
 			entries.map((entry) => entry.itemId),
@@ -144,9 +135,7 @@ export class PlaylistsService {
 	/** Adds a song, or every song of an album in disc and track order. Songs already in the playlist are skipped. */
 	async addTrack(userId: string, id: string, itemId: string): Promise<{ added: number }> {
 		await this.requireOwned(userId, id);
-		const item = await this.dataSource
-			.getRepository(MediaItem)
-			.findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
+		const item = await this.dataSource.getRepository(MediaItem).findOne({ where: { id: itemId, isPlaceholder: false }, select: { id: true, type: true } });
 		if (!item) {
 			throw new NotFound("Media item not found.");
 		}
@@ -155,41 +144,38 @@ export class PlaylistsService {
 		}
 		return this.dataSource.transaction(async (manager) => {
 			// Serialises concurrent adds so positions stay unique and the size cap holds.
-			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
+			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
 			const trackIds =
 				item.type === "track"
 					? [itemId]
 					: (
-							(await manager.query(
-								`SELECT id FROM media_items WHERE parent_id = $1 AND type = 'track' AND is_placeholder = false ORDER BY season_number NULLS FIRST, episode_number NULLS LAST, sort_title NULLS LAST, title`,
-								[itemId],
-							)) as Array<{ id: string }>
+							await manager.find(MediaItem, {
+								select: { id: true },
+								where: { parentId: itemId, type: "track", isPlaceholder: false },
+								order: { seasonNumber: { direction: "ASC", nulls: "FIRST" }, episodeNumber: { direction: "ASC", nulls: "LAST" }, sortTitle: { direction: "ASC", nulls: "LAST" }, title: "ASC" },
+							})
 						).map((row) => row.id);
 			if (!trackIds.length) {
 				throw new BadRequest("This album has no songs to add.");
 			}
-			const [{ count, next }] = (await manager.query(
-				`SELECT COUNT(*)::int AS count, COALESCE(MAX(position) + 1, 0)::int AS next FROM playlist_items WHERE playlist_id = $1`,
-				[id],
-			)) as Array<{ count: number; next: number }>;
-			const existing = new Set(
-				(
-					(await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [id])) as Array<{
-						item_id: string;
-					}>
-				).map((row) => row.item_id),
-			);
+			const aggregate = await manager.getRepository(PlaylistItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.playlistId = :id", { id }).getRawOne<{ count: number; next: number }>();
+			const { count = 0, next = 0 } = aggregate ?? {};
+			const existing = new Set((await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } })).map((row) => row.itemId));
 			const fresh = trackIds.filter((trackId) => !existing.has(trackId));
 			if (count + fresh.length > MAX_TRACKS) {
 				throw new BadRequest(`A playlist can hold up to ${MAX_TRACKS} songs.`);
 			}
 			if (fresh.length) {
-				await manager.query(
-					`INSERT INTO playlist_items (playlist_id, item_id, position) SELECT $1, v.item_id, $3 + v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) ON CONFLICT DO NOTHING`,
-					[id, fresh, next],
-				);
+				await manager
+					.createQueryBuilder()
+					.insert()
+					.into(PlaylistItem)
+					.values(fresh.map((trackId, index) => ({ playlistId: id, itemId: trackId, position: next + index })))
+					.orIgnore()
+					.updateEntity(false)
+					.execute();
 			}
-			await manager.query(`UPDATE playlists SET updated_at = now() WHERE id = $1`, [id]);
+			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 			return { added: fresh.length };
 		});
 	}
@@ -204,32 +190,26 @@ export class PlaylistsService {
 	async reorder(userId: string, id: string, itemIds: string[]): Promise<void> {
 		await this.requireOwned(userId, id);
 		await this.dataSource.transaction(async (manager) => {
-			await manager.query(`SELECT 1 FROM playlists WHERE id = $1 FOR UPDATE`, [id]);
-			const current = (await manager.query(`SELECT item_id FROM playlist_items WHERE playlist_id = $1`, [
-				id,
-			])) as Array<{ item_id: string }>;
+			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
+			const current = await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } });
 			const wanted = new Set(itemIds);
-			if (
-				wanted.size !== itemIds.length ||
-				wanted.size !== current.length ||
-				current.some((row) => !wanted.has(row.item_id))
-			) {
+			if (wanted.size !== itemIds.length || wanted.size !== current.length || current.some((row) => !wanted.has(row.itemId))) {
 				throw new BadRequest("The order must list every song in the playlist exactly once.");
 			}
-			await manager.query(
-				`UPDATE playlist_items p SET position = v.ord - 1 FROM unnest($2::uuid[]) WITH ORDINALITY AS v(item_id, ord) WHERE p.playlist_id = $1 AND p.item_id = v.item_id`,
-				[id, itemIds],
-			);
-			await manager.query(`UPDATE playlists SET updated_at = now() WHERE id = $1`, [id]);
+			// RAW SQL: PostgreSQL array_position maps the validated list order to positions.
+			await manager
+				.createQueryBuilder()
+				.update(PlaylistItem)
+				.set({ position: () => 'array_position(:itemIds::uuid[], "item_id") - 1' })
+				.where('"playlist_id" = :id AND "item_id" = ANY(:itemIds::uuid[])', { id, itemIds })
+				.execute();
+			await manager.update(Playlist, { id }, { updatedAt: () => "now()" });
 		});
 	}
 
 	/** The user's own playlists that already hold the song. */
 	async containing(userId: string, itemId: string): Promise<string[]> {
-		const rows = (await this.dataSource.query(
-			`SELECT p.id FROM playlists p JOIN playlist_items pi ON pi.playlist_id = p.id WHERE p.user_id = $1 AND pi.item_id = $2`,
-			[userId, itemId],
-		)) as Array<{ id: string }>;
+		const rows = await this.dataSource.getRepository(Playlist).createQueryBuilder("p").innerJoin(PlaylistItem, "pi", "pi.playlistId = p.id").select("p.id", "id").where("p.userId = :userId", { userId }).andWhere("pi.itemId = :itemId", { itemId }).getRawMany<{ id: string }>();
 		return rows.map((row) => row.id);
 	}
 
@@ -250,19 +230,14 @@ export class PlaylistsService {
 	}
 
 	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
-		const rows = (await this.dataSource.query(
-			`SELECT COALESCE(profile_visibility, 'public') AS visibility FROM user_preferences WHERE user_id = $1`,
-			[ownerId],
-		)) as Array<{ visibility: "public" | "hidden" | "friends" }>;
-		const visibility = rows[0]?.visibility ?? "public";
+		const preferences = await this.dataSource.getRepository(UserPreference).findOne({ select: { profileVisibility: true }, where: { userId: ownerId } });
+		const visibility = preferences?.profileVisibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;
-		const friendship = (await this.dataSource.query(
-			`SELECT 1 FROM social_friendships WHERE accepted_at IS NOT NULL
-			AND ((user_low_id = $1 AND user_high_id = $2) OR (user_low_id = $2 AND user_high_id = $1))`,
-			[viewerId, ownerId],
-		)) as unknown[];
-		return friendship.length > 0;
+		return this.dataSource.getRepository(SocialFriendship).existsBy([
+			{ userLowId: viewerId, userHighId: ownerId, acceptedAt: Not(IsNull()) },
+			{ userLowId: ownerId, userHighId: viewerId, acceptedAt: Not(IsNull()) },
+		]);
 	}
 
 	/** Song counts, total length, cover and owner for a set of playlists, using a handful of queries however many there are. */
@@ -274,22 +249,20 @@ export class PlaylistsService {
 		const ownerIds = [...new Set(playlists.map((playlist) => playlist.userId))];
 
 		const [stats, firsts, owners] = await Promise.all([
-			this.dataSource.query(
-				`SELECT pi.playlist_id, COUNT(*)::int AS n,
-					COALESCE(SUM(CASE WHEN (m.technical->>'duration') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (m.technical->>'duration')::numeric ELSE 0 END), 0)::float AS dur
-				FROM playlist_items pi JOIN media_items m ON m.id = pi.item_id
-				WHERE pi.playlist_id = ANY($1::uuid[]) GROUP BY pi.playlist_id`,
-				[ids],
-			) as Promise<Array<{ playlist_id: string; n: number; dur: number }>>,
-			this.dataSource.query(
-				`SELECT DISTINCT ON (playlist_id) playlist_id, item_id FROM playlist_items WHERE playlist_id = ANY($1::uuid[]) ORDER BY playlist_id, position ASC`,
-				[ids],
-			) as Promise<Array<{ playlist_id: string; item_id: string }>>,
-			this.dataSource.query(
-				`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id WHERE u.id = ANY($1::uuid[])`,
-				[ownerIds],
-			) as Promise<OwnerRow[]>,
-		]);
+			this.dataSource
+				.getRepository(PlaylistItem)
+				.createQueryBuilder("entry")
+				.innerJoin(MediaItem, "item", "item.id = entry.itemId")
+				.select("entry.playlistId", "playlist_id")
+				.addSelect("COUNT(*)::int", "n")
+				// RAW SQL: PostgreSQL JSONB extraction, regex validation and numeric conversion.
+				.addSelect("COALESCE(SUM(CASE WHEN (item.technical->>'duration') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.technical->>'duration')::numeric ELSE 0 END), 0)::float", "dur")
+				.where("entry.playlistId IN (:...ids)", { ids })
+				.groupBy("entry.playlistId")
+				.getRawMany<{ playlist_id: string; n: number; dur: number }>(),
+			this.dataSource.getRepository(PlaylistItem).createQueryBuilder("entry").distinctOn(["entry.playlistId"]).select("entry.playlistId", "playlist_id").addSelect("entry.itemId", "item_id").where("entry.playlistId IN (:...ids)", { ids }).orderBy("entry.playlistId", "ASC").addOrderBy("entry.position", "ASC").getRawMany<{ playlist_id: string; item_id: string }>(),
+			this.dataSource.getRepository(User).createQueryBuilder("u").leftJoin(UserPreference, "up", "up.userId = u.id").select("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file").where("u.id IN (:...ownerIds)", { ownerIds }).getRawMany<OwnerRow>(),
+		] as const);
 
 		const cards = await loadSocialItems(
 			this.dataSource,
@@ -311,10 +284,7 @@ export class PlaylistsService {
 				isPublic: playlist.isPublic,
 				trackCount: stat?.n ?? 0,
 				durationSeconds: Math.round(stat?.dur ?? 0),
-				cover:
-					first && first.imageIndex !== null
-						? { itemId: first.imageItemId, index: first.imageIndex, updatedAt: first.imageUpdatedAt }
-						: null,
+				cover: first && first.imageIndex !== null ? { itemId: first.imageItemId, index: first.imageIndex, updatedAt: first.imageUpdatedAt } : null,
 				owner: {
 					username: owner?.username ?? "",
 					displayName: owner?.display_name ?? owner?.username ?? "",

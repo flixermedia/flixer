@@ -11,6 +11,7 @@ import { ThemesService } from "./themesService.js";
 @Controller("/themes")
 @Security("BearerAuth")
 export class ThemesController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly themes: ThemesService,
@@ -19,11 +20,7 @@ export class ThemesController {
 
 	/** A movie's or show's theme as MP3. Authenticated, so the web app fetches it with its token. */
 	@Get("/items/:id")
-	async audio(
-		@PathParams("id") id: string,
-		@Context() ctx: PlatformContext,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async audio(@PathParams("id") id: string, @Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound("This item has no theme song.");

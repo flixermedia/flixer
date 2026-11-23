@@ -10,12 +10,8 @@ function decodeXml(value: string): string {
 			if (name === "gt") return ">";
 			if (name === "quot") return '"';
 			if (name === "apos") return "'";
-			const codePoint = name.startsWith("#x")
-				? Number.parseInt(name.slice(2), 16)
-				: Number.parseInt(name.slice(1), 10);
-			return Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff
-				? String.fromCodePoint(codePoint)
-				: match;
+			const codePoint = name.startsWith("#x") ? Number.parseInt(name.slice(2), 16) : Number.parseInt(name.slice(1), 10);
+			return Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : match;
 		})
 		.replace(/<[^>]*>/g, " ")
 		.replace(/\s+/g, " ")
@@ -23,17 +19,22 @@ function decodeXml(value: string): string {
 }
 
 function attribute(attributes: string, name: string): string | null {
+
 	const match = attributes.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])(.*?)\\1`, "i"));
 	return match ? decodeXml(match[2]) : null;
+
 }
 
 function textTag(xml: string, name: string): string | null {
+
 	const match = xml.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}\\s*>`, "i"));
 	const value = match ? decodeXml(match[1]) : "";
 	return value || null;
+
 }
 
 function parseXmltvDate(value: string | null): number | null {
+
 	if (!value) return null;
 	const match = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?$/);
 	if (!match) return null;
@@ -41,9 +42,11 @@ function parseXmltvDate(value: string | null): number | null {
 	const utc = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
 	const offset = sign ? (Number(offsetHour) * 60 + Number(offsetMinute)) * (sign === "+" ? 1 : -1) : 0;
 	return utc - offset * 60_000;
+
 }
 
 export function parseXmltv(xml: string): { channels: GuideChannelCache[]; programmes: GuideProgrammeCache[] } {
+
 	if (/<!DOCTYPE|<!ENTITY/i.test(xml)) {
 		throw new Error("XMLTV feeds cannot declare document types or custom entities.");
 	}
@@ -79,18 +82,22 @@ export function parseXmltv(xml: string): { channels: GuideChannelCache[]; progra
 		throw new Error("The XMLTV feed did not contain any valid channels.");
 	}
 	return { channels, programmes };
+
 }
 
 function m3uAttributes(value: string): Record<string, string> {
+
 	const attributes: Record<string, string> = {};
 	const expression = /([\w-]+)\s*=\s*("([^"]*)"|'([^']*)'|([^\s,]+))/g;
 	for (const match of value.matchAll(expression)) {
 		attributes[match[1].toLowerCase()] = match[3] ?? match[4] ?? match[5] ?? "";
 	}
 	return attributes;
+
 }
 
 function extinfCommaIndex(value: string): number {
+
 	let quote: string | null = null;
 	for (let index = 0; index < value.length; index += 1) {
 		const character = value[index];
@@ -103,9 +110,11 @@ function extinfCommaIndex(value: string): number {
 		}
 	}
 	return -1;
+
 }
 
 export function parseM3u(playlist: string): IptvChannelCache[] {
+
 	const lines = playlist.replace(/^\uFEFF/, "").split(/\r?\n/);
 	if (!lines.some((line) => line.trim().startsWith("#EXTM3U"))) {
 		throw new Error("The IPTV source is not an extended M3U playlist.");
@@ -147,4 +156,5 @@ export function parseM3u(playlist: string): IptvChannelCache[] {
 		throw new Error("The IPTV playlist did not contain any playable channels.");
 	}
 	return channels;
+
 }

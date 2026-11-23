@@ -20,15 +20,18 @@ export interface AdminPaymentConfig extends PaymentConfig {
 }
 
 export function assertPriceCurrencies(prices: { currency: string }[], allowed: string[]): void {
+
 	const bad = prices.find((price) => !allowed.includes(price.currency));
 	if (bad) {
 		throw new BadRequest(`${bad.currency} isn't one of the currencies you accept. Add it under Currencies first.`);
 	}
+
 }
 
 type Loaded = { config: PaymentConfig; secrets: PaymentSecrets };
 
 function merge(raw: Record<string, unknown>): PaymentConfig {
+
 	const base = DEFAULT_PAYMENT_CONFIG;
 	const part = <T extends object>(fallback: T, value: unknown): T => ({ ...fallback, ...((value ?? {}) as Partial<T>) });
 	const merged: PaymentConfig = {
@@ -43,10 +46,12 @@ function merge(raw: Record<string, unknown>): PaymentConfig {
 		merged.currencies = [merged.currency, ...merged.currencies];
 	}
 	return merged;
+
 }
 
 @Injectable()
 export class PaymentConfigService {
+
 	private cache: { at: number; value: Loaded } | null = null;
 
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}

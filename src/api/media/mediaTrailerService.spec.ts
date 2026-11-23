@@ -10,14 +10,16 @@ import { MediaTrailerService } from "./mediaTrailerService.js";
 
 describe("MediaTrailerService", () => {
 	function setup(item: unknown, visible = true, enabled = false) {
+
 		const findOneBy = vi.fn().mockResolvedValue(item);
-		const dataSource = { getRepository: (type: unknown) => type === Setting ? { findOneBy: vi.fn().mockResolvedValue({ value: enabled }) } : { findOneBy } } as unknown as DataSource;
+		const dataSource = { getRepository: (type: unknown) => (type === Setting ? { findOneBy: vi.fn().mockResolvedValue({ value: enabled }) } : { findOneBy }) } as unknown as DataSource;
 		const access = { resolve: vi.fn().mockResolvedValue({ userId: "user" }), isVisible: vi.fn().mockResolvedValue(visible) } as unknown as MediaAccessService;
 		const metadata = { trailer: vi.fn().mockResolvedValue({ key: "abcdefghijk", name: "Official trailer" }) } as unknown as ExternalMetadataService;
 		const cache = { find: vi.fn().mockResolvedValue(null), download: vi.fn().mockResolvedValue(undefined), remove: vi.fn().mockResolvedValue(undefined), remoteUrl: vi.fn().mockResolvedValue("https://x.googlevideo.com/video"), queue: vi.fn() } as unknown as TrailerCacheService;
 		const playback = { issueTrailer: vi.fn().mockResolvedValue({ mediaSource: { streamUrl: "/streamer/stream/token" } }), issueRemoteTrailer: vi.fn().mockReturnValue("/streamer/trailer/token") } as unknown as PlaybackService;
 		const auth = { requireAdmin: vi.fn().mockResolvedValue({}) } as unknown as AuthService;
 		return { service: new MediaTrailerService(dataSource, access, metadata, cache, playback, auth), access, metadata, cache, playback, auth };
+
 	}
 
 	it.each([

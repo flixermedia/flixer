@@ -20,18 +20,23 @@ interface SuggestionRow {
 }
 
 function boundedInteger(value: number | undefined, fallback: number, maximum: number): number {
+
 	if (!Number.isSafeInteger(value)) return fallback;
-	return Math.max(1, Math.min(maximum, value));
+	return Math.max(1, Math.min(maximum, value as number));
+
 }
 
 @Injectable()
 export class DuplicateSuggestionsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(query: DuplicateSuggestionsQuery = {}): Promise<DuplicateSuggestionsPage> {
 		const page = boundedInteger(query.page, 1, MAX_PAGE);
 		const size = boundedInteger(query.size, 50, MAX_PAGE_SIZE);
-		const rows = await this.dataSource.query<SuggestionRow[]>(`
+		// RAW SQL: CTE with LATERAL jsonb_each_text and UNION ALL
+		const rows = await this.dataSource.query<SuggestionRow[]>(
+			`
 			WITH candidate_rows AS (
 				SELECT item.library_id, item.type, 'providerId'::text AS kind, provider.key AS provider, provider.value AS provider_id,
 					item.id, item.title, item.year, item.path
@@ -66,19 +71,23 @@ export class DuplicateSuggestionsService {
 			SELECT page_groups.*, total_groups.total
 			FROM total_groups LEFT JOIN page_groups ON true
 			ORDER BY page_groups.library_id, page_groups.type, page_groups.kind, page_groups.provider, page_groups.provider_id
-		`, [(page - 1) * size, size, MAX_ITEMS_PER_SUGGESTION]);
+		`,
+			[(page - 1) * size, size, MAX_ITEMS_PER_SUGGESTION],
+		);
 
 		const first = rows[0];
-		const items: DuplicateSuggestion[] = rows.filter((row) => row.library_id !== null).map((row) => ({
-			libraryId: row.library_id!,
-			type: row.type!,
-			kind: row.kind!,
-			provider: row.provider!,
-			providerId: row.provider_id!,
-			itemCount: Number(row.item_count),
-			itemsTruncated: row.items_truncated === true,
-			items: row.items ?? [],
-		}));
+		const items: DuplicateSuggestion[] = rows
+			.filter((row) => row.library_id !== null)
+			.map((row) => ({
+				libraryId: row.library_id!,
+				type: row.type!,
+				kind: row.kind!,
+				provider: row.provider!,
+				providerId: row.provider_id!,
+				itemCount: Number(row.item_count),
+				itemsTruncated: row.items_truncated === true,
+				items: row.items ?? [],
+			}));
 
 		return { items, total: Number(first?.total ?? 0), page, size };
 	}

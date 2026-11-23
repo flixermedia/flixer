@@ -12,6 +12,7 @@ import { ListeningReportRequest, UpdateProfileVisibilityRequest } from "./social
 @Controller("/profiles")
 @Security("BearerAuth")
 export class ProfilesController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly profiles: ProfilesService,
@@ -32,27 +33,19 @@ export class ProfilesController {
 	}
 
 	@Put("/me")
-	async setVisibility(
-		@BodyParams() request: UpdateProfileVisibilityRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async setVisibility(@BodyParams() request: UpdateProfileVisibilityRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.profiles.setVisibility(user.id, request.visibility);
 	}
 
 	@Post("/me/listening")
 	@Returns(204)
-	async listening(
-		@BodyParams() request: ListeningReportRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async listening(@BodyParams() request: ListeningReportRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(request.itemId)) {
 			throw new NotFound("Song not found.");
 		}
-		const position = Number.isFinite(request.positionSeconds)
-			? Math.max(0, Math.round(request.positionSeconds as number))
-			: 0;
+		const position = Number.isFinite(request.positionSeconds) ? Math.max(0, Math.round(request.positionSeconds as number)) : 0;
 		await this.profiles.reportListening(user.id, request.itemId.toLowerCase(), request.state, position);
 	}
 

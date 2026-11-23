@@ -7,7 +7,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { MediaLibrary, type MediaImageStorage, type MediaLibraryFolder, type MediaLibraryType } from "../../entities/mediaLibrary.entity.js";
 import { MediaRootsService, parseRelativePath, type MediaRoot } from "./mediaRootsService.js";
 
-export interface PublicMediaLibraryFolder extends MediaLibraryFolder {
+interface PublicMediaLibraryFolder extends MediaLibraryFolder {
 	rootName: string;
 	/** Absolute location on the server, shown to admins only. */
 	location: string;
@@ -173,7 +173,12 @@ export class MediaLibrariesService {
 		const folders = await Promise.all(
 			library.folders.map(async (folder) => {
 				const root = roots.find((entry) => entry.id === folder.rootId);
-				const available = root ? await this.roots.resolveDirectory(root.id, folder.path).then(() => true, () => false) : false;
+				const available = root
+					? await this.roots.resolveDirectory(root.id, folder.path).then(
+							() => true,
+							() => false,
+						)
+					: false;
 				return {
 					...folder,
 					rootName: root?.name ?? "",

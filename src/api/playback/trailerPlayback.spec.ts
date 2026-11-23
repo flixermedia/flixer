@@ -58,7 +58,9 @@ describe("cached trailer playback", () => {
 		expect(claims.mediaItemId).toBe("item");
 		const encoded = Buffer.from(claims.mediaLocator, "base64url");
 		const context = "flixer-streamer:media-locator:v1";
-		const key = createHash("sha256").update(Buffer.concat([Buffer.from(`${context}\0`), Buffer.from(secret)])).digest();
+		const key = createHash("sha256")
+			.update(Buffer.concat([Buffer.from(`${context}\0`), Buffer.from(secret)]))
+			.digest();
 		const decipher = createDecipheriv("aes-256-gcm", key, encoded.subarray(0, 12));
 		decipher.setAAD(Buffer.from(context));
 		decipher.setAuthTag(encoded.subarray(-16));

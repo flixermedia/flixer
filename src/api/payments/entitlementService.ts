@@ -15,7 +15,7 @@ import { anyScopeCovers, kindForItemType, scopeCovers, subscriptionGrantsAccess,
 const CACHE_MS = 5_000;
 const MAX_DEPTH = 4;
 
-export interface AccessSubject {
+interface AccessSubject {
 	id: string;
 	role: string;
 	createdAt: Date;
@@ -28,6 +28,7 @@ export interface LockState {
 }
 
 function artistsOf(item: MediaItem): string[] {
+
 	const names: string[] = [];
 	for (const key of ["albumArtist", "artist"]) {
 		const value = item.metadata?.[key];
@@ -38,20 +39,24 @@ function artistsOf(item: MediaItem): string[] {
 		}
 	}
 	return names;
+
 }
 
 const SPECIFICITY: Record<string, number> = { all: 0, kind: 1, artist: 2, item: 2 };
 
 function isAtLeastAsSpecific(scope: ContentScope, other: ContentScope): boolean {
+
 	if (scope.type === other.type) {
 		return scope.ref === other.ref;
 	}
 	return (SPECIFICITY[scope.type] ?? 0) > (SPECIFICITY[other.type] ?? 0);
+
 }
 
 /** Decides whether content is behind a paywall for a user, and records first-play rentals when they start. */
 @Injectable()
 export class EntitlementService {
+
 	private gatedCache: { at: number; scopes: ContentScope[]; exclusive: ContentScope[] } | null = null;
 
 	constructor(
@@ -137,24 +142,19 @@ export class EntitlementService {
 	async isAdExempt(userId: string, context: ItemContext): Promise<boolean> {
 		if (!(await this.config.isActive())) return false;
 		const now = new Date();
-		const [entitlements, subscriptions] = await Promise.all([
-			this.dataSource.getRepository(PaymentEntitlement).findBy({ userId, revokedAt: IsNull() }),
-			this.dataSource.getRepository(PaymentSubscription).findBy({ userId }),
-		]);
+		const [entitlements, subscriptions] = await Promise.all([this.dataSource.getRepository(PaymentEntitlement).findBy({ userId, revokedAt: IsNull() }), this.dataSource.getRepository(PaymentSubscription).findBy({ userId })]);
 		const active = subscriptions.filter((entry) => subscriptionGrantsAccess(entry, now));
 		if (active.length) {
 			const plans = await this.dataSource.getRepository(PaymentPlan).findBy({ id: In(active.map((entry) => entry.planId)) });
 			if (plans.some((plan) => plan.adsExempt)) return true;
 		}
-		const orders = entitlements.filter((entry) =>
-			(entry.source === "purchase" || entry.source === "rental") &&
-			entry.orderId !== null && (entry.expiresAt === null || entry.expiresAt > now) &&
-			(entry.rentalHours === null || entry.activatedAt !== null) && scopeCovers(entry.scope, context),
-		).map((entry) => entry.orderId!);
+		const orders = entitlements.filter((entry) => (entry.source === "purchase" || entry.source === "rental") && entry.orderId !== null && (entry.expiresAt === null || entry.expiresAt > now) && (entry.rentalHours === null || entry.activatedAt !== null) && scopeCovers(entry.scope, context)).map((entry) => entry.orderId!);
 		if (!orders.length) return false;
 		const paid = await this.dataSource.getRepository(PaymentOrder).findBy({ id: In(orders), userId });
-		const productIds = paid.filter((order) => order.status === "paid" || order.status === "partially_refunded")
-			.map((order) => order.productId).filter((id): id is string => id !== null);
+		const productIds = paid
+			.filter((order) => order.status === "paid" || order.status === "partially_refunded")
+			.map((order) => order.productId)
+			.filter((id): id is string => id !== null);
 		if (!productIds.length) return false;
 		return (await this.dataSource.getRepository(PaymentProduct).findBy({ id: In(productIds) })).some((product) => product.adsExempt);
 	}

@@ -11,6 +11,7 @@ const GENERATED_SECRET_BYTES = 48;
  * It is world-readable inside that volume because the containers run as different users; do not mount the volume elsewhere.
  */
 export function publishAppSecret(config: AppConfig = appConfig(), file = (process.env.APP_SECRET_FILE ?? process.env.STREAM_TOKEN_SECRET_FILE)?.trim()): boolean {
+
 	const secret = config.get("appSecret");
 	if (!file || !secret) {
 		return false;
@@ -31,6 +32,7 @@ export function publishAppSecret(config: AppConfig = appConfig(), file = (proces
 	chmodSync(temporary, 0o644);
 	renameSync(temporary, file);
 	return true;
+
 }
 
 /**
@@ -38,6 +40,7 @@ export function publishAppSecret(config: AppConfig = appConfig(), file = (proces
  * one is generated and saved. Nothing is generated when the store cannot persist it, so a restart never changes a secret.
  */
 export function ensureSecrets(config: AppConfig = appConfig()): void {
+
 	const store = config.persistent;
 	if (store) {
 		const missing = (["jwtSecret", "appSecret"] as const).filter((name) => !config.get(name));
@@ -46,4 +49,5 @@ export function ensureSecrets(config: AppConfig = appConfig()): void {
 		}
 	}
 	publishAppSecret(config);
+
 }

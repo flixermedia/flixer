@@ -8,16 +8,14 @@ import { DuplicateSuggestionsService } from "./duplicateSuggestionsService.js";
 @Controller("/admin/media")
 @Security("BearerAuth")
 export class AdminDuplicateSuggestionsController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly suggestions: DuplicateSuggestionsService,
 	) {}
 
 	@Get("/duplicate-suggestions")
-	async list(
-		@QueryParams() query: DuplicateSuggestionsQuery,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async list(@QueryParams() query: DuplicateSuggestionsQuery, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.suggestions.list(query);
 	}

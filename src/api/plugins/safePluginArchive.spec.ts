@@ -7,9 +7,10 @@ import tar from "tar-stream";
 import { extractPluginArchive } from "./safePluginArchive.js";
 
 async function makeArchive(entries: Array<{ name: string; body?: string; type?: "file" | "symlink"; linkname?: string }>): Promise<Buffer> {
+
 	const pack = tar.pack();
 	const chunks: Buffer[] = [];
-	pack.on("data", (chunk: Buffer) => chunks.push(chunk));
+	pack.on("data", (chunk: unknown) => chunks.push(chunk as Buffer));
 	const finished = new Promise<Buffer>((resolve, reject) => {
 		pack.on("error", reject);
 		pack.on("end", () => resolve(Buffer.concat(chunks)));
@@ -20,6 +21,7 @@ async function makeArchive(entries: Array<{ name: string; body?: string; type?: 
 	}
 	pack.finalize();
 	return gzipSync(await finished);
+
 }
 
 describe("extractPluginArchive", () => {
@@ -28,7 +30,13 @@ describe("extractPluginArchive", () => {
 		const destination = join(root, "staged");
 		await import("node:fs/promises").then(({ mkdir }) => mkdir(destination));
 		try {
-			await extractPluginArchive(await makeArchive([{ name: "plugin.json", body: "{}" }, { name: "web/index.html", body: "ok" }]), destination);
+			await extractPluginArchive(
+				await makeArchive([
+					{ name: "plugin.json", body: "{}" },
+					{ name: "web/index.html", body: "ok" },
+				]),
+				destination,
+			);
 			expect(await readFile(join(destination, "web/index.html"), "utf8")).toBe("ok");
 		} finally {
 			await rm(root, { recursive: true, force: true });
@@ -41,7 +49,10 @@ describe("extractPluginArchive", () => {
 		{ title: "symlinks", entries: [{ name: "link", type: "symlink" as const, linkname: "../../escape.txt" }] },
 		{
 			title: "duplicate paths",
-			entries: [{ name: "duplicate.txt", body: "first" }, { name: "duplicate.txt", body: "second" }],
+			entries: [
+				{ name: "duplicate.txt", body: "first" },
+				{ name: "duplicate.txt", body: "second" },
+			],
 		},
 	])("rejects $title", async ({ entries }) => {
 		const root = await mkdtemp(join(tmpdir(), "flixer-plugin-archive-"));

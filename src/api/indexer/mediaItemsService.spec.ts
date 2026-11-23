@@ -22,10 +22,13 @@ describe("conflicting media sources", () => {
 	it("returns only explicitly corrected provider IDs for the exact source", async () => {
 		const dataSource = {
 			getRepository: () => ({
-				findOneBy: async (where: { path: string }) => where.path === "/tv/A" ? {
-					providerIds: { tmdb: "correct", tvdb: "stale" },
-					editedFields: ["providerId:tmdb", "title"],
-				} : null,
+				findOneBy: async (where: { path: string }) =>
+					where.path === "/tv/A"
+						? {
+								providerIds: { tmdb: "correct", tvdb: "stale" },
+								editedFields: ["providerId:tmdb", "title"],
+							}
+						: null,
 			}),
 		} as unknown as DataSource;
 		const service = new MediaItemsService(dataSource, {} as never);
@@ -44,8 +47,7 @@ describe("conflicting media sources", () => {
 			const manager = {
 				existsBy: async () => true,
 				query: async () => undefined,
-				findOneBy: async (_entity: unknown, where: Partial<MediaItem>) =>
-					rows.find((row) => Object.entries(where).every(([key, value]) => row[key as keyof MediaItem] === value)) ?? null,
+				findOneBy: async (_entity: unknown, where: Partial<MediaItem>) => rows.find((row) => Object.entries(where).every(([key, value]) => row[key as keyof MediaItem] === value)) ?? null,
 				create: (_entity: unknown, value: Partial<MediaItem>) => ({ ...value }) as MediaItem,
 				save: async (item: MediaItem) => {
 					if (!rows.some((row) => row.id === item.id)) rows.push(item);
@@ -65,13 +67,16 @@ describe("conflicting media sources", () => {
 			const dataSource = { transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never) } as unknown as DataSource;
 			const service = new MediaItemsService(dataSource, { announceNew: () => undefined } as never);
 			const libraryId = "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2";
-			const insert = (type: string, path: string, key: string, extra: Record<string, unknown> = {}) =>
-				service.upsert(parseItemPayload({ libraryId, type, path, rootId: "root", relativePath: relative(root, path), externalKey: key, metadata: { title: path }, ...extra }));
+			const insert = (type: string, path: string, key: string, extra: Record<string, unknown> = {}) => service.upsert(parseItemPayload({ libraryId, type, path, rootId: "root", relativePath: relative(root, path), externalKey: key, metadata: { title: path }, ...extra }));
 			for (const name of ["A", "B"]) {
 				const seriesPath = join(root, name);
 				const seasonPath = join(seriesPath, "Season 1");
 				await insert("episode", join(seasonPath, "episode.mkv"), "tmdb:100:s1:e1", {
-					parentPath: seasonPath, seriesPath, parentExternalKey: "tmdb:100:s1", seasonNumber: 1, episodeNumber: 1,
+					parentPath: seasonPath,
+					seriesPath,
+					parentExternalKey: "tmdb:100:s1",
+					seasonNumber: 1,
+					episodeNumber: 1,
 				});
 				await insert("season", seasonPath, "tmdb:100:s1", { parentPath: seriesPath, parentExternalKey: "tmdb:100", seasonNumber: 1 });
 				await insert("series", seriesPath, "tmdb:100");
@@ -86,7 +91,11 @@ describe("conflicting media sources", () => {
 				expect(episode.parentId).toBe(season.id);
 				await insert("series", series.path, "tmdb:100");
 				await insert("episode", episode.path, "tmdb:100:s1:e1", {
-					parentPath: season.path, seriesPath: series.path, parentExternalKey: "tmdb:100:s1", seasonNumber: 1, episodeNumber: 1,
+					parentPath: season.path,
+					seriesPath: series.path,
+					parentExternalKey: "tmdb:100:s1",
+					seasonNumber: 1,
+					episodeNumber: 1,
 				});
 			}
 			expect(rows).toHaveLength(6);
@@ -104,18 +113,32 @@ describe("conflicting media sources", () => {
 			await writeFile(join(seasonPath, "episode.mkv"), "");
 			const oldSeason = await insert("season", seasonPath, "tmdb:999:s1", { parentPath: moved, parentExternalKey: "tmdb:999", seasonNumber: 1 });
 			const oldEpisode = await insert("episode", join(seasonPath, "episode.mkv"), "tmdb:999:s1:e1", {
-				parentPath: seasonPath, seriesPath: moved, parentExternalKey: "tmdb:999:s1", seasonNumber: 1, episodeNumber: 1,
+				parentPath: seasonPath,
+				seriesPath: moved,
+				parentExternalKey: "tmdb:999:s1",
+				seasonNumber: 1,
+				episodeNumber: 1,
 			});
 			const finalPath = join(root, "Renamed again");
 			await rename(moved, finalPath);
 			const finalSeason = join(finalPath, "Season 1");
-			expect(await insert("episode", join(finalSeason, "episode.mkv"), "tmdb:999:s1:e1", {
-				parentPath: finalSeason, seriesPath: finalPath, parentExternalKey: "tmdb:999:s1", seasonNumber: 1, episodeNumber: 1,
-			})).toEqual(oldEpisode);
+			expect(
+				await insert("episode", join(finalSeason, "episode.mkv"), "tmdb:999:s1:e1", {
+					parentPath: finalSeason,
+					seriesPath: finalPath,
+					parentExternalKey: "tmdb:999:s1",
+					seasonNumber: 1,
+					episodeNumber: 1,
+				}),
+			).toEqual(oldEpisode);
 			expect(await insert("series", finalPath, "tmdb:999")).toEqual(old);
-			expect(await insert("season", finalSeason, "tmdb:999:s1", {
-				parentPath: finalPath, parentExternalKey: "tmdb:999", seasonNumber: 1,
-			})).toEqual(oldSeason);
+			expect(
+				await insert("season", finalSeason, "tmdb:999:s1", {
+					parentPath: finalPath,
+					parentExternalKey: "tmdb:999",
+					seasonNumber: 1,
+				}),
+			).toEqual(oldSeason);
 			expect(rows.find((row) => row.id === oldEpisode.id)?.parentId).toBe(oldSeason.id);
 			expect(rows.find((row) => row.id === oldSeason.id)?.parentId).toBe(old.id);
 			expect(rows.filter((row) => row.isPlaceholder)).toHaveLength(0);
@@ -182,7 +205,8 @@ describe("mergeIndexerProviderIds", () => {
 
 		it("accepts known confidence evidence and rejects unknown confidence values", () => {
 			expect(parseItemPayload({ ...base, matchConfidence: "low", matchEvidence: "year_conflict" })).toMatchObject({
-				matchConfidence: "low", matchEvidence: "year_conflict",
+				matchConfidence: "low",
+				matchEvidence: "year_conflict",
 			});
 			expect(() => parseItemPayload({ ...base, matchConfidence: "certain" })).toThrow("matchConfidence is invalid.");
 		});
@@ -248,15 +272,28 @@ describe("mergeIndexerProviderIds", () => {
 			it("stores content hashes without changing unrelated item data", async () => {
 				const { service, current } = setup({
 					libraryId: "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2",
-					type: "movie", path: "/movies/example.mkv", externalKey: "tmdb:123",
-					title: "Keep title", metadata: { overview: "Keep overview" }, images: [], contentHash: null,
+					type: "movie",
+					path: "/movies/example.mkv",
+					externalKey: "tmdb:123",
+					title: "Keep title",
+					metadata: { overview: "Keep overview" },
+					images: [],
+					contentHash: null,
 				});
 				const contentHash = "b".repeat(64);
 
-				await service.upsert(parseItemPayload({
-					libraryId: current.libraryId, type: current.type, path: current.path, externalKey: current.externalKey,
-					metadata: {}, images: [], contentHash, updateFields: ["hashes"],
-				}));
+				await service.upsert(
+					parseItemPayload({
+						libraryId: current.libraryId,
+						type: current.type,
+						path: current.path,
+						externalKey: current.externalKey,
+						metadata: {},
+						images: [],
+						contentHash,
+						updateFields: ["hashes"],
+					}),
+				);
 
 				expect(current.contentHash).toBe(contentHash);
 				expect(current.title).toBe("Keep title");
@@ -331,14 +368,32 @@ describe("mergeIndexerProviderIds", () => {
 			it.each([undefined, ["fileData"]])("normalizes indexed chapter titles on full and file-data updates (%s)", async (updateFields) => {
 				const { service, current } = setup({
 					libraryId: "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2",
-					type: "movie", path: "/movies/example.mkv", externalKey: "tmdb:123",
-					title: "Movie", metadata: {}, images: [], editedFields: [],
+					type: "movie",
+					path: "/movies/example.mkv",
+					externalKey: "tmdb:123",
+					title: "Movie",
+					metadata: {},
+					images: [],
+					editedFields: [],
 				});
-				await service.upsert(parseItemPayload({
-					libraryId: current.libraryId, type: current.type, path: current.path, externalKey: current.externalKey,
-					metadata: { title: "Movie" }, images: [], updateFields,
-					technical: { chapters: [{ title: "00:00:00.000", start: 0, end: 5 }, { title: "Opening", start: 5, end: 10 }, { title: "00:00:10.000", start: 10, end: 15 }] },
-				}));
+				await service.upsert(
+					parseItemPayload({
+						libraryId: current.libraryId,
+						type: current.type,
+						path: current.path,
+						externalKey: current.externalKey,
+						metadata: { title: "Movie" },
+						images: [],
+						updateFields,
+						technical: {
+							chapters: [
+								{ title: "00:00:00.000", start: 0, end: 5 },
+								{ title: "Opening", start: 5, end: 10 },
+								{ title: "00:00:10.000", start: 10, end: 15 },
+							],
+						},
+					}),
+				);
 				expect(current.technical?.chapters).toEqual([
 					{ title: "Chapter 1", start: 0, end: 5 },
 					{ title: "Opening", start: 5, end: 10 },
@@ -353,15 +408,14 @@ describe("mergeIndexerProviderIds", () => {
 					{ path: "/movies/removed.mkv", recursive: false },
 					{ path: "/movies/removed-show", recursive: true },
 				];
-				let query = "";
-				let params: unknown[] = [];
+				const where = vi.fn();
+				const andWhere = vi.fn();
+				const execute = vi.fn().mockResolvedValue({ affected: 2 });
+				const builder = { delete: vi.fn(), from: vi.fn(), where, andWhere, execute };
+				for (const name of ["delete", "from", "where", "andWhere"] as const) builder[name].mockReturnValue(builder);
 				const manager = {
 					existsBy: async () => true,
-					query: async (sql: string, values: unknown[]) => {
-						query = sql;
-						params = values;
-						return [{ id: "removed-1" }, { id: "removed-2" }];
-					},
+					createQueryBuilder: () => builder,
 				};
 				const dataSource = {
 					transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never),
@@ -369,9 +423,17 @@ describe("mergeIndexerProviderIds", () => {
 				const service = new MediaItemsService(dataSource, {} as never);
 
 				await expect(service.removePaths("library-id", targets)).resolves.toEqual({ removed: 2 });
-				expect(query).toContain("DELETE FROM media_items");
-				expect(query).toContain("RETURNING id");
-				expect(params).toEqual(["library-id", "/movies/removed.mkv", false, "/movies/removed-show", true]);
+				expect(where).toHaveBeenCalledWith('"library_id" = :libraryId', { libraryId: "library-id" });
+				expect(andWhere).toHaveBeenCalledWith(expect.objectContaining({ whereFactory: expect.any(Function) }));
+				expect(execute).toHaveBeenCalledOnce();
+			});
+
+			it.each([0, 1, 3])("reports the number of deleted rows: %i", async (count) => {
+				const builder = { delete: vi.fn(), from: vi.fn(), where: vi.fn(), andWhere: vi.fn(), execute: vi.fn().mockResolvedValue({ affected: count }) };
+				for (const name of ["delete", "from", "where", "andWhere"] as const) builder[name].mockReturnValue(builder);
+				const manager = { existsBy: async () => true, createQueryBuilder: () => builder };
+				const dataSource = { transaction: (run: (manager: never) => Promise<unknown>) => run(manager as never) } as unknown as DataSource;
+				await expect(new MediaItemsService(dataSource, {} as never).removePaths("library-id", [{ path: "/movies/a.mkv", recursive: false }])).resolves.toEqual({ removed: count });
 			});
 
 			it("does not delete paths when the library does not exist", async () => {
@@ -406,8 +468,12 @@ describe("MediaItemsService incremental scan state", () => {
 	it("pages persisted file stats and updates last-seen timestamps in batches", async () => {
 		const rows = [{ id: "item-id", path: "/movies/a.mkv", sizeBytes: 42, modifiedAt: new Date("2026-01-01T00:00:00Z"), matchConfidence: "high" }] as MediaItem[];
 		const query = {
-			select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
-			orderBy: vi.fn().mockReturnThis(), take: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue(rows),
+			select: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			take: vi.fn().mockReturnThis(),
+			getMany: vi.fn().mockResolvedValue(rows),
 		};
 		const update = vi.fn().mockResolvedValue({ affected: 1 });
 		const repository = { createQueryBuilder: vi.fn(() => query), update };

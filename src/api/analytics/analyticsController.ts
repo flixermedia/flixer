@@ -8,7 +8,11 @@ import { AnalyticsService } from "./analyticsService.js";
 @Controller("/admin/analytics")
 @Security("BearerAuth")
 export class AnalyticsController {
-	constructor(private readonly auth: AuthService, private readonly analytics: AnalyticsService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly analytics: AnalyticsService,
+	) {}
 
 	@Get("/")
 	async snapshot(@HeaderParams("authorization") authorization?: string, @QueryParams("adDays") adDays?: string) {
@@ -42,7 +46,11 @@ export class AnalyticsController {
 @Controller("/analytics")
 @Security("BearerAuth")
 export class AnalyticsReportController {
-	constructor(private readonly auth: AuthService, private readonly analytics: AnalyticsService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly analytics: AnalyticsService,
+	) {}
 
 	@Post("/advertisement")
 	@Returns(204)

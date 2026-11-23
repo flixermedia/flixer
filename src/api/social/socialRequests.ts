@@ -1,17 +1,7 @@
-import {
-	CollectionOf,
-	Enum,
-	Maximum,
-	MaxItems,
-	MaxLength,
-	Minimum,
-	MinLength,
-	Nullable,
-	Property,
-	Required,
-} from "@tsed/schema";
+import { CollectionOf, Enum, Maximum, MaxItems, MaxLength, Minimum, MinLength, Nullable, Property, Required } from "@tsed/schema";
 
 export class CreatePlaylistRequest {
+
 	@Required()
 	@MinLength(1)
 	@MaxLength(100)
@@ -27,6 +17,7 @@ export class CreatePlaylistRequest {
 }
 
 export class UpdatePlaylistRequest {
+
 	@Property()
 	@MinLength(1)
 	@MaxLength(100)
@@ -42,12 +33,14 @@ export class UpdatePlaylistRequest {
 }
 
 export class PlaylistItemRequest {
+
 	@Required()
 	@MaxLength(36)
 	itemId!: string;
 }
 
 export class PlaylistOrderRequest {
+
 	@Required()
 	@CollectionOf(String)
 	@MaxItems(5000)
@@ -55,12 +48,14 @@ export class PlaylistOrderRequest {
 }
 
 export class UpdateProfileVisibilityRequest {
+
 	@Required()
 	@Enum("public", "hidden", "friends")
 	visibility!: "public" | "hidden" | "friends";
 }
 
 export class ListeningReportRequest {
+
 	@Required()
 	@MaxLength(36)
 	itemId!: string;
@@ -74,6 +69,7 @@ export class ListeningReportRequest {
 }
 
 export class CreatePartyRequest {
+
 	@Required()
 	@MaxLength(36)
 	itemId!: string;
@@ -84,6 +80,7 @@ export class CreatePartyRequest {
 }
 
 export class CreateFriendInviteRequest {
+
 	@Required()
 	@Enum("once", "unlimited", "expires")
 	mode!: "once" | "unlimited" | "expires";

@@ -6,7 +6,7 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { ApiKey } from "../../entities/apiKey.entity.js";
 import { User } from "../../entities/user.entity.js";
 
-export const API_KEY_PREFIX = "flx_";
+const API_KEY_PREFIX = "flx_";
 const DISPLAY_PREFIX_LENGTH = 12;
 const LAST_USED_GRANULARITY_MS = 60_000;
 

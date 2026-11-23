@@ -25,16 +25,19 @@ describe("protected logger control socket", () => {
 		const socketPath = join(dir, "control.sock");
 		const issue = vi.fn(async () => ({ endpoint: "https://logger.example", token: "x".repeat(43), expiresAt: "2099-01-01T00:00:00Z" }));
 		const server = await startLoggerControlSocket(socketPath, { producerIngestConfiguration: issue });
-		const send = (path: string, headers: Record<string, string | string[]> = {}) => new Promise<{ status: number; body: string; cache: string | undefined }>((resolve, reject) => {
-			const req = request({ socketPath, path, headers }, (res) => {
-				let body = "";
-				res.setEncoding("utf8");
-				res.on("data", (chunk: string) => { body += chunk; });
-				res.on("end", () => resolve({ status: res.statusCode ?? 0, body, cache: res.headers["cache-control"] }));
+		const send = (path: string, headers: Record<string, string | string[]> = {}) =>
+			new Promise<{ status: number; body: string; cache: string | undefined }>((resolve, reject) => {
+				const req = request({ socketPath, path, headers }, (res) => {
+					let body = "";
+					res.setEncoding("utf8");
+					res.on("data", (chunk: string) => {
+						body += chunk;
+					});
+					res.on("end", () => resolve({ status: res.statusCode ?? 0, body, cache: res.headers["cache-control"] }));
+				});
+				req.on("error", reject);
+				req.end();
 			});
-			req.on("error", reject);
-			req.end();
-		});
 		try {
 			expect(statSync(socketPath).mode & 0o777).toBe(0o666);
 			await expect(startLoggerControlSocket(socketPath, { producerIngestConfiguration: issue })).rejects.toThrow("already in use");
@@ -60,7 +63,7 @@ describe("protected logger control socket", () => {
 			expect(failed.status).toBe(503);
 			expect(failed.body).not.toContain("sensitive internal details");
 		} finally {
-			await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+			await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 			rmSync(dir, { recursive: true, force: true });
 		}
 	});

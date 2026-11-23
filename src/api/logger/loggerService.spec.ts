@@ -60,7 +60,10 @@ describe("logger control plane", () => {
 	});
 
 	it("does not save inaccessible or invalid configurations", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => new Response("no", { status: 401 })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("no", { status: 401 })),
+		);
 		const service = new LoggerService({ requireAdmin });
 		await expect(service.configure({ endpoint: "https://logger.example", manageToken: manage }, "Bearer admin")).rejects.toThrow();
 		expect(store.get("loggerManageToken")).toBeUndefined();
@@ -82,7 +85,11 @@ describe("logger control plane", () => {
 		await service.renewIngestCredential();
 		expect(fetcher).toHaveBeenCalledOnce();
 		loggerExporter.enqueue({
-			time: new Date().toISOString(), level: "info", app: "flixer", source: "test", message: "pending",
+			time: new Date().toISOString(),
+			level: "info",
+			app: "flixer",
+			source: "test",
+			message: "pending",
 		});
 		expect(loggerExporter.status().queued).toBe(1);
 		store.setMany({ loggerIngestExpiry: new Date(Date.now() + 86_400_000).toISOString() });
@@ -107,10 +114,13 @@ describe("logger control plane", () => {
 
 		const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
 			const body = JSON.parse(String(init.body)) as { scope: string; expires_at: string };
-			return new Response(JSON.stringify({
-				token: "n".repeat(40),
-				credential: { scope: body.scope, app, expires_at: body.expires_at },
-			}), { status: 201 });
+			return new Response(
+				JSON.stringify({
+					token: "n".repeat(40),
+					credential: { scope: body.scope, app, expires_at: body.expires_at },
+				}),
+				{ status: 201 },
+			);
 		});
 		vi.stubGlobal("fetch", fetcher);
 		const service = new LoggerService({ requireAdmin: async () => undefined });
@@ -125,23 +135,42 @@ describe("logger control plane", () => {
 	it("does not restore an API credential revoked while renewal is in flight", async () => {
 		const id = "a".repeat(32);
 		store.setMany({
-			loggerUrl: "https://logger.example", loggerManageToken: manage,
-			loggerIngestToken: "o".repeat(40), loggerIngestId: id, loggerIngestApp: "flixer",
+			loggerUrl: "https://logger.example",
+			loggerManageToken: manage,
+			loggerIngestToken: "o".repeat(40),
+			loggerIngestId: id,
+			loggerIngestApp: "flixer",
 			loggerIngestExpiry: new Date(Date.now() + 60_000).toISOString(),
 		});
 		let entered!: () => void;
 		let release!: () => void;
-		const started = new Promise<void>((resolve) => { entered = resolve; });
-		const blocked = new Promise<void>((resolve) => { release = resolve; });
-		vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-			if (init?.method === "DELETE") return new Response(null, { status: 204 });
-			entered();
-			await blocked;
-			const body = JSON.parse(String(init?.body)) as { expires_at: string };
-			return new Response(JSON.stringify({ token: "n".repeat(40), credential: {
-				id, scope: "ingest", app: "flixer", expires_at: body.expires_at,
-			} }), { status: 201 });
-		}));
+		const started = new Promise<void>((resolve) => {
+			entered = resolve;
+		});
+		const blocked = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: string, init?: RequestInit) => {
+				if (init?.method === "DELETE") return new Response(null, { status: 204 });
+				entered();
+				await blocked;
+				const body = JSON.parse(String(init?.body)) as { expires_at: string };
+				return new Response(
+					JSON.stringify({
+						token: "n".repeat(40),
+						credential: {
+							id,
+							scope: "ingest",
+							app: "flixer",
+							expires_at: body.expires_at,
+						},
+					}),
+					{ status: 201 },
+				);
+			}),
+		);
 		const service = new LoggerService({ requireAdmin: async () => {} });
 		service.restoreExporter();
 		const renewing = service.renewIngestCredential();
@@ -178,7 +207,6 @@ describe("logger control plane", () => {
 		await expect(service.setRetention({ enabled: true, days: 0 }, "Bearer admin")).rejects.toThrow();
 	});
 
-
 	it("validates and mediates severity-specific retention without exposing other deployments", async () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: manage });
 		const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
@@ -188,7 +216,9 @@ describe("logger control plane", () => {
 		vi.stubGlobal("fetch", fetcher);
 		const service = new LoggerService({ requireAdmin: async () => {} });
 		expect(await service.setRetention({ enabled: true, days: 14, severityDays: { error: 30, trace: 1 } }, "******")).toEqual({
-			enabled: true, days: 14, severityDays: { error: 30, trace: 1 },
+			enabled: true,
+			days: 14,
+			severityDays: { error: 30, trace: 1 },
 		});
 		await expect(service.setRetention({ enabled: true, days: 14, severityDays: { error: 0 } }, "******")).rejects.toThrow();
 		expect(fetcher).toHaveBeenCalledOnce();
@@ -198,9 +228,11 @@ describe("logger control plane", () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: manage });
 		const fetcher = vi.fn(async () => new Response(JSON.stringify({ status: "ready" })));
 		vi.stubGlobal("fetch", fetcher);
-		const service = new LoggerService({ requireAdmin: async (authorization) => {
-			if (authorization !== "admin") throw new Error("forbidden");
-		} });
+		const service = new LoggerService({
+			requireAdmin: async (authorization) => {
+				if (authorization !== "admin") throw new Error("forbidden");
+			},
+		});
 		await expect(service.health("bad")).rejects.toThrow("forbidden");
 		expect(fetcher).not.toHaveBeenCalled();
 		expect(await service.health("admin")).toMatchObject({ status: "ready", exporter: { enabled: false, queued: 0 } });
@@ -218,21 +250,37 @@ describe("logger control plane", () => {
 			return new Response(JSON.stringify({ events_per_second: 1500, burst: 4000 }));
 		});
 		vi.stubGlobal("fetch", fetcher);
-		const service = new LoggerService({ requireAdmin: async (authorization) => {
-			if (authorization !== "admin") throw new Error("forbidden");
-		} });
+		const service = new LoggerService({
+			requireAdmin: async (authorization) => {
+				if (authorization !== "admin") throw new Error("forbidden");
+			},
+		});
 		await expect(service.getIngestionPolicy("bad")).rejects.toThrow("forbidden");
 		expect(await service.getIngestionPolicy("admin")).toEqual({ eventsPerSecond: 1500, burst: 4000 });
 		expect(await service.setIngestionPolicy({ eventsPerSecond: 1500, burst: 4000 }, "admin")).toEqual({ eventsPerSecond: 1500, burst: 4000 });
 		await expect(service.setIngestionPolicy({ eventsPerSecond: 0, burst: 1 }, "admin")).rejects.toThrow();
 		expect(fetcher).toHaveBeenCalledTimes(2);
 		const expected = { eventsPerSecond: 1500, burst: 4000, credentialEventsPerSecond: 10, credentialBurst: 1000, serviceEventsPerSecond: 20, serviceBurst: 1000 };
-		fetcher.mockResolvedValueOnce(new Response(JSON.stringify({
-			events_per_second: 1500, burst: 4000, credential_events_per_second: 10, credential_burst: 1000, service_events_per_second: 20, service_burst: 1000,
-		})));
+		fetcher.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					events_per_second: 1500,
+					burst: 4000,
+					credential_events_per_second: 10,
+					credential_burst: 1000,
+					service_events_per_second: 20,
+					service_burst: 1000,
+				}),
+			),
+		);
 		expect(await service.setIngestionPolicy(expected, "admin")).toEqual(expected);
 		expect(JSON.parse(String(fetcher.mock.calls[2][1].body))).toEqual({
-			events_per_second: 1500, burst: 4000, credential_events_per_second: 10, credential_burst: 1000, service_events_per_second: 20, service_burst: 1000,
+			events_per_second: 1500,
+			burst: 4000,
+			credential_events_per_second: 10,
+			credential_burst: 1000,
+			service_events_per_second: 20,
+			service_burst: 1000,
 		});
 		await expect(service.setIngestionPolicy({ eventsPerSecond: 1500, burst: 4000, credentialEventsPerSecond: 10 }, "admin")).rejects.toThrow();
 		await expect(service.setIngestionPolicy({ eventsPerSecond: 1500, burst: 4000, serviceBurst: 1000 }, "admin")).rejects.toThrow();
@@ -247,9 +295,11 @@ describe("logger control plane", () => {
 			return new Response(JSON.stringify({ max_bytes: 4096, used_bytes: 1200 }));
 		});
 		vi.stubGlobal("fetch", fetcher);
-		const service = new LoggerService({ requireAdmin: async (authorization) => {
-			if (authorization !== "admin") throw new Error("forbidden");
-		} });
+		const service = new LoggerService({
+			requireAdmin: async (authorization) => {
+				if (authorization !== "admin") throw new Error("forbidden");
+			},
+		});
 		await expect(service.getQuota("bad")).rejects.toThrow("forbidden");
 		await expect(service.setQuota({ maxBytes: -1 }, "admin")).rejects.toThrow();
 		await expect(service.setQuota({ maxBytes: 2 ** 50 + 1 }, "admin")).rejects.toThrow();
@@ -264,14 +314,21 @@ describe("logger control plane", () => {
 	it("requires an admin and validates deployment status", async () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: manage });
 		const payload = {
-			status: "ready", last_ingested_at: null, live_subscribers: 1,
-			active_ingestions: 0, active_queries: 0, max_ingestions: 4, max_queries: 4,
+			status: "ready",
+			last_ingested_at: null,
+			live_subscribers: 1,
+			active_ingestions: 0,
+			active_queries: 0,
+			max_ingestions: 4,
+			max_queries: 4,
 		};
 		const fetcher = vi.fn(async () => new Response(JSON.stringify(payload)));
 		vi.stubGlobal("fetch", fetcher);
-		const service = new LoggerService({ requireAdmin: async (authorization) => {
-			if (authorization !== "admin") throw new Error("forbidden");
-		} });
+		const service = new LoggerService({
+			requireAdmin: async (authorization) => {
+				if (authorization !== "admin") throw new Error("forbidden");
+			},
+		});
 		await expect(service.status("bad")).rejects.toThrow("forbidden");
 		expect(fetcher).not.toHaveBeenCalled();
 		await expect(service.status("admin")).resolves.toEqual({ ...payload, retention: null });
@@ -287,23 +344,19 @@ describe("logger control plane", () => {
 	it("lists and revokes deployment credentials without returning secrets", async () => {
 		store.setMany({ loggerUrl: "https://logger.example", loggerManageToken: manage });
 		const id = "a".repeat(32);
-		const fetcher = vi.fn(async (_url: string, init: RequestInit) => init.method === "DELETE"
-			? new Response(null, { status: 204 })
-			: new Response(JSON.stringify({ credentials: [{ id, scope: "ingest", expires_at: "2099-01-01T00:00:00Z", token: "must-not-return" }] })));
+		const fetcher = vi.fn(async (_url: string, init: RequestInit) => (init.method === "DELETE" ? new Response(null, { status: 204 }) : new Response(JSON.stringify({ credentials: [{ id, scope: "ingest", expires_at: "2099-01-01T00:00:00Z", token: "must-not-return" }] }))));
 		vi.stubGlobal("fetch", fetcher);
-		const service = new LoggerService({ requireAdmin: async (authorization) => {
-			if (authorization !== "admin") throw new Error("forbidden");
-		} });
+		const service = new LoggerService({
+			requireAdmin: async (authorization) => {
+				if (authorization !== "admin") throw new Error("forbidden");
+			},
+		});
 		await expect(service.listCredentials("bad")).rejects.toThrow("forbidden");
 		expect(fetcher).not.toHaveBeenCalled();
 		expect(await service.listCredentials("admin")).toEqual([{ id, scope: "ingest", expiresAt: "2099-01-01T00:00:00Z" }]);
-		fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ credentials: [
-			{ id, scope: "ingest", app: "flixer", expires_at: "2099-01-01T00:00:00Z", token: "must-not-return" },
-		] })));
+		fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ credentials: [{ id, scope: "ingest", app: "flixer", expires_at: "2099-01-01T00:00:00Z", token: "must-not-return" }] })));
 		expect(await service.listCredentials("admin")).toEqual([{ id, scope: "ingest", app: "flixer", expiresAt: "2099-01-01T00:00:00Z" }]);
-		fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ credentials: [
-			{ id, scope: "query", app: "flixer", expires_at: "2099-01-01T00:00:00Z" },
-		] })));
+		fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ credentials: [{ id, scope: "query", app: "flixer", expires_at: "2099-01-01T00:00:00Z" }] })));
 		await expect(service.listCredentials("admin")).rejects.toThrow("invalid credentials");
 		await expect(service.revokeCredential("../other", "admin")).rejects.toThrow("Invalid");
 		expect(await service.revokeCredential(id, "admin")).toEqual({ revoked: true });

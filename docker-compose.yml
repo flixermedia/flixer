@@ -7,15 +7,15 @@
 services:
     # Creates the data folders and hands them to the users the services run as, then exits.
     data-init:
-            image: alpine:3
-            command:
-              - /bin/sh
-              - /opt/flixer/init-data.sh
-            volumes:
-              - ./deploy/docker/init-data.sh:/opt/flixer/init-data.sh:ro
-              - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
-              - flixer-secrets:/run/flixer-secrets
-            restart: "no"
+        image: alpine:3
+        command:
+            - /bin/sh
+            - /opt/flixer/init-data.sh
+        volumes:
+            - ./deploy/docker/init-data.sh:/opt/flixer/init-data.sh:ro
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}:/data
+            - flixer-secrets:/run/flixer-secrets
+        restart: "no"
 
     nginx-config-init:
         image: ghcr.io/flixermedia/flixer:${FLIXER_VERSION:-latest}

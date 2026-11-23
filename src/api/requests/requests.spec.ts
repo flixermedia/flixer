@@ -23,11 +23,7 @@ describe("request settings", () => {
 
 describe("request access", () => {
 	it("gives administrators everything", () => {
-		const access = resolveAccess(
-			true,
-			{ ...defaults, quotaLimit: 2 },
-			{ userId: "u", canRequest: false, autoApprove: false, quotaLimit: 1, quotaDays: 1 },
-		);
+		const access = resolveAccess(true, { ...defaults, quotaLimit: 2 }, { userId: "u", canRequest: false, autoApprove: false, quotaLimit: 1, quotaDays: 1 });
 		expect(access).toMatchObject({ canRequest: true, autoApprove: true, quotaLimit: null });
 	});
 

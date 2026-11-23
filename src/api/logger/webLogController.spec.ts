@@ -17,20 +17,18 @@ describe("browser logging relay", () => {
 		return { id: "user-1" };
 	});
 	const producer = vi.fn(async () => ({
-		endpoint: "https://logger.example", token: "producer-secret", expiresAt: "2099-01-01T00:00:00.000Z",
+		endpoint: "https://logger.example",
+		token: "producer-secret",
+		expiresAt: "2099-01-01T00:00:00.000Z",
 	}));
 	let platform: Awaited<ReturnType<typeof PlatformFastify.bootstrap>>;
 
 	beforeAll(async () => {
 		platform = await PlatformFastify.bootstrap(TestServer, {
-			httpPort: false, httpsPort: false,
+			httpPort: false,
+			httpsPort: false,
 			mount: { "/api": [WebLogController] },
-			imports: [
-				{ token: DefaultDataSource, use: {} },
-				{ token: AuthService, use: { getAuthenticatedUser: auth } },
-				{ token: LoggerService, use: { producerIngestConfiguration: producer } },
-				WebLogService,
-			],
+			imports: [{ token: DefaultDataSource, use: {} }, { token: AuthService, use: { getAuthenticatedUser: auth } }, { token: LoggerService, use: { producerIngestConfiguration: producer } }, WebLogService],
 		});
 		await platform.listen(false);
 	});
@@ -41,15 +39,13 @@ describe("browser logging relay", () => {
 	});
 
 	it("authenticates, validates, and exports only the allowed error category", async () => {
-		const fetcher = vi.fn(async (_url: string, options: RequestInit) =>
-			new Response(JSON.stringify({ accepted: JSON.parse(String(options.body)).events.length }), { status: 200 }));
+		const fetcher = vi.fn(async (_url: string, options: RequestInit) => new Response(JSON.stringify({ accepted: JSON.parse(String(options.body)).events.length }), { status: 200 }));
 		vi.stubGlobal("fetch", fetcher);
 		const app = platform.adapter.app.getApp();
 		const request = { method: "POST" as const, url: "/api/logs/web", payload: { kind: "vue-error", errorType: "TypeError" } };
 		expect((await app.inject(request)).statusCode).toBe(401);
 		expect(producer).not.toHaveBeenCalled();
-		const invalid = await app.inject({ ...request, headers: { authorization: "Bearer test" },
-			payload: { ...request.payload, kind: "private token" } });
+		const invalid = await app.inject({ ...request, headers: { authorization: "Bearer test" }, payload: { ...request.payload, kind: "private token" } });
 		expect(invalid.statusCode).toBe(400);
 		const response = await app.inject({ ...request, headers: { authorization: "Bearer test" } });
 		expect(response.statusCode).toBe(202);
@@ -66,7 +62,9 @@ describe("browser logging relay", () => {
 		let response;
 		for (let i = 0; i < 20; i++) {
 			response = await app.inject({
-				method: "POST", url: "/api/logs/web", headers: { authorization: "Bearer test" },
+				method: "POST",
+				url: "/api/logs/web",
+				headers: { authorization: "Bearer test" },
 				payload: { kind: "window-error", errorType: "Error" },
 			});
 		}

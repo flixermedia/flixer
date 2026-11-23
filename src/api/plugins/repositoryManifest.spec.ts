@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest } from "./repositoryManifest.js";
+import { parsePluginRepositoryManifest, pluginCatalogMatchesManifest, type PluginRepositoryManifest } from "./repositoryManifest.js";
 
 const validCatalog = {
 	manifestVersion: 1,
@@ -17,12 +17,12 @@ const validCatalog = {
 			targets: ["flixer", "flixer-web"],
 			versions: [
 				{
-				version: "1.0.0",
-				manifest: "plugins/example/1.0.0/plugin.json",
-				package: "plugins/example/1.0.0/plugin.tar.gz",
-				sha256: "a".repeat(64),
-				size: 1024,
-			},
+					version: "1.0.0",
+					manifest: "plugins/example/1.0.0/plugin.json",
+					package: "plugins/example/1.0.0/plugin.tar.gz",
+					sha256: "a".repeat(64),
+					size: 1024,
+				},
 			],
 		},
 	],
@@ -58,9 +58,7 @@ describe("parsePluginRepositoryManifest", () => {
 	});
 
 	it("rejects duplicate plugin IDs and versions", () => {
-		expect(() => parsePluginRepositoryManifest({ ...validCatalog, plugins: [...validCatalog.plugins, ...validCatalog.plugins] })).toThrow(
-			"duplicate plugin id",
-		);
+		expect(() => parsePluginRepositoryManifest({ ...validCatalog, plugins: [...validCatalog.plugins, ...validCatalog.plugins] })).toThrow("duplicate plugin id");
 		const plugin = validCatalog.plugins[0];
 		expect(() =>
 			parsePluginRepositoryManifest({
@@ -73,7 +71,7 @@ describe("parsePluginRepositoryManifest", () => {
 
 describe("pluginCatalogMatchesManifest", () => {
 	it("requires release identity, targets, capabilities, and permissions to match", () => {
-		const catalogEntry = validCatalog.plugins[0]!;
+		const catalogEntry = validCatalog.plugins[0]! as PluginRepositoryManifest["plugins"][number];
 		const manifest = {
 			manifestVersion: 1 as const,
 			id: catalogEntry.id,

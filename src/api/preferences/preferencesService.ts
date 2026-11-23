@@ -1,11 +1,12 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
+import type { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { AuthService } from "../auth/authService.js";
 
-export interface DashboardGridItem {
+interface DashboardGridItem {
 	id: string;
 	x: number;
 	y: number;
@@ -19,6 +20,7 @@ export interface Preferences {
 	adminDashboardGrid?: DashboardGridItem[];
 	browseColumns?: number;
 	autoSkipIntroCredits: boolean;
+	emulateLyricWordTiming: boolean;
 	themeId?: string;
 }
 
@@ -57,7 +59,7 @@ export const isBrowseColumns = (value: unknown): value is number => isIntIn(valu
 
 export const isAutoSkipIntroCredits = (value: unknown): value is boolean => typeof value === "boolean";
 
-export const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
+const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
 
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
@@ -66,12 +68,15 @@ const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	adminDashboardGrid: isDashboardGrid,
 	browseColumns: isBrowseColumns,
 	autoSkipIntroCredits: isAutoSkipIntroCredits,
+	emulateLyricWordTiming: (value) => typeof value === "boolean",
 	themeId: isThemeId,
 };
 
 export function publicPreferences(data: Record<string, unknown>): Preferences {
+
 	const preferences: Preferences = {
 		autoSkipIntroCredits: isAutoSkipIntroCredits(data.autoSkipIntroCredits) ? data.autoSkipIntroCredits : true,
+		emulateLyricWordTiming: typeof data.emulateLyricWordTiming === "boolean" ? data.emulateLyricWordTiming : true,
 	};
 	if (typeof data.language === "string" && PREFERENCE_VALIDATORS.language(data.language)) {
 		preferences.language = data.language;
@@ -89,6 +94,7 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 		preferences.themeId = data.themeId;
 	}
 	return preferences;
+
 }
 
 @Injectable()
@@ -129,7 +135,7 @@ export class PreferencesService {
 					data[key] = value;
 				}
 			}
-			await repository.upsert({ userId: user.id, data }, ["userId"]);
+			await repository.upsert({ userId: user.id, data: data as QueryDeepPartialEntity<UserPreference["data"]> }, ["userId"]);
 			return publicPreferences(data);
 		});
 	}

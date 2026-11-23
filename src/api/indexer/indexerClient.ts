@@ -7,15 +7,15 @@ const DEFAULT_INDEXER_URL = "http://localhost:8092";
 const REQUEST_TIMEOUT_MS = 15_000;
 
 function imageConnectionFailure(error: unknown, timedOut: boolean): string {
+
 	if (timedOut) return "timeout";
 	const cause = error instanceof Error ? error.cause : undefined;
 	const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
-	return typeof code === "string" && /^(ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)$/.test(code)
-		? code
-		: "unknown";
+	return typeof code === "string" && /^(ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)$/.test(code) ? code : "unknown";
+
 }
 
-export interface IndexerRequestOptions {
+interface IndexerRequestOptions {
 	query?: Record<string, string | number | undefined>;
 	body?: unknown;
 	timeoutMs?: number;
@@ -41,6 +41,7 @@ export interface IndexerPluginStatus {
 /** Signed HTTP client for flixer-indexer's internal API. */
 @Injectable()
 export class IndexerClient {
+
 	baseUrl(): string {
 		return (appConfig().get("indexerUrl") || DEFAULT_INDEXER_URL).replace(/\/+$/, "");
 	}
@@ -63,9 +64,7 @@ export class IndexerClient {
 					...(body.length > 0 ? { "content-type": "application/json" } : {}),
 				},
 				body: body.length > 0 ? body : undefined,
-				signal: options.signal
-					? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)])
-					: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
+				signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
 			});
 		} catch (error) {
 			if (options.signal?.aborted) throw error;
@@ -81,10 +80,7 @@ export class IndexerClient {
 		}
 		if (!response.ok) {
 			const message = (payload as { error?: string } | null)?.error;
-			throw new Exception(
-				response.status >= 500 ? 502 : response.status,
-				message ?? `flixer-indexer returned status ${response.status}.`,
-			);
+			throw new Exception(response.status >= 500 ? 502 : response.status, message ?? `flixer-indexer returned status ${response.status}.`);
 		}
 		return payload as T;
 	}
@@ -108,10 +104,7 @@ export class IndexerClient {
 			throw new Exception(503, "flixer-indexer is not reachable.");
 		}
 		if (!response.ok) {
-			throw new Exception(
-				response.status === 404 ? 404 : response.status >= 500 ? 502 : response.status,
-				"The image could not be loaded.",
-			);
+			throw new Exception(response.status === 404 ? 404 : response.status >= 500 ? 502 : response.status, "The image could not be loaded.");
 		}
 		return {
 			data: Buffer.from(await response.arrayBuffer()),
@@ -168,10 +161,7 @@ export class IndexerClient {
 	}
 
 	/** Looks up a person's biography through the indexer; resolves to null when none exists. */
-	async fetchPersonBio(
-		name: string,
-		kind: string,
-	): Promise<{ description: string; biography: string; url: string; source: string; imageUrl?: string } | null> {
+	async fetchPersonBio(name: string, kind: string): Promise<{ description: string; biography: string; url: string; source: string; imageUrl?: string } | null> {
 		try {
 			return await this.request("POST", "/internal/people/bio", { body: { name, kind }, timeoutMs: 8_000 });
 		} catch (error) {

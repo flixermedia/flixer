@@ -4,8 +4,20 @@ import { scheduleAllows, scheduleStatus } from "./mediaAccessService.js";
 
 describe("ratingToAge", () => {
 	it.each([
-		["G", 0], ["PG", 8], ["PG-13", 13], ["R", 17], ["NC-17", 18], ["TV-MA", 17], ["TV-Y7", 7],
-		["us:tv-14", 14], ["TV PG", 10], ["12A", 12], ["FSK 16", 16], ["DE/18", 18], ["16+", 16], ["15", 15],
+		["G", 0],
+		["PG", 8],
+		["PG-13", 13],
+		["R", 17],
+		["NC-17", 18],
+		["TV-MA", 17],
+		["TV-Y7", 7],
+		["us:tv-14", 14],
+		["TV PG", 10],
+		["12A", 12],
+		["FSK 16", 16],
+		["DE/18", 18],
+		["16+", 16],
+		["15", 15],
 	])("maps %s to %s", (label, age) => expect(ratingToAge(label)).toBe(age));
 
 	it.each(["", "NR", "Unrated", "Not Rated", "banana", null, undefined])("treats %s as unrated", (label) => expect(ratingToAge(label)).toBeNull());

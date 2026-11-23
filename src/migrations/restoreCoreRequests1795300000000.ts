@@ -5,6 +5,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
  * so this recreates anything missing and is a no-op where the tables are still present.
  */
 export class RestoreCoreRequests1795300000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE IF NOT EXISTS "request_services" (
@@ -61,15 +62,9 @@ export class RestoreCoreRequests1795300000000 implements MigrationInterface {
 				CONSTRAINT "fk_media_requests_service" FOREIGN KEY ("service_id") REFERENCES "request_services"("id") ON DELETE SET NULL
 			)
 		`);
-		await queryRunner.query(
-			`CREATE INDEX IF NOT EXISTS "idx_media_requests_user_created" ON "media_requests" ("user_id", "created_at")`,
-		);
-		await queryRunner.query(
-			`CREATE INDEX IF NOT EXISTS "idx_media_requests_external" ON "media_requests" ("type", "external_id")`,
-		);
-		await queryRunner.query(
-			`CREATE INDEX IF NOT EXISTS "idx_media_requests_status" ON "media_requests" ("status", "created_at")`,
-		);
+		await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_media_requests_user_created" ON "media_requests" ("user_id", "created_at")`);
+		await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_media_requests_external" ON "media_requests" ("type", "external_id")`);
+		await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_media_requests_status" ON "media_requests" ("status", "created_at")`);
 		await queryRunner.query(`
 			CREATE TABLE IF NOT EXISTS "request_user_limits" (
 				"user_id" uuid NOT NULL,

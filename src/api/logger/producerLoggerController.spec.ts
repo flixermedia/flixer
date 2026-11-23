@@ -21,7 +21,9 @@ describe("producer logger configuration endpoint", () => {
 		setAppConfig(new AppConfig(null));
 		const service = new LoggerService({ requireAdmin: vi.fn() });
 		const getConfig = vi.spyOn(service, "producerIngestConfiguration").mockResolvedValue({
-			endpoint: "https://logger.example", token: "x".repeat(43), expiresAt: "2099-01-01T00:00:00Z",
+			endpoint: "https://logger.example",
+			token: "x".repeat(43),
+			expiresAt: "2099-01-01T00:00:00Z",
 		});
 		const controller = new ProducerLoggerController(service);
 		const socket = new Socket();

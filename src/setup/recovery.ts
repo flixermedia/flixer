@@ -23,17 +23,20 @@ export function needsRecovery(config: AppConfig = appConfig()): boolean {
 
 /** Created on first use and kept only in memory, so every start of the server prints a fresh code. */
 export function recoveryCode(): string {
+
 	if (!code) {
 		const bytes = randomBytes(16);
 		const letters = Array.from(bytes, (byte) => ALPHABET[byte % ALPHABET.length]).join("");
 		code = letters.match(/.{4}/g)!.join("-");
 	}
 	return code;
+
 }
 
-export type RecoveryCheck = "ok" | "invalid" | "throttled";
+type RecoveryCheck = "ok" | "invalid" | "throttled";
 
 export function checkRecoveryCode(candidate: string | undefined, now = Date.now()): RecoveryCheck {
+
 	failures = failures.filter((at) => now - at < FAILURE_WINDOW_MS);
 	if (failures.length >= MAX_FAILURES) {
 		return "throttled";
@@ -45,15 +48,18 @@ export function checkRecoveryCode(candidate: string | undefined, now = Date.now(
 	}
 	failures.push(now);
 	return "invalid";
+
 }
 
 /** Prints the code when recovery is needed. Returns whether it did, so callers and tests can tell. */
 export function announceRecovery(write: (message: string) => void, config: AppConfig = appConfig()): boolean {
+
 	if (!needsRecovery(config)) {
 		return false;
 	}
 	write(`Setup is marked complete but no database is configured. Open the Flixer web app and enter this recovery code to reconnect a database: ${recoveryCode()}`);
 	return true;
+
 }
 
 const REQUEST_INTERVAL_MS = 15_000;
@@ -64,16 +70,20 @@ let lastRequest = 0;
  * without the key sitting in the log of every normal start. Asking again within a few seconds does nothing.
  */
 export function logRecoveryKey(write: (message: string) => void, now = Date.now()): boolean {
+
 	if (now - lastRequest < REQUEST_INTERVAL_MS) {
 		return false;
 	}
 	lastRequest = now;
 	write(`Setup recovery key requested from the setup screen. Enter this key there to continue setup: ${recoveryCode()}`);
 	return true;
+
 }
 
 export function resetRecoveryForTests(): void {
+
 	code = undefined;
 	failures = [];
 	lastRequest = 0;
+
 }

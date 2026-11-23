@@ -3,6 +3,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Entity("external_oauth_providers")
 @Index("IDX_external_oauth_providers_plugin", ["pluginId"])
 export class ExternalOAuthProvider {
+
 	@PrimaryGeneratedColumn("uuid")
 	id!: string;
 

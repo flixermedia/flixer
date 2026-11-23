@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** Allows HTTP(S) destinations by default while retaining existing custom rules. */
 export class DefaultUserWebhookUrlRules1798300000010 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			ALTER TABLE user_webhook_config ALTER COLUMN allowed_urls SET DEFAULT '["regex:https?://.*"]'::jsonb;

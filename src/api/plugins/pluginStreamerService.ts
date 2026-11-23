@@ -13,7 +13,11 @@ export type StreamerHook = keyof typeof HOOKS;
 
 @Injectable()
 export class PluginStreamerService {
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource, private readonly runtime: PluginWasiRuntime) {}
+
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly runtime: PluginWasiRuntime,
+	) {}
 
 	private async installations() {
 		return this.dataSource.getRepository(PluginInstallation).find({ where: { enabled: true }, order: { pluginId: "ASC" } });
@@ -34,7 +38,7 @@ export class PluginStreamerService {
 	async run(hook: StreamerHook, input: { userId: string; itemId: string; sessionId: string; height?: number; durationSeconds?: number }) {
 		const plugins = this.matching(await this.installations(), hook);
 		const outcomes = await Promise.allSettled(plugins.map((plugin) => this.runtime.execute(plugin, HOOKS[hook].operation, { id: input.userId, role: "user" }, input, "flixer-streamer")));
-		const results = outcomes.flatMap((outcome) => outcome.status === "fulfilled" && outcome.value && typeof outcome.value === "object" && !Array.isArray(outcome.value) ? [outcome.value as Record<string, unknown>] : []);
+		const results = outcomes.flatMap((outcome) => (outcome.status === "fulfilled" && outcome.value && typeof outcome.value === "object" && !Array.isArray(outcome.value) ? [outcome.value as Record<string, unknown>] : []));
 		if (hook === "authorize") return { allowed: !results.some((result) => result.allowed === false) };
 		if (hook === "processing") {
 			const heights = results.map((result) => result.maxHeight).filter((value): value is number => typeof value === "number" && [240, 360, 480, 720, 1080].includes(value));

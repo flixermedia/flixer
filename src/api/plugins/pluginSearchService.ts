@@ -1,18 +1,19 @@
+import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { PluginWasiRuntime } from "./pluginWasiRuntime.js";
 
-export const SEARCH_CAPABILITY = "search.results";
-export const SEARCH_PERMISSION = "api.routes.search";
+const SEARCH_CAPABILITY = "search.results";
+const SEARCH_PERMISSION = "api.routes.search";
 const SEARCH_TIMEOUT_MS = 7_000;
 const MAX_SECTIONS = 4;
 const MAX_ITEMS = 40;
 const SEARCH_TYPES = new Set(["movie", "series", "album"]);
 const TONES = new Set(["neutral", "info", "success", "warning", "danger"]);
 
-export interface PluginSearchItem {
+interface PluginSearchItem {
 	title: string;
 	subtitle?: string;
 	poster?: string;
@@ -28,25 +29,24 @@ export interface PluginSearchSection {
 	items: PluginSearchItem[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function text(value: unknown, max: number): string | undefined {
 	return typeof value === "string" && value.trim() !== "" ? value.slice(0, max) : undefined;
 }
 
 function httpsUrl(value: unknown): string | undefined {
+
 	if (typeof value !== "string" || value.length > 2048) return undefined;
 	try {
 		return new URL(value).protocol === "https:" ? value : undefined;
 	} catch {
 		return undefined;
 	}
+
 }
 
 /** Keeps only the fields and shapes the web app renders, whatever the plugin returned. */
 export function sanitizeSearchSections(pluginId: string, result: unknown): PluginSearchSection[] {
+
 	if (!isRecord(result) || !Array.isArray(result.sections)) return [];
 	const sections: PluginSearchSection[] = [];
 	for (const raw of result.sections.slice(0, MAX_SECTIONS)) {
@@ -84,11 +84,13 @@ export function sanitizeSearchSections(pluginId: string, result: unknown): Plugi
 		if (items.length > 0) sections.push({ pluginId, title, items });
 	}
 	return sections;
+
 }
 
 /** Lets enabled plugins add their own result sections to the main search page. */
 @Injectable()
 export class PluginSearchService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly runtime: PluginWasiRuntime,
@@ -98,19 +100,11 @@ export class PluginSearchService {
 		const term = q.trim();
 		if (term.length < 2 || term.length > 200 || (type !== undefined && !SEARCH_TYPES.has(type))) return [];
 		const installations = await this.dataSource.getRepository(PluginInstallation).find({ where: { enabled: true } });
-		const providers = installations.filter(
-			({ manifest, approvedPermissions }) =>
-				manifest.targets.flixer &&
-				manifest.capabilities.includes(SEARCH_CAPABILITY) &&
-				manifest.permissions.includes(SEARCH_PERMISSION) &&
-				approvedPermissions.includes(SEARCH_PERMISSION),
-		);
+		const providers = installations.filter(({ manifest, approvedPermissions }) => manifest.targets.flixer && manifest.capabilities.includes(SEARCH_CAPABILITY) && manifest.permissions.includes(SEARCH_PERMISSION) && approvedPermissions.includes(SEARCH_PERMISSION));
 		const results = await Promise.all(
 			providers.map(async (installation) => {
 				try {
-					const result = await withTimeout(
-						this.runtime.execute(installation, "search", user, { q: term, ...(type ? { type } : {}) }),
-					);
+					const result = await withTimeout(this.runtime.execute(installation, "search", user, { q: term, ...(type ? { type } : {}) }));
 					return sanitizeSearchSections(installation.pluginId, result);
 				} catch (error: unknown) {
 					logger().warn(`Plugin ${installation.pluginId} search failed.`, error);

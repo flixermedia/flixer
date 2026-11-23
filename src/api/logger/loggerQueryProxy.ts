@@ -23,6 +23,7 @@ function isQueryKind(value: string): value is QueryKind {
 /** Mediates admin queries without exposing a logger credential to the browser. */
 @Injectable()
 export class LoggerQueryProxy {
+
 	private cached?: { ticket: Ticket; management: string };
 	private pending?: { promise: Promise<Ticket>; endpoint: string; management: string };
 
@@ -36,11 +37,10 @@ export class LoggerQueryProxy {
 		const endpoint = store?.get("loggerUrl");
 		const management = store?.get("loggerManageToken");
 		if (!endpoint || !management) throw new Exception(503, "The logger is not configured.");
-		if (this.cached?.ticket.endpoint === endpoint && this.cached.management === management &&
-			Date.parse(this.cached.ticket.expiresAt) > Date.now() + 10_000) return this.cached.ticket;
+		if (this.cached?.ticket.endpoint === endpoint && this.cached.management === management && Date.parse(this.cached.ticket.expiresAt) > Date.now() + 10_000) return this.cached.ticket;
 		if (!this.pending || this.pending.endpoint !== endpoint || this.pending.management !== management) {
 			const promise = this.logger.issueQueryToken(authorization).then((ticket) => {
-				if (store.get("loggerUrl") !== endpoint || store.get("loggerManageToken") !== management || ticket.endpoint !== endpoint) {
+				if (store!.get("loggerUrl") !== endpoint || store!.get("loggerManageToken") !== management || ticket.endpoint !== endpoint) {
 					throw new Exception(409, "Logger configuration changed during query authorization.");
 				}
 				this.cached = { ticket, management };
@@ -48,15 +48,26 @@ export class LoggerQueryProxy {
 			});
 			const pending = { promise, endpoint, management };
 			this.pending = pending;
-			void promise.finally(() => {
-				if (this.pending === pending) this.pending = undefined;
-			}).catch(() => undefined);
+			void promise
+				.finally(() => {
+					if (this.pending === pending) this.pending = undefined;
+				})
+				.catch(() => undefined);
 		}
 		return this.pending.promise;
 	}
 
-	async query(kind: string, search: string, body: unknown, cursor: string | undefined, authorization?: string, signal?: AbortSignal): Promise<{
-		stream: Readable; contentType: string; abort: () => void;
+	async query(
+		kind: string,
+		search: string,
+		body: unknown,
+		cursor: string | undefined,
+		authorization?: string,
+		signal?: AbortSignal,
+	): Promise<{
+		stream: Readable;
+		contentType: string;
+		abort: () => void;
 	}> {
 		await this.auth.requireAdmin(authorization);
 		if (!isQueryKind(kind) || search.length > 4096 || (search && !search.startsWith("?"))) {
@@ -73,8 +84,7 @@ export class LoggerQueryProxy {
 		if (signal?.aborted) throw new Exception(503, "The logger query was cancelled.");
 		const store = appConfig().persistent;
 		const management = store?.get("loggerManageToken");
-		if (!management || store?.get("loggerUrl") !== ticket.endpoint || this.cached?.ticket !== ticket ||
-			this.cached.management !== management) {
+		if (!management || store?.get("loggerUrl") !== ticket.endpoint || this.cached?.ticket !== ticket || this.cached.management !== management) {
 			throw new Exception(409, "Logger configuration changed during query authorization.");
 		}
 		const controller = new AbortController();
@@ -89,7 +99,9 @@ export class LoggerQueryProxy {
 					...(serialized === undefined ? {} : { "content-type": "application/json" }),
 					...(cursor ? { "last-event-id": cursor } : {}),
 				},
-				body: serialized, signal: requestSignal, redirect: "error",
+				body: serialized,
+				signal: requestSignal,
+				redirect: "error",
 			});
 		} catch {
 			clearTimeout(timer);
@@ -107,26 +119,29 @@ export class LoggerQueryProxy {
 			timer = undefined;
 		}
 		const reader = response.body.getReader();
-		const stream = Readable.from((async function* () {
-			let bytes = 0;
-			try {
-				for (;;) {
-					const result = await reader.read();
-					if (result.done) break;
-					if (store.get("loggerUrl") !== ticket.endpoint || store.get("loggerManageToken") !== management) {
-						controller.abort();
-						throw new Error("Logger configuration changed during query.");
+		const stream = Readable.from(
+			(async function* () {
+				let bytes = 0;
+				try {
+					for (;;) {
+						const result = await reader.read();
+						if (result.done) break;
+						if (store.get("loggerUrl") !== ticket.endpoint || store.get("loggerManageToken") !== management) {
+							controller.abort();
+							throw new Error("Logger configuration changed during query.");
+						}
+						bytes += result.value.byteLength;
+						if (selected !== "stream" && bytes > 16 * 1024 * 1024) throw new Error("Logger response exceeds the size limit.");
+						yield result.value;
 					}
-					bytes += result.value.byteLength;
-					if (selected !== "stream" && bytes > 16 * 1024 * 1024) throw new Error("Logger response exceeds the size limit.");
-					yield result.value;
+				} finally {
+					if (timer) clearTimeout(timer);
+					await reader.cancel();
+					reader.releaseLock();
 				}
-			} finally {
-				if (timer) clearTimeout(timer);
-				await reader.cancel();
-				reader.releaseLock();
-			}
-		})(), { objectMode: false });
+			})(),
+			{ objectMode: false },
+		);
 		return { stream, contentType: selected === "stream" ? "text/event-stream" : "application/json", abort: () => controller.abort() };
 	}
 }

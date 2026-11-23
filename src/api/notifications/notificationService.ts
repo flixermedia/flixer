@@ -18,8 +18,7 @@ const INBOX_LIMIT = 50;
 const RETENTION_DAYS = 60;
 const PUSH_TTL_SECONDS = 24 * 60 * 60;
 
-export const NOTIFICATION_SETTING_KEYS = ["notifications_enabled", "notifications_new_media_enabled", "notifications_permission_prompt", "notifications_vapid_subject"];
-export type PermissionPrompt = "button" | "load";
+type PermissionPrompt = "button" | "load";
 
 export interface NotificationConfig {
 	enabled: boolean;
@@ -33,7 +32,7 @@ export function isValidVapidSubject(value: string): boolean {
 	return /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || /^https:\/\/[^\s]+$/.test(value);
 }
 
-export interface NotificationInput {
+interface NotificationInput {
 	title: string;
 	body: string;
 	url?: string | null;
@@ -44,7 +43,7 @@ export interface NotificationEvent {
 	type: "changed";
 }
 
-export interface PushSubscriptionInput {
+interface PushSubscriptionInput {
 	endpoint: string;
 	p256dh: string;
 	auth: string;
@@ -95,7 +94,7 @@ export class NotificationService {
 			}
 			const generated = webpush.generateVAPIDKeys();
 			await repo.createQueryBuilder().insert().values({ id: 1, publicKey: generated.publicKey, privateKey: generated.privateKey }).orIgnore().execute();
-			return (await repo.findOneByOrFail({ id: 1 }));
+			return await repo.findOneByOrFail({ id: 1 });
 		})().catch((error) => {
 			this.vapid = null;
 			throw error;
@@ -105,10 +104,7 @@ export class NotificationService {
 
 	async list(userId: string) {
 		const repo = this.dataSource.getRepository(Notification);
-		const [items, unread] = await Promise.all([
-			repo.find({ where: { userId }, order: { createdAt: "DESC" }, take: INBOX_LIMIT }),
-			repo.count({ where: { userId, readAt: IsNull() } }),
-		]);
+		const [items, unread] = await Promise.all([repo.find({ where: { userId }, order: { createdAt: "DESC" }, take: INBOX_LIMIT }), repo.count({ where: { userId, readAt: IsNull() } })]);
 		return {
 			unread,
 			items: items.map((item) => ({ id: item.id, kind: item.kind, title: item.title, body: item.body, url: item.url, read: item.readAt !== null, createdAt: item.createdAt })),
@@ -159,11 +155,7 @@ export class NotificationService {
 			throw new BadRequest("Notifications are turned off in the admin settings.");
 		}
 		const users = this.dataSource.getRepository(User);
-		const recipients = (
-			userIds && userIds.length > 0
-				? await users.find({ where: { id: In(userIds), disabledAt: IsNull() }, select: { id: true } })
-				: await users.find({ where: { disabledAt: IsNull() }, select: { id: true } })
-		).map((user) => user.id);
+		const recipients = (userIds && userIds.length > 0 ? await users.find({ where: { id: In(userIds), disabledAt: IsNull() }, select: { id: true } }) : await users.find({ where: { disabledAt: IsNull() }, select: { id: true } })).map((user) => user.id);
 		if (userIds && userIds.length > 0 && recipients.length === 0) {
 			throw new BadRequest("None of the selected users can receive notifications.");
 		}
@@ -178,7 +170,10 @@ export class NotificationService {
 			await this.dataSource.getRepository(Notification).insert(rows.slice(start, start + 500));
 		}
 		this.publish(recipients);
-		await this.dataSource.getRepository(Notification).delete({ createdAt: LessThan(new Date(Date.now() - RETENTION_DAYS * 86_400_000)) }).catch(() => undefined);
+		await this.dataSource
+			.getRepository(Notification)
+			.delete({ createdAt: LessThan(new Date(Date.now() - RETENTION_DAYS * 86_400_000)) })
+			.catch(() => undefined);
 
 		const pushed = await this.push(recipients, { title, body, url: input.url ?? "/" });
 		return { recipients: recipients.length, pushed };
@@ -292,7 +287,10 @@ export class NotificationService {
 				await this.send({ kind: "new_media", title: "New on Flixer", body: first.label, url: first.url });
 				return;
 			}
-			const shown = headlines.slice(0, 3).map((entry) => entry.label).join(", ");
+			const shown = headlines
+				.slice(0, 3)
+				.map((entry) => entry.label)
+				.join(", ");
 			const more = headlines.length > 3 ? ` and ${headlines.length - 3} more` : "";
 			await this.send({ kind: "new_media", title: `${headlines.length} new titles on Flixer`, body: `${shown}${more}`, url: "/" });
 		} catch (error) {

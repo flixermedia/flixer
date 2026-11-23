@@ -4,6 +4,7 @@ import { loggerExporter } from "./loggerExporter.js";
 
 @Injectable()
 export class LoggerExportService {
+
 	private timer?: ReturnType<typeof setTimeout>;
 	private renewing = false;
 	private stopped = true;
@@ -29,14 +30,18 @@ export class LoggerExportService {
 	private renew(): void {
 		if (this.stopped || this.renewing) return;
 		this.renewing = true;
-		void this.logger.renewIngestCredential().then(() => {
-			this.schedule(60_000);
-		}).catch(() => {
-			process.stderr.write("Flixer logger: could not renew the ingestion credential\n");
-			this.schedule(60_000 + Math.floor(Math.random() * 15_000));
-		}).finally(() => {
-			this.renewing = false;
-		});
+		void this.logger
+			.renewIngestCredential()
+			.then(() => {
+				this.schedule(60_000);
+			})
+			.catch(() => {
+				process.stderr.write("Flixer logger: could not renew the ingestion credential\n");
+				this.schedule(60_000 + Math.floor(Math.random() * 15_000));
+			})
+			.finally(() => {
+				this.renewing = false;
+			});
 	}
 
 	private schedule(delay: number): void {

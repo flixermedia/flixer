@@ -47,7 +47,7 @@ interface StreamSession extends StreamerSession {
 	user: { username: string; displayName: string } | null;
 }
 
-interface StreamSessionsResponse extends Omit<StreamerSessionsResponse, "sessions"> {
+export interface StreamSessionsResponse extends Omit<StreamerSessionsResponse, "sessions"> {
 	sessions: StreamSession[];
 }
 
@@ -76,7 +76,7 @@ export class StreamsService {
 
 		return {
 			...data,
-			sessions: data.sessions.map((session) => ({ ...session, user: session.userId ? names.get(session.userId) ?? null : null })),
+			sessions: data.sessions.map((session) => ({ ...session, user: session.userId ? (names.get(session.userId) ?? null) : null })),
 		};
 	}
 

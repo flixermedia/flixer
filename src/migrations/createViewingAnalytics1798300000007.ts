@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateViewingAnalytics1798300000007 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE viewing_sessions (

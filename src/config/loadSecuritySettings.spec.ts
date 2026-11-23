@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../api/auth/loginSecurity.js";
+import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../api/auth/login/loginSecurity.js";
 import { loadSecuritySettings } from "./loadSecuritySettings.js";
 import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "./trustedProxies.js";
 

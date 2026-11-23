@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateExternalAuthFlows1798300000022 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`CREATE TABLE "external_auth_flows" (
 			"state_hash" varchar(64) PRIMARY KEY,

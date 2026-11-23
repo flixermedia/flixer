@@ -41,6 +41,11 @@ describe("user preferences", () => {
 				type: ["null", "string"],
 			});
 		});
+
+		it("accepts a nullable boolean lyric word timing preference", () => {
+			const schema = compile(UpdatePreferencesRequest);
+			expect(schema.properties?.emulateLyricWordTiming).toMatchObject({ type: ["null", "boolean"] });
+		});
 	});
 
 	it("accepts browse column counts from 2 through 8", () => {
@@ -67,6 +72,15 @@ describe("user preferences", () => {
 	it("returns a valid saved default audio language", () => {
 		expect(publicPreferences({ audioLanguage: "pt-BR" }).audioLanguage).toBe("pt-BR");
 		expect(publicPreferences({ audioLanguage: "<script>" }).audioLanguage).toBeUndefined();
+	});
+
+	it("defaults estimated lyric timing on while honoring saved boolean values", () => {
+		expect(publicPreferences({}).emulateLyricWordTiming).toBe(true);
+		for (const value of [undefined, null, "true", 1]) {
+			expect(publicPreferences({ emulateLyricWordTiming: value }).emulateLyricWordTiming).toBe(true);
+		}
+		expect(publicPreferences({ emulateLyricWordTiming: true }).emulateLyricWordTiming).toBe(true);
+		expect(publicPreferences({ emulateLyricWordTiming: false }).emulateLyricWordTiming).toBe(false);
 	});
 
 	it("rejects panels outside the grid or with unsupported sizes", () => {

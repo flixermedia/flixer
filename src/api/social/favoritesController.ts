@@ -28,7 +28,10 @@ export class FavoritesController {
 	async list(@HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const items = await this.favorites.list(policy.userId);
-		const visible = await this.access.visibleIds(policy, items.map((item) => item.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			items.map((item) => item.id),
+		);
 		return { items: items.filter((item) => visible.has(item.id)) };
 	}
 

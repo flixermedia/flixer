@@ -8,9 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const configuredCollectionPath = process.env.INSOMNIA_FILE ?? "insomnia/flixer-insomnia.json";
-const collectionPath = isAbsolute(configuredCollectionPath)
-	? configuredCollectionPath
-	: resolve(projectRoot, configuredCollectionPath);
+const collectionPath = isAbsolute(configuredCollectionPath) ? configuredCollectionPath : resolve(projectRoot, configuredCollectionPath);
 const userFilePath = resolve(projectRoot, "insomnia", "flixer-user.json");
 const openApiUrl = process.env.OPENAPI_URL ?? "http://localhost:8083/api/scalar/doc/openapi.json";
 const SERVER_START_TIMEOUT_MS = 120_000;
@@ -27,42 +25,9 @@ const requestDefaults = {
 	settingRebuildPath: true,
 	settingFollowRedirects: "global",
 };
-const loginAfterResponseScript = [
-	"const body = insomnia.response.json();",
-	"if (",
-	'  typeof body?.accessToken !== "string" || body.accessToken.length === 0 ||',
-	'  typeof body.user?.id !== "string" || body.user.id.length === 0 ||',
-	'  typeof body.session?.id !== "string" || body.session.id.length === 0',
-	") {",
-	'  console.warn("Login response is missing accessToken, user.id, or session.id; environment values were not changed.");',
-	"} else {",
-	'  insomnia.environment.set("access_token", body.accessToken);',
-	'  insomnia.environment.set("user_id", body.user.id);',
-	'  insomnia.environment.set("session_id", body.session.id);',
-	"}",
-].join("\n");
-const logoutAfterResponseScript = [
-	"const body = insomnia.response.json();",
-	'if (body?.loggedOut === true && typeof body.id === "string" && body.id.length > 0) {',
-	'  insomnia.environment.set("access_token", "");',
-	'  insomnia.environment.set("session_id", "");',
-	'  insomnia.environment.set("user_id", "");',
-	'  console.log("Cleared the logged-out session from the active environment.");',
-	"} else {",
-	'  console.warn("Logout response did not confirm success; environment values were not changed.");',
-	"}",
-].join("\n");
-const revokeSessionAfterResponseScript = [
-	"const body = insomnia.response.json();",
-	'if (body?.revoked === true && typeof body.id === "string" && body.id.length > 0 && body.id === insomnia.environment.get("session_id")) {',
-	'  insomnia.environment.set("session_id", "");',
-	'  console.log("The current session was revoked; cleared its local credentials.");',
-	'} else if (body?.revoked !== true || typeof body.id !== "string" || body.id.length === 0) {',
-	'  console.warn("Revoke response did not confirm success; environment values were not changed.");',
-	"} else {",
-	'  console.log("Another session was revoked; the current environment credentials were kept.");',
-	"}",
-].join("\n");
+const loginAfterResponseScript = ["const body = insomnia.response.json();", "if (", '  typeof body?.accessToken !== "string" || body.accessToken.length === 0 ||', '  typeof body.user?.id !== "string" || body.user.id.length === 0 ||', '  typeof body.session?.id !== "string" || body.session.id.length === 0', ") {", '  console.warn("Login response is missing accessToken, user.id, or session.id; environment values were not changed.");', "} else {", '  insomnia.environment.set("access_token", body.accessToken);', '  insomnia.environment.set("user_id", body.user.id);', '  insomnia.environment.set("session_id", body.session.id);', "}"].join("\n");
+const logoutAfterResponseScript = ["const body = insomnia.response.json();", 'if (body?.loggedOut === true && typeof body.id === "string" && body.id.length > 0) {', '  insomnia.environment.set("access_token", "");', '  insomnia.environment.set("session_id", "");', '  insomnia.environment.set("user_id", "");', '  console.log("Cleared the logged-out session from the active environment.");', "} else {", '  console.warn("Logout response did not confirm success; environment values were not changed.");', "}"].join("\n");
+const revokeSessionAfterResponseScript = ["const body = insomnia.response.json();", 'if (body?.revoked === true && typeof body.id === "string" && body.id.length > 0 && body.id === insomnia.environment.get("session_id")) {', '  insomnia.environment.set("session_id", "");', '  console.log("The current session was revoked; cleared its local credentials.");', '} else if (body?.revoked !== true || typeof body.id !== "string" || body.id.length === 0) {', '  console.warn("Revoke response did not confirm success; environment values were not changed.");', "} else {", '  console.log("Another session was revoked; the current environment credentials were kept.");', "}"].join("\n");
 
 export function createDefaultCollection() {
 	const timestamp = Date.now();
@@ -79,8 +44,7 @@ export function createDefaultCollection() {
 				modified: timestamp,
 				created: timestamp,
 				name: "Flixer API",
-				description:
-					"Requests for the Flixer API. Development environment variables are automatically generated from the OpenAPI spec.",
+				description: "Requests for the Flixer API. Development environment variables are automatically generated from the OpenAPI spec.",
 				scope: "collection",
 				_type: "workspace",
 			},
@@ -113,15 +77,7 @@ export function createDefaultCollection() {
 					session_id: defaultEnvironmentValue("session_id"),
 				},
 				dataPropertyOrder: {
-					"&": [
-						"base_url",
-						"test_username",
-						"test_email",
-						"test_password",
-						"access_token",
-						"user_id",
-						"session_id",
-					],
+					"&": ["base_url", "test_username", "test_email", "test_password", "access_token", "user_id", "session_id"],
 				},
 				color: "#4B9E5F",
 				isPrivate: false,
@@ -150,9 +106,7 @@ async function readCollectionOrCreate(filePath) {
 
 	const collection = createDefaultCollection();
 	await mkdir(dirname(filePath), { recursive: true });
-	const [writeError] = await tryCatch(() =>
-		writeFile(filePath, `${JSON.stringify(collection, null, 2)}\n`, { encoding: "utf8", flag: "wx" }),
-	);
+	const [writeError] = await tryCatch(() => writeFile(filePath, `${JSON.stringify(collection, null, 2)}\n`, { encoding: "utf8", flag: "wx" }));
 	if (writeError && (!("code" in writeError) || writeError.code !== "EEXIST")) {
 		throw writeError;
 	}
@@ -169,23 +123,12 @@ async function readCollectionOrCreate(filePath) {
 }
 
 function getGeneratedUser(collection) {
-	const environment = collection.resources.find(
-		(resource) => resource._type === "environment" && resource.name === "Development",
-	);
+	const environment = collection.resources.find((resource) => resource._type === "environment" && resource.name === "Development");
 	const data = environment?.data ?? {};
 	return {
-		username:
-			typeof data.test_username === "string" && data.test_username
-				? data.test_username
-				: defaultEnvironmentValue("test_username"),
-		email:
-			typeof data.test_email === "string" && data.test_email
-				? data.test_email
-				: defaultEnvironmentValue("test_email"),
-		password:
-			typeof data.test_password === "string" && data.test_password
-				? data.test_password
-				: defaultEnvironmentValue("test_password"),
+		username: typeof data.test_username === "string" && data.test_username ? data.test_username : defaultEnvironmentValue("test_username"),
+		email: typeof data.test_email === "string" && data.test_email ? data.test_email : defaultEnvironmentValue("test_email"),
+		password: typeof data.test_password === "string" && data.test_password ? data.test_password : defaultEnvironmentValue("test_password"),
 	};
 }
 
@@ -194,17 +137,7 @@ function parseGeneratedUser(contents, filePath) {
 	if (parseError) {
 		throw new Error(`Could not parse generated user file ${filePath}: ${parseError.message}`);
 	}
-	if (
-		!user ||
-		typeof user !== "object" ||
-		typeof user.username !== "string" ||
-		user.username.length < 3 ||
-		user.username.length > 64 ||
-		typeof user.email !== "string" ||
-		user.email.length === 0 ||
-		typeof user.password !== "string" ||
-		user.password.length < 8
-	) {
+	if (!user || typeof user !== "object" || typeof user.username !== "string" || user.username.length < 3 || user.username.length > 64 || typeof user.email !== "string" || user.email.length === 0 || typeof user.password !== "string" || user.password.length < 8) {
 		throw new Error(`Generated user file ${filePath} must contain username, email, and password strings.`);
 	}
 	return { username: user.username, email: user.email, password: user.password };
@@ -220,9 +153,7 @@ async function readOrCreateGeneratedUser(filePath, fallbackUser) {
 	}
 
 	await mkdir(dirname(filePath), { recursive: true });
-	const [writeError] = await tryCatch(() =>
-		writeFile(filePath, `${JSON.stringify(fallbackUser, null, 2)}\n`, { encoding: "utf8", flag: "wx" }),
-	);
+	const [writeError] = await tryCatch(() => writeFile(filePath, `${JSON.stringify(fallbackUser, null, 2)}\n`, { encoding: "utf8", flag: "wx" }));
 	if (writeError && (!("code" in writeError) || writeError.code !== "EEXIST")) {
 		throw writeError;
 	}
@@ -250,9 +181,7 @@ function startProjectServer() {
 	if (barrelsResult.error || barrelsResult.status !== 0) {
 		const output = [barrelsResult.stdout, barrelsResult.stderr].filter(Boolean).join("\n").trim();
 		const cause = barrelsResult.error?.message ?? `barrels exited with code ${barrelsResult.status}`;
-		throw new Error(
-			`Could not generate Ts.ED barrels before starting the API: ${cause}${output ? `\n${output}` : ""}`,
-		);
+		throw new Error(`Could not generate Ts.ED barrels before starting the API: ${cause}${output ? `\n${output}` : ""}`);
 	}
 
 	const tsedDevEntrypoint = resolve(projectRoot, "node_modules", "@tsed", "cli", "lib", "esm", "bin", "tsed-dev.js");
@@ -363,10 +292,7 @@ async function waitForOpenApi(startup) {
 			return document;
 		}
 		lastError = fetchError;
-		if (
-			!(fetchError instanceof TypeError) &&
-			!(fetchError instanceof DOMException && fetchError.name === "TimeoutError")
-		) {
+		if (!(fetchError instanceof TypeError) && !(fetchError instanceof DOMException && fetchError.name === "TimeoutError")) {
 			throw fetchError;
 		}
 
@@ -375,9 +301,7 @@ async function waitForOpenApi(startup) {
 
 	const cause = lastError instanceof Error ? ` Last connection error: ${lastError.message}` : "";
 	const output = startup.output ? `\nServer startup output:\n${startup.output}` : "";
-	throw new Error(
-		`The project server did not provide OpenAPI within ${SERVER_START_TIMEOUT_MS / 1000} seconds.${cause}${output}`,
-	);
+	throw new Error(`The project server did not provide OpenAPI within ${SERVER_START_TIMEOUT_MS / 1000} seconds.${cause}${output}`);
 }
 
 function resolveSchema(schema, document, seen = new Set()) {
@@ -403,11 +327,7 @@ function resolveSchema(schema, document, seen = new Set()) {
 
 function sampleForSchema(schema, document, propertyName = "") {
 	const resolved = resolveSchema(schema, document);
-	const combinedProperties = Object.assign(
-		{},
-		...(resolved.allOf ?? []).map((part) => resolveSchema(part, document).properties ?? {}),
-		resolved.properties ?? {},
-	);
+	const combinedProperties = Object.assign({}, ...(resolved.allOf ?? []).map((part) => resolveSchema(part, document).properties ?? {}), resolved.properties ?? {});
 
 	if (Object.keys(combinedProperties).length > 0 || resolved.type === "object") {
 		return Object.fromEntries(
@@ -542,14 +462,7 @@ function ensureReferencedEnvironmentVariables(environment, requests) {
 	const variablePattern = /\{\{\s*_\.(\w+)\s*\}\}/g;
 
 	for (const request of requests) {
-		const source = [
-			request.url,
-			request.body?.text,
-			...request.headers.map(({ value }) => value),
-			...request.parameters.map(({ value }) => value),
-		]
-			.filter(Boolean)
-			.join("\n");
+		const source = [request.url, request.body?.text, ...request.headers.map(({ value }) => value), ...request.parameters.map(({ value }) => value)].filter(Boolean).join("\n");
 
 		for (const [, name] of source.matchAll(variablePattern)) {
 			addEnvironmentValue(environment, name, defaultEnvironmentValue(name));
@@ -574,12 +487,7 @@ function makeRequest(document, path, method, operation, environment, metaSortKey
 	const parameters = [...(operation.parameters ?? [])];
 	const requestPath = path.replace(/\{([^}]+)\}/g, (_, name) => {
 		const parameter = parameters.find((item) => item.in === "path" && item.name === name);
-		const key =
-			path === "/api/users/{id}" && name === "id"
-				? "user_id"
-				: path === "/api/auth/sessions/{sessionId}" && name === "sessionId"
-					? "session_id"
-					: `path_${name}`;
+		const key = path === "/api/users/{id}" && name === "id" ? "user_id" : path === "/api/auth/sessions/{sessionId}" && name === "sessionId" ? "session_id" : `path_${name}`;
 		addEnvironmentValue(environment, key, parameter?.example ?? defaultEnvironmentValue(key));
 		return `{{ _.${key} }}`;
 	});
@@ -617,9 +525,7 @@ function makeRequest(document, path, method, operation, environment, metaSortKey
 	const scripts = afterResponseScript ? afterResponseScript : undefined;
 	const id = createHash("sha1").update(`${method.toUpperCase()} ${path}`).digest("hex").slice(0, 12);
 	const summary = operation.summary || `${method.toUpperCase()} ${path}`;
-	const description = [operation.description, operation.tags?.length ? `Tags: ${operation.tags.join(", ")}` : ""]
-		.filter(Boolean)
-		.join("\n\n");
+	const description = [operation.description, operation.tags?.length ? `Tags: ${operation.tags.join(", ")}` : ""].filter(Boolean).join("\n\n");
 
 	return {
 		_id: `req_flixer_${id}`,
@@ -651,9 +557,7 @@ export function updateCollection(collection, document, generatedUser = getGenera
 		throw new Error("The Insomnia export does not contain a workspace.");
 	}
 
-	const environment = collection.resources.find(
-		(resource) => resource._type === "environment" && resource.parentId === "env_flixer_base",
-	);
+	const environment = collection.resources.find((resource) => resource._type === "environment" && resource.parentId === "env_flixer_base");
 	if (!environment) {
 		throw new Error("The Insomnia export does not contain the Development environment.");
 	}
@@ -697,17 +601,7 @@ export function updateCollection(collection, document, generatedUser = getGenera
 				metaSortKey: -groups.size,
 				isPrivate: false,
 			});
-			requests.push(
-				makeRequest(
-					document,
-					path,
-					method,
-					effectiveOperation,
-					environment,
-					-Date.now() + requests.length,
-					group._id,
-				),
-			);
+			requests.push(makeRequest(document, path, method, effectiveOperation, environment, -Date.now() + requests.length, group._id));
 		}
 	}
 
@@ -718,26 +612,16 @@ export function updateCollection(collection, document, generatedUser = getGenera
 	ensureReferencedEnvironmentVariables(environment, requests);
 	const referencedVariables = new Set();
 	for (const request of requests) {
-		const source = [request.url, request.body?.text, ...request.headers.map(({ value }) => value)]
-			.filter(Boolean)
-			.join("\n");
+		const source = [request.url, request.body?.text, ...request.headers.map(({ value }) => value)].filter(Boolean).join("\n");
 		for (const [, name] of source.matchAll(/\{\{\s*_\.(\w+)\s*\}\}/g)) {
 			referencedVariables.add(name);
 		}
 	}
 	if (!referencedVariables.has("path_id")) {
 		delete environment.data.path_id;
-		environment.dataPropertyOrder["&"] = (environment.dataPropertyOrder["&"] ?? []).filter(
-			(key) => key !== "path_id",
-		);
+		environment.dataPropertyOrder["&"] = (environment.dataPropertyOrder["&"] ?? []).filter((key) => key !== "path_id");
 	}
-	collection.resources = collection.resources.filter(
-		(resource) =>
-			!(
-				(resource._type === "request" && resource._id.startsWith("req_flixer_")) ||
-				(resource._type === "request_group" && resource._id.startsWith("grp_flixer_api_"))
-			),
-	);
+	collection.resources = collection.resources.filter((resource) => !((resource._type === "request" && resource._id.startsWith("req_flixer_")) || (resource._type === "request_group" && resource._id.startsWith("grp_flixer_api_"))));
 	collection.resources.push(...groups.values(), ...requests);
 	collection.__export_date = new Date().toISOString();
 	return collection;
@@ -754,16 +638,11 @@ async function main() {
 		if (!fetchError) {
 			document = fetchedDocument;
 		} else {
-			if (
-				!(fetchError instanceof TypeError) &&
-				!(fetchError instanceof DOMException && fetchError.name === "TimeoutError")
-			) {
+			if (!(fetchError instanceof TypeError) && !(fetchError instanceof DOMException && fetchError.name === "TimeoutError")) {
 				throw fetchError;
 			}
 			if (!isLocalHttpUrl(openApiUrl)) {
-				throw new Error(
-					`Could not connect to ${openApiUrl}; automatic startup is only available for local HTTP URLs.`,
-				);
+				throw new Error(`Could not connect to ${openApiUrl}; automatic startup is only available for local HTTP URLs.`);
 			}
 
 			console.log("OpenAPI endpoint is not reachable; starting the Ts.ED development server.");

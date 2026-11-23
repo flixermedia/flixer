@@ -3,7 +3,7 @@ import { MulterOptions, MultipartFile, type PlatformMulterFile } from "@tsed/pla
 import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
-import { MAX_AVATAR_BYTES } from "../auth/avatarStorage.js";
+import { MAX_AVATAR_BYTES } from "../auth/avatar/avatarStorage.js";
 import { CreateAdminUserRequest, SetUserPasswordRequest, UpdateAdminUserRequest } from "./adminUserRequests.js";
 import { AdminUsersService } from "./adminUsersService.js";
 

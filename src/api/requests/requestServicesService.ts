@@ -4,11 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
-import {
-	REQUEST_SERVICE_KINDS,
-	RequestService,
-	type RequestServiceKind,
-} from "../../entities/requestService.entity.js";
+import { REQUEST_SERVICE_KINDS, RequestService, type RequestServiceKind } from "../../entities/requestService.entity.js";
 import { SECRET_MASK } from "../settings/secretMask.js";
 import { type ArrTarget, type ArrTestResult, ArrClient, normalizeArrUrl } from "./arrClient.js";
 import type { RequestServiceInput, TestServiceInput } from "./requestRequests.js";
@@ -33,7 +29,7 @@ export interface RequestServiceView {
 }
 
 /** Library types each kind of server can fill. */
-export const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
+const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
 	radarr: ["movies", "mixed"],
 	sonarr: ["tvshows", "mixed"],
 	lidarr: ["music", "mixed"],
@@ -41,7 +37,7 @@ export const LIBRARY_TYPES_OF: Record<RequestServiceKind, string[]> = {
 
 const MIN_AVAILABILITY = ["announced", "inCinemas", "released"];
 
-export function toServiceView(service: RequestService, libraries: Map<string, string> = new Map()): RequestServiceView {
+function toServiceView(service: RequestService, libraries: Map<string, string> = new Map()): RequestServiceView {
 	return {
 		id: service.id,
 		kind: service.kind,
@@ -66,10 +62,7 @@ export function clientFor(service: RequestService): ArrClient {
 	return new ArrClient(service.kind, service.url, service.apiKey);
 }
 
-export function targetOf(
-	service: RequestService,
-	overrides: { qualityProfileId?: number | null; rootFolder?: string | null } = {},
-): ArrTarget {
+export function targetOf(service: RequestService, overrides: { qualityProfileId?: number | null; rootFolder?: string | null } = {}): ArrTarget {
 	return {
 		rootFolder: overrides.rootFolder || service.rootFolder,
 		qualityProfileId: overrides.qualityProfileId ?? service.qualityProfileId,
@@ -88,22 +81,14 @@ export class RequestServicesService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async list(): Promise<RequestServiceView[]> {
-		const services = await this.dataSource
-			.getRepository(RequestService)
-			.find({ order: { kind: "ASC", name: "ASC" } });
-		const libraries = new Map(
-			(await this.dataSource.getRepository(MediaLibrary).find({ select: { id: true, name: true } })).map(
-				(library) => [library.id, library.name],
-			),
-		);
+		const services = await this.dataSource.getRepository(RequestService).find({ order: { kind: "ASC", name: "ASC" } });
+		const libraries = new Map((await this.dataSource.getRepository(MediaLibrary).find({ select: { id: true, name: true } })).map((library) => [library.id, library.name]));
 		return services.map((service) => toServiceView(service, libraries));
 	}
 
 	/** The kinds of server that can take requests: enabled and linked to a library. */
 	async usableKinds(): Promise<Set<RequestServiceKind>> {
-		const services = await this.dataSource
-			.getRepository(RequestService)
-			.find({ select: { kind: true }, where: { enabled: true, libraryId: Not(IsNull()) } });
+		const services = await this.dataSource.getRepository(RequestService).find({ select: { kind: true }, where: { enabled: true, libraryId: Not(IsNull()) } });
 		return new Set(services.map((service) => service.kind));
 	}
 
@@ -191,9 +176,7 @@ export class RequestServicesService {
 			throw new BadRequest("Choose the library this server fills.");
 		}
 		if (!LIBRARY_TYPES_OF[input.kind].includes(library.type)) {
-			throw new BadRequest(
-				`A ${input.kind} server needs a ${LIBRARY_TYPES_OF[input.kind].join(" or ")} library.`,
-			);
+			throw new BadRequest(`A ${input.kind} server needs a ${LIBRARY_TYPES_OF[input.kind].join(" or ")} library.`);
 		}
 		const rootFolder = input.rootFolder.trim();
 		if (!rootFolder) {

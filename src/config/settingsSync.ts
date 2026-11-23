@@ -48,18 +48,8 @@ function parseDefinitions(value: unknown): SettingDefinition[] {
 			throw new Error(`Setting definition at index ${index} must be an object.`);
 		}
 
-		if (
-			!("key" in item) ||
-			typeof item.key !== "string" ||
-			!SETTING_KEY_PATTERN.test(item.key) ||
-			!("defaultValue" in item) ||
-			!isJsonValue(item.defaultValue) ||
-			!("isPublic" in item) ||
-			typeof item.isPublic !== "boolean"
-		) {
-			throw new Error(
-				`Setting definition at index ${index} must include a valid key, defaultValue, and isPublic.`,
-			);
+		if (!("key" in item) || typeof item.key !== "string" || !SETTING_KEY_PATTERN.test(item.key) || !("defaultValue" in item) || !isJsonValue(item.defaultValue) || !("isPublic" in item) || typeof item.isPublic !== "boolean") {
+			throw new Error(`Setting definition at index ${index} must include a valid key, defaultValue, and isPublic.`);
 		}
 
 		if (keys.has(item.key)) {
@@ -154,6 +144,7 @@ export async function synchronizeSettings(dataSource: DataSource): Promise<void>
 		isPublic: false,
 	});
 	await dataSource.transaction(async (manager) => {
+		// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:sync-settings"]);
 		await synchronizeDefinitions(manager, definitions);
 	});

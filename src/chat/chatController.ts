@@ -5,18 +5,7 @@ import { Delete, Get, Patch, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../api/auth/authService.js";
 import { CallService } from "./callService.js";
 import { ChatService } from "./chatService.js";
-import {
-	AddChatMlsKeyPackageRequest,
-	AcknowledgeChatMlsWelcomeRequest,
-	ApproveChatMlsDeviceRequest,
-	ChatMlsHistoryBackupRequest,
-	AddMembersRequest,
-	RegisterChatMlsDeviceRequest,
-	RenameChatRequest,
-	SendMessageRequest,
-	StartChatRequest,
-	StoreChatMlsWelcomeRequest,
-} from "./chatRequests.js";
+import { AddChatMlsKeyPackageRequest, AcknowledgeChatMlsWelcomeRequest, ApproveChatMlsDeviceRequest, ChatMlsHistoryBackupRequest, AddMembersRequest, RegisterChatMlsDeviceRequest, RenameChatRequest, SendMessageRequest, StartChatRequest, StoreChatMlsWelcomeRequest } from "./chatRequests.js";
 
 const conversationId = (value: string): string => {
 	if (!AuthService.isUuid(value)) {
@@ -29,6 +18,7 @@ const conversationId = (value: string): string => {
 @Controller("/chat")
 @Security("BearerAuth")
 export class ChatController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly chat: ChatService,
@@ -62,19 +52,10 @@ export class ChatController {
 
 	@Post("/devices")
 	@Returns(201)
-	async registerMlsDevice(
-		@BodyParams() request: RegisterChatMlsDeviceRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async registerMlsDevice(@BodyParams() request: RegisterChatMlsDeviceRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(request.deviceId)) throw new BadRequest("The chat device ID is invalid.");
-		return this.chat.registerMlsDevice(
-			user.id,
-			request.deviceId.toLowerCase(),
-			request.name,
-			request.keyPackage,
-			request.pairingPublicKey,
-		);
+		return this.chat.registerMlsDevice(user.id, request.deviceId.toLowerCase(), request.name, request.keyPackage, request.pairingPublicKey);
 	}
 
 	@Get("/devices")
@@ -90,10 +71,7 @@ export class ChatController {
 	}
 
 	@Put("/history-backup")
-	async saveChatHistoryBackup(
-		@BodyParams() request: ChatMlsHistoryBackupRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async saveChatHistoryBackup(@BodyParams() request: ChatMlsHistoryBackupRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		await this.chat.saveChatHistoryBackup(user.id, request.backup);
 		return { saved: true };
@@ -101,11 +79,7 @@ export class ChatController {
 
 	@Post("/devices/:deviceId/approve")
 	@Returns(204)
-	async approveMlsDevice(
-		@PathParams("deviceId") deviceId: string,
-		@BodyParams() request: ApproveChatMlsDeviceRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async approveMlsDevice(@PathParams("deviceId") deviceId: string, @BodyParams() request: ApproveChatMlsDeviceRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(deviceId) || !AuthService.isUuid(request.approverDeviceId)) {
 			throw new BadRequest("The chat device ID is invalid.");
@@ -123,11 +97,7 @@ export class ChatController {
 
 	@Post("/devices/:deviceId/key-packages")
 	@Returns(201)
-	async addMlsKeyPackage(
-		@PathParams("deviceId") deviceId: string,
-		@BodyParams() request: AddChatMlsKeyPackageRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async addMlsKeyPackage(@PathParams("deviceId") deviceId: string, @BodyParams() request: AddChatMlsKeyPackageRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(deviceId)) throw new BadRequest("The chat device ID is invalid.");
 		return this.chat.addMlsKeyPackage(user.id, deviceId.toLowerCase(), request.keyPackage);
@@ -172,24 +142,13 @@ export class ChatController {
 	}
 
 	@Patch("/conversations/:id")
-	async rename(
-		@PathParams("id") id: string,
-		@BodyParams() request: RenameChatRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async rename(@PathParams("id") id: string, @BodyParams() request: RenameChatRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.chat.rename(user.id, conversationId(id), request.name);
 	}
 
 	@Get("/conversations/:id/messages")
-	async messages(
-		@PathParams("id") id: string,
-		@QueryParams("before") before?: string,
-		@QueryParams("after") after?: string,
-		@QueryParams("beforeSequence") beforeSequence?: string,
-		@QueryParams("afterSequence") afterSequence?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async messages(@PathParams("id") id: string, @QueryParams("before") before?: string, @QueryParams("after") after?: string, @QueryParams("beforeSequence") beforeSequence?: string, @QueryParams("afterSequence") afterSequence?: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.chat.messages(user.id, conversationId(id), {
 			before: typeof before === "string" ? before : undefined,
@@ -200,32 +159,20 @@ export class ChatController {
 	}
 
 	@Get("/conversations/:id/mls/key-packages")
-	async mlsKeyPackages(
-		@PathParams("id") id: string,
-		@QueryParams("lenient") lenient?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async mlsKeyPackages(@PathParams("id") id: string, @QueryParams("lenient") lenient?: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return { keyPackages: await this.chat.conversationMlsKeyPackages(user.id, conversationId(id), lenient === "1") };
 	}
 
 	@Post("/conversations/:id/mls/key-packages/:keyPackageId/claim")
-	async claimMlsKeyPackage(
-		@PathParams("id") id: string,
-		@PathParams("keyPackageId") keyPackageId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async claimMlsKeyPackage(@PathParams("id") id: string, @PathParams("keyPackageId") keyPackageId: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(keyPackageId)) throw new BadRequest("The MLS key package ID is invalid.");
 		return this.chat.claimMlsKeyPackage(user.id, conversationId(id), keyPackageId.toLowerCase());
 	}
 
 	@Get("/conversations/:id/mls/welcomes")
-	async mlsWelcomes(
-		@PathParams("id") id: string,
-		@QueryParams("deviceId") deviceId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async mlsWelcomes(@PathParams("id") id: string, @QueryParams("deviceId") deviceId: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(deviceId)) throw new BadRequest("The chat device ID is invalid.");
 		return {
@@ -235,11 +182,7 @@ export class ChatController {
 
 	@Post("/conversations/:id/mls/welcomes")
 	@Returns(201)
-	async storeMlsWelcome(
-		@PathParams("id") id: string,
-		@BodyParams() request: StoreChatMlsWelcomeRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async storeMlsWelcome(@PathParams("id") id: string, @BodyParams() request: StoreChatMlsWelcomeRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(request.messageId) || request.recipients.some(({ deviceId, keyPackageId }) => !AuthService.isUuid(deviceId) || !AuthService.isUuid(keyPackageId))) {
 			throw new BadRequest("The chat message or MLS Welcome recipient ID is invalid.");
@@ -261,41 +204,20 @@ export class ChatController {
 
 	@Post("/conversations/:id/mls/welcomes/:welcomeId/ack")
 	@Returns(204)
-	async acknowledgeMlsWelcome(
-		@PathParams("id") id: string,
-		@PathParams("welcomeId") welcomeId: string,
-		@BodyParams() request: AcknowledgeChatMlsWelcomeRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async acknowledgeMlsWelcome(@PathParams("id") id: string, @PathParams("welcomeId") welcomeId: string, @BodyParams() request: AcknowledgeChatMlsWelcomeRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(request.deviceId) || !AuthService.isUuid(welcomeId)) {
 			throw new BadRequest("The chat device or Welcome ID is invalid.");
 		}
-		await this.chat.acknowledgeMlsWelcome(
-			user.id,
-			conversationId(id),
-			request.deviceId.toLowerCase(),
-			welcomeId.toLowerCase(),
-		);
+		await this.chat.acknowledgeMlsWelcome(user.id, conversationId(id), request.deviceId.toLowerCase(), welcomeId.toLowerCase());
 	}
 
 	@Post("/conversations/:id/messages")
 	@Returns(201)
-	async send(
-		@PathParams("id") id: string,
-		@BodyParams() request: SendMessageRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async send(@PathParams("id") id: string, @BodyParams() request: SendMessageRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (request.mlsDeviceId && !AuthService.isUuid(request.mlsDeviceId)) throw new BadRequest("The chat device ID is invalid.");
-		return this.chat.send(
-			user.id,
-			conversationId(id),
-			request.body,
-			request.encrypted === true,
-			request.mlsWelcome,
-			request.mlsDeviceId?.toLowerCase(),
-		);
+		return this.chat.send(user.id, conversationId(id), request.body, request.encrypted === true, request.mlsWelcome, request.mlsDeviceId?.toLowerCase());
 	}
 
 	@Post("/conversations/:id/read")
@@ -308,11 +230,7 @@ export class ChatController {
 	}
 
 	@Post("/conversations/:id/members")
-	async addMembers(
-		@PathParams("id") id: string,
-		@BodyParams() request: AddMembersRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async addMembers(@PathParams("id") id: string, @BodyParams() request: AddMembersRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.chat.addMembers(user.id, conversationId(id), request.usernames);
 	}
@@ -326,11 +244,7 @@ export class ChatController {
 
 	@Delete("/conversations/:id/members/:username")
 	@Returns(204)
-	async removeMember(
-		@PathParams("id") id: string,
-		@PathParams("username") username: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async removeMember(@PathParams("id") id: string, @PathParams("username") username: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		await this.chat.removeMember(user.id, conversationId(id), username);
 	}

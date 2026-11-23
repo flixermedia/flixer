@@ -21,10 +21,21 @@ FROM alpine:3.20 AS pgdg-key
 RUN apk add --no-cache curl gnupg \
     && curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 --max-time 600 https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /apt.postgresql.org.gpg
 
+# Build RTK for the older Xeon CPU in the Coder environment.
+FROM rust:1.100-bookworm AS rtk
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git build-essential pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && RUSTFLAGS="-C target-cpu=x86-64" cargo install \
+        --git https://github.com/rtk-ai/rtk \
+        --branch master \
+        rtk
+
 FROM codercom/enterprise-base:ubuntu
 
 USER root
 COPY --from=pgdg-key /apt.postgresql.org.gpg /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+COPY --from=rtk /usr/local/cargo/bin/rtk /usr/local/bin/rtk
 
 # Keep downloaded packages in BuildKit caches (not in the image) and install everything with a single apt-get update.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -50,5 +61,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY --from=node /out/ /usr/local/
 COPY --from=go /usr/local/go /usr/local/go
 
-ENV PATH=/usr/local/go/bin:/home/coder/go/bin:$PATH
+ENV PATH=/usr/local/go/bin:/home/coder/go/bin:/usr/local/bin:$PATH
+
 USER coder

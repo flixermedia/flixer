@@ -4,6 +4,7 @@ import type { ContentScope } from "../api/payments/paymentTypes.js";
 /** An uploaded advertisement and the content and break positions it may serve. */
 @Entity("advertisements")
 export class Advertisement {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

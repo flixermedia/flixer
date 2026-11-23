@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** Stores opt-in webhook policy and per-user destinations. */
 export class CreateUserWebhooks1798300000009 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE user_webhook_config (

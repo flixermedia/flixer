@@ -26,7 +26,25 @@ describe("PluginSlotService", () => {
 			const directory = join(root, "plugins", "installed", "plugin.example");
 			await mkdir(directory, { recursive: true });
 			await writeFile(join(directory, "slot.js"), "document.body.textContent = 'ready'");
-			const installation = { pluginId: "plugin.example", enabled: true, status: "enabled", lastError: null, targetStatus: { "flixer-web": "requested" }, manifest: { targets: { "flixer-web": { entry: "slot.js" } }, capabilities: ["ui.slots"], permissions: ["ui.slot.media.detail"], ui: { slots: [{ id: "detail", title: "Details", location: "media.detail" }, { id: "admin", title: "Admin", location: "media.detail", adminOnly: true }] } }, approvedPermissions: ["ui.slot.media.detail"] };
+			const installation = {
+				pluginId: "plugin.example",
+				enabled: true,
+				status: "enabled",
+				lastError: null,
+				targetStatus: { "flixer-web": "requested" },
+				manifest: {
+					targets: { "flixer-web": { entry: "slot.js" } },
+					capabilities: ["ui.slots"],
+					permissions: ["ui.slot.media.detail"],
+					ui: {
+						slots: [
+							{ id: "detail", title: "Details", location: "media.detail" },
+							{ id: "admin", title: "Admin", location: "media.detail", adminOnly: true },
+						],
+					},
+				},
+				approvedPermissions: ["ui.slot.media.detail"],
+			};
 			const dataSource = { getRepository: vi.fn(() => ({ find: vi.fn().mockResolvedValue([installation]), update: vi.fn().mockResolvedValue({ affected: 1 }) })) } as unknown as DataSource;
 			const service = new PluginSlotService(dataSource);
 			const visible = await service.list("user", "media.detail");

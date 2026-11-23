@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateAdvertisements1798300000005 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE advertisement_settings (

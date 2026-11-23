@@ -50,7 +50,6 @@ export class AppConfig {
 	get persistent(): ConfigStore | null {
 		return this.store;
 	}
-
 }
 
 export function configDirectory(): string {
@@ -61,6 +60,7 @@ let instance: AppConfig | undefined;
 
 /** The shared configuration. The store opens on first use; if it cannot be opened, environment variables and defaults still work. */
 export function appConfig(): AppConfig {
+
 	if (!instance) {
 		let store: ConfigStore | null = null;
 		try {
@@ -71,9 +71,12 @@ export function appConfig(): AppConfig {
 		instance = new AppConfig(store);
 	}
 	return instance;
+
 }
 
 /** Replaces the shared configuration; for tests. */
 export function setAppConfig(config: AppConfig | undefined): void {
+
 	instance = config;
+
 }

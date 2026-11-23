@@ -13,9 +13,7 @@ for (const [path, pathItem] of Object.entries(specification.paths ?? {})) {
 		if (!["get", "post", "put", "patch", "delete", "head", "options"].includes(method)) continue;
 		if (!operation || typeof operation !== "object" || !("operationId" in operation) || typeof operation.operationId !== "string") continue;
 		const pathParameters = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
-		const hasQuery = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].some(
-			(parameter) => parameter && typeof parameter === "object" && "in" in parameter && parameter.in === "query",
-		);
+		const hasQuery = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].some((parameter) => parameter && typeof parameter === "object" && "in" in parameter && parameter.in === "query");
 		routes.push({
 			method,
 			path: path.replace(/^\/api(?=\/|$)/, ""),

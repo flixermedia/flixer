@@ -1,7 +1,7 @@
 import { BadRequest, Conflict } from "@tsed/exceptions";
 
-export const ORGANIZATION_TEMPLATE_FIELDS = ["movie", "series", "episode", "music"] as const;
-export type OrganizationTemplateField = (typeof ORGANIZATION_TEMPLATE_FIELDS)[number];
+const ORGANIZATION_TEMPLATE_FIELDS = ["movie", "series", "episode", "music"] as const;
+type OrganizationTemplateField = (typeof ORGANIZATION_TEMPLATE_FIELDS)[number];
 export type OrganizationTemplates = Record<OrganizationTemplateField, string>;
 
 export const DEFAULT_ORGANIZATION_TEMPLATES: OrganizationTemplates = {
@@ -23,6 +23,7 @@ const INVALID_NAME_CHARACTERS = /[<>:"|?*\\/\x00-\x1f]/g;
 const INVALID_TEMPLATE_CHARACTERS = /[<>:"|?*\x00-\x1f]/;
 
 export function validateOrganizationTemplates(value: unknown): OrganizationTemplates {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest("Organization templates must be an object.");
 	}
@@ -56,14 +57,17 @@ export function validateOrganizationTemplates(value: unknown): OrganizationTempl
 		result[field] = template.trim();
 	}
 	return result;
+
 }
 
 function safeSegment(value: string): string {
+
 	const normalized = value
 		.replace(INVALID_NAME_CHARACTERS, "_")
 		.replace(/[. ]+$/g, "")
 		.trim();
 	return (normalized || "_").slice(0, 180);
+
 }
 
 export function renderOrganizationTemplate(template: string, values: Record<string, string | number | null | undefined>): string {
@@ -74,6 +78,7 @@ export function renderOrganizationTemplate(template: string, values: Record<stri
 }
 
 export function rejectTargetCollisions(moves: readonly { rootId: string; sourceRelativePath: string; targetRelativePath: string }[]): void {
+
 	const seen = new Map<string, (typeof moves)[number]>();
 	for (const move of moves) {
 		const key = `${move.rootId}/${move.targetRelativePath}`.normalize("NFC").toLocaleLowerCase("en-US");
@@ -83,4 +88,5 @@ export function rejectTargetCollisions(moves: readonly { rootId: string; sourceR
 		}
 		seen.set(key, move);
 	}
+
 }

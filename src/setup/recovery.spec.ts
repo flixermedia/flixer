@@ -17,8 +17,7 @@ describe("setup recovery", () => {
 	let saved: Record<string, string | undefined>;
 	const probes: Probes = { database: async () => ({ ok: true, hasUsers: true }), redis: async () => ({ ok: true }), http: async () => ({ ok: true }) };
 
-	const call = (method: string, path: string, body: unknown = {}, code?: string) =>
-		handleSetupRequest(method, `/api/setup${path}`, body, { isAdmin: async () => false, adminExists: async () => false, recoveryCode: code, probes });
+	const call = (method: string, path: string, body: unknown = {}, code?: string) => handleSetupRequest(method, `/api/setup${path}`, body, { isAdmin: async () => false, adminExists: async () => false, recoveryCode: code, probes });
 
 	beforeEach(() => {
 		directory = mkdtempSync(join(tmpdir(), "flixer-recovery-"));
@@ -70,7 +69,11 @@ describe("setup recovery", () => {
 
 	it("refuses every setup route without the code, including progress", async () => {
 		store.setSetupState("completed");
-		for (const [method, path] of [["GET", "/progress"], ["POST", "/steps/database"], ["POST", "/steps/database/test"]]) {
+		for (const [method, path] of [
+			["GET", "/progress"],
+			["POST", "/steps/database"],
+			["POST", "/steps/database/test"],
+		]) {
 			expect((await call(method, path, { databaseUrl: "postgres://u:p@db:5432/flixer" }))?.status).toBe(403);
 			expect((await call(method, path, { databaseUrl: "postgres://u:p@db:5432/flixer" }, "AAAA-AAAA-AAAA-AAAA"))?.status).toBe(403);
 		}
@@ -104,8 +107,7 @@ describe("setup recovery", () => {
 			updateRuntime({ mode: "ready", database: "ok" });
 			store.setSetupState("in_progress");
 		});
-		const locked = (method: string, path: string, code?: string) =>
-			handleSetupRequest(method, `/api/setup${path}`, {}, { isAdmin: async () => false, adminExists: async () => true, recoveryCode: code, probes });
+		const locked = (method: string, path: string, code?: string) => handleSetupRequest(method, `/api/setup${path}`, {}, { isAdmin: async () => false, adminExists: async () => true, recoveryCode: code, probes });
 
 		it("keeps setup locked without a key and accepts only the right one", async () => {
 			expect((await locked("GET", "/progress"))?.status).toBe(403);

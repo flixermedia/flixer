@@ -54,7 +54,7 @@ export function sanitizeEmailHtml(html: string): string {
 	});
 }
 
-export interface MessageQuery {
+interface MessageQuery {
 	mailboxId?: string;
 	direction?: "inbound" | "outbound";
 	search?: string;
@@ -102,7 +102,11 @@ export class MailMessageService {
 			const like = `%${search.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 			builder.andWhere(new Brackets((qb) => qb.where("m.subject ILIKE :like", { like }).orWhere("m.fromAddress ILIKE :like", { like }).orWhere("m.text ILIKE :like", { like })));
 		}
-		const [rows, total] = await builder.orderBy("m.createdAt", "DESC").skip((page - 1) * limit).take(limit).getManyAndCount();
+		const [rows, total] = await builder
+			.orderBy("m.createdAt", "DESC")
+			.skip((page - 1) * limit)
+			.take(limit)
+			.getManyAndCount();
 		return { total, page, limit, items: rows.map(summarise) };
 	}
 
@@ -141,7 +145,9 @@ export class MailMessageService {
 		const info = message.attachments.find((item) => item.id === attachmentId);
 		if (!info || !UUID.test(attachmentId)) throw new NotFound("Attachment not found.");
 		const file = path.join(attachmentDirectory(id), attachmentId);
-		const size = await stat(file).then((value) => value.size).catch(() => null);
+		const size = await stat(file)
+			.then((value) => value.size)
+			.catch(() => null);
 		if (size === null) throw new NotFound("The attachment file is no longer available.");
 		return { info, stream: createReadStream(file), size };
 	}

@@ -1,17 +1,17 @@
-export { VersionController } from "./api/versionController.js";
+export { VersionController } from "./api/updates/versionController.js";
 export { SetupController } from "./api/setup/setupController.js";
 export { InternalConfigController } from "./api/setup/internalConfigController.js";
 export { AiController } from "./api/ai/aiController.js";
 export { RecommendationsController } from "./api/ai/recommendationsController.js";
 export { AiAdminController } from "./api/ai/aiAdminController.js";
 export { AuthController } from "./api/auth/authController.js";
-export { ExternalAuthController } from "./api/auth/externalAuthController.js";
+export { ExternalAuthController } from "./api/auth/oauth/externalAuthController.js";
 export { OidcClientsController } from "./api/oidc/oidcClientsController.js";
 export { OidcInteractionController } from "./api/oidc/oidcInteractionController.js";
 export { OidcConsentsController } from "./api/oidc/oidcConsentsController.js";
 export { OidcResourceController } from "./api/oidc/oidcResourceController.js";
-export { AvatarController } from "./api/auth/avatarController.js";
-export { PasskeyController } from "./api/auth/passkeyController.js";
+export { AvatarController } from "./api/auth/avatar/avatarController.js";
+export { PasskeyController } from "./api/auth/passkey/passkeyController.js";
 export { UserController } from "./api/user/userController.js";
 export { PreferencesController } from "./api/preferences/preferencesController.js";
 export { SettingsController } from "./api/settings/settingsController.js";
@@ -33,12 +33,7 @@ export { IndexerApiController } from "./api/indexer/indexerApiController.js";
 export { AdminIndexerController } from "./api/indexer/adminIndexerController.js";
 export { PluginsController } from "./api/plugins/pluginsController.js";
 export { PluginRuntimeController } from "./api/plugins/pluginRuntimeController.js";
-export {
-	RequestImagesController,
-	RequestsController,
-	AdminRequestsController,
-	RequestWebhookController,
-} from "./api/requests/requestsController.js";
+export { RequestImagesController, RequestsController, AdminRequestsController, RequestWebhookController } from "./api/requests/requestsController.js";
 export { PluginSchedulerService } from "./api/plugins/pluginSchedulerService.js";
 export { AdminMediaController } from "./api/media/adminMediaController.js";
 export { AdminDuplicateSuggestionsController } from "./api/media/duplicateSuggestionsController.js";
@@ -70,3 +65,5 @@ export { PaymentsController, AdminPaymentsController } from "./api/payments/paym
 export { AdvertisementController } from "./api/advertisements/advertisementController.js";
 export { AnalyticsController, AnalyticsReportController } from "./api/analytics/analyticsController.js";
 export { AdminUserWebhookController, UserWebhookController } from "./api/webhooks/userWebhookController.js";
+export { InvitesAdminController } from "./api/invites/invitesAdminController.js";
+export { InvitesController } from "./api/invites/invitesController.js";

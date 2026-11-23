@@ -2,12 +2,9 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { liveLogHub, type LiveLogHub } from "./liveLogHub.js";
+import { CLOSE_UNAUTHORIZED, closeCodeFor } from "../utils/socketCloseCodes.js";
 
 export const LIVE_LOG_PATH = "/api/logs/stream";
-
-/** Close codes sent to clients. 4401/4403 mean "do not reconnect with the same credentials". */
-export const CLOSE_UNAUTHORIZED = 4401;
-export const CLOSE_FORBIDDEN = 4403;
 
 const AUTH_TIMEOUT_MS = 5_000;
 const REVALIDATE_INTERVAL_MS = 60_000;
@@ -17,7 +14,7 @@ const MAX_CLIENT_MESSAGE_BYTES = 4_096;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
 /** Resolves when the token belongs to an administrator and rejects (optionally with `status`) otherwise. */
-export type AdminAuthenticator = (token: string) => Promise<void>;
+type AdminAuthenticator = (token: string) => Promise<void>;
 
 interface Connection {
 	authenticated: boolean;
@@ -176,15 +173,12 @@ export class LiveLogSocketServer {
 }
 
 function parseAuthMessage(raw: RawData): string | null {
+
 	try {
 		const message = JSON.parse(raw.toString()) as { type?: unknown; token?: unknown };
 		return message.type === "auth" && typeof message.token === "string" && message.token !== "" ? message.token : null;
 	} catch {
 		return null;
 	}
-}
 
-function closeCodeFor(error: unknown): number {
-	const status = (error as { status?: number } | null)?.status;
-	return status === 403 ? CLOSE_FORBIDDEN : CLOSE_UNAUTHORIZED;
 }

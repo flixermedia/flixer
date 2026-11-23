@@ -21,10 +21,7 @@ export interface MountTarget {
 export class MountError extends Error {}
 
 const COMMAND_TIMEOUT_MS = 20_000;
-const RCLONE_OBSCURE_KEY = Buffer.from([
-	0x9c, 0x93, 0x5b, 0x48, 0x73, 0x0a, 0x55, 0x4d, 0x6b, 0xfd, 0x7c, 0x63, 0xc8, 0x86, 0xa9, 0x2b,
-	0xd3, 0x90, 0x19, 0x8e, 0xb8, 0x12, 0x8a, 0xfb, 0xf4, 0xde, 0x16, 0x2b, 0x8b, 0x95, 0xf6, 0x38,
-]);
+const RCLONE_OBSCURE_KEY = Buffer.from([0x9c, 0x93, 0x5b, 0x48, 0x73, 0x0a, 0x55, 0x4d, 0x6b, 0xfd, 0x7c, 0x63, 0xc8, 0x86, 0xa9, 0x2b, 0xd3, 0x90, 0x19, 0x8e, 0xb8, 0x12, 0x8a, 0xfb, 0xf4, 0xde, 0x16, 0x2b, 0x8b, 0x95, 0xf6, 0x38]);
 
 /** Where shares are mounted on Linux and macOS. Windows connects to the UNC path directly. */
 export function mountBaseDir(): string {
@@ -37,12 +34,15 @@ export function localPathFor(target: Pick<MountTarget, "id" | "host" | "share"> 
 }
 
 function obscureRcloneSecret(value: string): string {
+
 	const iv = randomBytes(16);
 	const cipher = createCipheriv("aes-256-ctr", RCLONE_OBSCURE_KEY, iv);
 	return Buffer.concat([iv, cipher.update(value, "utf8"), cipher.final()]).toString("base64url");
+
 }
 
 export function rcloneConfigFor(target: MountTarget): string {
+
 	const remoteType = target.protocol === "webdav" ? "webdav" : "s3";
 	const lines = ["[flixer]", `type = ${remoteType}`];
 	if (remoteType === "webdav") {
@@ -60,9 +60,11 @@ export function rcloneConfigFor(target: MountTarget): string {
 		lines.push(`${remoteType === "s3" ? "secret_access_key" : "pass"} = ${obscureRcloneSecret(target.password)}`);
 	}
 	return `${lines.join("\n")}\n`;
+
 }
 
 export function mountArgsFor(target: MountTarget, path: string, configPath = "/tmp/flixer-rclone.conf"): { command: string; args: string[]; env?: NodeJS.ProcessEnv } {
+
 	if (target.protocol === "nfs") {
 		return { command: "mount", args: ["-t", "nfs", "-o", "ro,nosuid,nodev", `${target.host}:${target.share}`, path] };
 	}
@@ -73,26 +75,17 @@ export function mountArgsFor(target: MountTarget, path: string, configPath = "/t
 			args: ["mount", "--config", configPath, "--read-only", "--vfs-cache-mode", "full", "--allow-other", "--daemon", `flixer:${remotePath}`, path],
 		};
 	}
-	const options = [
-		target.username ? `username=${target.username}` : "guest",
-		...(target.domain ? [`domain=${target.domain}`] : []),
-		`uid=${process.getuid?.() ?? 0}`,
-		`gid=${process.getgid?.() ?? 0}`,
-		"file_mode=0644",
-		"dir_mode=0755",
-		"iocharset=utf8",
-		"nosuid",
-		"nodev",
-		target.readOnly ? "ro" : "rw",
-	].join(",");
+	const options = [target.username ? `username=${target.username}` : "guest", ...(target.domain ? [`domain=${target.domain}`] : []), `uid=${process.getuid?.() ?? 0}`, `gid=${process.getgid?.() ?? 0}`, "file_mode=0644", "dir_mode=0755", "iocharset=utf8", "nosuid", "nodev", target.readOnly ? "ro" : "rw"].join(",");
 	return {
 		command: "mount",
 		args: ["-t", "cifs", `//${target.host}/${target.share}`, path, "-o", options],
 		env: target.password ? { PASSWD: target.password } : undefined,
 	};
+
 }
 
 function redact(text: string, secrets: string[]): string {
+
 	let result = text;
 	for (const secret of secrets) {
 		if (secret) {
@@ -100,15 +93,18 @@ function redact(text: string, secrets: string[]): string {
 		}
 	}
 	return result.replace(/\s+/g, " ").trim();
+
 }
 
 /** On Linux without root, SMB_MOUNT_SUDO=true runs mount/umount through passwordless sudo. */
 function privileged(command: string, args: string[], env?: NodeJS.ProcessEnv): [string, string[]] {
+
 	if (process.platform === "linux" && process.getuid?.() !== 0 && process.env.SMB_MOUNT_SUDO === "true") {
 		const keep = Object.keys(env ?? {});
 		return ["sudo", ["-n", ...(keep.length ? [`--preserve-env=${keep.join(",")}`] : []), command, ...args]];
 	}
 	return [command, args];
+
 }
 
 function run(command: string, args: string[], secrets: string[], env?: NodeJS.ProcessEnv): Promise<string> {
@@ -137,6 +133,7 @@ function secretsOf(target: MountTarget): string[] {
 }
 
 async function isMounted(path: string): Promise<boolean> {
+
 	if (process.platform === "linux") {
 		const table = await readFile("/proc/self/mounts", "utf8").catch(() => "");
 		const escaped = path.replace(/ /g, "\\040");
@@ -144,10 +141,18 @@ async function isMounted(path: string): Promise<boolean> {
 	}
 	const output = await run("mount", [], []).catch(() => "");
 	return output.includes(` on ${path} (`);
+
 }
 
 async function connectWindows(target: MountTarget, unc: string, force: boolean): Promise<void> {
-	if (!force && (await readdir(unc).then(() => true, () => false))) {
+
+	if (
+		!force &&
+		(await readdir(unc).then(
+			() => true,
+			() => false,
+		))
+	) {
 		return;
 	}
 	await run("net", ["use", unc, "/delete", "/y"], []).catch(() => undefined);
@@ -158,9 +163,11 @@ async function connectWindows(target: MountTarget, unc: string, force: boolean):
 	}
 	args.push("/persistent:no");
 	await run("net", args, secretsOf(target));
+
 }
 
 async function mountLinux(target: MountTarget, path: string): Promise<void> {
+
 	if (target.protocol !== "smb") {
 		if (target.protocol === "webdav" || target.protocol === "s3") {
 			const directory = await mkdtemp(join(tmpdir(), "flixer-rclone-"));
@@ -187,18 +194,7 @@ async function mountLinux(target: MountTarget, path: string): Promise<void> {
 		}
 		return;
 	}
-	const options = [
-		target.username ? `username=${target.username}` : "guest",
-		...(target.domain ? [`domain=${target.domain}`] : []),
-		`uid=${process.getuid?.() ?? 0}`,
-		`gid=${process.getgid?.() ?? 0}`,
-		"file_mode=0644",
-		"dir_mode=0755",
-		"iocharset=utf8",
-		"nosuid",
-		"nodev",
-		target.readOnly ? "ro" : "rw",
-	].join(",");
+	const options = [target.username ? `username=${target.username}` : "guest", ...(target.domain ? [`domain=${target.domain}`] : []), `uid=${process.getuid?.() ?? 0}`, `gid=${process.getgid?.() ?? 0}`, "file_mode=0644", "dir_mode=0755", "iocharset=utf8", "nosuid", "nodev", target.readOnly ? "ro" : "rw"].join(",");
 	try {
 		// The password goes in the environment (PASSWD) so it never appears in the process list.
 		const env = target.password ? { PASSWD: target.password } : undefined;
@@ -210,14 +206,15 @@ async function mountLinux(target: MountTarget, path: string): Promise<void> {
 		}
 		throw error;
 	}
+
 }
 
 async function mountMac(target: MountTarget, path: string): Promise<void> {
-	const auth = target.username
-		? `${target.domain ? `${encodeURIComponent(target.domain)};` : ""}${encodeURIComponent(target.username)}${target.password ? `:${encodeURIComponent(target.password)}` : ""}`
-		: "guest";
+
+	const auth = target.username ? `${target.domain ? `${encodeURIComponent(target.domain)};` : ""}${encodeURIComponent(target.username)}${target.password ? `:${encodeURIComponent(target.password)}` : ""}` : "guest";
 	const url = `//${auth}@${target.host}/${encodeURIComponent(target.share)}`;
 	await run("mount_smbfs", [...(target.readOnly ? ["-o", "rdonly"] : []), url, path], secretsOf(target));
+
 }
 
 /**
@@ -225,6 +222,7 @@ async function mountMac(target: MountTarget, path: string): Promise<void> {
  * (use it after the credentials changed); otherwise an existing connection is kept.
  */
 export async function mountShare(target: MountTarget, force = false): Promise<string> {
+
 	const path = localPathFor(target);
 	if (process.platform === "win32") {
 		if (target.protocol !== "smb") {
@@ -251,9 +249,11 @@ export async function mountShare(target: MountTarget, force = false): Promise<st
 		throw new MountError("Connected, but the share's contents cannot be read. Check the account's permissions on the share.");
 	});
 	return path;
+
 }
 
 export async function unmountShare(target: Pick<MountTarget, "id" | "host" | "share"> & { protocol?: MountTarget["protocol"] }): Promise<void> {
+
 	const path = localPathFor(target);
 	if (process.platform === "win32") {
 		await run("net", ["use", path, "/delete", "/y"], []).catch(() => undefined);
@@ -263,4 +263,5 @@ export async function unmountShare(target: Pick<MountTarget, "id" | "host" | "sh
 		await run(...privileged("umount", [path]), []);
 	}
 	await rmdir(path).catch(() => undefined);
+
 }

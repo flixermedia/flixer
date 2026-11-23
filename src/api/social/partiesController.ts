@@ -20,6 +20,7 @@ const partyId = (value: string): string => {
 @Controller("/parties")
 @Security("BearerAuth")
 export class PartiesController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly parties: PartiesService,
@@ -58,12 +59,7 @@ export class PartiesController {
 
 	/** Key packages used to open an end-to-end encrypted voice link with one other party member. */
 	@Get("/:id/calls/key-packages")
-	async callKeyPackages(
-		@PathParams("id") id: string,
-		@QueryParams("peer") peer: string,
-		@QueryParams("lenient") lenient?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async callKeyPackages(@PathParams("id") id: string, @QueryParams("peer") peer: string, @QueryParams("lenient") lenient?: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(peer ?? "")) {
 			throw new NotFound("Party member not found.");
@@ -72,11 +68,7 @@ export class PartiesController {
 	}
 
 	@Post("/:id/calls/key-packages/:keyPackageId/claim")
-	async claimCallKeyPackage(
-		@PathParams("id") id: string,
-		@PathParams("keyPackageId") keyPackageId: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async claimCallKeyPackage(@PathParams("id") id: string, @PathParams("keyPackageId") keyPackageId: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!AuthService.isUuid(keyPackageId)) {
 			throw new NotFound("Key package not found.");

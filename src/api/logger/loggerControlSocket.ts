@@ -16,16 +16,21 @@ const paths: Record<string, { app: LoggerProducer; ai?: true }> = {
 };
 
 function header(req: IncomingMessage, name: string): string | undefined {
+
 	const values = req.headersDistinct[name];
 	return values?.length === 1 ? values[0] : undefined;
+
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
+
 	res.writeHead(status, { "content-type": "application/json", "cache-control": "private, no-store" });
 	res.end(JSON.stringify(body));
+
 }
 
 async function clearStaleSocket(path: string): Promise<void> {
+
 	let info;
 	try {
 		info = lstatSync(path);
@@ -57,10 +62,12 @@ async function clearStaleSocket(path: string): Promise<void> {
 			}
 		});
 	});
+
 }
 
 /** Starts a signed, bounded local-only credential channel on a protected socket. */
 export async function startLoggerControlSocket(path: string, logger: Pick<LoggerService, "producerIngestConfiguration">): Promise<Server> {
+
 	if (!isAbsolute(path)) throw new Error("Logger control socket path must be absolute.");
 	const directory = lstatSync(dirname(path));
 	if (!directory.isDirectory() || (directory.mode & 0o022) !== 0 || directory.uid !== process.geteuid?.()) {
@@ -76,8 +83,7 @@ export async function startLoggerControlSocket(path: string, logger: Pick<Logger
 			return;
 		}
 		const route = req.url && Object.hasOwn(paths, req.url) ? paths[req.url] : undefined;
-		if (req.method !== "GET" || !route || req.headers["transfer-encoding"] ||
-			(req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0")) {
+		if (req.method !== "GET" || !route || req.headers["transfer-encoding"] || (req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0")) {
 			json(res, 404, { error: "Not found." });
 			return;
 		}
@@ -85,13 +91,11 @@ export async function startLoggerControlSocket(path: string, logger: Pick<Logger
 			if (route.ai) {
 				const signature = header(req, AI_SIGNATURE_HEADER);
 				if (!signature || !/^[0-9a-f]{64}$/i.test(signature)) throw new Exception(401, "Invalid signature.");
-				verifyAiRequest({ method: "GET", path: req.url!, body: new Uint8Array(),
-					timestamp: header(req, AI_TIMESTAMP_HEADER), signature });
+				verifyAiRequest({ method: "GET", path: req.url!, body: new Uint8Array(), timestamp: header(req, AI_TIMESTAMP_HEADER), signature });
 			} else {
 				const signature = header(req, INDEXER_SIGNATURE_HEADER);
 				if (!signature || !/^[0-9a-f]{64}$/i.test(signature)) throw new Exception(401, "Invalid signature.");
-				verifyIndexerRequest({ method: "GET", path: req.url!, body: new Uint8Array(),
-					timestamp: header(req, INDEXER_TIMESTAMP_HEADER), signature });
+				verifyIndexerRequest({ method: "GET", path: req.url!, body: new Uint8Array(), timestamp: header(req, INDEXER_TIMESTAMP_HEADER), signature });
 			}
 		} catch (error) {
 			if (!(error instanceof Exception) || error.status !== 401) {
@@ -101,19 +105,27 @@ export async function startLoggerControlSocket(path: string, logger: Pick<Logger
 			return;
 		}
 		active++;
-		void logger.producerIngestConfiguration(route.app).then((configuration) => {
-			json(res, 200, configuration);
-		}, () => {
-			const now = Date.now();
-			if (now - lastEnrollmentFailure >= 60_000) {
-				process.stderr.write(`Flixer logger: producer enrollment failed (suppressed diagnostics: ${suppressedFailures})\n`);
-				lastEnrollmentFailure = now;
-				suppressedFailures = 0;
-			} else {
-				suppressedFailures++;
-			}
-			json(res, 503, { error: "Logger enrollment unavailable." });
-		}).finally(() => { active--; });
+		void logger
+			.producerIngestConfiguration(route.app)
+			.then(
+				(configuration) => {
+					json(res, 200, configuration);
+				},
+				() => {
+					const now = Date.now();
+					if (now - lastEnrollmentFailure >= 60_000) {
+						process.stderr.write(`Flixer logger: producer enrollment failed (suppressed diagnostics: ${suppressedFailures})\n`);
+						lastEnrollmentFailure = now;
+						suppressedFailures = 0;
+					} else {
+						suppressedFailures++;
+					}
+					json(res, 503, { error: "Logger enrollment unavailable." });
+				},
+			)
+			.finally(() => {
+				active--;
+			});
 	});
 	server.headersTimeout = 5_000;
 	server.requestTimeout = 5_000;
@@ -134,10 +146,12 @@ export async function startLoggerControlSocket(path: string, logger: Pick<Logger
 	});
 	server.on("error", () => process.stderr.write("Flixer logger: control socket encountered an error\n"));
 	return server;
+
 }
 
 @Injectable()
 export class LoggerControlSocket {
+
 	private server?: Server;
 
 	constructor(@Inject(LoggerService) private readonly logger: LoggerService) {}
@@ -154,6 +168,6 @@ export class LoggerControlSocket {
 
 	async $onDestroy(): Promise<void> {
 		if (!this.server) return;
-		await new Promise<void>((resolve, reject) => this.server!.close((error) => error ? reject(error) : resolve()));
+		await new Promise<void>((resolve, reject) => this.server!.close((error) => (error ? reject(error) : resolve())));
 	}
 }

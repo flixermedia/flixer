@@ -6,18 +6,19 @@ import type { PluginSegmentProvider, SegmentLookupOutcome } from "../plugins/plu
 import { MediaSegmentsService } from "./mediaSegmentsService.js";
 
 function setup(outcome: SegmentLookupOutcome) {
+
 	const segments = {
 		findBy: vi.fn(async () => []),
 		save: vi.fn(async () => undefined),
 		delete: vi.fn(async () => undefined),
 	};
 	const dataSource = {
-		getRepository: (entity: unknown) =>
-			entity === MediaSegment ? segments : { findOneBy: vi.fn(async () => null) },
+		getRepository: (entity: unknown) => (entity === MediaSegment ? segments : { findOneBy: vi.fn(async () => null) }),
 	} as unknown as DataSource;
 	const lookup = vi.fn(async () => outcome);
 	const service = new MediaSegmentsService(dataSource, { lookup } as unknown as PluginSegmentProvider);
 	return { service, segments, lookup };
+
 }
 
 const movie = {
@@ -39,7 +40,7 @@ describe("MediaSegmentsService with a segment-provider plugin", () => {
 			source: "theintrodb",
 		};
 		vi.spyOn(repository.dataSource, "getRepository").mockReturnValue({
-			findBy: vi.fn(async (where: { source?: string }) => where.source === "plugin" ? [] : [stored]),
+			findBy: vi.fn(async (where: { source?: string }) => (where.source === "plugin" ? [] : [stored])),
 		} as never);
 
 		const result = await service.forItem(movie);
@@ -56,10 +57,7 @@ describe("MediaSegmentsService with a segment-provider plugin", () => {
 
 		await service.forItem(movie);
 
-		expect(lookup).toHaveBeenCalledWith(
-			{ type: "movie", durationMs: 120000, providerIds: { tmdb: "603", imdb: "tt0133093" } },
-			{ baseUrl: "" },
-		);
+		expect(lookup).toHaveBeenCalledWith({ type: "movie", durationMs: 120000, providerIds: { tmdb: "603", imdb: "tt0133093" } }, { baseUrl: "" });
 		expect(segments.save).toHaveBeenCalledWith({
 			itemId: "m1",
 			type: "intro",

@@ -136,10 +136,7 @@ export class CreatePayments1798300000000 implements MigrationInterface {
 	}
 
 	async down(queryRunner: QueryRunner): Promise<void> {
-		for (const table of [
-			"payment_events", "payment_subscriptions", "payment_entitlements", "payment_orders", "payment_methods",
-			"payment_customers", "payment_coupons", "payment_plans", "payment_products", "payment_config",
-		]) {
+		for (const table of ["payment_events", "payment_subscriptions", "payment_entitlements", "payment_orders", "payment_methods", "payment_customers", "payment_coupons", "payment_plans", "payment_products", "payment_config"]) {
 			await queryRunner.query(`DROP TABLE IF EXISTS "${table}"`);
 		}
 	}

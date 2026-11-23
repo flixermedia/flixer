@@ -1,18 +1,19 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ChatMlsKeyPackage } from "../entities/chatMls.entity.js";
 import { appConfig } from "../config/store/appConfig.js";
 import { CallService, derivedTurnSecret } from "./callService.js";
 
 function serviceWith(settings: Record<string, unknown>, members: string[] = []) {
+
 	const dataSource = {
-		query: async (sql: string, params: string[]) =>
-			sql.includes("chat_members")
-				? members.map((user_id) => ({ user_id }))
-				: params[0] in settings
-					? [{ value: settings[params[0]] }]
-					: [],
+		getRepository: () => ({
+			findOne: async ({ where }: { where: { key: string } }) => (where.key in settings ? { value: settings[where.key] } : null),
+			find: async () => members.map((userId) => ({ userId })),
+		}),
 	};
-	return new CallService(dataSource as never);
+	return new CallService(dataSource as never, undefined as never);
+
 }
 
 describe("CallService", () => {
@@ -28,6 +29,18 @@ describe("CallService", () => {
 		const service = serviceWith({ calls_enabled: true }, ["a", "b", "c"]);
 		expect(await service.recipients("a", "conv")).toEqual(["b", "c"]);
 		await expect(service.recipients("z", "conv")).rejects.toThrow("not found");
+	});
+
+	it("returns a claimed party key package only once", async () => {
+		const read = { innerJoin: vi.fn(), select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), getRawOne: vi.fn().mockResolvedValue({ user_id: "peer", device_id: "device", key_package: "AAAA" }) };
+		for (const name of ["innerJoin", "select", "addSelect", "where"] as const) read[name].mockReturnValue(read);
+		const update = { update: vi.fn(), set: vi.fn(), where: vi.fn(), execute: vi.fn().mockResolvedValueOnce({ affected: 1 }).mockResolvedValueOnce({ affected: 0 }) };
+		for (const name of ["update", "set", "where"] as const) update[name].mockReturnValue(update);
+		const dataSource = { getRepository: (entity: unknown) => (entity === ChatMlsKeyPackage ? { createQueryBuilder: (alias?: string) => (alias ? read : update) } : { findOne: async () => ({ value: true }) }) };
+		const calls = new CallService(dataSource as never, { isMember: async () => true } as never);
+		await expect(calls.claimPartyKeyPackage("caller", "party", "package")).resolves.toEqual({ userId: "peer", deviceId: "device", keyPackageId: "package", keyPackage: "AAAA", available: false });
+		await expect(calls.claimPartyKeyPackage("caller", "party", "package")).rejects.toThrow("already used");
+		expect(update.where).toHaveBeenCalledWith(expect.stringContaining('"used_at" IS NULL'), { keyPackageId: "package", deviceId: "device" });
 	});
 
 	it("issues short-lived TURN credentials from the admin secret, falling back to one derived from APP_SECRET", async () => {

@@ -17,9 +17,11 @@ class TestServer {}
 
 describe("folder scan endpoint", () => {
 	const id = "550e8400-e29b-41d4-a716-446655440000";
-	const auth = { requireAdmin: vi.fn(async (header?: string) => {
-		if (header !== "Bearer test") throw new Unauthorized("Admin required");
-	}) };
+	const auth = {
+		requireAdmin: vi.fn(async (header?: string) => {
+			if (header !== "Bearer test") throw new Unauthorized("Admin required");
+		}),
+	};
 	const libraries = { scanPaths: vi.fn().mockResolvedValue(["/media/Movies/Selected"]) };
 	const indexer = { request: vi.fn().mockResolvedValue({ queued: true, alreadyQueued: false }) };
 	const live = { invalidate: vi.fn(), $onReady: vi.fn(), $onDestroy: vi.fn() };
@@ -27,10 +29,14 @@ describe("folder scan endpoint", () => {
 
 	beforeAll(async () => {
 		platform = await PlatformFastify.bootstrap(TestServer, {
-			httpPort: false, httpsPort: false, mount: { "/api": [AdminIndexerController] },
+			httpPort: false,
+			httpsPort: false,
+			mount: { "/api": [AdminIndexerController] },
 			imports: [
-				{ token: AuthService, use: auth }, { token: MediaLibrariesService, use: libraries },
-				{ token: IndexerClient, use: indexer }, { token: LiveService, use: live },
+				{ token: AuthService, use: auth },
+				{ token: MediaLibrariesService, use: libraries },
+				{ token: IndexerClient, use: indexer },
+				{ token: LiveService, use: live },
 				{ token: AdminIndexerService, use: {} },
 				{ token: DefaultDataSource, use: {} },
 				{ token: NetworkSharesService, use: { $onInit: vi.fn(), $onDestroy: vi.fn() } },
@@ -39,7 +45,9 @@ describe("folder scan endpoint", () => {
 		await platform.listen(false);
 	});
 
-	afterAll(async () => { await platform?.stop(); });
+	afterAll(async () => {
+		await platform?.stop();
+	});
 
 	it("requires an admin and forwards validated folder paths to the indexer", async () => {
 		const app = platform.adapter.app.getApp();
@@ -51,9 +59,15 @@ describe("folder scan endpoint", () => {
 		const accepted = await app.inject({ method: "POST", url, headers: { authorization: "Bearer test" }, payload });
 		expect(accepted.statusCode).toBe(200);
 		expect(libraries.scanPaths).toHaveBeenCalledWith(id, payload.folders);
-		expect(indexer.request).toHaveBeenCalledWith("POST", "/internal/scan", { body: {
-			libraryId: id, force: false, trickplayOnly: false, jobs: [], paths: ["/media/Movies/Selected"],
-		} });
+		expect(indexer.request).toHaveBeenCalledWith("POST", "/internal/scan", {
+			body: {
+				libraryId: id,
+				force: false,
+				trickplayOnly: false,
+				jobs: [],
+				paths: ["/media/Movies/Selected"],
+			},
+		});
 	});
 
 	it("does not queue invalid folders or combine them with trickplay", async () => {
@@ -71,12 +85,19 @@ describe("folder scan endpoint", () => {
 
 	it("retains full-library scan behavior when no folders are supplied", async () => {
 		const response = await platform.adapter.app.getApp().inject({
-			method: "POST", url: `/api/admin/indexer/libraries/${id}/scan`,
-			headers: { authorization: "Bearer test" }, payload: { force: true },
+			method: "POST",
+			url: `/api/admin/indexer/libraries/${id}/scan`,
+			headers: { authorization: "Bearer test" },
+			payload: { force: true },
 		});
 		expect(response.statusCode).toBe(200);
-		expect(indexer.request).toHaveBeenLastCalledWith("POST", "/internal/scan", { body: {
-			libraryId: id, force: true, trickplayOnly: false, jobs: [],
-		} });
+		expect(indexer.request).toHaveBeenLastCalledWith("POST", "/internal/scan", {
+			body: {
+				libraryId: id,
+				force: true,
+				trickplayOnly: false,
+				jobs: [],
+			},
+		});
 	});
 });

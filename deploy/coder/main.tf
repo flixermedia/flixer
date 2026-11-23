@@ -147,6 +147,26 @@ resource "coder_app" "docs" {
   share        = "public"
 }
 
+resource "coder_app" "pgboss_dashboard" {
+  agent_id     = coder_agent.main.id
+  slug         = "pgboss"
+  display_name = "Job Queues"
+  icon         = "/icon/database.svg"
+  url          = "http://pgboss-dashboard:3000"
+  subdomain    = true
+  share        = "owner"
+}
+
+resource "coder_app" "redis_insight" {
+  agent_id     = coder_agent.main.id
+  slug         = "redis-insight"
+  display_name = "Redis Insight"
+  icon         = "/icon/database.svg"
+  url          = "http://redis-insight:5540"
+  subdomain    = true
+  share        = "owner"
+}
+
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
@@ -180,6 +200,14 @@ resource "docker_image" "samba" {
   keep_locally = true
 }
 
+resource "docker_image" "pgboss_dashboard" {
+  name = "coder-flixer-pgboss-dashboard:${substr(sha1(file("${path.module}/pgboss/Dockerfile")), 0, 12)}"
+  build {
+    context = "${path.module}/pgboss"
+  }
+  keep_locally = true
+}
+
 resource "docker_network" "stack" {
   name = "${local.workspace_name}-${data.coder_workspace.me.id}"
 }
@@ -200,6 +228,13 @@ resource "docker_volume" "data" {
 
 resource "docker_volume" "redis" {
   name = "${local.workspace_name}-${data.coder_workspace.me.id}-redis"
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+resource "docker_volume" "redis_insight" {
+  name = "${local.workspace_name}-${data.coder_workspace.me.id}-redis-insight"
   lifecycle {
     ignore_changes = all
   }
@@ -254,6 +289,38 @@ resource "docker_container" "redis" {
     volume_name    = docker_volume.redis.name
     container_path = "/data"
   }
+}
+
+resource "docker_container" "pgboss_dashboard" {
+  count   = data.coder_workspace.me.start_count
+  image   = docker_image.pgboss_dashboard.name
+  name    = "${local.workspace_name}-pgboss-dashboard"
+  restart = "unless-stopped"
+  env = [
+    "DATABASE_URL=postgres://flixer:flixer@postgres:5432/flixer",
+    "PGBOSS_DASHBOARD_READ_ONLY=1",
+  ]
+  networks_advanced {
+    name    = docker_network.stack.name
+    aliases = ["pgboss-dashboard"]
+  }
+  depends_on = [docker_container.postgres]
+}
+
+resource "docker_container" "redis_insight" {
+  count   = data.coder_workspace.me.start_count
+  image   = "redis/redisinsight:latest"
+  name    = "${local.workspace_name}-redis-insight"
+  restart = "unless-stopped"
+  networks_advanced {
+    name    = docker_network.stack.name
+    aliases = ["redis-insight"]
+  }
+  volumes {
+    volume_name    = docker_volume.redis_insight.name
+    container_path = "/data"
+  }
+  depends_on = [docker_container.redis]
 }
 
 resource "docker_container" "meilisearch" {

@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddAiRecommendationCacheScopes1796700000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			ALTER TABLE "ai_recommendation_caches"

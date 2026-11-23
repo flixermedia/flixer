@@ -3,6 +3,7 @@ import { Column, Entity, Index, PrimaryColumn } from "typeorm";
 @Entity("external_auth_flows")
 @Index("IDX_external_auth_flows_expires", ["expiresAt"])
 export class ExternalAuthFlow {
+
 	@PrimaryColumn({ name: "state_hash", type: "varchar", length: 64 })
 	stateHash!: string;
 

@@ -1,3 +1,4 @@
+import { isRecord } from "../../utils/isRecord.js";
 import { BadRequest, Exception, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource } from "typeorm";
@@ -13,18 +14,15 @@ import { PluginStorageService } from "./pluginStorageService.js";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
 
-export interface OAuthRuntimeProfile {
+interface OAuthRuntimeProfile {
 	settings: Record<string, string>;
 	tokenUrl: string;
 	userInfoUrl: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 @Injectable()
 export class PluginWasiRuntime {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly indexer: IndexerClient,
@@ -36,30 +34,16 @@ export class PluginWasiRuntime {
 	/** Overridable in tests; production uses the pinned public HTTPS client. */
 	httpGet: HttpRequest | undefined;
 
-	async invoke(
-		pluginId: string,
-		operation: string,
-		user: { id: string; role: string },
-		request: unknown,
-	): Promise<unknown> {
+	async invoke(pluginId: string, operation: string, user: { id: string; role: string }, request: unknown): Promise<unknown> {
 		if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(pluginId)) throw new NotFound("Plugin endpoint not found.");
 		if (!/^[a-z][a-z0-9-]{0,63}$/.test(operation)) throw new BadRequest("Plugin operation name is invalid.");
 		const installations = this.dataSource.getRepository(PluginInstallation);
 		const installation = await installations.findOneBy({ pluginId });
-		if (
-			!installation?.enabled ||
-			!installation.manifest.targets.flixer ||
-			!installation.manifest.capabilities.some(
-				(capability) => capability === "api.routes" || capability === "backend.routes",
-			)
-		) {
+		if (!installation?.enabled || !installation.manifest.targets.flixer || !installation.manifest.capabilities.some((capability) => capability === "api.routes" || capability === "backend.routes")) {
 			throw new NotFound("Plugin endpoint not found.");
 		}
 		const routePermission = `api.routes.${operation}`;
-		if (
-			!installation.manifest.permissions.includes(routePermission) ||
-			!installation.approvedPermissions.includes(routePermission)
-		) {
+		if (!installation.manifest.permissions.includes(routePermission) || !installation.approvedPermissions.includes(routePermission)) {
 			throw new NotFound("Plugin endpoint not found.");
 		}
 
@@ -67,33 +51,23 @@ export class PluginWasiRuntime {
 	}
 
 	/** Runs an already-authorised operation; callers must have verified enablement, target and permissions. */
-	async execute(
-		installation: PluginInstallation,
-		operation: string,
-		user: { id: string; role: string },
-		request: unknown,
-		target: "flixer" | "flixer-streamer" = "flixer",
-		mode: "standard" | "authentication" = "standard",
-		oauthProfile?: OAuthRuntimeProfile,
-	): Promise<unknown> {
+	async execute(installation: PluginInstallation, operation: string, user: { id: string; role: string }, request: unknown, target: "flixer" | "flixer-streamer" = "flixer", mode: "standard" | "authentication" = "standard", oauthProfile?: OAuthRuntimeProfile): Promise<unknown> {
 		const pluginId = installation.pluginId;
 		if (oauthProfile && (mode !== "authentication" || !installation.manifest.capabilities.includes("auth.oauth.profiles") || !installation.manifest.permissions.includes("network.http.configured") || !installation.approvedPermissions.includes("network.http.configured"))) throw new BadRequest("Configured OAuth endpoints are not approved.");
 		const installations = this.dataSource.getRepository(PluginInstallation);
-		const approvedPermissions = new Set(
-			installation.approvedPermissions.filter((permission) =>
-				installation.manifest.permissions.includes(permission) && (mode !== "authentication" || permission === "settings.read" || permission === "directory.search" || permission.startsWith("network.ldaps.") || (permission.startsWith("network.http.") && permission !== "network.http.any")),
-			),
-		);
+		const approvedPermissions = new Set(installation.approvedPermissions.filter((permission) => installation.manifest.permissions.includes(permission) && (mode !== "authentication" || permission === "settings.read" || permission === "directory.search" || permission.startsWith("network.ldaps.") || (permission.startsWith("network.http.") && permission !== "network.http.any"))));
 		if (oauthProfile) {
 			for (const endpoint of [oauthProfile.tokenUrl, oauthProfile.userInfoUrl]) approvedPermissions.add(`network.http.${new URL(endpoint).hostname.toLowerCase()}`);
 		}
 		const storage = await this.storage.load(pluginId, user.id, approvedPermissions);
 		const settings = oauthProfile?.settings ?? (approvedPermissions.has("settings.read") ? await this.settings.effectiveValues(installation) : null);
-		const httpRequest: HttpRequest | undefined = oauthProfile ? async (url, options) => {
-			const method = options?.method ?? (options?.body === undefined ? "GET" : "POST");
-			if (!((url.toString() === oauthProfile.tokenUrl && method === "POST") || (url.toString() === oauthProfile.userInfoUrl && method === "GET"))) throw new Error("OAuth endpoint is not approved.");
-			return (this.httpGet ?? publicHttpsGet)(url, options);
-		} : this.httpGet;
+		const httpRequest: HttpRequest | undefined = oauthProfile
+			? async (url, options) => {
+					const method = options?.method ?? (options?.body === undefined ? "GET" : "POST");
+					if (!((url.toString() === oauthProfile.tokenUrl && method === "POST") || (url.toString() === oauthProfile.userInfoUrl && method === "GET"))) throw new Error("OAuth endpoint is not approved.");
+					return (this.httpGet ?? publicHttpsGet)(url, options);
+				}
+			: this.httpGet;
 		const input = {
 			apiVersion: 1,
 			method: operation,
@@ -117,11 +91,15 @@ export class PluginWasiRuntime {
 					if (mode === "authentication" && call.op === "ldap.search") return executeDirectorySearch(call, approvedPermissions);
 					return this.host.handle(installation, approvedPermissions, call);
 				});
-				response = await this.call(pluginId, {
-					...input,
-					continuation: response.continuation ?? null,
-					hostResults,
-				}, target);
+				response = await this.call(
+					pluginId,
+					{
+						...input,
+						continuation: response.continuation ?? null,
+						hostResults,
+					},
+					target,
+				);
 			}
 			if (!isRecord(response)) throw new Error("Plugin returned an invalid response.");
 			if (isRecord(response.error)) throw new Error("Plugin reported an execution error.");

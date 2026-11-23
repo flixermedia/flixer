@@ -7,6 +7,8 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { User } from "../../entities/user.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
+import { destinationCredentialsNote, destinationLabel, destinationOpenUrl, findInviteDestinationForUser, type InviteDestination } from "../invites/inviteDestination.js";
+import { InviteFulfillmentService } from "../invites/inviteFulfillmentService.js";
 import { MailService } from "./mailService.js";
 
 const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
@@ -21,10 +23,10 @@ interface VerificationPayload {
 
 @Injectable()
 export class EmailVerificationService {
-
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly mailService: MailService,
+		private readonly inviteFulfillment: InviteFulfillmentService,
 	) {}
 
 	/** Verification is enforced only when the admin has it switched on and a mail server is configured. */
@@ -37,31 +39,69 @@ export class EmailVerificationService {
 		return setting?.value !== false;
 	}
 
-	async sendVerificationEmail(user: User, targetEmail?: string): Promise<void> {
+	async sendVerificationEmail(user: User, targetEmail?: string, inviteDestination?: InviteDestination | null): Promise<void> {
 		const recipient = targetEmail ?? user.email;
 		if (!recipient) {
 			throw new BadRequest("This account has no email address.");
 		}
 
 		const displayName = user.displayName ?? user.username;
-		const verifyUrl = `${this.getAppUrl()}/verify-email?token=${encodeURIComponent(this.createToken(user, recipient))}`;
-		const { subject, html, text } = await this.mailService.renderMessage("verify-email", {
-			displayName,
-			verifyUrl,
-			expiresIn: "24 hours",
-		});
+		const appUrl = this.getAppUrl();
+		const appName = this.getAppName();
+		const verifyUrl = `${appUrl}/verify-email?token=${encodeURIComponent(this.createToken(user, recipient))}`;
+		const destination = targetEmail ? null : inviteDestination !== undefined ? inviteDestination : await findInviteDestinationForUser(this.dataSource, user.id);
+
+		const { subject, html, text } = destination
+			? await this.mailService.renderMessage("invite-verify-email", {
+					displayName,
+					username: user.username,
+					verifyUrl,
+					expiresIn: "24 hours",
+					serverName: destinationLabel(destination, appName),
+					serverType: destination.type,
+					serverUrl: destinationOpenUrl(destination, appUrl),
+					instructions: destination.instructions ?? "",
+				})
+			: await this.mailService.renderMessage("verify-email", {
+					displayName,
+					verifyUrl,
+					expiresIn: "24 hours",
+				});
 
 		await this.mailService.send({ to: recipient, subject, html, text });
 	}
 
-	async verify(token: string): Promise<{ verified: true }> {
+	async sendInviteWelcomeEmail(user: Pick<User, "email" | "displayName" | "username">, destination: InviteDestination): Promise<void> {
+		if (!user.email || !(await this.mailService.isConfigured())) {
+			return;
+		}
+		const appUrl = this.getAppUrl();
+		const appName = this.getAppName();
+		const serverName = destinationLabel(destination, appName);
+		const serverUrl = destinationOpenUrl(destination, appUrl);
+		const { subject, html, text } = await this.mailService.renderMessage("invite-welcome", {
+			displayName: user.displayName ?? user.username,
+			username: user.username,
+			serverName,
+			serverType: destination.type,
+			serverUrl,
+			watchLabel: `Open ${serverName}`,
+			instructions: destination.instructions ?? "",
+			credentialsNote: destinationCredentialsNote(destination),
+		});
+		await this.mailService.send({ to: user.email, subject, html, text });
+	}
+
+	async verify(token: string): Promise<{ verified: true; destination?: InviteDestination }> {
 		const payload = this.readToken(token);
 		const repository = this.dataSource.getRepository(User);
 		const user = await repository.findOneBy({ id: payload.sub });
 		if (!user) {
 			throw new NotFound("Account not found.");
 		}
-		if (user.pendingEmail && user.pendingEmail === payload.email) {
+		const wasPendingEmailChange = Boolean(user.pendingEmail && user.pendingEmail === payload.email);
+		const wasAlreadyVerified = Boolean(user.emailVerifiedAt);
+		if (wasPendingEmailChange && user.pendingEmail) {
 			user.email = user.pendingEmail;
 			user.pendingEmail = null;
 			user.emailVerifiedAt = new Date();
@@ -79,7 +119,25 @@ export class EmailVerificationService {
 			throw saveError;
 		}
 
+		if (!wasPendingEmailChange) {
+			const activatedDestination = await this.inviteFulfillment.fulfillVerifiedForUser(user.id);
+			const destination = activatedDestination ?? (await findInviteDestinationForUser(this.dataSource, user.id));
+			if (destination) {
+				if (!wasAlreadyVerified) {
+					const [welcomeError] = await tryCatch(() => this.sendInviteWelcomeEmail(user, destination));
+					if (welcomeError) {
+						console.error("[auth] failed to send invite welcome email", welcomeError);
+					}
+				}
+				return { verified: true, destination };
+			}
+		}
+
 		return { verified: true };
+	}
+
+	private getAppName(): string {
+		return appConfig().get("passkeyRpName") || "Flixer";
 	}
 
 	private getAppUrl(): string {

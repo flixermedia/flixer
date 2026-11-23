@@ -1,13 +1,5 @@
-import type {
-	FlixerApiRouteBody,
-	FlixerApiRouteData,
-	FlixerApiRouteParameters,
-	FlixerApiRouteQuery,
-} from "./client.js";
-import type {
-	ApiAuthAuthServicePasskeyRequired,
-	ApiAuthAuthServiceVerificationPending,
-} from "./generated.js";
+import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteParameters, FlixerApiRouteQuery } from "./client.js";
+import type { ApiAuthAuthServicePasskeyRequired, ApiAuthAuthServiceVerificationPending } from "./generated.js";
 
 export type AuthResult = FlixerApiRouteData<"post", "/auth/passkeys/login/verify">;
 export type AuthSession = FlixerApiRouteData<"get", "/auth/sessions">[number];

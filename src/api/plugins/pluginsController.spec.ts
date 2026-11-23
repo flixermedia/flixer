@@ -6,7 +6,7 @@ import { PlatformFastify } from "@tsed/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { AuthService } from "../auth/authService.js";
-import { ExternalOAuthProfilesService } from "../auth/externalOAuthProfilesService.js";
+import { ExternalOAuthProfilesService } from "../auth/oauth/externalOAuthProfilesService.js";
 import { PluginManagerService } from "./pluginManagerService.js";
 import { PluginSettingsService } from "./pluginSettingsService.js";
 import { PluginsController } from "./pluginsController.js";
@@ -94,11 +94,7 @@ describe("local plugin import routes", () => {
 	it("previews an authorized package and imports only the submitted approvals", async () => {
 		const boundary = "plugin-boundary";
 		const archive = Buffer.from("test archive");
-		const filePart = Buffer.concat([
-			Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="package"; filename="plugin.tar.gz"\r\nContent-Type: application/gzip\r\n\r\n`),
-			archive,
-			Buffer.from(`\r\n--${boundary}--\r\n`),
-		]);
+		const filePart = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="package"; filename="plugin.tar.gz"\r\nContent-Type: application/gzip\r\n\r\n`), archive, Buffer.from(`\r\n--${boundary}--\r\n`)]);
 		const headers = { "content-type": `multipart/form-data; boundary=${boundary}`, authorization: "Bearer admin" };
 		const preview = await platform.adapter.app.getApp().inject({ method: "POST", url: "/api/admin/plugins/local-import/preview", headers, payload: filePart });
 		expect(preview.statusCode).toBe(200);
@@ -106,14 +102,12 @@ describe("local plugin import routes", () => {
 		expect(plugins.inspectLocalPackage).toHaveBeenCalledWith(archive);
 
 		const importBoundary = "plugin-import";
-		const upload = Buffer.concat([
-			Buffer.from(`--${importBoundary}\r\nContent-Disposition: form-data; name="package"; filename="plugin.tar.gz"\r\nContent-Type: application/gzip\r\n\r\n`),
-			archive,
-			Buffer.from(`\r\n--${importBoundary}\r\nContent-Disposition: form-data; name="approvedPermissions"\r\n\r\n["auth.identity.verify"]\r\n--${importBoundary}--\r\n`),
-		]);
+		const upload = Buffer.concat([Buffer.from(`--${importBoundary}\r\nContent-Disposition: form-data; name="package"; filename="plugin.tar.gz"\r\nContent-Type: application/gzip\r\n\r\n`), archive, Buffer.from(`\r\n--${importBoundary}\r\nContent-Disposition: form-data; name="approvedPermissions"\r\n\r\n["auth.identity.verify"]\r\n--${importBoundary}--\r\n`)]);
 		const imported = await platform.adapter.app.getApp().inject({
-			method: "POST", url: "/api/admin/plugins/local-import",
-			headers: { ...headers, "content-type": `multipart/form-data; boundary=${importBoundary}` }, payload: upload,
+			method: "POST",
+			url: "/api/admin/plugins/local-import",
+			headers: { ...headers, "content-type": `multipart/form-data; boundary=${importBoundary}` },
+			payload: upload,
 		});
 		expect(imported.statusCode).toBe(200);
 		expect(plugins.importLocalPackage).toHaveBeenCalledWith(archive, ["auth.identity.verify"]);

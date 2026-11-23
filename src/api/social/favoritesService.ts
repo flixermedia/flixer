@@ -16,7 +16,11 @@ export class FavoritesService {
 	/** The user's favourites, newest first. */
 	async list(userId: string, limit = LIST_LIMIT): Promise<SocialItem[]> {
 		const rows = await this.dataSource.getRepository(Favorite).find({ where: { userId }, order: { createdAt: "DESC" }, take: limit });
-		const cards = await loadSocialItems(this.dataSource, rows.map((row) => row.itemId), new Map(rows.map((row) => [row.itemId, row.createdAt])));
+		const cards = await loadSocialItems(
+			this.dataSource,
+			rows.map((row) => row.itemId),
+			new Map(rows.map((row) => [row.itemId, row.createdAt])),
+		);
 		return cards.map(toSocialItem);
 	}
 

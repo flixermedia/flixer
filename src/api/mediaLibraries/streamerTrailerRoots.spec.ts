@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { AppConfig, setAppConfig } from "../../config/store/appConfig.js";
 import type { MediaRootsService } from "./mediaRootsService.js";
+import type { PluginStreamerService } from "../plugins/pluginStreamerService.js";
 import { STREAMER_HOOK_CONTEXT, STREAMER_ROOTS_CONTEXT, StreamerRootsController } from "./streamerRootsController.js";
 
 describe("streamer trailer root", () => {
@@ -40,9 +41,13 @@ describe("streamer trailer root", () => {
 			const timestamp = String(Math.floor(Date.now() / 1000));
 			const signature = createHmac("sha256", secret).update(`${STREAMER_ROOTS_CONTEXT}:${timestamp}`).digest("hex");
 			const roots = { list: () => [{ id: "media", name: "Media", path: "/media" }] } as unknown as MediaRootsService;
-			const controller = new StreamerRootsController(roots, {} as DataSource);
+			const controller = new StreamerRootsController(roots, {} as DataSource, undefined as unknown as PluginStreamerService);
 			await expect(controller.list(timestamp, signature)).resolves.toEqual({
-				roots: [{ id: "media", path: "/media" }, { id: "flixer-advertisements", path: join(directory, "advertisements") }, { id: "flixer-trailers", path: join(directory, "cache", "trailers") }],
+				roots: [
+					{ id: "media", path: "/media" },
+					{ id: "flixer-advertisements", path: join(directory, "advertisements") },
+					{ id: "flixer-trailers", path: join(directory, "cache", "trailers") },
+				],
 			});
 			await expect(controller.list(timestamp, "00")).rejects.toThrow("Invalid streamer signature");
 

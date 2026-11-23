@@ -6,14 +6,7 @@ import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { AuthService } from "../auth/authService.js";
 import { DISCOVER_SECTIONS, type DiscoverSection } from "./externalMetadata.js";
 import { MediaRequestsService } from "./mediaRequestsService.js";
-import {
-	ApproveRequestBody,
-	CreateMediaRequest,
-	DeclineRequestBody,
-	RequestServiceInput,
-	RequestUserLimitInput,
-	TestServiceInput,
-} from "./requestRequests.js";
+import { ApproveRequestBody, CreateMediaRequest, DeclineRequestBody, RequestServiceInput, RequestUserLimitInput, TestServiceInput } from "./requestRequests.js";
 import { RequestServicesService } from "./requestServicesService.js";
 import { RequestWebhookService } from "./requestWebhookService.js";
 import { DiscogsImageCache, TmdbImageCache } from "./tmdbImageCache.js";
@@ -73,20 +66,13 @@ export class RequestsController {
 	}
 
 	@Get("/search")
-	async search(
-		@QueryParams("q", String) q: string | undefined,
-		@QueryParams("type", String) type: string | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async search(@QueryParams("q", String) q: string | undefined, @QueryParams("type", String) type: string | undefined, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.requests.search(user, typeof q === "string" ? q : "", typeof type === "string" ? type : undefined);
 	}
 
 	@Get("/discover")
-	async discover(
-		@QueryParams("section", String) section: string | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async discover(@QueryParams("section", String) section: string | undefined, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (!DISCOVER_SECTIONS.includes(section as DiscoverSection)) {
 			throw new BadRequest("Unknown discover section.");
@@ -95,11 +81,7 @@ export class RequestsController {
 	}
 
 	@Get("/details/:type/:id")
-	async details(
-		@PathParams("type") type: string,
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async details(@PathParams("type") type: string, @PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		if (type !== "movie" && type !== "tv" && type !== "music") {
 			throw new NotFound("Unknown media type.");
@@ -108,23 +90,9 @@ export class RequestsController {
 	}
 
 	@Get("/")
-	async list(
-		@QueryParams("scope", String) scope: string | undefined,
-		@QueryParams("status", String) status: string | undefined,
-		@QueryParams("type", String) type: string | undefined,
-		@QueryParams("offset", Number) offset: number | undefined,
-		@QueryParams("limit", Number) limit: number | undefined,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async list(@QueryParams("scope", String) scope: string | undefined, @QueryParams("status", String) status: string | undefined, @QueryParams("type", String) type: string | undefined, @QueryParams("offset", Number) offset: number | undefined, @QueryParams("limit", Number) limit: number | undefined, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		return this.requests.list(
-			user,
-			scope === "all" ? "all" : "mine",
-			status,
-			type,
-			Number.isInteger(offset) ? (offset as number) : 0,
-			Number.isInteger(limit) ? (limit as number) : 24,
-		);
+		return this.requests.list(user, scope === "all" ? "all" : "mine", status, type, Number.isInteger(offset) ? (offset as number) : 0, Number.isInteger(limit) ? (limit as number) : 24);
 	}
 
 	@Post("/")
@@ -134,31 +102,15 @@ export class RequestsController {
 	}
 
 	@Post("/:id/approve")
-	async approve(
-		@PathParams("id") id: string,
-		@BodyParams() body: ApproveRequestBody,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async approve(@PathParams("id") id: string, @BodyParams() body: ApproveRequestBody, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdminSession(authorization);
-		return this.requests.approve(
-			await this.authService.getAuthenticatedUser(authorization),
-			requireId(id),
-			body ?? {},
-		);
+		return this.requests.approve(await this.authService.getAuthenticatedUser(authorization), requireId(id), body ?? {});
 	}
 
 	@Post("/:id/decline")
-	async decline(
-		@PathParams("id") id: string,
-		@BodyParams() body: DeclineRequestBody,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async decline(@PathParams("id") id: string, @BodyParams() body: DeclineRequestBody, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdminSession(authorization);
-		return this.requests.decline(
-			await this.authService.getAuthenticatedUser(authorization),
-			requireId(id),
-			body?.reason,
-		);
+		return this.requests.decline(await this.authService.getAuthenticatedUser(authorization), requireId(id), body?.reason);
 	}
 
 	@Post("/:id/retry")
@@ -212,20 +164,13 @@ export class AdminRequestsController {
 	}
 
 	@Post("/services")
-	async createService(
-		@BodyParams() body: RequestServiceInput,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async createService(@BodyParams() body: RequestServiceInput, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.services.create(body);
 	}
 
 	@Put("/services/:id")
-	async updateService(
-		@PathParams("id") id: string,
-		@BodyParams() body: RequestServiceInput,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async updateService(@PathParams("id") id: string, @BodyParams() body: RequestServiceInput, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.services.update(requireId(id), body);
 	}
@@ -244,11 +189,7 @@ export class AdminRequestsController {
 	}
 
 	@Put("/users/:id")
-	async updateUser(
-		@PathParams("id") id: string,
-		@BodyParams() body: RequestUserLimitInput,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async updateUser(@PathParams("id") id: string, @BodyParams() body: RequestUserLimitInput, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.requests.updateUserLimit(requireId(id), body);
 	}
@@ -262,12 +203,7 @@ export class RequestWebhookController {
 
 	@Post("/:kind/:serviceId")
 	@Security("WebhookBasicAuth")
-	receive(
-		@PathParams("kind") kind: string,
-		@PathParams("serviceId") serviceId: string,
-		@BodyParams() body: unknown,
-		@HeaderParams("authorization") authorization: string,
-	) {
+	receive(@PathParams("kind") kind: string, @PathParams("serviceId") serviceId: string, @BodyParams() body: unknown, @HeaderParams("authorization") authorization: string) {
 		return this.webhooks.receive(kind, serviceId, authorization, body);
 	}
 }

@@ -6,22 +6,16 @@ import { PgBoss, type Job, type JobWithMetadata, type QueueResult, type Schedule
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../entities/setting.entity.js";
+import { ListeningEvent, ViewingSession } from "../entities/analytics.entity.js";
 import { SentryService } from "../sentry/sentryService.js";
 import { appConfig } from "../config/store/appConfig.js";
 import { MediaLibrariesService } from "../api/mediaLibraries/mediaLibrariesService.js";
 import { IndexerClient } from "../api/indexer/indexerClient.js";
 import { GuideService } from "../api/guide/guideService.js";
-import {
-	ADMIN_SCHEDULED_TASKS,
-	ADMIN_SCHEDULED_TASKS_SETTING,
-	defaultAdminScheduledTaskConfigs,
-	isAdminScheduledTaskId,
-	readAdminScheduledTaskConfigs,
-	type AdminScheduledTaskConfig,
-	type AdminScheduledTaskConfigs,
-	type AdminScheduledTaskId,
-} from "./adminScheduledTasks.js";
+import { ADMIN_SCHEDULED_TASKS, ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs, isAdminScheduledTaskId, readAdminScheduledTaskConfigs, type AdminScheduledTaskConfig, type AdminScheduledTaskConfigs, type AdminScheduledTaskId } from "./adminScheduledTasks.js";
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
+import { disableExpiredInviteAccounts, INVITE_EXPIRY_JOB } from "./inviteExpiryJob.js";
+import { INVITE_EXTERNAL_SYNC_JOB, syncExternalInviteAccounts } from "./inviteSyncJob.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
@@ -33,7 +27,7 @@ const PAGE_PUBLICATION_JOB = "page-publication";
 const SESSION_CLEANUP_CRON = "0 * * * *";
 const PG_BOSS_CONNECTION_POOL_SIZE = 2;
 const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
-const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
+const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, INVITE_EXPIRY_JOB, INVITE_EXTERNAL_SYNC_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AdminTaskRunStatus {
@@ -93,7 +87,9 @@ export class JobScheduler {
 		await boss.start();
 		const [setupError] = await tryCatch(async () => {
 			await boss.createQueue(PAGE_PUBLICATION_JOB);
-			await boss.work(PAGE_PUBLICATION_JOB, async () => { await this.pageBuilder.publishDue(); });
+			await boss.work(PAGE_PUBLICATION_JOB, async () => {
+				await this.pageBuilder.publishDue();
+			});
 			await boss.schedule(PAGE_PUBLICATION_JOB, "* * * * *");
 			await boss.createQueue(SESSION_CLEANUP_JOB);
 			await boss.work(SESSION_CLEANUP_JOB, async () => {
@@ -111,14 +107,9 @@ export class JobScheduler {
 			await boss.createQueue(ANALYTICS_RETENTION_JOB);
 			await boss.work(ANALYTICS_RETENTION_JOB, async () => {
 				const [jobError] = await tryCatch(async () => {
-					await this.dataSource.query(`
-						DELETE FROM viewing_sessions
-						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
-					`);
-					await this.dataSource.query(`
-						DELETE FROM listening_events
-						WHERE created_at < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'
-					`);
+					// RAW SQL: UTC date_trunc retention cutoff preserves database-clock retention semantics.
+					await this.dataSource.createQueryBuilder().delete().from(ViewingSession).where("createdAt < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'").execute();
+					await this.dataSource.createQueryBuilder().delete().from(ListeningEvent).where("createdAt < (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '89 days'").execute();
 				});
 				if (jobError) {
 					logger().error(`Job ${ANALYTICS_RETENTION_JOB} failed.`, jobError);
@@ -140,25 +131,36 @@ export class JobScheduler {
 				}
 			});
 			await boss.schedule(PAYMENTS_RENEWAL_JOB, "0 * * * *");
+			await boss.createQueue(INVITE_EXPIRY_JOB);
+			await boss.work(INVITE_EXPIRY_JOB, async () => {
+				const [jobError] = await tryCatch(() => disableExpiredInviteAccounts(this.dataSource));
+				if (jobError) {
+					logger().error(`Job ${INVITE_EXPIRY_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(INVITE_EXPIRY_JOB, "30 0 * * *", undefined, { tz: "UTC" });
+			await boss.createQueue(INVITE_EXTERNAL_SYNC_JOB);
+			await boss.work(INVITE_EXTERNAL_SYNC_JOB, async () => {
+				const [jobError] = await tryCatch(() => syncExternalInviteAccounts(this.dataSource, (userId) => this.payments.purgeUser(userId)));
+				if (jobError) {
+					logger().error(`Job ${INVITE_EXTERNAL_SYNC_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(INVITE_EXTERNAL_SYNC_JOB, "* * * * *");
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });
-				await boss.work(
-					task.queue,
-					{ localConcurrency: 1, groupConcurrency: 1 },
-					(jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs),
-				);
+				await boss.work(task.queue, { localConcurrency: 1, groupConcurrency: 1 }, (jobs: Job<{ taskId?: string }>[]) => this.processAdminTask(task.id, jobs));
 			}
 			await boss.unschedule("admin-task-clean-logs");
 			const configs = await this.getAdminTaskConfigs(true);
 			for (const task of ADMIN_SCHEDULED_TASKS) {
 				const schedule = configs[task.id];
 				if (schedule.enabled) {
-					await boss.schedule(
-						task.queue,
-						schedule.cron,
-						{ taskId: task.id, scheduled: true },
-						{ tz: "UTC", missed: "skip", group: { id: task.id } },
-					);
+					await boss.schedule(task.queue, schedule.cron, { taskId: task.id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id: task.id } });
 				} else {
 					await boss.unschedule(task.queue);
 					await this.cancelQueuedAdminTaskJobs(task.id, boss);
@@ -166,9 +168,7 @@ export class JobScheduler {
 			}
 		});
 		if (setupError) {
-			const [stopError] = await tryCatch(() =>
-				boss.stop({ graceful: true, timeout: SCHEDULER_SHUTDOWN_TIMEOUT_MS }),
-			);
+			const [stopError] = await tryCatch(() => boss.stop({ graceful: true, timeout: SCHEDULER_SHUTDOWN_TIMEOUT_MS }));
 			if (stopError) {
 				logger().error("Failed to stop pg-boss after scheduler initialization failed.", stopError);
 			}
@@ -255,22 +255,10 @@ export class JobScheduler {
 					description: task.description,
 					enabled: configs[task.id].enabled,
 					cron: configs[task.id].cron,
-					state: active
-						? "running"
-						: queued
-							? "queued"
-							: latest?.state === "completed"
-								? "completed"
-								: latest?.state === "failed"
-									? "failed"
-									: latest?.state === "cancelled"
-										? "cancelled"
-										: "never",
+					state: active ? "running" : queued ? "queued" : latest?.state === "completed" ? "completed" : latest?.state === "failed" ? "failed" : latest?.state === "cancelled" ? "cancelled" : "never",
 					lastRunAt,
 					...(lastError ? { lastError } : {}),
-					...(active && this.activeTaskProgress.has(active.id)
-						? { progress: this.activeTaskProgress.get(active.id) }
-						: {}),
+					...(active && this.activeTaskProgress.has(active.id) ? { progress: this.activeTaskProgress.get(active.id) } : {}),
 				};
 			}),
 		);
@@ -301,12 +289,7 @@ export class JobScheduler {
 		await repository.save(setting);
 		try {
 			if (schedule.enabled) {
-				await this.getBoss().schedule(
-					task.queue,
-					next[id].cron,
-					{ taskId: id, scheduled: true },
-					{ tz: "UTC", missed: "skip", group: { id } },
-				);
+				await this.getBoss().schedule(task.queue, next[id].cron, { taskId: id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id } });
 			} else {
 				await this.getBoss().unschedule(task.queue);
 				await this.cancelQueuedAdminTaskJobs(id);
@@ -315,12 +298,7 @@ export class JobScheduler {
 			const rollbackErrors: unknown[] = [];
 			try {
 				if (configs[id].enabled) {
-					await this.getBoss().schedule(
-						task.queue,
-						configs[id].cron,
-						{ taskId: id, scheduled: true },
-						{ tz: "UTC", missed: "skip", group: { id } },
-					);
+					await this.getBoss().schedule(task.queue, configs[id].cron, { taskId: id, scheduled: true }, { tz: "UTC", missed: "skip", group: { id } });
 				} else {
 					await this.getBoss().unschedule(task.queue);
 					await this.cancelQueuedAdminTaskJobs(id);
@@ -339,10 +317,7 @@ export class JobScheduler {
 				rollbackErrors.push(rollbackError);
 			}
 			if (rollbackErrors.length > 0) {
-				throw new AggregateError(
-					[error, ...rollbackErrors],
-					"Schedule update failed and rollback was unsuccessful.",
-				);
+				throw new AggregateError([error, ...rollbackErrors], "Schedule update failed and rollback was unsuccessful.");
 			}
 			throw error;
 		}
@@ -354,14 +329,7 @@ export class JobScheduler {
 		}
 		const task = ADMIN_SCHEDULED_TASKS.find((entry) => entry.id === id)!;
 		const jobs = await this.getBoss().findJobs<object>(task.queue, { limit: 50 });
-		if (
-			jobs.some(
-				(job) =>
-					job.state === "active" ||
-					job.state === "retry" ||
-					(job.state === "created" && job.startAfter.getTime() <= Date.now()),
-			)
-		) {
+		if (jobs.some((job) => job.state === "active" || job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()))) {
 			throw new BadRequest("This task is already running or queued.");
 		}
 		const jobId = await this.getBoss().send(task.queue, { taskId: id, scheduled: false }, { group: { id } });
@@ -379,9 +347,7 @@ export class JobScheduler {
 			this.activeTaskControllers.get(job.id)?.abort();
 			await this.getBoss().cancel(task.queue, job.id);
 		}
-		const queued = jobs.filter(
-			(job) => job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()),
-		);
+		const queued = jobs.filter((job) => job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= Date.now()));
 		for (const job of queued) {
 			await this.getBoss().cancel(task.queue, job.id);
 		}
@@ -403,11 +369,7 @@ export class JobScheduler {
 		});
 		const now = Date.now();
 		for (const job of jobs) {
-			if (
-				job.data.taskId === id &&
-				job.data.scheduled !== false &&
-				(job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= now))
-			) {
+			if (job.data.taskId === id && job.data.scheduled !== false && (job.state === "retry" || (job.state === "created" && job.startAfter.getTime() <= now))) {
 				await boss.cancel(task.queue, job.id);
 			}
 		}
@@ -480,11 +442,7 @@ export class JobScheduler {
 		}
 	}
 
-	private async runIndexerTask(
-		id: "scan-libraries" | "refresh-metadata" | "trickplay",
-		jobId: string,
-		signal: AbortSignal,
-	): Promise<void> {
+	private async runIndexerTask(id: "scan-libraries" | "refresh-metadata" | "trickplay", jobId: string, signal: AbortSignal): Promise<void> {
 		const libraries = await this.libraries.forIndexer();
 		if (libraries.length === 0) return;
 		const before = await this.indexer.request<{ scans: IndexerScanState[] }>("GET", "/internal/stats", { signal });
@@ -495,12 +453,7 @@ export class JobScheduler {
 		try {
 			for (const library of libraries) {
 				if (signal.aborted) throw new Error("Scheduled indexer task was stopped.");
-				const body =
-					id === "scan-libraries"
-						? { libraryId: library.id }
-						: id === "refresh-metadata"
-							? { libraryId: library.id, jobs: ["images", "descriptions"], trackProgress: true }
-							: { libraryId: library.id, trickplayOnly: true, trackProgress: true };
+				const body = id === "scan-libraries" ? { libraryId: library.id } : id === "refresh-metadata" ? { libraryId: library.id, jobs: ["images", "descriptions"], trackProgress: true } : { libraryId: library.id, trickplayOnly: true, trackProgress: true };
 				inFlight.add(library.id);
 				let result: { queued: boolean };
 				try {
@@ -547,14 +500,7 @@ export class JobScheduler {
 			if (!signal.aborted) throw error;
 		} finally {
 			if (signal.aborted) {
-				await Promise.all(
-					[...new Set([...requested.keys(), ...inFlight])].map((libraryId) =>
-						this.indexer.request(
-							"POST",
-							`/internal/libraries/${encodeURIComponent(libraryId)}/cancel-tasks`,
-						),
-					),
-				);
+				await Promise.all([...new Set([...requested.keys(), ...inFlight])].map((libraryId) => this.indexer.request("POST", `/internal/libraries/${encodeURIComponent(libraryId)}/cancel-tasks`)));
 			}
 		}
 	}
@@ -576,8 +522,7 @@ export class JobScheduler {
 	private async requestStreamerCleanup(signal: AbortSignal): Promise<void> {
 		const baseUrl = (appConfig().get("streamerInternalUrl") || "http://localhost:8091").replace(/\/+$/, "");
 		const secret = appConfig().get("appSecret") ?? "";
-		if (Buffer.byteLength(secret) < 32)
-			throw new Error("APP_SECRET must be set to at least 32 bytes to call flixer-streamer.");
+		if (Buffer.byteLength(secret) < 32) throw new Error("APP_SECRET must be set to at least 32 bytes to call flixer-streamer.");
 		const adminKey = createHmac("sha256", secret).update("flixer-streamer:admin:v1").digest("hex");
 		const response = await fetch(`${baseUrl}/streamer/admin/transcode-cache/cleanup`, {
 			method: "POST",
@@ -592,10 +537,12 @@ export class JobScheduler {
 		const runner = this.dataSource.createQueryRunner();
 		await runner.connect();
 		try {
+			// RAW SQL: pg_backend_pid() has no TypeORM equivalent
 			const [row] = await runner.query("SELECT pg_backend_pid() AS pid");
 			const pid = Number(row?.pid);
 			if (!Number.isInteger(pid)) throw new Error("Could not identify the PostgreSQL optimization connection.");
 			const cancelQuery = () => {
+				// RAW SQL: pg_cancel_backend() has no TypeORM equivalent
 				void this.dataSource.query("SELECT pg_cancel_backend($1)", [pid]).catch((error: unknown) => {
 					logger().warn("Could not cancel PostgreSQL optimization query.", error);
 				});
@@ -603,6 +550,7 @@ export class JobScheduler {
 			signal.addEventListener("abort", cancelQuery, { once: true });
 			try {
 				if (signal.aborted) cancelQuery();
+				// RAW SQL: VACUUM is DDL-like maintenance
 				await runner.query("VACUUM (ANALYZE)");
 			} finally {
 				signal.removeEventListener("abort", cancelQuery);

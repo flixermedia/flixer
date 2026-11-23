@@ -4,6 +4,7 @@ import type { PluginRepositoryManifest } from "../api/plugins/repositoryManifest
 @Entity("plugin_repositories")
 @Index("uq_plugin_repositories_url", ["url"], { unique: true })
 export class PluginRepository {
+
 	@PrimaryGeneratedColumn("uuid")
 	id!: string;
 

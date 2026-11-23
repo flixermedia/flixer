@@ -3,17 +3,14 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../../entities/mediaSearch.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 
 const INDEX_UID = "media";
 const SEARCH_DOCUMENT_VERSION = 2;
 const SEARCH_DOCUMENT_VERSION_SETTING = "media_search_document_version";
-const LEGACY_VECTOR_SEARCH_SETTINGS = [
-	"media_search_vector_enabled",
-	"media_search_semantic_ratio",
-	"media_search_include_lyrics",
-];
+const LEGACY_VECTOR_SEARCH_SETTINGS = ["media_search_vector_enabled", "media_search_semantic_ratio", "media_search_include_lyrics"];
 export const MEDIA_SEARCH_ENABLED_SETTING = "media_search_enabled";
 export const MEDIA_SEARCH_URL_SETTING = "media_search_url";
 const OUTBOX_BATCH_SIZE = 100;
@@ -21,8 +18,9 @@ const REBUILD_PAGE_SIZE = 500;
 const MAX_TRACK_LYRICS_LENGTH = 2 << 20;
 const POLL_INTERVAL_MS = 3_000;
 const INITIAL_INDEX_CHECK_INTERVAL_MS = 60_000;
+const SEARCH_TIMEOUT_MS = 2_000;
 
-export interface MediaSearchFilters {
+interface MediaSearchFilters {
 	type?: string | string[];
 	genre?: string;
 	yearFrom?: number;
@@ -111,22 +109,20 @@ export interface MediaSearchAdminStatus {
 }
 
 function strings(value: unknown): string[] {
-	return Array.isArray(value)
-		? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-		: [];
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0) : [];
 }
 
 function values(value: unknown): string[] {
+
 	if (typeof value === "string") return value.trim() ? [value.trim()] : [];
 	if (!Array.isArray(value)) return [];
 	return value.flatMap((entry) => {
 		if (typeof entry === "string") return entry.trim() ? [entry.trim()] : [];
 		if (typeof entry !== "object" || entry === null) return [];
 		const person = entry as Record<string, unknown>;
-		return [person.name, person.type, person.role, person.character, person.job, person.department].filter(
-			(value): value is string => typeof value === "string" && value.trim().length > 0,
-		);
+		return [person.name, person.type, person.role, person.character, person.job, person.department].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 	});
+
 }
 
 function unique(values_: string[]): string[] {
@@ -142,24 +138,14 @@ interface SearchDocumentContext {
 }
 
 function searchDocument(item: MediaItem, context: SearchDocumentContext = {}): SearchDocument {
+
 	const metadata = item.metadata ?? {};
 	const parentTitle = item.type === "episode" ? (context.series?.title ?? "") : (context.parent?.title ?? "");
 	const ownCredits = [...values(metadata.cast), ...values(metadata.crew)];
 	const ownStudios = strings(metadata.studios);
-	const description = unique(
-		[metadata.overview, metadata.tagline].flatMap((value) =>
-			typeof value === "string" && value.trim() ? [value.trim()] : [],
-		),
-	).join(" ");
-	const artists = unique([
-		...values(metadata.artist),
-		...values(metadata.albumArtist),
-		...(item.type === "album" ? (context.childArtists ?? []) : []),
-		...(item.type === "track" ? values(context.parent?.metadata?.artist) : []),
-		...(item.type === "track" ? values(context.parent?.metadata?.albumArtist) : []),
-	]);
-	const credits =
-		item.type === "movie" || item.type === "series" || item.type === "episode" ? unique(ownCredits) : [];
+	const description = unique([metadata.overview, metadata.tagline].flatMap((value) => (typeof value === "string" && value.trim() ? [value.trim()] : []))).join(" ");
+	const artists = unique([...values(metadata.artist), ...values(metadata.albumArtist), ...(item.type === "album" ? (context.childArtists ?? []) : []), ...(item.type === "track" ? values(context.parent?.metadata?.artist) : []), ...(item.type === "track" ? values(context.parent?.metadata?.albumArtist) : [])]);
+	const credits = item.type === "movie" || item.type === "series" || item.type === "episode" ? unique(ownCredits) : [];
 	return {
 		id: item.id,
 		type: item.type,
@@ -169,28 +155,14 @@ function searchDocument(item: MediaItem, context: SearchDocumentContext = {}): S
 		childTitles: context.childTitles ?? [],
 		artist: item.type === "album" || item.type === "track" ? artists : [],
 		credits,
-		studios:
-			item.type === "movie" || item.type === "series" || item.type === "episode" || item.type === "video"
-				? unique(ownStudios)
-				: [],
-		description:
-			item.type === "movie" ||
-			item.type === "series" ||
-			item.type === "episode" ||
-			item.type === "album" ||
-			item.type === "track" ||
-			item.type === "video"
-				? description
-				: "",
+		studios: item.type === "movie" || item.type === "series" || item.type === "episode" || item.type === "video" ? unique(ownStudios) : [],
+		description: item.type === "movie" || item.type === "series" || item.type === "episode" || item.type === "album" || item.type === "track" || item.type === "video" ? description : "",
 		lyrics: item.type === "track" ? (context.lyrics ?? "") : "",
 		year: item.year ?? context.parent?.year ?? context.series?.year ?? null,
-		genres: unique([
-			...strings(metadata.genres),
-			...strings(context.parent?.metadata?.genres),
-			...strings(context.series?.metadata?.genres),
-		]),
+		genres: unique([...strings(metadata.genres), ...strings(context.parent?.metadata?.genres), ...strings(context.series?.metadata?.genres)]),
 		createdAt: item.createdAt,
 	};
+
 }
 
 function quoteFilter(value: string): string {
@@ -200,6 +172,7 @@ function quoteFilter(value: string): string {
 /** Keeps a rebuildable Meilisearch index current through a PostgreSQL transactional outbox. */
 @Injectable()
 export class MediaSearchService {
+
 	private baseUrl = (appConfig().get("meilisearchUrl") || "http://localhost:7700").replace(/\/+$/, "");
 	private customUrl = "";
 	private urlSource: MediaSearchAdminStatus["urlSource"] = appConfig().source("meilisearchUrl") === "env" ? "environment" : "default";
@@ -237,31 +210,29 @@ export class MediaSearchService {
 		try {
 			await this.ensureAdminSettingsLoaded();
 			if (!this.enabled) return null;
-			await this.ensureIndex();
+			let timeout: ReturnType<typeof setTimeout> | undefined;
+			const indexReady = await Promise.race([
+				this.ensureIndex().then(() => true),
+				new Promise<false>((resolve) => {
+					timeout = setTimeout(() => resolve(false), SEARCH_TIMEOUT_MS);
+				}),
+			]).finally(() => clearTimeout(timeout));
+			if (!indexReady) return null;
 			if (this.rebuildPending) return null;
 			const filter: string[] = [];
 			if (filters.type) {
 				const types = (Array.isArray(filters.type) ? filters.type : [filters.type]).filter(Boolean);
 				if (types.length === 1) filter.push(`type = ${quoteFilter(types[0])}`);
-				if (types.length > 1)
-					filter.push(`(${types.map((type) => `type = ${quoteFilter(type)}`).join(" OR ")})`);
+				if (types.length > 1) filter.push(`(${types.map((type) => `type = ${quoteFilter(type)}`).join(" OR ")})`);
 			}
 			if (filters.genre) filter.push(`genres = ${quoteFilter(filters.genre)}`);
 			if (Number.isInteger(filters.yearFrom)) filter.push(`year >= ${filters.yearFrom}`);
 			if (Number.isInteger(filters.yearTo)) filter.push(`year <= ${filters.yearTo}`);
 
-			const sort =
-				filters.sort === "title"
-					? ["sortTitle:asc"]
-					: filters.sort === "year"
-						? ["year:desc", "title:asc"]
-						: filters.sort === "added"
-							? ["createdAt:desc"]
-							: query
-								? undefined
-								: ["title:asc"];
+			const sort = filters.sort === "title" ? ["sortTitle:asc"] : filters.sort === "year" ? ["year:desc", "title:asc"] : filters.sort === "added" ? ["createdAt:desc"] : query ? undefined : ["title:asc"];
 			const response = await this.request<MeilisearchSearchResponse>(`/indexes/${INDEX_UID}/search`, {
 				method: "POST",
+				signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
 				body: JSON.stringify({
 					q: query,
 					filter: filter.length > 0 ? filter.join(" AND ") : undefined,
@@ -279,27 +250,17 @@ export class MediaSearchService {
 	}
 
 	async enqueueRebuild(): Promise<{ queued: boolean }> {
-		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
-			INSERT INTO "media_search_outbox" ("operation")
-			VALUES ('rebuild')
-			ON CONFLICT ("operation") WHERE "operation" = 'rebuild' DO NOTHING
-			RETURNING "event_id"
-		`);
+		const { raw } = await this.dataSource.getRepository(MediaSearchOutboxEvent).createQueryBuilder().insert().values({ operation: "rebuild" }).orIgnore().returning(["eventId"]).execute();
 		this.rebuildPending = true;
-		return { queued: rows.length > 0 };
+		return { queued: raw.length > 0 };
 	}
 
 	async resetAndRebuild(): Promise<{ queued: boolean }> {
 		await this.ensureAdminSettingsLoaded();
 		if (!this.enabled) throw new BadRequest("Enable Meilisearch before resetting its media index.");
-		const rows: Array<{ event_id: string }> = await this.dataSource.query(`
-			INSERT INTO "media_search_outbox" ("operation")
-			VALUES ('reset')
-			ON CONFLICT ("operation") WHERE "operation" = 'reset' DO NOTHING
-			RETURNING "event_id"
-		`);
+		const { raw } = await this.dataSource.getRepository(MediaSearchOutboxEvent).createQueryBuilder().insert().values({ operation: "reset" }).orIgnore().returning(["eventId"]).execute();
 		this.rebuildPending = true;
-		return { queued: rows.length > 0 };
+		return { queued: raw.length > 0 };
 	}
 
 	async storeTrackLyrics(itemId: string, lyrics: string): Promise<void> {
@@ -314,18 +275,17 @@ export class MediaSearchService {
 
 		await this.dataSource.transaction(async (manager) => {
 			if (lyrics.trim()) {
-				await manager.query(
-					`INSERT INTO "media_search_lyrics" ("item_id", "lyrics")
-					VALUES ($1, $2)
-					ON CONFLICT ("item_id") DO UPDATE SET "lyrics" = EXCLUDED."lyrics", "updated_at" = now()`,
-					[itemId, lyrics],
-				);
+				await manager
+					.createQueryBuilder()
+					.insert()
+					.into(MediaSearchLyrics)
+					.values({ itemId, lyrics, updatedAt: () => "now()" })
+					.orUpdate(["lyrics", "updated_at"], ["item_id"])
+					.execute();
 			} else {
-				await manager.query(`DELETE FROM "media_search_lyrics" WHERE "item_id" = $1`, [itemId]);
+				await manager.delete(MediaSearchLyrics, { itemId });
 			}
-			await manager.query(`INSERT INTO "media_search_outbox" ("item_id", "operation") VALUES ($1, 'upsert')`, [
-				itemId,
-			]);
+			await manager.insert(MediaSearchOutboxEvent, { itemId, operation: "upsert" });
 		});
 	}
 
@@ -344,15 +304,14 @@ export class MediaSearchService {
 
 	async getAdminStatus(): Promise<MediaSearchAdminStatus> {
 		await this.loadAdminSettings();
-		const outboxRows: Array<{ pending: number | string; failed: number | string; last_error: string | null }> =
-			await this.dataSource.query(`
-				SELECT
-					COUNT(*) FILTER (WHERE "last_error" IS NULL)::int AS pending,
-					COUNT(*) FILTER (WHERE "last_error" IS NOT NULL)::int AS failed,
-					(SELECT "last_error" FROM "media_search_outbox" WHERE "last_error" IS NOT NULL ORDER BY "event_id" DESC LIMIT 1) AS last_error
-				FROM "media_search_outbox"
-			`);
-		const outbox = outboxRows[0];
+		// RAW SQL: PostgreSQL FILTER aggregates retain separate pending/failed counts.
+		const outbox = await this.dataSource
+			.getRepository(MediaSearchOutboxEvent)
+			.createQueryBuilder("event")
+			.select("COUNT(*) FILTER (WHERE event.lastError IS NULL)::int", "pending")
+			.addSelect("COUNT(*) FILTER (WHERE event.lastError IS NOT NULL)::int", "failed")
+			.addSelect((subQuery) => subQuery.select("latest.lastError").from(MediaSearchOutboxEvent, "latest").where("latest.lastError IS NOT NULL").orderBy("latest.eventId", "DESC").take(1), "last_error")
+			.getRawOne<{ pending: number | string; failed: number | string; last_error: string | null }>();
 		const status: MediaSearchAdminStatus = {
 			enabled: this.enabled,
 			url: this.displayUrl,
@@ -374,11 +333,7 @@ export class MediaSearchService {
 		try {
 			await this.request("/health");
 			status.connected = true;
-			const indexStats = await this.request<{ numberOfDocuments?: number }>(
-				`/indexes/${INDEX_UID}/stats`,
-				{},
-				[404],
-			);
+			const indexStats = await this.request<{ numberOfDocuments?: number }>(`/indexes/${INDEX_UID}/stats`, {}, [404]);
 			status.indexExists = typeof indexStats.numberOfDocuments === "number";
 			status.documentCount = status.indexExists ? (indexStats.numberOfDocuments ?? 0) : null;
 			if (status.indexExists) {
@@ -450,9 +405,7 @@ export class MediaSearchService {
 			}
 			return url.toString().replace(/\/+$/, "");
 		} catch {
-			throw new BadRequest(
-				"Meilisearch URL must be a valid HTTP or HTTPS URL without credentials or query parameters.",
-			);
+			throw new BadRequest("Meilisearch URL must be a valid HTTP or HTTPS URL without credentials or query parameters.");
 		}
 	}
 
@@ -491,36 +444,26 @@ export class MediaSearchService {
 
 	private async createIndex(): Promise<void> {
 		const index = await this.request<MeilisearchIndex>(`/indexes/${INDEX_UID}`, {}, [404]);
-		const documentVersions: Array<{ value: number }> = await this.dataSource.query(
-			'SELECT "value" FROM "settings" WHERE "key" = $1',
-			[SEARCH_DOCUMENT_VERSION_SETTING],
-		);
-		const pendingMaintenance: Array<{ operation: "rebuild" | "reset" }> = await this.dataSource.query(`
-			SELECT "operation"
-			FROM "media_search_outbox"
-			WHERE "operation" IN ('rebuild', 'reset')
-			ORDER BY "event_id"
-			LIMIT 1
-		`);
-		const needsRebuild = documentVersions[0]?.value !== SEARCH_DOCUMENT_VERSION;
+		const documentVersion = await this.dataSource.getRepository(Setting).findOne({ select: { value: true }, where: { key: SEARCH_DOCUMENT_VERSION_SETTING } });
+		const pendingMaintenance = await this.dataSource.getRepository(MediaSearchOutboxEvent).find({
+			select: { operation: true },
+			where: { operation: In(["rebuild", "reset"]) },
+			order: { eventId: "ASC" },
+			take: 1,
+		});
+		const needsRebuild = documentVersion?.value !== SEARCH_DOCUMENT_VERSION;
 		if (index.uid === INDEX_UID && needsRebuild) {
 			const deleted = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}`, { method: "DELETE" });
 			if (deleted.taskUid !== undefined) await this.waitForTask(deleted.taskUid);
 		}
 		if (needsRebuild || pendingMaintenance.length > 0) this.rebuildPending = true;
 		if (index.uid !== INDEX_UID || needsRebuild) {
-			const created = await this.request<MeilisearchTask>(
-				"/indexes",
-				{ method: "POST", body: JSON.stringify({ uid: INDEX_UID, primaryKey: "id" }) },
-				[409],
-			);
+			const created = await this.request<MeilisearchTask>("/indexes", { method: "POST", body: JSON.stringify({ uid: INDEX_UID, primaryKey: "id" }) }, [409]);
 			if (created.taskUid !== undefined) await this.waitForTask(created.taskUid);
 		}
 		await this.configureIndex();
 		if (needsRebuild) await this.enqueueRebuild();
-		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [
-			LEGACY_VECTOR_SEARCH_SETTINGS,
-		]);
+		await this.dataSource.getRepository(Setting).delete({ key: In(LEGACY_VECTOR_SEARCH_SETTINGS) });
 		this.ready = true;
 	}
 
@@ -528,16 +471,7 @@ export class MediaSearchService {
 		const settingsTask = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}/settings`, {
 			method: "PATCH",
 			body: JSON.stringify({
-				searchableAttributes: [
-					"title",
-					"parentTitle",
-					"childTitles",
-					"artist",
-					"credits",
-					"studios",
-					"description",
-					"lyrics",
-				],
+				searchableAttributes: ["title", "parentTitle", "childTitles", "artist", "credits", "studios", "description", "lyrics"],
 				filterableAttributes: ["type", "year", "genres"],
 				sortableAttributes: ["sortTitle", "year", "title", "createdAt"],
 				displayedAttributes: ["id"],
@@ -557,9 +491,7 @@ export class MediaSearchService {
 			const events = await this.claimEvents();
 			if (events.length === 0) return;
 			try {
-				const maintenanceIndex = events.findIndex(
-					(event) => event.operation === "rebuild" || event.operation === "reset",
-				);
+				const maintenanceIndex = events.findIndex((event) => event.operation === "rebuild" || event.operation === "reset");
 				const documentEvents = maintenanceIndex < 0 ? events : events.slice(0, maintenanceIndex);
 				if (documentEvents.length > 0) await this.applyDocumentEvents(documentEvents);
 				if (maintenanceIndex >= 0) {
@@ -571,19 +503,9 @@ export class MediaSearchService {
 						await this.rebuildIndex();
 					}
 				}
-				await this.dataSource.query(`DELETE FROM "media_search_outbox" WHERE "event_id" = ANY($1::bigint[])`, [
-					events.map((event) => event.event_id),
-				]);
+				await this.dataSource.getRepository(MediaSearchOutboxEvent).delete(events.map((event) => event.event_id));
 			} catch (error) {
-				await this.dataSource.query(
-					`UPDATE "media_search_outbox"
-					SET "locked_until" = NULL, "next_attempt_at" = now() + interval '30 seconds', "last_error" = $2
-					WHERE "event_id" = ANY($1::bigint[])`,
-					[
-						events.map((event) => event.event_id),
-						error instanceof Error ? error.message.slice(0, 2000) : String(error),
-					],
-				);
+				await this.dataSource.getRepository(MediaSearchOutboxEvent).update({ eventId: In(events.map((event) => event.event_id)) }, { lockedUntil: null, nextAttemptAt: () => "now() + interval '30 seconds'", lastError: error instanceof Error ? error.message.slice(0, 2000) : String(error) });
 				throw error;
 			}
 		} catch (error) {
@@ -606,26 +528,11 @@ export class MediaSearchService {
 
 	private async claimEvents(): Promise<OutboxEvent[]> {
 		return this.dataSource.transaction(async (manager) => {
-			const rows: OutboxEvent[] = await manager.query(
-				`SELECT "event_id", "item_id", "operation", "document"
-				FROM "media_search_outbox"
-				WHERE "next_attempt_at" <= now() AND ("locked_until" IS NULL OR "locked_until" < now())
-				ORDER BY "event_id"
-				LIMIT $1
-				FOR UPDATE SKIP LOCKED`,
-				[OUTBOX_BATCH_SIZE],
-			);
+			const rows = await manager.createQueryBuilder(MediaSearchOutboxEvent, "event").select("event.eventId", "event_id").addSelect("event.itemId", "item_id").addSelect("event.operation", "operation").addSelect("event.document", "document").where("event.nextAttemptAt <= now()").andWhere("(event.lockedUntil IS NULL OR event.lockedUntil < now())").orderBy("event.eventId", "ASC").limit(OUTBOX_BATCH_SIZE).setLock("pessimistic_write").setOnLocked("skip_locked").getRawMany<OutboxEvent>();
 			if (rows.length === 0) return [];
-			const maintenanceIndex = rows.findIndex(
-				(event) => event.operation === "rebuild" || event.operation === "reset",
-			);
+			const maintenanceIndex = rows.findIndex((event) => event.operation === "rebuild" || event.operation === "reset");
 			const claimed = maintenanceIndex < 0 ? rows : rows.slice(0, maintenanceIndex + 1);
-			await manager.query(
-				`UPDATE "media_search_outbox"
-				SET "locked_until" = now() + interval '30 minutes', "attempts" = "attempts" + 1
-				WHERE "event_id" = ANY($1::bigint[])`,
-				[claimed.map((event) => event.event_id)],
-			);
+			await manager.update(MediaSearchOutboxEvent, { eventId: In(claimed.map((event) => event.event_id)) }, { lockedUntil: () => "now() + interval '30 minutes'", attempts: () => '"attempts" + 1' });
 			return claimed;
 		});
 	}
@@ -665,6 +572,7 @@ export class MediaSearchService {
 	private async searchDocumentsFor(itemIds: string[], includeRelated = true): Promise<SearchDocument[]> {
 		if (itemIds.length === 0) return [];
 		const targetIds = new Set(itemIds);
+		// RAW SQL: recursive CTE over media_items with unnest
 		const relatedRows: Array<{ id: string }> = await this.dataSource.query(
 			`WITH RECURSIVE ancestors("id", "depth") AS (
 				SELECT unnest($1::uuid[]), 0
@@ -691,14 +599,8 @@ export class MediaSearchService {
 		const items = await this.dataSource.getRepository(MediaItem).find({ where: { id: In(relatedIds) } });
 		const byId = new Map(items.map((item) => [item.id, item]));
 		const trackIds = items.filter((item) => item.type === "track").map((item) => item.id);
-		const lyricRows: Array<{ item_id: string; lyrics: string }> =
-			trackIds.length > 0
-				? await this.dataSource.query(
-						`SELECT "item_id", "lyrics" FROM "media_search_lyrics" WHERE "item_id" = ANY($1::uuid[])`,
-						[trackIds],
-					)
-				: [];
-		const lyricsById = new Map(lyricRows.map((row) => [row.item_id, row.lyrics]));
+		const lyricRows = trackIds.length > 0 ? await this.dataSource.getRepository(MediaSearchLyrics).find({ select: { itemId: true, lyrics: true }, where: { itemId: In(trackIds) } }) : [];
+		const lyricsById = new Map(lyricRows.map((row) => [row.itemId, row.lyrics]));
 		const seriesFor = (item: MediaItem): MediaItem | undefined => {
 			let parent = item.parentId ? byId.get(item.parentId) : undefined;
 			while (parent && parent.type !== "series") {
@@ -712,21 +614,13 @@ export class MediaSearchService {
 			if (!includeRelated && !targetIds.has(item.id)) continue;
 			const parent = item.parentId ? byId.get(item.parentId) : undefined;
 			const series = item.type === "episode" ? seriesFor(item) : undefined;
-			const children =
-				item.type === "album"
-					? items.filter((child) => child.type === "track" && child.parentId === item.id)
-					: item.type === "series"
-						? items.filter((child) => child.type === "episode" && seriesFor(child)?.id === item.id)
-						: [];
+			const children = item.type === "album" ? items.filter((child) => child.type === "track" && child.parentId === item.id) : item.type === "series" ? items.filter((child) => child.type === "episode" && seriesFor(child)?.id === item.id) : [];
 			documents.push(
 				searchDocument(item, {
 					parent,
 					series,
 					childTitles: children.map((child) => child.title),
-					childArtists: children.flatMap((child) => [
-						...values(child.metadata?.artist),
-						...values(child.metadata?.albumArtist),
-					]),
+					childArtists: children.flatMap((child) => [...values(child.metadata?.artist), ...values(child.metadata?.albumArtist)]),
 					lyrics: lyricsById.get(item.id),
 				}),
 			);
@@ -741,21 +635,7 @@ export class MediaSearchService {
 
 		let afterId = "";
 		while (true) {
-			const builder = this.dataSource
-				.getRepository(MediaItem)
-				.createQueryBuilder("item")
-				.select([
-					"item.id",
-					"item.type",
-					"item.title",
-					"item.sortTitle",
-					"item.year",
-					"item.metadata",
-					"item.createdAt",
-				])
-				.where("item.is_placeholder = false")
-				.orderBy("item.id", "ASC")
-				.take(REBUILD_PAGE_SIZE);
+			const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.sortTitle", "item.year", "item.metadata", "item.createdAt"]).where("item.is_placeholder = false").orderBy("item.id", "ASC").take(REBUILD_PAGE_SIZE);
 			if (afterId) builder.andWhere("item.id > :afterId", { afterId });
 			const items = await builder.getMany();
 			if (items.length === 0) break;
@@ -771,26 +651,15 @@ export class MediaSearchService {
 			afterId = items[items.length - 1].id;
 		}
 		logger().info("Rebuilt the Meilisearch media index.");
-		await this.dataSource.query('DELETE FROM "settings" WHERE "key" = ANY($1::varchar[])', [
-			LEGACY_VECTOR_SEARCH_SETTINGS,
-		]);
-		await this.dataSource.query(
-			`INSERT INTO "settings" ("key", "value", "is_public")
-			VALUES ($1, $2::jsonb, false)
-			ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "is_public" = false`,
-			[SEARCH_DOCUMENT_VERSION_SETTING, JSON.stringify(SEARCH_DOCUMENT_VERSION)],
-		);
+		await this.dataSource.getRepository(Setting).delete({ key: In(LEGACY_VECTOR_SEARCH_SETTINGS) });
+		await this.dataSource.getRepository(Setting).createQueryBuilder().insert().values({ key: SEARCH_DOCUMENT_VERSION_SETTING, value: SEARCH_DOCUMENT_VERSION, isPublic: false }).orUpdate(["value", "is_public"], ["key"]).execute();
 		this.rebuildPending = false;
 	}
 
 	private async resetIndex(): Promise<void> {
 		const deleted = await this.request<MeilisearchTask>(`/indexes/${INDEX_UID}`, { method: "DELETE" }, [404]);
 		if (deleted.taskUid !== undefined) await this.waitForTask(deleted.taskUid);
-		const created = await this.request<MeilisearchTask>(
-			"/indexes",
-			{ method: "POST", body: JSON.stringify({ uid: INDEX_UID, primaryKey: "id" }) },
-			[409],
-		);
+		const created = await this.request<MeilisearchTask>("/indexes", { method: "POST", body: JSON.stringify({ uid: INDEX_UID, primaryKey: "id" }) }, [409]);
 		if (created.taskUid !== undefined) await this.waitForTask(created.taskUid);
 		await this.configureIndex();
 		await this.rebuildIndex();
@@ -816,7 +685,7 @@ export class MediaSearchService {
 		const response = await fetch(`${this.baseUrl}${path}`, {
 			...init,
 			headers,
-			signal: AbortSignal.timeout(10_000),
+			signal: init.signal ?? AbortSignal.timeout(10_000),
 		});
 		const raw = await response.text();
 		let body: unknown;
@@ -826,13 +695,8 @@ export class MediaSearchService {
 			body = raw;
 		}
 		if (!response.ok && !acceptedStatuses.includes(response.status)) {
-			const message =
-				typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
-					? body.message
-					: response.statusText;
-			const hint = response.status === 401 || response.status === 403
-				? " Check the Meilisearch API key and permissions; if the shared application secret changed, restart the bundled Meilisearch service."
-				: "";
+			const message = typeof body === "object" && body !== null && "message" in body && typeof body.message === "string" ? body.message : response.statusText;
+			const hint = response.status === 401 || response.status === 403 ? " Check the Meilisearch API key and permissions; if the shared application secret changed, restart the bundled Meilisearch service." : "";
 			throw new Error(`Meilisearch ${init.method ?? "GET"} ${path} failed (${response.status}): ${message}${hint}`);
 		}
 		return body as T;

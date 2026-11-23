@@ -29,7 +29,7 @@ import { ChatGateway } from "./chat/chatGateway.js";
 import { NotificationGateway } from "./api/notifications/notificationGateway.js";
 import { PlaybackRemoteService } from "./playbackRemote/playbackRemoteService.js";
 import "./sentry/sentryErrorFilter.js";
-import "./api/auth/loginExceptionFilter.js";
+import "./api/auth/login/loginExceptionFilter.js";
 import { SentryService } from "./sentry/sentryService.js";
 import { CORS_METHODS, CORS_ORIGINS } from "./cors.js";
 import { OidcProviderService } from "./api/oidc/oidcProviderService.js";
@@ -57,22 +57,7 @@ const fastifyPlugins = [
 
 @Configuration({
 	...config,
-	imports: [
-		DefaultDataSource,
-		JobScheduler,
-		SentryService,
-		LiveLogService,
-		LoggerExportService,
-		LoggerControlSocket,
-		LoggerLocalBootstrapService,
-		LiveService,
-		MailDeliveryService,
-		MailInboundService,
-		PartyGateway,
-		ChatGateway,
-		NotificationGateway,
-		PlaybackRemoteService,
-	],
+	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LoggerExportService, LoggerControlSocket, LoggerLocalBootstrapService, LiveService, MailDeliveryService, MailInboundService, PartyGateway, ChatGateway, NotificationGateway, PlaybackRemoteService],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
@@ -113,6 +98,7 @@ const fastifyPlugins = [
 	plugins: fastifyPlugins,
 })
 export class Server {
+
 	protected app = application();
 	@Inject(OidcProviderService) private readonly oidc!: OidcProviderService;
 
@@ -121,18 +107,24 @@ export class Server {
 		fastify.use("/.well-known/oauth-authorization-server/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
 			if (request.url !== "/" && !request.url?.startsWith("/?")) return next();
 			request.url = `/.well-known/oauth-authorization-server${request.url.slice(1)}`;
-			void this.oidc.getProvider().then((provider) => provider.callback()(request, response)).catch((error: unknown) => {
-				next(error instanceof Error ? error : new Error(String(error)));
-			});
+			void this.oidc
+				.getProvider()
+				.then((provider) => provider.callback()(request, response))
+				.catch((error: unknown) => {
+					next(error instanceof Error ? error : new Error(String(error)));
+				});
 		});
 		fastify.use("/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
 			if (/^\/interaction(?:\/|$)/.test(request.url || "")) {
 				next();
 				return;
 			}
-			void this.oidc.getProvider().then((provider) => provider.callback()(request, response)).catch((error: unknown) => {
-				next(error instanceof Error ? error : new Error(String(error)));
-			});
+			void this.oidc
+				.getProvider()
+				.then((provider) => provider.callback()(request, response))
+				.catch((error: unknown) => {
+					next(error instanceof Error ? error : new Error(String(error)));
+				});
 		});
 	}
 }

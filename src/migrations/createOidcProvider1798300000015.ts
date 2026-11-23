@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** Persistent client registrations and short-lived provider artifacts. */
 export class CreateOidcProvider1798300000015 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE "oidc_clients" (

@@ -1,6 +1,7 @@
 import { CollectionOf, Max, MaxItems, Min, Property } from "@tsed/schema";
 
 export class RecommendationFiltersRequest {
+
 	@Property()
 	@CollectionOf(String)
 	@MaxItems(7)
@@ -23,6 +24,7 @@ export class RecommendationFiltersRequest {
 }
 
 export class RecommendationRequest {
+
 	@Property()
 	@Min(1)
 	@Max(100)

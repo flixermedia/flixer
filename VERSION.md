@@ -36,19 +36,20 @@ The manual steps below remain valid if you prefer to create the tag yourself.
    tree is clean and the changes are committed.
 2. From `main`, choose the appropriate version bump:
 
-   ```powershell
-   npm version patch
-   ```
+    ```powershell
+    npm version patch
+    ```
 
-   Replace `patch` with `minor` or `major` when appropriate. `npm version`
-   updates both `package.json` and `package-lock.json`, creates a version commit,
-   and creates the matching annotated Git tag. Do not update the version in only
-   one of those files or create a tag with a different version.
+    Replace `patch` with `minor` or `major` when appropriate. `npm version`
+    updates both `package.json` and `package-lock.json`, creates a version commit,
+    and creates the matching annotated Git tag. Do not update the version in only
+    one of those files or create a tag with a different version.
+
 3. Push the version commit and tag:
 
-   ```powershell
-   git push origin main --follow-tags
-   ```
+    ```powershell
+    git push origin main --follow-tags
+    ```
 
 The GitHub Actions workflow in
 [`.github/workflows/release.yml`](./.github/workflows/release.yml) runs when a

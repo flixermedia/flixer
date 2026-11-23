@@ -9,14 +9,17 @@ const MAX_MANIFEST_BYTES = 1_048_576;
 const REQUEST_TIMEOUT_MS = 5_000;
 
 export function isPublicRepositoryAddress(value: string): boolean {
+
 	try {
 		return ipaddr.parse(value).range() === "unicast";
 	} catch {
 		return false;
 	}
+
 }
 
 export function assertPublicRepositoryAddresses(addresses: readonly Pick<LookupAddress, "address">[]): void {
+
 	if (addresses.length === 0) {
 		throw new Error("Repository hostname did not resolve to a public network address.");
 	}
@@ -25,15 +28,19 @@ export function assertPublicRepositoryAddresses(addresses: readonly Pick<LookupA
 			throw new Error("Repository hostname resolves to a non-public network address.");
 		}
 	}
+
 }
 
 async function resolvePublicAddresses(hostname: string): Promise<LookupAddress[]> {
+
 	const addresses = await dnsLookup(hostname, { all: true, verbatim: true });
 	assertPublicRepositoryAddresses(addresses);
 	return addresses;
+
 }
 
 async function fetchPinnedBytes(url: URL, maxBytes: number, accept: string): Promise<Buffer> {
+
 	const addresses = await resolvePublicAddresses(url.hostname);
 	const selected = addresses[0];
 	if (!selected || !isPublicRepositoryAddress(selected.address)) {
@@ -50,39 +57,33 @@ async function fetchPinnedBytes(url: URL, maxBytes: number, accept: string): Pro
 
 	try {
 		return await new Promise<Buffer>((resolve, reject) => {
-			const request = httpsRequest(
-				url,
-				{ agent, method: "GET", headers: { accept }, timeout: REQUEST_TIMEOUT_MS },
-				(response) => {
-					response.on("error", reject);
-					if (response.statusCode !== 200) {
-						response.resume();
-						reject(
-							new Error("Repository manifest request must return HTTP 200; redirects are not followed."),
-						);
-						return;
-					}
+			const request = httpsRequest(url, { agent, method: "GET", headers: { accept }, timeout: REQUEST_TIMEOUT_MS }, (response) => {
+				response.on("error", reject);
+				if (response.statusCode !== 200) {
+					response.resume();
+					reject(new Error("Repository manifest request must return HTTP 200; redirects are not followed."));
+					return;
+				}
 
-					const contentLength = Number(response.headers["content-length"]);
-					if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+				const contentLength = Number(response.headers["content-length"]);
+				if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+					response.destroy(new Error(`Repository response exceeds the ${maxBytes} byte size limit.`));
+					return;
+				}
+
+				const chunks: Buffer[] = [];
+				let size = 0;
+				response.on("data", (chunk: Buffer | string) => {
+					const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+					size += data.length;
+					if (size > maxBytes) {
 						response.destroy(new Error(`Repository response exceeds the ${maxBytes} byte size limit.`));
 						return;
 					}
-
-					const chunks: Buffer[] = [];
-					let size = 0;
-					response.on("data", (chunk: Buffer | string) => {
-						const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-						size += data.length;
-						if (size > maxBytes) {
-							response.destroy(new Error(`Repository response exceeds the ${maxBytes} byte size limit.`));
-							return;
-						}
-						chunks.push(data);
-					});
-					response.on("end", () => resolve(Buffer.concat(chunks)));
-				},
-			);
+					chunks.push(data);
+				});
+				response.on("end", () => resolve(Buffer.concat(chunks)));
+			});
 
 			request.on("timeout", () => request.destroy(new Error("Repository manifest request timed out.")));
 			request.on("error", reject);
@@ -91,9 +92,11 @@ async function fetchPinnedBytes(url: URL, maxBytes: number, accept: string): Pro
 	} finally {
 		agent.destroy();
 	}
+
 }
 
 export async function fetchPluginRepositoryManifest(value: string): Promise<PluginRepositoryManifest> {
+
 	const normalizedUrl = normalizePluginRepositoryUrl(value);
 	const response = await fetchPinnedBytes(new URL(normalizedUrl), MAX_MANIFEST_BYTES, "application/json");
 	let json: unknown;
@@ -104,14 +107,11 @@ export async function fetchPluginRepositoryManifest(value: string): Promise<Plug
 	}
 
 	return parsePluginRepositoryManifest(json);
+
 }
 
-export async function fetchPluginRepositoryArtifact(
-	repositoryUrl: string,
-	artifactPath: string,
-	maxBytes: number,
-	accept = "application/octet-stream, application/json, application/gzip",
-): Promise<Buffer> {
+export async function fetchPluginRepositoryArtifact(repositoryUrl: string, artifactPath: string, maxBytes: number, accept = "application/octet-stream, application/json, application/gzip"): Promise<Buffer> {
+
 	if (!/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*\\)[A-Za-z0-9._/-]+$/.test(artifactPath)) {
 		throw new Error("Repository artifact path is invalid.");
 	}
@@ -127,4 +127,5 @@ export async function fetchPluginRepositoryArtifact(
 	}
 
 	return fetchPinnedBytes(artifactUrl, maxBytes, accept);
+
 }

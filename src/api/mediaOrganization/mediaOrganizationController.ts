@@ -22,6 +22,7 @@ interface WritePermissionsRequest {
 @Controller("/admin/media-libraries")
 @Security("BearerAuth")
 export class MediaOrganizationController {
+
 	constructor(
 		private readonly auth: AuthService,
 		private readonly organization: MediaOrganizationService,
@@ -67,13 +68,7 @@ export class MediaOrganizationController {
 	}
 
 	@Get("/:libraryId/organization/plans/:planId/reconcile")
-	async reconcile(
-		@PathParams("libraryId") libraryId: string,
-		@PathParams("planId") planId: string,
-		@QueryParams("offset", Number) offset?: number,
-		@QueryParams("limit", Number) limit?: number,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async reconcile(@PathParams("libraryId") libraryId: string, @PathParams("planId") planId: string, @QueryParams("offset", Number) offset?: number, @QueryParams("limit", Number) limit?: number, @HeaderParams("authorization") authorization?: string) {
 		await this.auth.requireAdmin(authorization);
 		return this.organization.reconcilePlan(this.libraryId(libraryId), this.planId(planId), offset, limit);
 	}

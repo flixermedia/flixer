@@ -16,8 +16,8 @@ import { NotificationService } from "../notifications/notificationService.js";
 import { UpdaterClient } from "../updates/updaterClient.js";
 import { type ArchiveSources, type BackupHeader, readArchiveHeader, writeArchive } from "./backupArchive.js";
 
-export const BACKUP_NAME_PATTERN = /^flixer-[0-9TZ-]+\.flxbak$/;
-export type BackupSchedule = "off" | "daily" | "weekly";
+const BACKUP_NAME_PATTERN = /^flixer-[0-9TZ-]+\.flxbak$/;
+type BackupSchedule = "off" | "daily" | "weekly";
 
 const CHECK_INTERVAL_MS = 60 * 60_000;
 const SCHEDULE_INTERVAL_MS: Record<Exclude<BackupSchedule, "off">, number> = { daily: 24 * 60 * 60_000, weekly: 7 * 24 * 60 * 60_000 };
@@ -38,9 +38,9 @@ export interface BackupEntry {
 	versions: Record<string, string>;
 }
 
-export type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
+type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
 
-export interface BackupRunStep {
+interface BackupRunStep {
 	name: string;
 	message: string;
 	status: "running" | "succeeded" | "failed";
@@ -79,7 +79,7 @@ interface BackupState {
 }
 
 /** Dumps the database into `file`. Replaceable so tests do not need PostgreSQL. */
-export type DatabaseDumper = (databaseUrl: string, file: string) => Promise<void>;
+type DatabaseDumper = (databaseUrl: string, file: string) => Promise<void>;
 
 /** The signature a download link carries; it proves an administrator asked for this exact file in the last few minutes. */
 export function signDownload(secret: string, name: string, expires: number): string {
@@ -92,25 +92,32 @@ export function isBackupName(name: string): boolean {
 
 /** `flixer-20261024T224040Z.flxbak`, the updater's format; `taken` names get a counter before the Z. */
 export function backupFileName(now: Date, taken: (name: string) => boolean): string {
-	const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+
+	const stamp = now
+		.toISOString()
+		.replace(/[-:]/g, "")
+		.replace(/\.\d+Z$/, "Z");
 	let name = `flixer-${stamp}.flxbak`;
 	for (let i = 1; taken(name); i++) {
 		name = `flixer-${stamp.slice(0, -1)}-${i}Z.flxbak`;
 	}
 	return name;
+
 }
 
 /** True when a scheduled backup is due: the schedule is on and the previous one is older than its period (less a little slack). */
 export function isBackupDue(schedule: BackupSchedule, lastScheduledAt: string | null, now = Date.now()): boolean {
+
 	if (schedule === "off") {
 		return false;
 	}
 	const last = lastScheduledAt ? Date.parse(lastScheduledAt) : Number.NaN;
 	return Number.isNaN(last) || now - last >= SCHEDULE_INTERVAL_MS[schedule] - SCHEDULE_SLACK_MS;
+
 }
 
 /** Runs pg_dump with the connection details in the environment, so the password never appears in a process listing. */
-export const pgDump: DatabaseDumper = (databaseUrl, file) => {
+const pgDump: DatabaseDumper = (databaseUrl, file) => {
 	let parsed: URL;
 	try {
 		parsed = new URL(databaseUrl);
@@ -498,9 +505,7 @@ export class BackupService {
 	/** Deletes the oldest archives beyond `keep`. Only `.flxbak` files are touched. */
 	async prune(keep: number): Promise<void> {
 		const directory = this.backupDirectory();
-		const archives = await Promise.all(
-			(await readdir(directory).catch(() => [] as string[])).filter(isBackupName).map(async (name) => ({ name, modified: (await stat(join(directory, name)).catch(() => null))?.mtimeMs ?? 0 })),
-		);
+		const archives = await Promise.all((await readdir(directory).catch(() => [] as string[])).filter(isBackupName).map(async (name) => ({ name, modified: (await stat(join(directory, name)).catch(() => null))?.mtimeMs ?? 0 })));
 		archives.sort((a, b) => b.modified - a.modified || (a.name < b.name ? 1 : -1));
 		for (const old of archives.slice(Math.max(keep, 1))) {
 			await rm(join(directory, old.name), { force: true });
@@ -571,7 +576,10 @@ export class BackupService {
 			return;
 		}
 		await this.notifications
-			.send({ kind: "admin", title: "Flixer backup failed", body: reason ?? "The last backup did not finish.", url: "/admin?tab=backups" }, admins.map((admin) => admin.id))
+			.send(
+				{ kind: "admin", title: "Flixer backup failed", body: reason ?? "The last backup did not finish.", url: "/admin?tab=backups" },
+				admins.map((admin) => admin.id),
+			)
 			.catch((error) => logger().warn("Could not notify admins about a failed backup.", error));
 	}
 

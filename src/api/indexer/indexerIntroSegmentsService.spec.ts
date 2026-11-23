@@ -2,7 +2,6 @@ import { BadRequest } from "@tsed/exceptions";
 import { describe, expect, it, vi } from "vitest";
 import { In, type DataSource } from "typeorm";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
-import { MediaSegment } from "../../entities/mediaSegment.entity.js";
 import { IndexerIntroSegmentsService, parseIntroSegmentUpdate } from "./indexerIntroSegmentsService.js";
 
 const itemId = "97a37f33-0fd0-4bfc-a0b0-55ef759d9da2";
@@ -63,9 +62,7 @@ describe("IndexerIntroSegmentsService", () => {
 		await service.replace(parseIntroSegmentUpdate({ itemId, segments: { intro: { startMs: 10, endMs: 20 } } }));
 
 		expect(segments.delete).toHaveBeenCalledWith({ itemId, source: "theintrodb" });
-		expect(segments.save).toHaveBeenCalledWith([
-			{ itemId, type: "intro", source: "theintrodb", startMs: 10, endMs: 20, submissions: 0 },
-		]);
+		expect(segments.save).toHaveBeenCalledWith([{ itemId, type: "intro", source: "theintrodb", startMs: 10, endMs: 20, submissions: 0 }]);
 	});
 
 	it("uses a series TVDB id and episode numbers for episode backfill candidates", async () => {

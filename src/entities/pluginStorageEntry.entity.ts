@@ -1,11 +1,11 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 export type PluginStorageScope = "plugin" | "user";
-export type PluginStorageJsonValue =
-	null | boolean | number | string | PluginStorageJsonValue[] | { [key: string]: PluginStorageJsonValue };
+export type PluginStorageJsonValue = null | boolean | number | string | PluginStorageJsonValue[] | { [key: string]: PluginStorageJsonValue };
 
 @Entity("plugin_storage")
 export class PluginStorageEntry {
+
 	@PrimaryColumn({ name: "plugin_id", type: "varchar", length: 128 })
 	pluginId!: string;
 

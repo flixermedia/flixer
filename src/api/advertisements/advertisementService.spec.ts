@@ -57,7 +57,10 @@ describe("advertisement upload", () => {
 		vi.stubEnv("DATA_PATH", root);
 		const repository = {
 			create: vi.fn((row) => row),
-			save: vi.fn().mockRejectedValueOnce(new Error("database unavailable")).mockImplementation(async (row) => row),
+			save: vi
+				.fn()
+				.mockRejectedValueOnce(new Error("database unavailable"))
+				.mockImplementation(async (row) => row),
 		};
 		const service = new AdvertisementService({ getRepository: () => repository } as never);
 		const bytes = Buffer.from("uploaded video");

@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import { isPublicRepositoryAddress } from "./pluginRepositoryClient.js";
 
-export const MAX_HOST_CALLS_PER_ROUND = 8;
+const MAX_HOST_CALLS_PER_ROUND = 8;
 export const MAX_HOST_CALL_ROUNDS = 4;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const HTTP_TIMEOUT_MS = 4_000;
@@ -22,14 +22,14 @@ export interface HostResult {
 	[key: string]: unknown;
 }
 
-export interface HttpOptions {
+interface HttpOptions {
 	method?: string;
 	headers?: Record<string, string>;
 	body?: string;
 }
 
 export type HttpRequest = (url: URL, options?: HttpOptions) => Promise<{ status: number; body: string }>;
-export type ServiceHandler = (call: HostCall) => Promise<HostResult>;
+type ServiceHandler = (call: HostCall) => Promise<HostResult>;
 
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "DELETE"]);
 const ALLOWED_HEADERS = new Set(["authorization", "x-api-key", "x-emby-token", "content-type", "accept"]);
@@ -37,13 +37,12 @@ const MAX_HEADERS = 8;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
 /** Permission that lets a plugin reach any public HTTPS host (user-configured servers). */
-export const HTTP_ANY_PERMISSION = "network.http.any";
-export type HttpGet = HttpRequest;
+const HTTP_ANY_PERMISSION = "network.http.any";
 
 const MAX_POST_BODY_BYTES = 16 * 1024;
 
 /** Permission a plugin must declare and be granted to reach this exact hostname. */
-export function httpHostPermission(hostname: string): string {
+function httpHostPermission(hostname: string): string {
 	return `network.http.${hostname.toLowerCase()}`;
 }
 
@@ -95,9 +94,7 @@ export const publicHttpsGet: HttpRequest = async (url, options) => {
 						}
 						chunks.push(data);
 					});
-					response.on("end", () =>
-						resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8") }),
-					);
+					response.on("end", () => resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8") }));
 				},
 			);
 			request.on("timeout", () => request.destroy(new Error("timeout")));
@@ -110,32 +107,24 @@ export const publicHttpsGet: HttpRequest = async (url, options) => {
 };
 
 function parseCalls(value: unknown): HostCall[] {
+
 	if (!Array.isArray(value) || value.length === 0 || value.length > MAX_HOST_CALLS_PER_ROUND) {
 		throw new Error("Plugin requested an invalid number of host calls.");
 	}
 	const ids = new Set<string>();
 	return value.map((raw: unknown) => {
 		const call = raw as HostCall | null;
-		if (
-			typeof call !== "object" ||
-			call === null ||
-			Array.isArray(call) ||
-			typeof call.id !== "string" ||
-			!/^[A-Za-z0-9_-]{1,64}$/.test(call.id) ||
-			ids.has(call.id) ||
-			typeof call.op !== "string" ||
-			(call.op === "http.get" && call.body !== undefined) ||
-			(call.op === "http.post" &&
-				(typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_POST_BODY_BYTES))
-		) {
+		if (typeof call !== "object" || call === null || Array.isArray(call) || typeof call.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(call.id) || ids.has(call.id) || typeof call.op !== "string" || (call.op === "http.get" && call.body !== undefined) || (call.op === "http.post" && (typeof call.body !== "string" || Buffer.byteLength(call.body) > MAX_POST_BODY_BYTES))) {
 			throw new Error("Plugin requested an invalid host call.");
 		}
 		ids.add(call.id);
 		return call;
 	});
+
 }
 
 function parseHttpCall(call: HostCall): { url: URL; options?: HttpOptions } | null {
+
 	if (typeof call.url !== "string" || call.url.length > 2048) return null;
 	let url: URL;
 	try {
@@ -146,9 +135,7 @@ function parseHttpCall(call: HostCall): { url: URL; options?: HttpOptions } | nu
 	if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) return null;
 	if (call.op === "http.get") return call.body === undefined ? { url } : null;
 	if (call.op === "http.post") {
-		return typeof call.body === "string" && Buffer.byteLength(call.body) <= MAX_POST_BODY_BYTES
-			? { url, options: { body: call.body } }
-			: null;
+		return typeof call.body === "string" && Buffer.byteLength(call.body) <= MAX_POST_BODY_BYTES ? { url, options: { body: call.body } } : null;
 	}
 	const method = typeof call.method === "string" ? call.method.toUpperCase() : "GET";
 	if (!HTTP_METHODS.has(method)) return null;
@@ -169,15 +156,12 @@ function parseHttpCall(call: HostCall): { url: URL; options?: HttpOptions } | nu
 		}
 	}
 	return { url, options: { method, headers, ...(call.body === undefined ? {} : { body: call.body as string }) } };
+
 }
 
 /** Runs a plugin's host calls under its approved permissions; denied or failed calls yield per-call errors. */
-export async function executeHostCalls(
-	rawCalls: unknown,
-	approvedPermissions: ReadonlySet<string>,
-	httpGet: HttpRequest = publicHttpsGet,
-	service?: ServiceHandler,
-): Promise<HostResult[]> {
+export async function executeHostCalls(rawCalls: unknown, approvedPermissions: ReadonlySet<string>, httpGet: HttpRequest = publicHttpsGet, service?: ServiceHandler): Promise<HostResult[]> {
+
 	const calls = parseCalls(rawCalls);
 	const results = new Map<string, HostResult>();
 
@@ -205,4 +189,5 @@ export async function executeHostCalls(
 		results.set(call.id, service ? await service(call) : { id: call.id, ok: false, error: "invalid_request" });
 	}
 	return calls.map((call) => results.get(call.id)!);
+
 }

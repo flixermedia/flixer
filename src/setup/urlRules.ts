@@ -1,13 +1,13 @@
 import { validateHttpUrl } from "../config/store/configSchema.js";
 
-export interface UrlInput {
+interface UrlInput {
 	publicUrl: string;
 	appUrl?: string;
 	passkeyRpId?: string;
 	passkeyOrigins?: string;
 }
 
-export interface UrlSettings {
+interface UrlSettings {
 	publicUrl: string;
 	appUrl: string;
 	passkeyRpId: string;
@@ -27,6 +27,7 @@ function clean(value: string | undefined): string {
  * except on loopback, and the relying party id must be the host of every origin or a parent domain of it.
  */
 export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors: FieldErrors } {
+
 	const errors: FieldErrors = {};
 	const publicProblem = clean(input.publicUrl) ? validateHttpUrl(clean(input.publicUrl)) : "Required.";
 	if (publicProblem) {
@@ -44,7 +45,12 @@ export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors
 	const publicUrl = clean(input.publicUrl).replace(/\/+$/, "");
 	const appUrl = new URL(appRaw);
 	const originsRaw = clean(input.passkeyOrigins);
-	const origins = originsRaw ? originsRaw.split(",").map((origin) => origin.trim()).filter(Boolean) : [appUrl.origin];
+	const origins = originsRaw
+		? originsRaw
+				.split(",")
+				.map((origin) => origin.trim())
+				.filter(Boolean)
+		: [appUrl.origin];
 	const parsed: URL[] = [];
 	for (const origin of origins) {
 		try {
@@ -68,4 +74,5 @@ export function resolveUrls(input: UrlInput): { values: UrlSettings } | { errors
 		return { errors };
 	}
 	return { values: { publicUrl, appUrl: appUrl.origin + appUrl.pathname.replace(/\/+$/, ""), passkeyRpId: rpId, passkeyOrigins: origins.join(",") } };
+
 }

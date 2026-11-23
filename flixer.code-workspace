@@ -43,9 +43,12 @@
 		},
 		{
 			"path": "../jellyfin-plugin-flixer"
+		},
+		{
+			"path": "../flixer-invites"
 		}
 	],
 	"settings": {
-		"postman.settings.dotenv-detection-notification-visibility": false
-	}
+		"postman.settings.dotenv-detection-notification-visibility": false,
+	},
 }

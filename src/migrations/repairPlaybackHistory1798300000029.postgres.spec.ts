@@ -6,8 +6,11 @@ import { RepairPlaybackHistory1798300000029 } from "./repairPlaybackHistory17983
 describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("playback history repair (isolated PostgreSQL)", () => {
 	it("repairs an old schema, backfills legacy activity, and never restores deleted sessions", async () => {
 		const source = new DataSource({
-			type: "postgres", host: process.env.ANALYTICS_TEST_PG_SOCKET, port: 55441,
-			username: process.env.USER, database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
+			type: "postgres",
+			host: process.env.ANALYTICS_TEST_PG_SOCKET,
+			port: 55441,
+			username: process.env.USER,
+			database: process.env.ANALYTICS_TEST_PG_DATABASE ?? "postgres",
 		});
 		await source.initialize();
 		const runner = source.createQueryRunner();
@@ -43,7 +46,9 @@ describe.skipIf(!process.env.ANALYTICS_TEST_PG_SOCKET)("playback history repair 
 			const migration = new RepairPlaybackHistory1798300000029();
 			await migration.up(runner);
 			expect(await runner.query("SELECT kind, item_id FROM playback_history ORDER BY started_at")).toEqual([
-				{ kind: "video", item_id: movie }, { kind: "music", item_id: track }, { kind: "video", item_id: olderMovie },
+				{ kind: "video", item_id: movie },
+				{ kind: "music", item_id: track },
+				{ kind: "video", item_id: olderMovie },
 			]);
 			await migration.up(runner);
 			expect(await runner.query("SELECT id FROM playback_history")).toHaveLength(3);

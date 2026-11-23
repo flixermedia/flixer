@@ -21,11 +21,7 @@ export class UserController {
 	}
 
 	@Delete("/:id")
-	deleteUser(
-		@PathParams("id") id: string,
-		@HeaderParams("authorization") authorization?: string,
-		@BodyParams() request?: DeleteUserRequest,
-	) {
+	deleteUser(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string, @BodyParams() request?: DeleteUserRequest) {
 		return this.authService.deleteUser(id, authorization, request?.password);
 	}
 }

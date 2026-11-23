@@ -6,11 +6,13 @@ describe("TMDB trailer lookup", () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	function service(language = "en") {
+
 		const rows = [
 			{ key: "indexer_providers", value: { tmdb: { enabled: true, apiKey: "test-key" } } },
 			{ key: "indexer_language", value: language },
 		];
 		return new ExternalMetadataService({ getRepository: () => ({ find: vi.fn().mockResolvedValue(rows) }) } as unknown as DataSource);
+
 	}
 
 	it("selects the most recent official YouTube trailer and rejects other video types and invalid keys", async () => {

@@ -3938,6 +3938,9 @@
           },
           "apiKey": {
             "type": "string"
+          },
+          "appId": {
+            "type": "string"
           }
         },
         "required": [

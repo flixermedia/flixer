@@ -33,7 +33,8 @@ describe("OAuth admin configuration", () => {
 
 	beforeAll(async () => {
 		platform = await PlatformFastify.bootstrap(TestServer, {
-			httpPort: false, httpsPort: false,
+			httpPort: false,
+			httpsPort: false,
 			mount: { "/api": [OidcClientsController, OidcResourceController] },
 			imports: [
 				{ token: DefaultDataSource, use: {} },

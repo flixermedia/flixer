@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreatePluginManager1794800000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE IF NOT EXISTS "plugin_repositories" (
@@ -17,9 +18,7 @@ export class CreatePluginManager1794800000000 implements MigrationInterface {
 				CONSTRAINT "pk_plugin_repositories" PRIMARY KEY ("id")
 			)
 		`);
-		await queryRunner.query(
-			`CREATE UNIQUE INDEX IF NOT EXISTS "uq_plugin_repositories_url" ON "plugin_repositories" ("url")`,
-		);
+		await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "uq_plugin_repositories_url" ON "plugin_repositories" ("url")`);
 		await queryRunner.query(`
 			CREATE TABLE IF NOT EXISTS "plugin_installations" (
 				"plugin_id" varchar(128) NOT NULL,
@@ -42,9 +41,7 @@ export class CreatePluginManager1794800000000 implements MigrationInterface {
 				CONSTRAINT "ck_plugin_installations_status" CHECK ("status" IN ('installed', 'initializing', 'enabled', 'running', 'disabled', 'error', 'updating'))
 			)
 		`);
-		await queryRunner.query(
-			`CREATE INDEX IF NOT EXISTS "idx_plugin_installations_repository" ON "plugin_installations" ("repository_id")`,
-		);
+		await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_plugin_installations_repository" ON "plugin_installations" ("repository_id")`);
 		await queryRunner.query(`
 			INSERT INTO "plugin_repositories" ("name", "url", "is_official", "enabled")
 			VALUES ('Official Flixer Plugins', 'https://raw.githubusercontent.com/flixermedia/flixer-plugins/main/repository.json', true, true)

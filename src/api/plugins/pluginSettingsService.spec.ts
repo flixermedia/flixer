@@ -27,9 +27,7 @@ describe("PluginSettingsService", () => {
 			expect(result.values).toEqual({ language: "fr", apiKey: SECRET_MASK });
 			expect(installation.settings).toEqual({ language: "fr" });
 			expect(installation.encryptedSecrets.apiKey).not.toContain("private-token");
-			expect(
-				decryptPluginSettingSecret(installation.pluginId, "apiKey", installation.encryptedSecrets.apiKey!),
-			).toBe("private-token");
+			expect(decryptPluginSettingSecret(installation.pluginId, "apiKey", installation.encryptedSecrets.apiKey!)).toBe("private-token");
 		} finally {
 			await cleanup();
 		}
@@ -54,9 +52,7 @@ describe("PluginSettingsService", () => {
 	it("rejects values that do not match the declared settings schema", async () => {
 		const { service, installation, cleanup } = await createService();
 		try {
-			await expect(
-				service.update(installation.pluginId, { values: { language: "xx" }, secrets: {} }),
-			).rejects.toThrow("Plugin settings are invalid");
+			await expect(service.update(installation.pluginId, { values: { language: "xx" }, secrets: {} })).rejects.toThrow("Plugin settings are invalid");
 		} finally {
 			await cleanup();
 		}
@@ -69,9 +65,7 @@ describe("PluginSettingsService", () => {
 		};
 		const { service, installation, cleanup } = await createService(schema);
 		try {
-			await expect(
-				service.update(installation.pluginId, { values: { homepage: "javascript:alert(1)" }, secrets: {} }),
-			).rejects.toThrow("Plugin settings are invalid");
+			await expect(service.update(installation.pluginId, { values: { homepage: "javascript:alert(1)" }, secrets: {} })).rejects.toThrow("Plugin settings are invalid");
 		} finally {
 			await cleanup();
 		}
@@ -83,11 +77,9 @@ describe("PluginSettingsService", () => {
 		installation.settings = { language: "en", apiKey: "legacy-plain-value" };
 		try {
 			const result = await service.get(installation.pluginId);
-			expect(result.values.apiKey).toBe(SECRET_MASK);
+			expect((result.values as Record<string, unknown>).apiKey).toBe(SECRET_MASK);
 			expect(installation.settings).toEqual({ language: "en" });
-			expect(
-				decryptPluginSettingSecret(installation.pluginId, "apiKey", installation.encryptedSecrets.apiKey!),
-			).toBe("legacy-plain-value");
+			expect(decryptPluginSettingSecret(installation.pluginId, "apiKey", installation.encryptedSecrets.apiKey!)).toBe("legacy-plain-value");
 			expect(result.schema?.properties.apiKey).not.toHaveProperty("default");
 		} finally {
 			await cleanup();
@@ -126,9 +118,7 @@ describe("PluginSettingsService", () => {
 	it("rejects inherited property names in submitted settings", async () => {
 		const { service, installation, cleanup } = await createService();
 		try {
-			await expect(
-				service.update(installation.pluginId, { values: { toString: "bad" }, secrets: {} }),
-			).rejects.toThrow("correct settings field");
+			await expect(service.update(installation.pluginId, { values: { toString: "bad" }, secrets: {} })).rejects.toThrow("correct settings field");
 		} finally {
 			await cleanup();
 		}
@@ -146,6 +136,7 @@ async function createService(
 		},
 	},
 ) {
+
 	const root = await mkdtemp(join(tmpdir(), "flixer-plugin-settings-"));
 	await writeFile(join(root, "settings.schema.json"), JSON.stringify(schema));
 	const installation = {
@@ -165,4 +156,5 @@ async function createService(
 		installation,
 		cleanup: () => rm(root, { recursive: true, force: true }),
 	};
+
 }

@@ -8,7 +8,11 @@ import { UserWebhookService } from "./userWebhookService.js";
 @Controller("/admin/user-webhooks")
 @Security("BearerAuth")
 export class AdminUserWebhookController {
-	constructor(private readonly auth: AuthService, private readonly webhooks: UserWebhookService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly webhooks: UserWebhookService,
+	) {}
 
 	@Get("/")
 	async config(@HeaderParams("authorization") authorization?: string) {
@@ -27,7 +31,11 @@ export class AdminUserWebhookController {
 @Controller("/user-webhooks")
 @Security("BearerAuth")
 export class UserWebhookController {
-	constructor(private readonly auth: AuthService, private readonly webhooks: UserWebhookService) {}
+
+	constructor(
+		private readonly auth: AuthService,
+		private readonly webhooks: UserWebhookService,
+	) {}
 
 	@Get("/")
 	async list(@HeaderParams("authorization") authorization?: string) {

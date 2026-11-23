@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	ADMIN_SCHEDULED_TASKS,
-	defaultAdminScheduledTaskConfigs,
-	readAdminScheduledTaskConfigs,
-} from "./adminScheduledTasks.js";
+import { ADMIN_SCHEDULED_TASKS, defaultAdminScheduledTaskConfigs, readAdminScheduledTaskConfigs } from "./adminScheduledTasks.js";
 
 describe("admin scheduled task configuration", () => {
 	it("keeps explicitly disabled schedules disabled when loading persisted settings", () => {

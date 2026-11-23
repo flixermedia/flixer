@@ -6,6 +6,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const TIMEOUT_MS = 10_000;
 
 export function allowedPersonImage(value: unknown): string | null {
+
 	if (typeof value !== "string" || value.length > 500) {
 		return null;
 	}
@@ -15,9 +16,11 @@ export function allowedPersonImage(value: unknown): string | null {
 	} catch {
 		return null;
 	}
+
 }
 
 export async function fetchPersonImage(url: string): Promise<{ data: Buffer; mime: string }> {
+
 	const safe = allowedPersonImage(url);
 	if (!safe) {
 		throw new Exception(404, "Image not found.");
@@ -37,4 +40,5 @@ export async function fetchPersonImage(url: string): Promise<{ data: Buffer; mim
 		throw new Exception(502, "The image could not be loaded.");
 	}
 	return { data, mime };
+
 }

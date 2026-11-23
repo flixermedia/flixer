@@ -9,9 +9,10 @@ import { IndexerClient } from "../indexer/indexerClient.js";
 import { MediaLibrariesService } from "../mediaLibraries/mediaLibrariesService.js";
 import { REQUEST_SERVICE_KINDS, type RequestServiceKind } from "../../entities/requestService.entity.js";
 import { RequestServicesService } from "./requestServicesService.js";
+import { isRecord } from "../../utils/isRecord.js";
 
 const TOKEN_SETTING_KEY = "requests_webhook_token";
-export const REQUEST_WEBHOOK_USERNAME = "flixer";
+const REQUEST_WEBHOOK_USERNAME = "flixer";
 const COMPLETION_EVENTS = new Set(["download", "import", "importcomplete"]);
 const MAX_REFRESH_TARGETS = 100;
 
@@ -20,13 +21,9 @@ export interface RequestWebhookCredentials {
 	password: string;
 }
 
-export interface WebhookTarget {
+interface WebhookTarget {
 	path: string;
 	itemType: "movie" | "episode" | "track" | "album";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function record(value: unknown): Record<string, unknown> {

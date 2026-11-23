@@ -27,7 +27,9 @@ describe("native artwork revalidation", () => {
 
 	beforeAll(async () => {
 		platform = await PlatformFastify.bootstrap(TestServer, {
-			httpPort: false, httpsPort: false, mount: { "/api": [MediaHomeController] },
+			httpPort: false,
+			httpsPort: false,
+			mount: { "/api": [MediaHomeController] },
 			imports: [
 				{ token: AuthService, use: {} },
 				{ token: MediaAccessService, use: { resolve, blockReason } },
@@ -40,7 +42,9 @@ describe("native artwork revalidation", () => {
 		});
 		await platform.listen(false);
 	});
-	afterAll(async () => { await platform?.stop(); });
+	afterAll(async () => {
+		await platform?.stop();
+	});
 
 	it("revalidates only after checking access, and returns new bytes after a change", async () => {
 		const app = platform.adapter.app.getApp();
@@ -64,7 +68,9 @@ describe("native artwork revalidation", () => {
 
 	it("keeps the existing no-store policy for ordinary clients", async () => {
 		const response = await platform.adapter.app.getApp().inject({
-			method: "GET", url: `/api/media/items/${id}/images/0`, headers: { authorization: "Bearer test" },
+			method: "GET",
+			url: `/api/media/items/${id}/images/0`,
+			headers: { authorization: "Bearer test" },
 		});
 		expect(response.headers["cache-control"]).toBe("private, no-store");
 		expect(response.headers.etag).toBeUndefined();

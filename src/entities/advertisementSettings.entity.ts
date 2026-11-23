@@ -3,6 +3,7 @@ import { Column, Entity, PrimaryColumn } from "typeorm";
 /** Global scheduling limits; row 1 is installed by migration and is disabled by default. */
 @Entity("advertisement_settings")
 export class AdvertisementSettings {
+
 	@PrimaryColumn({ type: "int" })
 	id!: number;
 

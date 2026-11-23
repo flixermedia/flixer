@@ -7,7 +7,11 @@ import { AutomaticCollectionsService } from "./automaticCollectionsService.js";
 @Controller("/user-media/automatic-collections")
 @Security("BearerAuth")
 export class AutomaticCollectionsController {
-	constructor(private readonly collections: AutomaticCollectionsService, private readonly access: MediaAccessService) {}
+
+	constructor(
+		private readonly collections: AutomaticCollectionsService,
+		private readonly access: MediaAccessService,
+	) {}
 
 	@Get("/")
 	async list(@HeaderParams("authorization") authorization?: string) {

@@ -4,6 +4,7 @@ import type { DataSource } from "typeorm";
 import type { IndexerClient } from "../indexer/indexerClient.js";
 import type { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { AdminMediaService } from "./adminMediaService.js";
 
 describe("AdminMediaService", () => {
@@ -13,8 +14,13 @@ describe("AdminMediaService", () => {
 			images: [{ path: "/stable-poster.png" }],
 			updatedAt: new Date("2026-01-01T00:00:00Z"),
 		} as MediaItem;
-		const image = async (red: number) => sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } }).png().toBuffer();
-		const fetchImage = vi.fn().mockResolvedValueOnce({ data: await image(0), contentType: "image/png" })
+		const image = async (red: number) =>
+			sharp({ create: { width: 256, height: 256, channels: 3, background: { r: red, g: 0, b: 0 } } })
+				.png()
+				.toBuffer();
+		const fetchImage = vi
+			.fn()
+			.mockResolvedValueOnce({ data: await image(0), contentType: "image/png" })
 			.mockResolvedValueOnce({ data: await image(255), contentType: "image/png" });
 		const dataSource = { getRepository: () => ({ findOneBy: vi.fn().mockResolvedValue(item) }) } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, { fetchImage } as unknown as IndexerClient);
@@ -31,7 +37,7 @@ describe("AdminMediaService", () => {
 			libraryId: "00000000-0000-4000-8000-000000000002",
 			type: "series",
 			providerIds: { tmdb: "42" },
-		} as MediaItem;
+		} as unknown as MediaItem;
 		const query = vi.fn().mockResolvedValue([{ id: "other", title: "Other", path: "/tv/Other", providers: ["tmdb"] }]);
 		const dataSource = { getRepository: () => ({ findOneBy: vi.fn().mockResolvedValue(item) }), query } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, {} as IndexerClient);
@@ -41,37 +47,46 @@ describe("AdminMediaService", () => {
 	});
 
 	it("shows the most-watched 13 items per section on the unfiltered overview", async () => {
-		const query = vi.fn().mockResolvedValue([
-			{
-				id: "00000000-0000-4000-8000-000000000001",
-				libraryId: "00000000-0000-4000-8000-000000000002",
-				parentId: null,
-				type: "movie",
-				title: "Popular movie",
-				year: 2020,
-				seasonNumber: null,
-				episodeNumber: null,
-				path: "/movies/popular.mkv",
-				providerIds: { tmdb: "1" },
-				sizeBytes: "42",
-				editedFields: [],
-				images: [{ type: "poster", path: "/poster.jpg" }],
-				updatedAt: new Date("2026-01-01T00:00:00Z"),
-				parentTitle: null,
-				total: "80",
-				section: "movies",
-				sectionTotal: "20",
-			},
-		]);
-		const dataSource = { query } as unknown as DataSource;
+		const row = {
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null,
+			type: "movie",
+			title: "Popular movie",
+			year: 2020,
+			seasonNumber: null,
+			episodeNumber: null,
+			path: "/movies/popular.mkv",
+			providerIds: { tmdb: "1" },
+			sizeBytes: "42",
+			editedFields: [],
+			images: [{ type: "poster", path: "/poster.jpg" }],
+			updatedAt: new Date("2026-01-01T00:00:00Z"),
+			parentTitle: null,
+			total: "80",
+			section: "movies",
+			sectionTotal: "20",
+		};
+		const makeBuilder = (raw: unknown[] = []) => {
+			const builder = { leftJoin: vi.fn(), innerJoin: vi.fn(), select: vi.fn(), addSelect: vi.fn(), where: vi.fn(), andWhere: vi.fn(), groupBy: vi.fn(), from: vi.fn(), orderBy: vi.fn(), addOrderBy: vi.fn(), addCommonTableExpression: vi.fn(), getRawMany: vi.fn().mockResolvedValue(raw) };
+			for (const name of ["leftJoin", "innerJoin", "select", "addSelect", "where", "andWhere", "groupBy", "from", "orderBy", "addOrderBy", "addCommonTableExpression"] as const) builder[name].mockReturnValue(builder);
+			return builder;
+		};
+		const watcherCounts = makeBuilder();
+		const candidates = makeBuilder();
+		const ranked = makeBuilder();
+		const popular = makeBuilder([row]);
+		const mediaRepository = { createQueryBuilder: vi.fn().mockReturnValueOnce(candidates).mockReturnValueOnce(popular) };
+		const dataSource = { getRepository: vi.fn((entity: unknown) => (entity === WatchProgress ? { createQueryBuilder: () => watcherCounts } : mediaRepository)), createQueryBuilder: () => ranked } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, {} as IndexerClient);
 
 		const result = await service.list({});
 
-		expect(query).toHaveBeenCalledWith(expect.stringContaining("ROW_NUMBER() OVER"), [13]);
-		expect(query.mock.calls[0]?.[0]).toContain("COUNT(*) AS watcher_count");
-		expect(query.mock.calls[0]?.[0]).toContain("PARTITION BY section");
-		expect(query.mock.calls[0]?.[0]).toContain("section_rank <= $1");
+		expect(watcherCounts.groupBy).toHaveBeenCalledWith("progress.itemId");
+		expect(candidates.leftJoin).toHaveBeenCalledWith("watcher_counts", "watcher", "watcher.item_id = item.id");
+		expect(ranked.addSelect).toHaveBeenCalledWith(expect.stringContaining("ROW_NUMBER() OVER (PARTITION BY candidate.section"), "section_rank");
+		expect(popular.addCommonTableExpression).toHaveBeenNthCalledWith(1, watcherCounts, "watcher_counts");
+		expect(popular.where).toHaveBeenCalledWith("ranked.section_rank <= :limit", { limit: 13 });
 		expect(result).toMatchObject({
 			page: 1,
 			size: 13,
@@ -91,30 +106,56 @@ describe("AdminMediaService", () => {
 
 	it("filters and counts only low-confidence or unidentified items in review mode", async () => {
 		const item = {
-			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
-			parentId: null, type: "series", title: "My Series", year: 2001, seasonNumber: null, episodeNumber: null,
-			path: "/tv/series", providerIds: { tmdb: "42" }, matchConfidence: "high", matchEvidence: "title_year_match",
-			sizeBytes: 42, editedFields: [], images: [], updatedAt: new Date("2026-01-01T00:00:00Z"),
-		} as MediaItem;
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: null,
+			type: "series",
+			title: "My Series",
+			year: 2001,
+			seasonNumber: null,
+			episodeNumber: null,
+			path: "/tv/series",
+			providerIds: { tmdb: "42" },
+			matchConfidence: "high",
+			matchEvidence: "title_year_match",
+			sizeBytes: 42,
+			editedFields: [],
+			images: [],
+			updatedAt: new Date("2026-01-01T00:00:00Z"),
+		} as unknown as MediaItem;
 		const builder = {
-			leftJoin: vi.fn().mockReturnThis(), addSelect: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(),
-			andWhere: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(),
-			offset: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), getCount: vi.fn().mockResolvedValue(1),
+			leftJoin: vi.fn().mockReturnThis(),
+			addSelect: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			andWhere: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			addOrderBy: vi.fn().mockReturnThis(),
+			offset: vi.fn().mockReturnThis(),
+			limit: vi.fn().mockReturnThis(),
+			getCount: vi.fn().mockResolvedValue(1),
 			getRawAndEntities: vi.fn().mockResolvedValue({
 				entities: [item],
 				raw: [{ parentTitle: null }],
 			}),
 		};
-		const query = vi.fn().mockResolvedValue([]);
-		const dataSource = { getRepository: () => ({ createQueryBuilder: () => builder }), query } as unknown as DataSource;
+		const categoryCounts = {
+			select: vi.fn(),
+			addSelect: vi.fn(),
+			where: vi.fn(),
+			andWhere: vi.fn(),
+			groupBy: vi.fn(),
+			getRawMany: vi.fn().mockResolvedValue([]),
+		};
+		for (const name of ["select", "addSelect", "where", "andWhere", "groupBy"] as const) categoryCounts[name].mockReturnValue(categoryCounts);
+		const createQueryBuilder = vi.fn().mockReturnValueOnce(builder).mockReturnValueOnce(categoryCounts);
+		const dataSource = { getRepository: () => ({ createQueryBuilder }) } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, {} as IndexerClient);
 
 		const result = await service.list({ reviewOnly: true });
 
 		expect(builder.andWhere).toHaveBeenCalledWith(expect.stringContaining("EXISTS ("));
 		expect(builder.andWhere).toHaveBeenCalledWith("item.parent_id IS NULL");
-		expect(query.mock.calls[0]?.[0]).toContain("parent_id IS NULL");
-		expect(query.mock.calls[0]?.[0]).toContain("match_confidence IN ('low', 'unidentified', 'unknown')");
+		expect(categoryCounts.andWhere).toHaveBeenCalledWith(expect.stringContaining("match_confidence IN ('low', 'unidentified', 'unknown')"));
 		expect(result.items[0]).toMatchObject({ id: item.id, title: "My Series", matchConfidence: "high" });
 	});
 
@@ -130,7 +171,7 @@ describe("AdminMediaService", () => {
 			metadata: {},
 			images: [],
 			isPlaceholder: false,
-		} as MediaItem;
+		} as unknown as MediaItem;
 		const repository = {
 			findOneBy: vi.fn().mockResolvedValue(item),
 			countBy: vi.fn().mockResolvedValue(0),
@@ -148,19 +189,32 @@ describe("AdminMediaService", () => {
 
 	it("writes saved episode metadata and provider IDs to NFO when enabled for the library", async () => {
 		const item = {
-			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
-			parentId: "season-id", type: "episode", path: "/shows/Series/Season 2/Series S02E03.mkv",
-			title: "Episode", sortTitle: null, year: 2019, seasonNumber: 2, episodeNumber: 3, episodeEndNumber: null,
-			providerIds: { imdb: "tt-old", tvdb: "old-tvdb" }, editedFields: [],
-			metadata: { overview: "Plot", premiereDate: "2019-10-24" }, images: [], isPlaceholder: false,
-		} as MediaItem;
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			parentId: "season-id",
+			type: "episode",
+			path: "/shows/Series/Season 2/Series S02E03.mkv",
+			title: "Episode",
+			sortTitle: null,
+			year: 2019,
+			seasonNumber: 2,
+			episodeNumber: 3,
+			episodeEndNumber: null,
+			providerIds: { imdb: "tt-old", tvdb: "old-tvdb" },
+			editedFields: [],
+			metadata: { overview: "Plot", premiereDate: "2019-10-24" },
+			images: [],
+			isPlaceholder: false,
+		} as unknown as MediaItem;
 		const itemRepository = {
-			findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item),
+			findOneBy: vi.fn().mockResolvedValue(item),
+			countBy: vi.fn().mockResolvedValue(0),
+			save: vi.fn().mockResolvedValue(item),
 		};
 		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: true }) };
 		const request = vi.fn().mockResolvedValue({ written: true });
 		const dataSource = {
-			getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository,
+			getRepository: (entity: unknown) => (entity === MediaOrganizationSettings ? settingsRepository : itemRepository),
 		} as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
 
@@ -180,14 +234,21 @@ describe("AdminMediaService", () => {
 
 	it("does not write NFO when the library permission is disabled", async () => {
 		const item = {
-			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
-			type: "movie", path: "/movies/Movie.mkv", title: "Movie", providerIds: { tmdb: "1" }, editedFields: [],
-			metadata: {}, images: [], isPlaceholder: false,
-		} as MediaItem;
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			type: "movie",
+			path: "/movies/Movie.mkv",
+			title: "Movie",
+			providerIds: { tmdb: "1" },
+			editedFields: [],
+			metadata: {},
+			images: [],
+			isPlaceholder: false,
+		} as unknown as MediaItem;
 		const itemRepository = { findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item) };
 		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: false }) };
 		const request = vi.fn();
-		const dataSource = { getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository } as unknown as DataSource;
+		const dataSource = { getRepository: (entity: unknown) => (entity === MediaOrganizationSettings ? settingsRepository : itemRepository) } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
 
 		await service.update(item.id, { title: "Corrected movie" });
@@ -197,14 +258,21 @@ describe("AdminMediaService", () => {
 
 	it("keeps database edits when an enabled NFO write fails and reports the failure", async () => {
 		const item = {
-			id: "00000000-0000-4000-8000-000000000001", libraryId: "00000000-0000-4000-8000-000000000002",
-		type: "movie", path: "/movies/Movie.mkv", title: "Movie", providerIds: {}, editedFields: [],
-			metadata: {}, images: [], isPlaceholder: false,
-		} as MediaItem;
+			id: "00000000-0000-4000-8000-000000000001",
+			libraryId: "00000000-0000-4000-8000-000000000002",
+			type: "movie",
+			path: "/movies/Movie.mkv",
+			title: "Movie",
+			providerIds: {},
+			editedFields: [],
+			metadata: {},
+			images: [],
+			isPlaceholder: false,
+		} as unknown as MediaItem;
 		const itemRepository = { findOneBy: vi.fn().mockResolvedValue(item), countBy: vi.fn().mockResolvedValue(0), save: vi.fn().mockResolvedValue(item) };
 		const settingsRepository = { findOneBy: vi.fn().mockResolvedValue({ nfoWritesEnabled: true }) };
 		const request = vi.fn().mockRejectedValue(new Error("read-only mount"));
-		const dataSource = { getRepository: (entity: unknown) => entity === MediaOrganizationSettings ? settingsRepository : itemRepository } as unknown as DataSource;
+		const dataSource = { getRepository: (entity: unknown) => (entity === MediaOrganizationSettings ? settingsRepository : itemRepository) } as unknown as DataSource;
 		const service = new AdminMediaService(dataSource, { request } as unknown as IndexerClient);
 
 		const result = await service.update(item.id, { title: "Corrected movie" });
@@ -225,7 +293,7 @@ describe("AdminMediaService", () => {
 			technical: { duration: 60 },
 			images: [],
 			isPlaceholder: false,
-		} as MediaItem;
+		} as unknown as MediaItem;
 		const repository = {
 			findOneBy: vi.fn().mockResolvedValue(item),
 			countBy: vi.fn().mockResolvedValue(0),
@@ -264,7 +332,7 @@ describe("AdminMediaService", () => {
 			technical: { duration: 60 },
 			images: [],
 			isPlaceholder: false,
-		} as MediaItem;
+		} as unknown as MediaItem;
 		const repository = {
 			findOneBy: vi.fn().mockResolvedValue(item),
 			countBy: vi.fn().mockResolvedValue(0),
@@ -298,7 +366,7 @@ describe("AdminMediaService", () => {
 			path: "/movies/movie.mkv",
 			providerIds: { tmdb: "42" },
 			isPlaceholder: false,
-		} as MediaItem;
+		} as unknown as MediaItem;
 		const repository = { findOneBy: vi.fn().mockResolvedValue(item) };
 		const request = vi.fn().mockResolvedValue({ queued: true, alreadyQueued: false });
 		const dataSource = { getRepository: vi.fn(() => repository) } as unknown as DataSource;

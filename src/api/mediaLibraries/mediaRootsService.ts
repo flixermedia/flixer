@@ -21,6 +21,7 @@ const DEFAULT_MEDIA_ROOT = "../flixer-data/media";
 
 /** Splits a relative path into validated segments; rejects anything that could escape the root. */
 export function parseRelativePath(value: string): string[] {
+
 	const segments = value.split("/").filter((segment) => segment !== "");
 	for (const segment of segments) {
 		if (segment === "." || segment === ".." || /[\\:\0]/.test(segment)) {
@@ -28,6 +29,7 @@ export function parseRelativePath(value: string): string[] {
 		}
 	}
 	return segments;
+
 }
 
 /**

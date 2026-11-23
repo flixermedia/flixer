@@ -37,6 +37,7 @@ function toCard(card: SquareCard): ProviderCard {
 
 /** Square over its REST API. Amounts are ad-hoc, so no catalog or subscription plans are needed in Square. */
 export class SquareProvider implements PaymentProvider {
+
 	readonly id = "square" as const;
 
 	constructor(

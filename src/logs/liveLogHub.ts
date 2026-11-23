@@ -1,6 +1,6 @@
-export type LiveLogLevel = "debug" | "info" | "warn" | "error";
+type LiveLogLevel = "debug" | "info" | "warn" | "error";
 
-export interface LiveLogEntry {
+interface LiveLogEntry {
 	id: number;
 	time: string;
 	level: LiveLogLevel;
@@ -10,7 +10,7 @@ export interface LiveLogEntry {
 	fields?: Record<string, unknown>;
 }
 
-export type LiveLogListener = (entry: LiveLogEntry) => void;
+type LiveLogListener = (entry: LiveLogEntry) => void;
 
 const BUFFER_SIZE = 500;
 

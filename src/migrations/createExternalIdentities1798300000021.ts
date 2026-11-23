@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateExternalIdentities1798300000021 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`CREATE TABLE "external_identities" (
 			"plugin_id" varchar(128) NOT NULL,

@@ -7,22 +7,15 @@ import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { IndexerClient, type IndexerThemeTask } from "../indexer/indexerClient.js";
 
-export const THEMES_ENABLED_KEY = "themes_enabled";
+const THEMES_ENABLED_KEY = "themes_enabled";
 const BATCH_SIZE = 200;
 const TMDB_KEY = /^tmdb:(\d+)$/;
 
 /** The ThemerrDB entry an item maps to, or null when it is not a TMDB-identified movie or show. */
-export function themeTaskFor(
-	item: Pick<MediaItem, "libraryId" | "path" | "rootId" | "relativePath" | "type" | "externalKey">,
-): IndexerThemeTask | null {
+export function themeTaskFor(item: Pick<MediaItem, "libraryId" | "path" | "rootId" | "relativePath" | "type" | "externalKey">): IndexerThemeTask | null {
+
 	const match = TMDB_KEY.exec(item.externalKey);
-	if (
-		!match ||
-		(item.type !== "movie" && item.type !== "series") ||
-		!item.path ||
-		!item.rootId ||
-		!item.relativePath
-	) {
+	if (!match || (item.type !== "movie" && item.type !== "series") || !item.path || !item.rootId || !item.relativePath) {
 		return null;
 	}
 	return {
@@ -33,11 +26,13 @@ export function themeTaskFor(
 		itemType: item.type,
 		tmdbId: match[1],
 	};
+
 }
 
 /** Theme songs from ThemerrDB. The indexer downloads and stores them; flixer only asks for them. */
 @Injectable()
 export class ThemesService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly indexer: IndexerClient,

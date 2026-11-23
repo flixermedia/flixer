@@ -88,7 +88,7 @@ describe("bootstrap", () => {
 		try {
 			const status = await fetch(`http://127.0.0.1:${port}/api/setup/status`);
 			expect(status.status).toBe(200);
-			expect((await status.json()).state).toBe("not_started");
+			expect(((await status.json()) as { state: string }).state).toBe("not_started");
 			const capacitorStatus = await fetch(`http://127.0.0.1:${port}/api/setup/status`, {
 				headers: { origin: "capacitor://localhost" },
 			});
@@ -136,7 +136,10 @@ describe("bootstrap", () => {
 		store.setSetupState("in_progress");
 		store.setMany({ databaseUrl: "postgres://db/flixer" });
 		const logs: string[] = [];
-		await waitForDatabase((message) => logs.push(message), async () => ({ ok: true, hasUsers: false }));
+		await waitForDatabase(
+			(message) => logs.push(message),
+			async () => ({ ok: true, hasUsers: false }),
+		);
 		expect(config.get("redisUrl")).toBe(suggestedRedisUrl());
 		expect(store.get("redisUrl")).toBe(suggestedRedisUrl());
 		expect(logs).toContain("Restored the bundled Redis setting for incomplete quick setup.");
@@ -157,7 +160,10 @@ describe("bootstrap", () => {
 		await waitForDatabase(() => {}, probe);
 		expect(store.get("redisUrl")).toBeUndefined();
 		store.setWizardProgress({ flow: "quick", completedSteps: [] });
-		await waitForDatabase(() => {}, async () => ({ ok: true, hasUsers: true }));
+		await waitForDatabase(
+			() => {},
+			async () => ({ ok: true, hasUsers: true }),
+		);
 		expect(store.get("redisUrl")).toBeUndefined();
 	});
 });

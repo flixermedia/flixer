@@ -17,8 +17,10 @@ const makeSetting = (key: string, value: boolean): Setting =>
 	}) as Setting;
 
 function createService(dataSource: DataSource) {
+
 	const authService = { requireAdmin: vi.fn().mockResolvedValue(undefined) };
 	return new SettingsService(dataSource, authService as never, {} as never, {} as never, { mask: (_key: string, value: unknown) => value } as never, {} as never);
+
 }
 
 describe("chat encryption setting", () => {

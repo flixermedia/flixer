@@ -13,7 +13,7 @@ const PLACEHOLDER = /{{\s*(\w+)\s*}}/g;
 const MAX_HTML_BYTES = 256 * 1024;
 const MAX_TEXT_BYTES = 64 * 1024;
 
-export interface BuiltinTemplate {
+interface BuiltinTemplate {
 	label: string;
 	description: string;
 	subject: string;
@@ -22,7 +22,7 @@ export interface BuiltinTemplate {
 }
 
 /** Templates shipped with Flixer. Their HTML lives in resources/emails; edits are saved under DATA_DIR/emails. */
-export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
+const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 	"verify-email": {
 		label: "Verify email address",
 		description: "Sent when someone registers or changes their email address.",
@@ -57,20 +57,78 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
 		label: "Account deleted",
 		description: "Sent after a user's account has been permanently deleted.",
 		subject: "Your Flixer account was deleted",
-		text: "Goodbye, {{displayName}}.\n\nYour Flixer account \"{{username}}\" was permanently deleted on {{deletedAt}}. Your passkeys and sessions have been removed.\n\nDidn't delete your account? Contact your server administrator right away.",
+		text: 'Goodbye, {{displayName}}.\n\nYour Flixer account "{{username}}" was permanently deleted on {{deletedAt}}. Your passkeys and sessions have been removed.\n\nDidn\'t delete your account? Contact your server administrator right away.',
 		variables: { displayName: "Alex", username: "alex", deletedAt: "Mon, 01 Jan 2029 12:00:00 GMT", appUrl: "https://flixer.example.com" },
+	},
+	"invite-verify-email": {
+		label: "Invite: verify email address",
+		description: "Sent when someone registers through an invitation and email verification is required.",
+		subject: "Verify your email for {{serverName}}",
+		text: "Welcome, {{displayName}}.\n\nConfirm your email address to finish setting up your {{serverName}} account (link expires in {{expiresIn}}):\n{{verifyUrl}}\n\nDidn't accept an invitation to {{serverName}}? You can safely ignore this email.",
+		variables: {
+			displayName: "Alex",
+			username: "alex",
+			verifyUrl: "https://flixer.example.com/verify-email?token=example",
+			expiresIn: "24 hours",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			instructions: "",
+		},
+	},
+	"invite-purchase-receipt": {
+		label: "Invite: purchase receipt",
+		description: "Sent after a registration payment made through an invitation.",
+		subject: "Your {{serverName}} receipt: {{title}}",
+		text: "Thanks for your payment, {{displayName}}.\n\n{{kind}}: {{title}}\n{{detail}}\n\n{{lines}}\nTotal paid: {{total}}\n\nOrder {{orderId}} · {{date}}\n{{#if instructions}}\n{{instructions}}\n{{/if}}\n{{watchLabel}}: {{watchUrl}}",
+		variables: {
+			displayName: "Alex",
+			kind: "Account access",
+			title: "Jellyfin access",
+			detail: "",
+			lines: "Jellyfin access: £5.00",
+			subtotal: "£5.00",
+			discount: "",
+			discountLabel: "Discount",
+			tax: "",
+			total: "£5.00",
+			orderId: "a1b2c3d4",
+			date: "Mon, 01 Jan 2029",
+			watchUrl: "https://jellyfin.example.com",
+			watchLabel: "Open Jellyfin",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			instructions: "",
+		},
+	},
+	"invite-welcome": {
+		label: "Invite: welcome",
+		description: "Sent when an invited person's account is ready to use.",
+		subject: "Welcome to {{serverName}}",
+		text: "Welcome, {{displayName}}.\n\nYour {{serverName}} account ({{username}}) is ready.\n{{#if credentialsNote}}\n{{credentialsNote}}\n{{/if}}{{#if instructions}}\n{{instructions}}\n{{/if}}\n{{watchLabel}}: {{serverUrl}}",
+		variables: {
+			displayName: "Alex",
+			username: "alex",
+			serverName: "Jellyfin",
+			serverType: "jellyfin",
+			serverUrl: "https://jellyfin.example.com",
+			watchLabel: "Open Jellyfin",
+			instructions: "",
+			credentialsNote: "Sign in with the username and password you chose when accepting the invitation.",
+		},
 	},
 };
 
-export interface TemplateKey {
+interface TemplateKey {
 	key: string;
-	group: "global" | "account" | "payments";
+	group: "global" | "account" | "payments" | "invites";
 	description: string;
 	sample: string;
 }
 
 /** Every key a template can use. Global keys are filled automatically on every email; the rest come from the email that sends the template. */
-export const TEMPLATE_KEYS: TemplateKey[] = [
+const TEMPLATE_KEYS: TemplateKey[] = [
 	{ key: "appName", group: "global", description: "The name of this Flixer server.", sample: "Flixer" },
 	{ key: "appUrl", group: "global", description: "The address people use to open Flixer.", sample: "https://flixer.example.com" },
 	{ key: "year", group: "global", description: "The current year, handy for footers.", sample: "2029" },
@@ -93,6 +151,11 @@ export const TEMPLATE_KEYS: TemplateKey[] = [
 	{ key: "date", group: "payments", description: "Date of the payment.", sample: "Mon, 01 Jan 2029" },
 	{ key: "watchUrl", group: "payments", description: "Link to the purchased title, or to Flixer.", sample: "https://flixer.example.com" },
 	{ key: "watchLabel", group: "payments", description: "Button text for the watch link.", sample: "Watch now" },
+	{ key: "serverName", group: "invites", description: "Name of the invited server, e.g. Jellyfin, Plex, Emby or Flixer.", sample: "Jellyfin" },
+	{ key: "serverType", group: "invites", description: "Type of the invited server: flixer, jellyfin, emby, plex or other.", sample: "jellyfin" },
+	{ key: "serverUrl", group: "invites", description: "Link to open the invited server.", sample: "https://jellyfin.example.com" },
+	{ key: "instructions", group: "invites", description: "Setup instructions configured on the invited media server.", sample: "" },
+	{ key: "credentialsNote", group: "invites", description: "How to sign in on the invited server (invite-welcome only).", sample: "Sign in with the username and password you chose when accepting the invitation." },
 ];
 
 /** Values every template can use without the sender providing them. */
@@ -152,7 +215,6 @@ export function fillTemplate(source: string, values: Record<string, string>, esc
 /** Reads, edits and renders email templates. Edited and new templates are stored in DATA_DIR/emails. */
 @Injectable()
 export class MailTemplateService {
-
 	private get directory(): string {
 		return dataPath("emails");
 	}
@@ -228,7 +290,10 @@ export class MailTemplateService {
 	renderTemplate(template: Pick<MailTemplate, "subject" | "html" | "text">, provided: Record<string, string>): RenderedMail {
 		const values = { ...globalValues(), ...provided };
 		return {
-			subject: headerSafe(fillTemplate(template.subject, values, (value) => value), 200),
+			subject: headerSafe(
+				fillTemplate(template.subject, values, (value) => value),
+				200,
+			),
 			html: fillTemplate(template.html, values, escapeHtml),
 			text: fillTemplate(template.text, values, (value) => value),
 		};

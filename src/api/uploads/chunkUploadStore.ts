@@ -20,6 +20,7 @@ export interface ChunkUpload {
  * session after validating and moving the assembled file to its permanent location.
  */
 export class ChunkUploadStore {
+
 	constructor(
 		private readonly root: string,
 		private readonly maxBytes: number,
@@ -146,8 +147,7 @@ export class ChunkUploadStore {
 				throw error;
 			}
 			const metadata: unknown = JSON.parse(raw);
-			if (!metadata || typeof metadata !== "object" || !("id" in metadata) || metadata.id !== entry.name ||
-				!("createdAt" in metadata) || typeof metadata.createdAt !== "number" || !Number.isSafeInteger(metadata.createdAt)) {
+			if (!metadata || typeof metadata !== "object" || !("id" in metadata) || metadata.id !== entry.name || !("createdAt" in metadata) || typeof metadata.createdAt !== "number" || !Number.isSafeInteger(metadata.createdAt)) {
 				throw new Error("Invalid upload session metadata.");
 			}
 			if (Date.now() - metadata.createdAt >= this.lifetimeMs) await rm(this.directory(entry.name), { recursive: true, force: true });

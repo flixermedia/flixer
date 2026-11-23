@@ -5,7 +5,7 @@ describe("PluginRuntimeController", () => {
 	it("invokes the plugin as the user resolved from an API key or session", async () => {
 		const authService = { getUserFromKeyOrSession: vi.fn().mockResolvedValue({ id: "u1", role: "admin", email: "a@b.c" }) };
 		const runtime = { invoke: vi.fn().mockResolvedValue({ ok: true }) };
-		const controller = new PluginRuntimeController(authService as never, runtime as never);
+		const controller = new PluginRuntimeController(authService as never, runtime as never, undefined as never, undefined as never, undefined as never);
 
 		const result = await controller.invoke("flixer.example", "hello", { name: "Ada" }, "Bearer flx_key");
 

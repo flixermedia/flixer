@@ -6,11 +6,11 @@ Security matters at Flixer. As a self-hosted media platform, Flixer handles user
 
 Flixer is under active development. Security fixes are generally targeted at the latest available release and the current development branch.
 
-| Version | Security support |
-| --- | --- |
-| Latest published release | ✅ Targeted for security fixes |
-| Current `main` branch | ✅ Security fixes during development |
-| Older releases and commits | ⚠️ Not guaranteed |
+| Version                             | Security support                     |
+| ----------------------------------- | ------------------------------------ |
+| Latest published release            | ✅ Targeted for security fixes       |
+| Current `main` branch               | ✅ Security fixes during development |
+| Older releases and commits          | ⚠️ Not guaranteed                    |
 | Unofficial forks or modified builds | ❌ Not maintained by the Flixer team |
 
 This table describes the project's intended support policy, not a guarantee of fixes or response times. Users should keep Flixer and its components up to date.

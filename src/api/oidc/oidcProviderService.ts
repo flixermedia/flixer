@@ -5,6 +5,7 @@ import Provider, { errors, interactionPolicy, type JWKS } from "oidc-provider";
 import { DataSource } from "typeorm";
 import { appConfig } from "../../config/store/appConfig.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { OidcArtifact, OidcClient, OidcConfig, OidcConsent } from "../../entities/oidc.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { createOidcAdapter } from "./oidcAdapter.js";
 import { decryptOidcSecret, encryptOidcSecret } from "./oidcSecrets.js";
@@ -33,14 +34,14 @@ export class OidcProviderService {
 	}
 
 	async getConfiguration(): Promise<{ publicUrl: string; issuer: string }> {
-		const rows: Array<{ value: string }> = await this.dataSource.query(`SELECT "value" FROM "oidc_config" WHERE "key" = 'public_origin'`);
-		const publicUrl = rows[0]?.value || "";
+		const row = await this.dataSource.getRepository(OidcConfig).findOneBy({ key: "public_origin" });
+		const publicUrl = row?.value || "";
 		return { publicUrl, issuer: publicUrl ? `${publicUrl}/api/oidc` : "" };
 	}
 
 	async setPublicUrl(value: string): Promise<{ publicUrl: string; issuer: string }> {
 		const publicUrl = this.validateOrigin(value);
-		await this.dataSource.query(`INSERT INTO "oidc_config" ("key", "value") VALUES ('public_origin', $1) ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"`, [publicUrl]);
+		await this.dataSource.getRepository(OidcConfig).upsert({ key: "public_origin", value: publicUrl }, ["key"]);
 		return { publicUrl, issuer: `${publicUrl}/api/oidc` };
 	}
 
@@ -76,12 +77,12 @@ export class OidcProviderService {
 					enabled: true,
 					async getResourceServerInfo(ctx, resource, client) {
 						if (resource !== `${issuer}/resource`) throw new errors.InvalidTarget("Unknown resource.");
-						const rows: Array<{ resource_scopes: string[] }> = await dataSource.query(`SELECT "resource_scopes" FROM "oidc_clients" WHERE "id" = $1`, [client.clientId]);
-						if (!rows.length) throw new errors.InvalidTarget("Unknown client.");
+						const registered = await dataSource.getRepository(OidcClient).findOne({ select: { resourceScopes: true }, where: { id: client.clientId } });
+						if (!registered) throw new errors.InvalidTarget("Unknown client.");
 						const requested = typeof ctx.oidc.params?.scope === "string" ? ctx.oidc.params.scope.split(" ").filter(isOidcResourceScope) : [];
-						const forbidden = requested.filter((scope) => !rows[0].resource_scopes.includes(scope));
+						const forbidden = requested.filter((scope) => !registered.resourceScopes.includes(scope));
 						if (forbidden.length) throw new errors.InvalidScope("Resource permission is not allowed for this application.", forbidden.join(" "));
-						return { scope: rows[0].resource_scopes.join(" "), audience: resource, accessTokenFormat: "opaque", accessTokenTTL: 3600 };
+						return { scope: registered.resourceScopes.join(" "), audience: resource, accessTokenFormat: "opaque", accessTokenTTL: 3600 };
 					},
 				},
 			},
@@ -99,11 +100,7 @@ export class OidcProviderService {
 				if (!accountId) return undefined;
 				const submittedId = ctx.oidc.result?.consent?.grantId;
 				if (submittedId) return ctx.oidc.provider.Grant.find(submittedId);
-				const rows: Array<{ scopes: string[]; claims: string[] }> = await dataSource.query(
-					`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2`,
-					[accountId, clientId],
-				);
-				const consent = rows[0];
+				const consent = await dataSource.getRepository(OidcConsent).findOne({ select: { scopes: true, claims: true }, where: { accountId, clientId } });
 				if (!consent) return undefined;
 				const grant = new ctx.oidc.provider.Grant({ accountId, clientId });
 				grant.addOIDCScope(consent.scopes.filter((scope) => !isOidcResourceScope(scope)));
@@ -111,13 +108,10 @@ export class OidcProviderService {
 				grant.addOIDCClaims(consent.claims);
 				const grantId = await grant.save();
 				return dataSource.transaction(async (manager) => {
-					const current: Array<{ scopes: string[]; claims: string[] }> = await manager.query(
-						`SELECT "scopes", "claims" FROM "oidc_consents" WHERE "account_id" = $1 AND "client_id" = $2 FOR UPDATE`,
-						[accountId, clientId],
-					);
+					const current = await manager.getRepository(OidcConsent).createQueryBuilder("consent").select("consent.scopes", "scopes").addSelect("consent.claims", "claims").where("consent.accountId = :accountId AND consent.clientId = :clientId", { accountId, clientId }).setLock("pessimistic_write").getRawOne<{ scopes: string[]; claims: string[] }>();
 					const same = (left: string[], right: string[]) => left.length === right.length && left.every((item) => right.includes(item));
-					if (current[0] && same(consent.scopes, current[0].scopes) && same(consent.claims, current[0].claims)) return grant;
-					await manager.query(`DELETE FROM "oidc_artifacts" WHERE kind = 'Grant' AND id = $1`, [grantId]);
+					if (current && same(consent.scopes, current.scopes) && same(consent.claims, current.claims)) return grant;
+					await manager.delete(OidcArtifact, { kind: "Grant", id: grantId });
 					return undefined;
 				});
 			},
@@ -150,14 +144,19 @@ export class OidcProviderService {
 	}
 
 	private async signingKeys(): Promise<JWKS> {
-		const existing: Array<{ value: string }> = await this.dataSource.query(`SELECT "value" FROM "oidc_config" WHERE "key" = 'signing_key'`);
-		let encrypted = existing[0]?.value;
+		const configs = this.dataSource.getRepository(OidcConfig);
+		let encrypted = (await configs.findOneBy({ key: "signing_key" }))?.value;
 		if (!encrypted) {
 			const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 			const key = { ...privateKey.export({ format: "jwk" }), kid: "flixer-1", use: "sig", alg: "RS256" };
-			await this.dataSource.query(`INSERT INTO "oidc_config" ("key", "value") VALUES ('signing_key', $1) ON CONFLICT ("key") DO NOTHING`, [encryptOidcSecret(JSON.stringify(key))]);
-			const rows: Array<{ value: string }> = await this.dataSource.query(`SELECT "value" FROM "oidc_config" WHERE "key" = 'signing_key'`);
-			encrypted = rows[0]?.value;
+			// Concurrent starters race here; the first writer wins and everyone re-reads.
+			await configs
+				.createQueryBuilder()
+				.insert()
+				.values({ key: "signing_key", value: encryptOidcSecret(JSON.stringify(key)) })
+				.orIgnore()
+				.execute();
+			encrypted = (await configs.findOneBy({ key: "signing_key" }))?.value;
 		}
 		if (!encrypted) throw new Error("Could not load the OpenID Connect signing key.");
 		const key: JWKS["keys"][number] = JSON.parse(decryptOidcSecret(encrypted));

@@ -18,6 +18,7 @@ import { User } from "../../entities/user.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { imageIndexOf } from "../social/socialItems.js";
 import { MailService } from "../auth/mailService.js";
+import { destinationLabel, destinationOpenUrl, findInviteDestinationForUser } from "../invites/inviteDestination.js";
 import { NotificationService } from "../notifications/notificationService.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentConfigService } from "./paymentConfigService.js";
@@ -32,7 +33,7 @@ const NETWORK_RETRY_MS = 3_600_000;
 const FIRST_PLAY_CLAIM_DAYS = 30;
 const MAX_CARDS = 5;
 
-export interface PayingUser {
+interface PayingUser {
 	id: string;
 	email: string | null;
 	displayName: string | null;
@@ -491,6 +492,7 @@ export class PaymentsService {
 		const provider = await this.requireActive();
 		// The lock serialises one user's checkouts, so a second tab cannot pass the ownership check while the first is still being recorded.
 		const { quote, order } = await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${user.id}`]);
 			const quote = await this.quote(user, request);
 			if (quote.productId) {
@@ -613,6 +615,7 @@ export class PaymentsService {
 			}
 			const order = await manager.getRepository(PaymentOrder).findOneByOrFail({ id: orderId });
 			// Two checkouts can both be waiting on card verification; whichever completes second is a duplicate and is refunded instead of granted.
+			// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`checkout:${order.userId}`]);
 			if (order.productId && (order.kind === "purchase" || order.kind === "rental")) {
 				const product = await manager.getRepository(PaymentProduct).findOneBy({ id: order.productId });
@@ -623,7 +626,7 @@ export class PaymentsService {
 			}
 			await this.grantFor(manager, order, config);
 			if (order.couponCode) {
-				await manager.query(`UPDATE payment_coupons SET redeemed = redeemed + 1 WHERE code = $1`, [order.couponCode]);
+				await manager.getRepository(PaymentCoupon).increment({ code: order.couponCode }, "redeemed", 1);
 			}
 			return order;
 		});
@@ -744,13 +747,13 @@ export class PaymentsService {
 		if (!(await this.config.isActive())) {
 			return totals;
 		}
-		const due = await this.dataSource.query(
-			`SELECT id FROM payment_subscriptions
-			 WHERE status IN ('trialing','active','past_due') AND period_end <= $1 AND (next_attempt_at IS NULL OR next_attempt_at <= $1)
-			 LIMIT 200`,
-			[now],
-		);
-		for (const { id } of due as { id: string }[]) {
+		const due = await this.subscriptions
+			.createQueryBuilder("sub")
+			.select("sub.id", "id")
+			.where("sub.status IN (:...open) AND sub.periodEnd <= :now AND (sub.nextAttemptAt IS NULL OR sub.nextAttemptAt <= :now)", { open: ["trialing", "active", "past_due"], now })
+			.limit(200)
+			.getRawMany<{ id: string }>();
+		for (const { id } of due) {
 			const claim = await this.subscriptions
 				.createQueryBuilder()
 				.update()
@@ -1006,13 +1009,12 @@ export class PaymentsService {
 	}
 
 	async stats() {
-		const revenue = await this.dataSource.query(
-			`SELECT currency, COALESCE(SUM(total_minor - refunded_minor), 0)::int AS "amountMinor", COUNT(*)::int AS orders
-			 FROM payment_orders WHERE status IN ('paid','partially_refunded') AND created_at > now() - interval '30 days' GROUP BY currency`,
-		);
-		const subs = await this.dataSource.query(`SELECT status, COUNT(*)::int AS count FROM payment_subscriptions GROUP BY status`);
-		const failed = await this.dataSource.query(`SELECT COUNT(*)::int AS count FROM payment_orders WHERE status = 'failed' AND created_at > now() - interval '30 days'`);
-		return { revenue30d: revenue, subscriptions: subs, failed30d: failed[0]?.count ?? 0 };
+		const [revenue, subscriptions, failed] = await Promise.all([
+			this.dataSource.getRepository(PaymentOrder).createQueryBuilder("order").select("order.currency", "currency").addSelect("COALESCE(SUM(order.totalMinor - order.refundedMinor), 0)::int", "amountMinor").addSelect("COUNT(*)::int", "orders").where("order.status IN ('paid', 'partially_refunded')").andWhere("order.createdAt > now() - interval '30 days'").groupBy("order.currency").getRawMany<{ currency: string; amountMinor: number; orders: number }>(),
+			this.dataSource.getRepository(PaymentSubscription).createQueryBuilder("subscription").select("subscription.status", "status").addSelect("COUNT(*)::int", "count").groupBy("subscription.status").getRawMany<{ status: string; count: number }>(),
+			this.dataSource.getRepository(PaymentOrder).createQueryBuilder("order").select("COUNT(*)::int", "count").where("order.status = 'failed'").andWhere("order.createdAt > now() - interval '30 days'").getRawOne<{ count: number }>(),
+		]);
+		return { revenue30d: revenue, subscriptions, failed30d: failed?.count ?? 0 };
 	}
 
 	async refund(orderId: string, amountMinor?: number) {
@@ -1125,12 +1127,7 @@ export class PaymentsService {
 		if (order) {
 			await this.syncOrder(order);
 		}
-		await this.dataSource.query(
-			`INSERT INTO "payment_events" ("id", "provider", "event_id")
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT ("provider", "event_id") DO NOTHING`,
-			[randomUUID(), providerId, eventId],
-		);
+		await events.createQueryBuilder().insert().values({ id: randomUUID(), provider: providerId, eventId }).orIgnore().execute();
 		return { handled: Boolean(order) };
 	}
 
@@ -1167,12 +1164,17 @@ export class PaymentsService {
 			return;
 		}
 		const money = (amount: number) => formatMinor(amount, order.currency);
+		const appName = appConfig().get("passkeyRpName") || "Flixer";
 		const appUrl = (appConfig().get("appUrl") || "").replace(/\/+$/, "");
 		const apiUrl = (appConfig().get("publicUrl") || appUrl).replace(/\/+$/, "");
 		const product = order.productId ? await this.dataSource.getRepository(PaymentProduct).findOneBy({ id: order.productId }) : null;
 		const plan = order.planId ? await this.dataSource.getRepository(PaymentPlan).findOneBy({ id: order.planId }) : null;
 		const item = product?.scope.type === "item" && product.scope.ref && isUuid(product.scope.ref) ? await this.dataSource.getRepository(MediaItem).findOneBy({ id: product.scope.ref }) : null;
 		const posterIndex = item ? imageIndexOf(item.images, ["poster", "thumb", "cover"]) : null;
+		const inviteDestination = !item && (order.kind === "registration" || order.kind === "subscription") ? await findInviteDestinationForUser(this.dataSource, order.userId) : null;
+		const useInviteTemplate = Boolean(inviteDestination && (order.kind === "registration" || inviteDestination.type !== "flixer"));
+		const serverName = inviteDestination ? destinationLabel(inviteDestination, appName) : appName;
+		const serverUrl = inviteDestination ? destinationOpenUrl(inviteDestination, appUrl) : appUrl;
 
 		const kinds: Record<string, string> = { purchase: "Purchase", rental: "Rental", subscription: "Subscription", registration: "Account access" };
 		let detail = "";
@@ -1184,9 +1186,11 @@ export class PaymentsService {
 		} else if (plan) {
 			detail = `Renews every ${plan.interval}`;
 		}
-		const title = item?.title ?? product?.name ?? plan?.name ?? order.description;
+		const title = item?.title ?? product?.name ?? plan?.name ?? (inviteDestination && inviteDestination.type !== "flixer" && order.kind === "registration" ? `${serverName} access` : order.description);
 		const lines = [`${title}: ${money(order.subtotalMinor)}`, ...(order.discountMinor ? [`Discount: -${money(order.discountMinor)}`] : []), ...(order.taxMinor ? [`Tax: ${money(order.taxMinor)}`] : [])].join("\n");
-		const rendered = await this.mail.renderMessage("purchase-receipt", {
+		const watchUrl = item ? `${appUrl}/media/${item.id}` : useInviteTemplate ? serverUrl : appUrl;
+		const watchLabel = item ? "Watch now" : `Open ${useInviteTemplate ? serverName : appName}`;
+		const rendered = await this.mail.renderMessage(useInviteTemplate ? "invite-purchase-receipt" : "purchase-receipt", {
 			displayName: user.displayName || user.username,
 			kind: kinds[order.kind] ?? "Payment",
 			title,
@@ -1200,8 +1204,16 @@ export class PaymentsService {
 			discountLabel: order.couponCode ? `Discount (${order.couponCode})` : "Discount",
 			orderId: order.id.slice(0, 8).toUpperCase(),
 			date: new Date().toUTCString().slice(0, 16),
-			watchUrl: item ? `${appUrl}/media/${item.id}` : appUrl,
-			watchLabel: item ? "Watch now" : "Open Flixer",
+			watchUrl,
+			watchLabel,
+			...(useInviteTemplate && inviteDestination
+				? {
+						serverName,
+						serverType: inviteDestination.type,
+						serverUrl,
+						instructions: inviteDestination.instructions ?? "",
+					}
+				: {}),
 		});
 		await this.mail.send({ to: user.email, ...rendered });
 	}

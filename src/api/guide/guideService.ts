@@ -9,23 +9,8 @@ import ipaddr from "ipaddr.js";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { GuideProgramme } from "../../entities/guideProgramme.entity.js";
-import {
-	GuideSettings,
-	GuideSource,
-	type EpgSourceCache,
-	type GuideChannelSettings,
-	type GuideProgrammeCache,
-	type GuideSourceCache,
-	type GuideSourceKind,
-	type IptvChannelCache,
-	type IptvSourceCache,
-} from "../../entities/guideSource.entity.js";
-import {
-	channelNameMatchScore,
-	groupRegionalChannels,
-	stableChannelId,
-	type RegionalGuideChannel,
-} from "./guideMatching.js";
+import { GuideSettings, GuideSource, type EpgSourceCache, type GuideChannelSettings, type GuideProgrammeCache, type GuideSourceCache, type GuideSourceKind, type IptvChannelCache, type IptvSourceCache } from "../../entities/guideSource.entity.js";
+import { channelNameMatchScore, groupRegionalChannels, stableChannelId, type RegionalGuideChannel } from "./guideMatching.js";
 import { parseM3u, parseXmltv } from "./guideParsers.js";
 import type { CreateGuideSourceRequest, GuideChannelChange, UpdateGuideSourceRequest } from "./guideRequests.js";
 
@@ -43,6 +28,7 @@ const AUTO_PAIR_THRESHOLD = 0.6;
 export type LiveStreamContainer = "m3u8" | "mpd";
 
 export function liveStreamContainer(value: string): LiveStreamContainer | null {
+
 	try {
 		const url = new URL(value);
 		if (url.protocol !== "https:" && url.protocol !== "http:") return null;
@@ -52,9 +38,10 @@ export function liveStreamContainer(value: string): LiveStreamContainer | null {
 	} catch {
 		return null;
 	}
+
 }
 
-interface PublicGuideSource {
+export interface PublicGuideSource {
 	id: string;
 	kind: GuideSourceKind;
 	name: string;
@@ -68,7 +55,7 @@ interface PublicGuideSource {
 	lastError: string | null;
 }
 
-interface GuideChannelView {
+export interface GuideChannelView {
 	id: string;
 	name: string;
 	icon: string | null;
@@ -79,7 +66,7 @@ interface GuideChannelView {
 	sortOrder: number;
 }
 
-interface GuideProgrammeView extends GuideProgrammeCache {
+export interface GuideProgrammeView extends GuideProgrammeCache {
 	channelId: string;
 }
 
@@ -100,14 +87,17 @@ interface GuideCatalog {
 }
 
 export function isGlobalAddress(address: string): boolean {
+
 	try {
 		return ipaddr.process(address).range() === "unicast";
 	} catch {
 		return false;
 	}
+
 }
 
 export function parseSourceUrl(value: string, allowHttp = false): URL {
+
 	let url: URL;
 	try {
 		url = new URL(value);
@@ -115,28 +105,19 @@ export function parseSourceUrl(value: string, allowHttp = false): URL {
 		throw new BadRequest("Enter a valid source URL.");
 	}
 	const allowedPorts = allowHttp ? ["80", "443", "8080", "8443"] : ["443"];
-	if (
-		(url.protocol !== "https:" && !(allowHttp && url.protocol === "http:")) ||
-		url.username ||
-		url.password ||
-		(url.port && !allowedPorts.includes(url.port)) ||
-		url.hash ||
-		!url.hostname ||
-		url.hostname.endsWith(".localhost") ||
-		url.hostname.endsWith(".local") ||
-		url.hostname.endsWith(".internal")
-	) {
+	if ((url.protocol !== "https:" && !(allowHttp && url.protocol === "http:")) || url.username || url.password || (url.port && !allowedPorts.includes(url.port)) || url.hash || !url.hostname || url.hostname.endsWith(".localhost") || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) {
 		throw new BadRequest("Source URLs must use a public HTTP(S) host without credentials or a custom port.");
 	}
 	const hostname = url.hostname.replace(/^\[|\]$/g, "");
 	if (isIP(hostname)) {
-		if (!isGlobalAddress(hostname))
-			throw new BadRequest("Source URLs cannot point to private or reserved IP addresses.");
+		if (!isGlobalAddress(hostname)) throw new BadRequest("Source URLs cannot point to private or reserved IP addresses.");
 	}
 	return url;
+
 }
 
 async function validateSourceUrl(value: string, allowHttp = false): Promise<URL> {
+
 	const url = parseSourceUrl(value, allowHttp);
 	const hostname = url.hostname.replace(/^\[|\]$/g, "");
 	if (isIP(hostname)) return url;
@@ -150,9 +131,11 @@ async function validateSourceUrl(value: string, allowHttp = false): Promise<URL>
 		throw new BadRequest("Source URLs must resolve only to public IP addresses.");
 	}
 	return url;
+
 }
 
 async function readRemoteText(url: URL, redirects = 0): Promise<string> {
+
 	await validateSourceUrl(url.toString());
 	const hostname = url.hostname.replace(/^\[|\]$/g, "");
 	const address = isIP(hostname) ? hostname : (await lookup(hostname, { all: true, verbatim: true }))[0]?.address;
@@ -217,6 +200,7 @@ async function readRemoteText(url: URL, redirects = 0): Promise<string> {
 		request.on("error", reject);
 		request.end();
 	});
+
 }
 
 function cacheHasData(kind: GuideSourceKind, cache: GuideSourceCache): boolean {
@@ -224,6 +208,7 @@ function cacheHasData(kind: GuideSourceKind, cache: GuideSourceCache): boolean {
 }
 
 function publicSource(source: GuideSource): PublicGuideSource {
+
 	const channelCount = source.cache.channels.length;
 	return {
 		id: source.id,
@@ -238,10 +223,12 @@ function publicSource(source: GuideSource): PublicGuideSource {
 		lastRefreshedAt: source.lastRefreshedAt,
 		lastError: source.lastError,
 	};
+
 }
 
 @Injectable()
 export class GuideService {
+
 	private readonly refreshes = new Map<string, Promise<GuideSource>>();
 	private guideCatalog: GuideCatalog | null = null;
 
@@ -254,13 +241,7 @@ export class GuideService {
 		if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > MAX_GUIDE_WINDOW_MS) {
 			throw new BadRequest("The guide window must be valid and no longer than eight days.");
 		}
-		if (
-			!Number.isInteger(channelOffsetValue) ||
-			channelOffsetValue < 0 ||
-			!Number.isInteger(channelLimitValue) ||
-			channelLimitValue < 1 ||
-			channelLimitValue > 50
-		) {
+		if (!Number.isInteger(channelOffsetValue) || channelOffsetValue < 0 || !Number.isInteger(channelLimitValue) || channelLimitValue < 1 || channelLimitValue > 50) {
 			throw new BadRequest("Guide channel pagination must use a non-negative offset and a limit from 1 to 50.");
 		}
 
@@ -286,9 +267,7 @@ export class GuideService {
 
 	async adminOverview() {
 		const sources = await this.enabledAndDisabledSources();
-		await Promise.allSettled(
-			sources.filter((source) => source.enabled).map((source) => this.refreshIfStale(source)),
-		);
+		await Promise.allSettled(sources.filter((source) => source.enabled).map((source) => this.refreshIfStale(source)));
 		const current = await this.enabledAndDisabledSources();
 		const epgSources = current.filter((source) => source.kind === "epg");
 		const iptv = this.iptvChannelRecords(current);
@@ -367,8 +346,7 @@ export class GuideService {
 			try {
 				await this.dataSource.getRepository(GuideSource).update({ id }, update);
 			} catch (error) {
-				if ((error as { code?: string }).code === "23505")
-					throw new Conflict("A source of this type already uses that URL.");
+				if ((error as { code?: string }).code === "23505") throw new Conflict("A source of this type already uses that URL.");
 				throw error;
 			}
 			if (update.url !== undefined) {
@@ -412,11 +390,7 @@ export class GuideService {
 		const iptv = this.iptvChannelRecords(sources);
 		const updatedSources = new Set<GuideSource>();
 		for (const change of changes) {
-			const source = epgSources.find((candidate) =>
-				(candidate.cache as EpgSourceCache).channels.some(
-					(channel) => stableChannelId(candidate.id, channel.externalId) === change.id,
-				),
-			);
+			const source = epgSources.find((candidate) => (candidate.cache as EpgSourceCache).channels.some((channel) => stableChannelId(candidate.id, channel.externalId) === change.id));
 			if (!source) throw new NotFound(`EPG channel ${change.id} was not found.`);
 			if (change.iptvChannelId && !iptv.some(({ id }) => id === change.iptvChannelId)) {
 				throw new BadRequest(`IPTV channel ${change.iptvChannelId} was not found.`);
@@ -431,11 +405,7 @@ export class GuideService {
 		}
 		if (updatedSources.size > 0) {
 			const repository = this.dataSource.getRepository(GuideSource);
-			await Promise.all(
-				[...updatedSources].map((source) =>
-					repository.update({ id: source.id }, { channelSettings: source.channelSettings }),
-				),
-			);
+			await Promise.all([...updatedSources].map((source) => repository.update({ id: source.id }, { channelSettings: source.channelSettings })));
 			this.invalidateGuideCatalog();
 		}
 	}
@@ -450,9 +420,7 @@ export class GuideService {
 		return this.getSettings();
 	}
 
-	async getPlaybackTarget(
-		channelId: string,
-	): Promise<{ id: string; name: string; url: string; container: LiveStreamContainer }> {
+	async getPlaybackTarget(channelId: string): Promise<{ id: string; name: string; url: string; container: LiveStreamContainer }> {
 		const catalog = await this.getGuideCatalog();
 		const channel = catalog.channels.find((entry) => entry.id === channelId);
 		if (!channel) throw new NotFound("Guide channel not found.");
@@ -467,8 +435,7 @@ export class GuideService {
 	private async getSettings(): Promise<{ regionalMergeThresholdPercent: number }> {
 		const repository = this.dataSource.getRepository(GuideSettings);
 		let settings = await repository.findOneBy({ id: 1 });
-		if (!settings)
-			settings = await repository.save(repository.create({ id: 1, regionalMergeThresholdPercent: 65 }));
+		if (!settings) settings = await repository.save(repository.create({ id: 1, regionalMergeThresholdPercent: 65 }));
 		return { regionalMergeThresholdPercent: settings.regionalMergeThresholdPercent };
 	}
 
@@ -484,22 +451,11 @@ export class GuideService {
 		}
 		const iptvChannels = this.iptvChannelRecords(refreshedSources);
 		const settings = await this.getSettings();
-		const allGroups = groupRegionalChannels(
-			this.rawGuideChannels(epgSources, iptvChannels),
-			settings.regionalMergeThresholdPercent,
-		);
+		const allGroups = groupRegionalChannels(this.rawGuideChannels(epgSources, iptvChannels), settings.regionalMergeThresholdPercent);
 		const allChannels = allGroups
 			.map(({ primary, variants }) => {
 				const members = [primary, ...variants];
-				const selectedIptv =
-					members
-						.map((member) =>
-							member.iptvChannelId
-								? iptvChannels.find(({ id }) => id === member.iptvChannelId)
-								: undefined,
-						)
-						.find((entry): entry is IptvChannelRecord => entry !== undefined) ??
-					this.autoPair(members, iptvChannels);
+				const selectedIptv = members.map((member) => (member.iptvChannelId ? iptvChannels.find(({ id }) => id === member.iptvChannelId) : undefined)).find((entry): entry is IptvChannelRecord => entry !== undefined) ?? this.autoPair(members, iptvChannels);
 				return {
 					id: primary.id,
 					name: primary.name,
@@ -538,9 +494,7 @@ export class GuideService {
 	}
 
 	private async enabledAndDisabledSources(): Promise<GuideSource[]> {
-		return this.dataSource
-			.getRepository(GuideSource)
-			.find({ order: { kind: "ASC", sortOrder: "ASC", createdAt: "ASC" } });
+		return this.dataSource.getRepository(GuideSource).find({ order: { kind: "ASC", sortOrder: "ASC", createdAt: "ASC" } });
 	}
 
 	private async sourceById(id: string): Promise<GuideSource> {
@@ -554,19 +508,14 @@ export class GuideService {
 		try {
 			return await this.dataSource.getRepository(GuideSource).save(source);
 		} catch (error) {
-			if ((error as { code?: string }).code === "23505")
-				throw new Conflict("A source of this type already uses that URL.");
+			if ((error as { code?: string }).code === "23505") throw new Conflict("A source of this type already uses that URL.");
 			throw error;
 		}
 	}
 
 	private refreshIfStale(source: GuideSource): Promise<GuideSource> {
 		const cache = source.cache;
-		if (
-			source.lastRefreshedAt &&
-			Date.now() - source.lastRefreshedAt.getTime() < SOURCE_REFRESH_MS[source.kind] &&
-			cacheHasData(source.kind, cache)
-		) {
+		if (source.lastRefreshedAt && Date.now() - source.lastRefreshedAt.getTime() < SOURCE_REFRESH_MS[source.kind] && cacheHasData(source.kind, cache)) {
 			return Promise.resolve(source);
 		}
 		return this.refresh(source);
@@ -581,10 +530,7 @@ export class GuideService {
 				await this.dataSource.getRepository(GuideSource).update({ id: source.id }, { lastError: message });
 				const current = await this.sourceById(source.id);
 				if (cacheHasData(current.kind, current.cache)) {
-					logger().warn(
-						`Guide source "${current.name}" refresh failed; retaining its previous cache.`,
-						error,
-					);
+					logger().warn(`Guide source "${current.name}" refresh failed; retaining its previous cache.`, error);
 					return current;
 				}
 				throw error;
@@ -635,11 +581,7 @@ export class GuideService {
 		});
 	}
 
-	private async loadProgrammes(
-		groups: ReturnType<typeof groupRegionalChannels>,
-		from: number,
-		to: number,
-	): Promise<GuideProgrammeView[]> {
+	private async loadProgrammes(groups: ReturnType<typeof groupRegionalChannels>, from: number, to: number): Promise<GuideProgrammeView[]> {
 		if (groups.length === 0) return [];
 		const parameters: Record<string, string | number> = { from, to };
 		const channelConditions = groups.map(({ primary }, index) => {
@@ -699,10 +641,7 @@ export class GuideService {
 					icon: channel.icon,
 					enabled: config?.enabled !== false,
 					sortOrder: config?.sortOrder ?? source.sortOrder * 100_000 + index,
-					iptvChannelId:
-						explicitIptvId && iptvChannels.some(({ id: iptvId }) => iptvId === explicitIptvId)
-							? explicitIptvId
-							: null,
+					iptvChannelId: explicitIptvId && iptvChannels.some(({ id: iptvId }) => iptvId === explicitIptvId) ? explicitIptvId : null,
 					programmes: programmeMap.get(channel.externalId) ?? [],
 				});
 			});
@@ -730,16 +669,8 @@ export class GuideService {
 		for (const member of members) {
 			for (const candidate of iptv) {
 				if (!candidate.source.enabled || !liveStreamContainer(candidate.channel.url)) continue;
-				const score = channelNameMatchScore(
-					member.name,
-					candidate.channel.name,
-					candidate.channel.tvgId,
-					member.externalId ?? "",
-				);
-				if (
-					score > bestScore ||
-					(score === bestScore && selected && candidate.sortOrder < selected.sortOrder)
-				) {
+				const score = channelNameMatchScore(member.name, candidate.channel.name, candidate.channel.tvgId, member.externalId ?? "");
+				if (score > bestScore || (score === bestScore && selected && candidate.sortOrder < selected.sortOrder)) {
 					bestScore = score;
 					selected = candidate;
 				}
@@ -747,5 +678,4 @@ export class GuideService {
 		}
 		return bestScore >= AUTO_PAIR_THRESHOLD ? selected : undefined;
 	}
-
 }

@@ -11,9 +11,7 @@ describe("guide parsers", () => {
 				</programme>
 			</tv>
 		`);
-		expect(result.channels).toEqual([
-			{ externalId: "bbc-one-london", name: "BBC One & London", icon: "https://example.com/logo.png" },
-		]);
+		expect(result.channels).toEqual([{ externalId: "bbc-one-london", name: "BBC One & London", icon: "https://example.com/logo.png" }]);
 		expect(result.programmes).toEqual([
 			{
 				channelExternalId: "bbc-one-london",
@@ -28,9 +26,7 @@ describe("guide parsers", () => {
 	});
 
 	it("rejects XMLTV documents with custom entity declarations", () => {
-		expect(() => parseXmltv("<!DOCTYPE tv [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><tv/>")).toThrow(
-			/cannot declare/,
-		);
+		expect(() => parseXmltv("<!DOCTYPE tv [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><tv/>")).toThrow(/cannot declare/);
 	});
 
 	it("parses extended M3U metadata and channel URLs", () => {

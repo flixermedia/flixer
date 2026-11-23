@@ -6,6 +6,7 @@ export type NotificationKind = "new_media" | "admin" | "request" | "message" | "
 @Entity("notifications")
 @Index("idx_notifications_user_created", ["userId", "createdAt"])
 export class Notification {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

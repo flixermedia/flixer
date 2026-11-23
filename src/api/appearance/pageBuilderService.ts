@@ -12,26 +12,41 @@ const PREFIX = "page-builder:";
 const LOGIN_ID = "login";
 const SITE_SETTING = "page-builder-site";
 const TEMPLATES_SETTING = "page-builder-templates";
-export interface PageSiteSettings { homePageId: string | null; navigationIds: string[] }
-export interface ReusablePageBlock { id: string; name: string; block: PageBlock }
+export interface PageSiteSettings {
+	homePageId: string | null;
+	navigationIds: string[];
+}
+export interface ReusablePageBlock {
+	id: string;
+	name: string;
+	block: PageBlock;
+}
 
 function initialLogin(): BuilderPage {
 	return { id: LOGIN_ID, title: "Login", slug: "login", kind: "login", draft: { blocks: [{ id: "auth", type: "auth", text: "", image: null }] }, published: null };
 }
 
 function snapshot(page: BuilderPage): PublishedPage {
+
 	const validated = sanitizePageDraft(page, page.kind);
 	return { title: validated.title, slug: validated.slug, access: validated.access, ...validated.draft };
+
 }
 
 function publishSnapshot(page: BuilderPage, content: PublishedPage): BuilderPage {
+
 	const version = { id: randomUUID(), createdAt: new Date().toISOString(), content };
 	return { ...page, published: content, scheduled: null, history: [version, ...(page.history ?? [])].slice(0, 20) };
+
 }
 
 @Injectable()
 export class PageBuilderService {
-	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource, private readonly auth: AuthService) {}
+
+	constructor(
+		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
+		private readonly auth: AuthService,
+	) {}
 
 	private async pages(): Promise<BuilderPage[]> {
 		const rows = await this.dataSource.getRepository(Setting).findBy({ key: Like(`${PREFIX}%`) });
@@ -63,7 +78,7 @@ export class PageBuilderService {
 	async templates(authorization?: string): Promise<ReusablePageBlock[]> {
 		await this.auth.requireAdmin(authorization);
 		const row = await this.dataSource.getRepository(Setting).findOneBy({ key: TEMPLATES_SETTING });
-		return Array.isArray(row?.value) ? row.value as ReusablePageBlock[] : [];
+		return Array.isArray(row?.value) ? (row.value as ReusablePageBlock[]) : [];
 	}
 
 	async createTemplate(input: unknown, authorization?: string): Promise<ReusablePageBlock> {
@@ -212,9 +227,7 @@ export class PageBuilderService {
 	}
 
 	async publicPage(slug: string, authorization?: string): Promise<PublishedPage> {
-		const page = slug === LOGIN_ID
-			? (await this.dataSource.getRepository(Setting).findOneBy({ key: `${PREFIX}${LOGIN_ID}` }))?.value as BuilderPage | undefined
-			: (await this.pages()).find((item) => item.kind === "page" && item.published?.slug === slug);
+		const page = slug === LOGIN_ID ? ((await this.dataSource.getRepository(Setting).findOneBy({ key: `${PREFIX}${LOGIN_ID}` }))?.value as BuilderPage | undefined) : (await this.pages()).find((item) => item.kind === "page" && item.published?.slug === slug);
 		if (!page?.published) throw new NotFound("Page not found.");
 		const safe = sanitizePageDraft({ title: page.published.title, slug: page.published.slug, access: page.published.access, draft: page.published }, page.kind);
 		if (safe.access === "signed-in") await this.auth.getAuthenticatedUser(authorization);

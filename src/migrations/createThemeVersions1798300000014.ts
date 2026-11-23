@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /** History of custom theme edits, plus the settings for scheduled themes and per-library accent colours. */
 export class CreateThemeVersions1798300000014 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE theme_versions (

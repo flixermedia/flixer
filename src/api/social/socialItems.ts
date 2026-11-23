@@ -16,7 +16,7 @@ export interface SocialItem {
 	at?: Date;
 }
 
-export type LoadedSocialItem = SocialItem & { raw: MediaItem; album: MediaItem | null };
+type LoadedSocialItem = SocialItem & { raw: MediaItem; album: MediaItem | null };
 
 export const FAVORITE_TYPES: MediaItemType[] = ["movie", "series", "album", "track", "video"];
 
@@ -26,6 +26,7 @@ interface StoredImage {
 }
 
 export function imageIndexOf(images: unknown[] | null | undefined, types: string[]): number | null {
+
 	const list = (images ?? []) as StoredImage[];
 	for (const type of types) {
 		const index = list.findIndex((image) => image?.type === type && typeof image.path === "string" && image.path.length > 0);
@@ -34,6 +35,7 @@ export function imageIndexOf(images: unknown[] | null | undefined, types: string
 		}
 	}
 	return null;
+
 }
 
 function text(value: unknown): string | null {
@@ -45,12 +47,15 @@ export function artistOf(item: MediaItem): string | null {
 }
 
 export function durationOf(item: MediaItem): number | null {
+
 	const seconds = Number(item.technical?.duration);
 	return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : null;
+
 }
 
 /** Loads the items (skipping placeholders and missing ones) and returns cards in the order of `ids`. */
 export async function loadSocialItems(dataSource: DataSource, ids: string[], at?: Map<string, Date>): Promise<LoadedSocialItem[]> {
+
 	if (ids.length === 0) {
 		return [];
 	}
@@ -112,6 +117,7 @@ export async function loadSocialItems(dataSource: DataSource, ids: string[], at?
 		});
 	}
 	return cards;
+
 }
 
 /** Drops the internal fields so only the card is returned to clients. */

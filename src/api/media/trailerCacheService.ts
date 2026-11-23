@@ -16,6 +16,7 @@ export const TRAILER_ROOT_ID = "flixer-trailers";
 /** Storage and remote resolution for trailers. */
 @Injectable()
 export class TrailerCacheService {
+
 	private readonly pending = new Map<string, Promise<void>>();
 	private readonly waiters: Array<() => void> = [];
 	private active = 0;
@@ -81,12 +82,7 @@ export class TrailerCacheService {
 		if (!/^[A-Za-z0-9_-]{11}$/.test(key)) throw new BadRequest("Invalid trailer video ID.");
 		let stdout: string;
 		try {
-			({ stdout } = await execFileAsync("yt-dlp", [
-				"--ignore-config", "--no-playlist", "--no-cache-dir", "--js-runtimes", "node", "--extractor-args", "youtube:player_client=android",
-				"--match-filter", "duration <= 1200 & !is_live", "--get-url",
-				"-f", "b[ext=mp4][vcodec^=avc1][acodec^=mp4a]",
-				"--", `https://www.youtube.com/watch?v=${key}`,
-			], { timeout: 30_000, maxBuffer: 1024 * 1024 }));
+			({ stdout } = await execFileAsync("yt-dlp", ["--ignore-config", "--no-playlist", "--no-cache-dir", "--js-runtimes", "node", "--extractor-args", "youtube:player_client=android", "--match-filter", "duration <= 1200 & !is_live", "--get-url", "-f", "b[ext=mp4][vcodec^=avc1][acodec^=mp4a]", "--", `https://www.youtube.com/watch?v=${key}`], { timeout: 30_000, maxBuffer: 1024 * 1024 }));
 		} catch (error) {
 			logger().warn("Could not resolve a remote trailer.", error);
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") {

@@ -6,6 +6,7 @@ import { release } from "node:os";
  * "WSL2"), and that cannot provide the mount propagation share mounting needs. SMB_MOUNT_SUPPORTED=true/false overrides.
  */
 export function smbMountSupported(kernel: string = release(), override: string | undefined = process.env.SMB_MOUNT_SUPPORTED): boolean {
+
 	const forced = override?.trim().toLowerCase();
 	if (forced === "true" || forced === "1") {
 		return true;
@@ -14,4 +15,5 @@ export function smbMountSupported(kernel: string = release(), override: string |
 		return false;
 	}
 	return !/linuxkit|wsl2|microsoft|docker-desktop/i.test(kernel);
+
 }

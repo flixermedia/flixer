@@ -14,7 +14,7 @@ export function deriveUpdaterToken(secret: string | undefined | null): string | 
 	return secret ? createHmac("sha256", secret).update("flixer-updater-token").digest("hex") : undefined;
 }
 
-export interface UpdaterCallOptions extends Omit<RequestInit, "signal"> {
+interface UpdaterCallOptions extends Omit<RequestInit, "signal"> {
 	timeoutMs?: number;
 	/** Needed by fetch when the body is a stream. */
 	duplex?: "half";

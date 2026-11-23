@@ -1,3 +1,4 @@
+import { isRecord } from "../../utils/isRecord.js";
 import { Inject, Injectable, logger } from "@tsed/di";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
@@ -30,8 +31,6 @@ const PERMISSION_OF: Record<string, string> = {
 	"notify.send": "notifications.send",
 };
 
-export const HOST_SERVICE_OPS = new Set(Object.keys(PERMISSION_OF));
-
 interface MatchCard {
 	key: string;
 	type: "movie" | "tv" | "music";
@@ -52,13 +51,10 @@ export function normalizeTitle(value: string): string {
 		.replace(/[^a-z0-9]+/g, "");
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** Host calls that reach Flixer's own data on a plugin's behalf, each behind an approved permission. */
 @Injectable()
 export class PluginHostService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly database: PluginDatabaseService,
@@ -129,9 +125,7 @@ export class PluginHostService {
 			throw new HostInputError();
 		}
 		if (ids.length === 0) return [];
-		const users = await this.dataSource
-			.getRepository(User)
-			.find({ where: { id: In(ids.map((id: string) => id.toLowerCase())) } });
+		const users = await this.dataSource.getRepository(User).find({ where: { id: In(ids.map((id: string) => id.toLowerCase())) } });
 		return users.map((user) => this.publicUser(user));
 	}
 
@@ -151,15 +145,7 @@ export class PluginHostService {
 	private parseCards(call: HostCall): MatchCard[] {
 		if (!Array.isArray(call.cards) || call.cards.length > MAX_CARDS) throw new HostInputError();
 		return call.cards.map((raw: unknown) => {
-			if (
-				!isRecord(raw) ||
-				typeof raw.key !== "string" ||
-				(raw.type !== "movie" && raw.type !== "tv" && raw.type !== "music") ||
-				typeof raw.source !== "string" ||
-				typeof raw.id !== "string" ||
-				typeof raw.title !== "string" ||
-				(raw.year !== null && raw.year !== undefined && !Number.isInteger(raw.year))
-			) {
+			if (!isRecord(raw) || typeof raw.key !== "string" || (raw.type !== "movie" && raw.type !== "tv" && raw.type !== "music") || typeof raw.source !== "string" || typeof raw.id !== "string" || typeof raw.title !== "string" || (raw.year !== null && raw.year !== undefined && !Number.isInteger(raw.year))) {
 				throw new HostInputError();
 			}
 			return {
@@ -185,9 +171,7 @@ export class PluginHostService {
 			where: { externalKey: In(cards.map((card) => `${card.source}:${card.id}`)), isPlaceholder: false },
 		});
 		for (const item of keyed) {
-			const card = cards.find(
-				(entry) => `${entry.source}:${entry.id}` === item.externalKey && LIBRARY_TYPE[entry.type] === item.type,
-			);
+			const card = cards.find((entry) => `${entry.source}:${entry.id}` === item.externalKey && LIBRARY_TYPE[entry.type] === item.type);
 			if (card) matches[card.key] = item.id;
 		}
 
@@ -205,12 +189,7 @@ export class PluginHostService {
 			const wanted = normalizeTitle(card.title);
 			const found = candidates.find((item) => {
 				if (item.type !== LIBRARY_TYPE[card.type] || normalizeTitle(item.title) !== wanted) return false;
-				return (
-					card.type === "music" ||
-					card.year === null ||
-					item.year === null ||
-					Math.abs(item.year - card.year) <= 1
-				);
+				return card.type === "music" || card.year === null || item.year === null || Math.abs(item.year - card.year) <= 1;
 			});
 			if (found) matches[card.key] = found.id;
 		}
@@ -218,13 +197,7 @@ export class PluginHostService {
 	}
 
 	private async notify(call: HostCall): Promise<void> {
-		if (
-			(call.to !== "user" && call.to !== "admins") ||
-			typeof call.title !== "string" ||
-			typeof call.message !== "string" ||
-			call.title.length === 0 ||
-			(call.url !== undefined && (typeof call.url !== "string" || !call.url.startsWith("/") || call.url.startsWith("//")))
-		) {
+		if ((call.to !== "user" && call.to !== "admins") || typeof call.title !== "string" || typeof call.message !== "string" || call.title.length === 0 || (call.url !== undefined && (typeof call.url !== "string" || !call.url.startsWith("/") || call.url.startsWith("//")))) {
 			throw new HostInputError();
 		}
 		let recipients: string[];
@@ -236,10 +209,7 @@ export class PluginHostService {
 			recipients = admins.map((admin) => admin.id);
 		}
 		if (recipients.length === 0) return;
-		await this.notifications.send(
-			{ title: call.title.slice(0, 120), body: call.message.slice(0, 500), url: call.url ?? null, kind: "request" },
-			recipients,
-		);
+		await this.notifications.send({ title: call.title.slice(0, 120), body: call.message.slice(0, 500), url: call.url ?? null, kind: "request" }, recipients);
 	}
 }
 

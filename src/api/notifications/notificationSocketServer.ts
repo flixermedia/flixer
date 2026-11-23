@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../../logs/liveLogSocketServer.js";
+import { CLOSE_UNAUTHORIZED } from "../../utils/socketCloseCodes.js";
 import type { NotificationEvent, NotificationService } from "./notificationService.js";
 
 export const NOTIFICATION_PATH = "/api/notifications/live";
@@ -13,7 +13,7 @@ const MAX_CLIENTS = 2_000;
 const MAX_CLIENT_MESSAGE_BYTES = 2_048;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 
-export type NotificationAuthenticator = (token: string) => Promise<string>;
+type NotificationAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	authenticated: boolean;
@@ -31,8 +31,7 @@ export class NotificationSocketServer {
 	private heartbeat?: NodeJS.Timeout;
 	private revalidation?: NodeJS.Timeout;
 	private unsubscribe?: () => void;
-	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) =>
-		this.handleUpgrade(request, socket, head);
+	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
 
 	constructor(
 		private readonly authenticate: NotificationAuthenticator,
@@ -166,9 +165,7 @@ function parseAuthMessage(raw: RawData): string | null {
 
 	try {
 		const message = JSON.parse(raw.toString()) as { type?: unknown; token?: unknown };
-		return message.type === "auth" && typeof message.token === "string" && message.token !== ""
-			? message.token
-			: null;
+		return message.type === "auth" && typeof message.token === "string" && message.token !== "" ? message.token : null;
 	} catch {
 		return null;
 	}

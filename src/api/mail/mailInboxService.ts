@@ -10,7 +10,7 @@ import { NotificationService } from "../notifications/notificationService.js";
 import { headerSafe } from "./mailAddress.js";
 import { attachmentDirectory } from "./mailMessageService.js";
 
-export interface InboundMessage {
+interface InboundMessage {
 	mailboxId: string;
 	fromAddress: string;
 	fromName: string | null;
@@ -43,24 +43,26 @@ export class MailInboxService {
 		}
 
 		const repo = this.dataSource.getRepository(MailMessage);
-		const saved = await repo.save(repo.create({
-			id,
-			mailboxId: message.mailboxId,
-			direction: "inbound",
-			status: "received",
-			fromAddress: message.fromAddress,
-			fromName: message.fromName,
-			toAddresses: message.toAddresses,
-			subject: message.subject.slice(0, 998),
-			text: message.text,
-			html: message.html,
-			messageId: message.messageId,
-			attachments: message.attachments,
-			authResults: message.authResults,
-			remoteAddress: message.remoteAddress,
-			inReplyTo: null,
-			isSystem: false,
-		}));
+		const saved = await repo.save(
+			repo.create({
+				id,
+				mailboxId: message.mailboxId,
+				direction: "inbound",
+				status: "received",
+				fromAddress: message.fromAddress,
+				fromName: message.fromName,
+				toAddresses: message.toAddresses,
+				subject: message.subject.slice(0, 998),
+				text: message.text,
+				html: message.html,
+				messageId: message.messageId,
+				attachments: message.attachments,
+				authResults: message.authResults,
+				remoteAddress: message.remoteAddress,
+				inReplyTo: null,
+				isSystem: false,
+			}),
+		);
 		void this.notifyOwner(saved);
 		return saved;
 	}
@@ -70,12 +72,15 @@ export class MailInboxService {
 			const mailbox = await this.dataSource.getRepository(Mailbox).findOneBy({ id: message.mailboxId ?? "" });
 			if (!mailbox?.userId) return;
 			const sender = message.fromName ? `${message.fromName} <${message.fromAddress}>` : message.fromAddress;
-			await this.notifications.send({
-				kind: "mail",
-				title: headerSafe(message.subject, 120) || "(no subject)",
-				body: `From ${sender}`,
-				url: `/inbox?message=${message.id}`,
-			}, [mailbox.userId]);
+			await this.notifications.send(
+				{
+					kind: "mail",
+					title: headerSafe(message.subject, 120) || "(no subject)",
+					body: `From ${sender}`,
+					url: `/inbox?message=${message.id}`,
+				},
+				[mailbox.userId],
+			);
 		} catch (error) {
 			logger().debug("Could not notify a user about new mail.", error);
 		}

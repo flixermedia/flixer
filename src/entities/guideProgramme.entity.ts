@@ -3,6 +3,7 @@ import { Column, Entity, Index, PrimaryColumn } from "typeorm";
 @Entity("guide_programmes")
 @Index("IDX_guide_programmes_channel_window", ["sourceId", "channelExternalId", "startMs", "stopMs"])
 export class GuideProgramme {
+
 	@PrimaryColumn("uuid")
 	id!: string;
 

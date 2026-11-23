@@ -4,7 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { rename, rm, stat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { dataPath } from "../../config/dataPath.js";
-import { detectAvatarType } from "../auth/avatarStorage.js";
+import { detectAvatarType } from "../auth/avatar/avatarStorage.js";
 import { version as flixerVersion } from "../../config/config.js";
 import semver from "semver";
 import { DataSource, In } from "typeorm";
@@ -26,27 +26,25 @@ const PLUGIN_TARGETS = ["flixer", "flixer-indexer", "flixer-streamer", "flixer-w
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function pluginUpdateErrorMessage(error: unknown): string {
+
 	const message = error instanceof Error ? error.message : "Plugin installation failed.";
 	return message
 		.replace(/\bBearer\s+\S+/gi, "Bearer [redacted]")
 		.replace(/([?&](?:token|key|secret|password|api[_-]?key)=)[^&\s]*/gi, "$1[redacted]")
 		.slice(0, 1000);
+
 }
 
-export function preservePluginInstallationState(
-	existing: Pick<PluginInstallation, "settings" | "encryptedSecrets" | "approvedPermissions"> | null,
-	manifest: PluginManifest,
-	requestedPermissions: Iterable<string>,
-): Pick<PluginInstallation, "settings" | "encryptedSecrets" | "approvedPermissions"> {
+export function preservePluginInstallationState(existing: Pick<PluginInstallation, "settings" | "encryptedSecrets" | "approvedPermissions"> | null, manifest: PluginManifest, requestedPermissions: Iterable<string>): Pick<PluginInstallation, "settings" | "encryptedSecrets" | "approvedPermissions"> {
+
 	const requested = new Set(requestedPermissions);
 	const previouslyApproved = new Set(existing?.approvedPermissions ?? []);
 	return {
 		settings: { ...(existing?.settings ?? {}) },
 		encryptedSecrets: { ...(existing?.encryptedSecrets ?? {}) },
-		approvedPermissions: manifest.permissions.filter(
-			(permission) => requested.has(permission) || previouslyApproved.has(permission),
-		),
+		approvedPermissions: manifest.permissions.filter((permission) => requested.has(permission) || previouslyApproved.has(permission)),
 	};
+
 }
 
 export interface PluginCatalogFilter {
@@ -68,6 +66,7 @@ export interface InstallPluginRequest {
 
 @Injectable()
 export class PluginManagerService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly indexer: IndexerClient,
@@ -77,17 +76,11 @@ export class PluginManagerService {
 	private healthTimer?: ReturnType<typeof setInterval>;
 
 	$onReady(): void {
-		const refresh = () =>
-			void this.refreshEnabledRepositories().catch((error: unknown) =>
-				logger().error("Plugin repository refresh failed.", error),
-			);
+		const refresh = () => void this.refreshEnabledRepositories().catch((error: unknown) => logger().error("Plugin repository refresh failed.", error));
 		refresh();
 		this.refreshTimer = setInterval(refresh, REFRESH_INTERVAL_MS);
 		this.refreshTimer.unref?.();
-		const refreshHealth = () =>
-			void this.refreshPluginHealth().catch((error: unknown) =>
-				logger().warn("Could not refresh plugin health.", error),
-			);
+		const refreshHealth = () => void this.refreshPluginHealth().catch((error: unknown) => logger().warn("Could not refresh plugin health.", error));
 		refreshHealth();
 		this.healthTimer = setInterval(refreshHealth, 30_000);
 		this.healthTimer.unref?.();
@@ -99,20 +92,9 @@ export class PluginManagerService {
 	}
 
 	async listInstalled() {
-		const installations = await this.dataSource
-			.getRepository(PluginInstallation)
-			.find({ order: { pluginId: "ASC" } });
-		const repositoryIds = [
-			...new Set(
-				installations
-					.map((installation) => installation.repositoryId)
-					.filter((id): id is string => id !== null),
-			),
-		];
-		const sources =
-			repositoryIds.length > 0
-				? await this.dataSource.getRepository(PluginRepository).findBy({ id: In(repositoryIds) })
-				: [];
+		const installations = await this.dataSource.getRepository(PluginInstallation).find({ order: { pluginId: "ASC" } });
+		const repositoryIds = [...new Set(installations.map((installation) => installation.repositoryId).filter((id): id is string => id !== null))];
+		const sources = repositoryIds.length > 0 ? await this.dataSource.getRepository(PluginRepository).findBy({ id: In(repositoryIds) }) : [];
 		const sourceById = new Map(sources.map((source) => [source.id, source]));
 		return installations.map((installation) => {
 			const activationReason = this.activationProblem(installation.manifest);
@@ -134,9 +116,7 @@ export class PluginManagerService {
 				lastError: installation.lastError,
 				manifest: installation.manifest,
 				repository: source ? { id: source.id, name: source.name, isOfficial: source.isOfficial } : null,
-				availableUpdate: newerReleases[0]
-					? { version: newerReleases[0], permissions: catalogEntry?.permissions ?? [] }
-					: null,
+				availableUpdate: newerReleases[0] ? { version: newerReleases[0], permissions: catalogEntry?.permissions ?? [] } : null,
 				installedAt: installation.installedAt,
 				updatedAt: installation.updatedAt,
 			};
@@ -149,18 +129,13 @@ export class PluginManagerService {
 		if (!installation) throw new NotFound("Installed plugin not found.");
 		const problem = this.activationProblem(installation.manifest);
 		if (problem) throw new BadRequest(problem);
-		const unapproved = installation.manifest.permissions.filter(
-			(permission) => !installation.approvedPermissions.includes(permission),
-		);
-		if (unapproved.length > 0)
-			throw new BadRequest(`Permission approval is missing for: ${unapproved.join(", ")}.`);
+		const unapproved = installation.manifest.permissions.filter((permission) => !installation.approvedPermissions.includes(permission));
+		if (unapproved.length > 0) throw new BadRequest(`Permission approval is missing for: ${unapproved.join(", ")}.`);
 		await this.requireDependencies(installation.manifest);
 		installation.enabled = true;
 		installation.status = "enabled";
 		installation.lastError = null;
-		installation.targetStatus = Object.fromEntries(
-			Object.keys(installation.manifest.targets).map((target) => [target, "requested"]),
-		);
+		installation.targetStatus = Object.fromEntries(Object.keys(installation.manifest.targets).map((target) => [target, "requested"]));
 		const saved = await installations.save(installation);
 		await this.indexer.reloadSettings();
 		await this.refreshPluginHealth();
@@ -171,15 +146,11 @@ export class PluginManagerService {
 		const installations = this.dataSource.getRepository(PluginInstallation);
 		const installation = await installations.findOneBy({ pluginId });
 		if (!installation) throw new NotFound("Installed plugin not found.");
-		const dependents = (await installations.find({ where: { enabled: true } }))
-			.filter((candidate) => candidate.manifest.dependencies?.[pluginId] !== undefined)
-			.map((candidate) => candidate.pluginId);
+		const dependents = (await installations.find({ where: { enabled: true } })).filter((candidate) => candidate.manifest.dependencies?.[pluginId] !== undefined).map((candidate) => candidate.pluginId);
 		if (dependents.length > 0) throw new Conflict(`Disable dependent plugins first: ${dependents.join(", ")}.`);
 		installation.enabled = false;
 		installation.status = "disabled";
-		installation.targetStatus = Object.fromEntries(
-			Object.keys(installation.manifest.targets).map((target) => [target, "disabled"]),
-		);
+		installation.targetStatus = Object.fromEntries(Object.keys(installation.manifest.targets).map((target) => [target, "disabled"]));
 		const saved = await installations.save(installation);
 		await this.indexer.reloadSettings();
 		return saved;
@@ -190,9 +161,7 @@ export class PluginManagerService {
 		const installation = await installations.findOneBy({ pluginId });
 		if (!installation) throw new NotFound("Installed plugin not found.");
 		if (installation.enabled) throw new BadRequest("Disable the plugin before uninstalling it.");
-		const dependents = (await installations.find())
-			.filter((candidate) => candidate.manifest.dependencies?.[pluginId] !== undefined)
-			.map((candidate) => candidate.pluginId);
+		const dependents = (await installations.find()).filter((candidate) => candidate.manifest.dependencies?.[pluginId] !== undefined).map((candidate) => candidate.pluginId);
 		if (dependents.length > 0) throw new Conflict(`Uninstall dependent plugins first: ${dependents.join(", ")}.`);
 
 		const installedRoot = dataPath("plugins", "installed");
@@ -245,14 +214,8 @@ export class PluginManagerService {
 		return repositories.flatMap((repository) =>
 			(repository.manifest?.plugins ?? [])
 				.filter((plugin) => {
-					const searchable =
-						`${plugin.id} ${plugin.name} ${plugin.description} ${plugin.author}`.toLowerCase();
-					return (
-						(!query || searchable.includes(query)) &&
-						(!target || plugin.targets.includes(target as (typeof PLUGIN_TARGETS)[number])) &&
-						(!capability ||
-							(plugin.capabilities ?? []).some((item) => item.toLowerCase().includes(capability)))
-					);
+					const searchable = `${plugin.id} ${plugin.name} ${plugin.description} ${plugin.author}`.toLowerCase();
+					return (!query || searchable.includes(query)) && (!target || plugin.targets.includes(target as (typeof PLUGIN_TARGETS)[number])) && (!capability || (plugin.capabilities ?? []).some((item) => item.toLowerCase().includes(capability)));
 				})
 				.map((plugin) => ({
 					...plugin,
@@ -268,13 +231,8 @@ export class PluginManagerService {
 
 	async install(pluginId: string, request: InstallPluginRequest) {
 		if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(pluginId)) throw new NotFound("Plugin release not found.");
-		if (!request?.repositoryId || !semver.valid(request.version))
-			throw new BadRequest("A repository ID and exact semantic version are required.");
-		if (
-			request.approvedPermissions !== undefined &&
-			(!Array.isArray(request.approvedPermissions) ||
-				!request.approvedPermissions.every((permission) => typeof permission === "string"))
-		) {
+		if (!request?.repositoryId || !semver.valid(request.version)) throw new BadRequest("A repository ID and exact semantic version are required.");
+		if (request.approvedPermissions !== undefined && (!Array.isArray(request.approvedPermissions) || !request.approvedPermissions.every((permission) => typeof permission === "string"))) {
 			throw new BadRequest("Approved permissions must be a list of permission identifiers.");
 		}
 
@@ -404,9 +362,7 @@ export class PluginManagerService {
 			const manifestBytes = await fetchPluginRepositoryArtifact(source.url, release.manifest, 1_048_576);
 			releaseManifest = parsePluginManifest(JSON.parse(manifestBytes.toString("utf8")) as unknown);
 		} catch (error: unknown) {
-			throw new BadRequest(
-				`Plugin release manifest is invalid: ${error instanceof Error ? error.message : "unknown error"}`,
-			);
+			throw new BadRequest(`Plugin release manifest is invalid: ${error instanceof Error ? error.message : "unknown error"}`);
 		}
 		if (releaseManifest.id !== pluginId || releaseManifest.version !== request.version) {
 			throw new BadRequest("Plugin release manifest does not match the selected catalog entry.");
@@ -417,9 +373,7 @@ export class PluginManagerService {
 		const approvedPermissions = new Set(request.approvedPermissions ?? []);
 		const unapproved = releaseManifest.permissions.filter((permission) => !approvedPermissions.has(permission));
 		if (unapproved.length > 0) {
-			throw new BadRequest(
-				`Administrator approval is required for plugin permissions: ${unapproved.join(", ")}.`,
-			);
+			throw new BadRequest(`Administrator approval is required for plugin permissions: ${unapproved.join(", ")}.`);
 		}
 		this.requireCompatible(releaseManifest);
 		await this.requireDependencies(releaseManifest);
@@ -434,58 +388,39 @@ export class PluginManagerService {
 			throw new BadRequest("Plugin package SHA-256 digest does not match the repository catalog.");
 		}
 
-		const installed = await installPluginPackageAtomically(
-			dataPath("plugins"),
-			archive,
-			releaseManifest,
-			release.sha256,
-			async (result) => {
-				await this.dataSource.transaction(async (manager) => {
-					const preservedState = preservePluginInstallationState(
-						existing,
-						result.manifest,
-						approvedPermissions,
-					);
-					const installation = manager.getRepository(PluginInstallation).create({
-						pluginId: result.pluginId,
-						repositoryId: source.id,
-						version: result.version,
-						packageDigest: result.packageDigest,
-						installPath: result.installPath,
-						manifest: result.manifest,
-						status: "disabled",
-						enabled: false,
-						...preservedState,
-						targetStatus: Object.fromEntries(
-							Object.keys(result.manifest.targets).map((target) => [target, "installed"]),
-						),
-						lastError: null,
-					});
-					await manager.getRepository(PluginInstallation).save(installation);
-					await manager.getRepository(PluginUpdateHistory).save({
-						pluginId,
-						action: existing ? "update" : "install",
-						fromVersion: existing?.version ?? null,
-						toVersion: result.version,
-						outcome: "succeeded",
-						errorMessage: null,
-					});
+		const installed = await installPluginPackageAtomically(dataPath("plugins"), archive, releaseManifest, release.sha256, async (result) => {
+			await this.dataSource.transaction(async (manager) => {
+				const preservedState = preservePluginInstallationState(existing, result.manifest, approvedPermissions);
+				const installation = manager.getRepository(PluginInstallation).create({
+					pluginId: result.pluginId,
+					repositoryId: source.id,
+					version: result.version,
+					packageDigest: result.packageDigest,
+					installPath: result.installPath,
+					manifest: result.manifest,
+					status: "disabled",
+					enabled: false,
+					...preservedState,
+					targetStatus: Object.fromEntries(Object.keys(result.manifest.targets).map((target) => [target, "installed"])),
+					lastError: null,
 				});
-			},
-		);
-		const persisted = await this.dataSource
-			.getRepository(PluginInstallation)
-			.findOneBy({ pluginId: installed.pluginId });
+				await manager.getRepository(PluginInstallation).save(installation);
+				await manager.getRepository(PluginUpdateHistory).save({
+					pluginId,
+					action: existing ? "update" : "install",
+					fromVersion: existing?.version ?? null,
+					toVersion: result.version,
+					outcome: "succeeded",
+					errorMessage: null,
+				});
+			});
+		});
+		const persisted = await this.dataSource.getRepository(PluginInstallation).findOneBy({ pluginId: installed.pluginId });
 		if (!persisted) throw new Error("Plugin package was installed but its metadata record could not be loaded.");
 		return persisted;
 	}
 
-	private async recordUpdateHistorySafely(
-		entry: Pick<
-			PluginUpdateHistory,
-			"pluginId" | "action" | "fromVersion" | "toVersion" | "outcome" | "errorMessage"
-		>,
-	): Promise<void> {
+	private async recordUpdateHistorySafely(entry: Pick<PluginUpdateHistory, "pluginId" | "action" | "fromVersion" | "toVersion" | "outcome" | "errorMessage">): Promise<void> {
 		try {
 			await this.dataSource.getRepository(PluginUpdateHistory).save(entry);
 		} catch (historyError: unknown) {
@@ -494,10 +429,7 @@ export class PluginManagerService {
 	}
 
 	private requireCompatible(manifest: ReturnType<typeof parsePluginManifest>): void {
-		if (
-			!semver.validRange(manifest.compatibility.pluginApi) ||
-			!semver.satisfies("1.0.0", manifest.compatibility.pluginApi)
-		) {
+		if (!semver.validRange(manifest.compatibility.pluginApi) || !semver.satisfies("1.0.0", manifest.compatibility.pluginApi)) {
 			throw new BadRequest("Plugin requires an unsupported plugin API version.");
 		}
 		if (manifest.compatibility.flixer && !semver.satisfies(flixerVersion, manifest.compatibility.flixer)) {
@@ -512,9 +444,7 @@ export class PluginManagerService {
 			return error instanceof Error ? error.message : "Plugin compatibility could not be verified.";
 		}
 		const targets = Object.entries(manifest.targets);
-		const unsupportedTargets = targets
-			.map(([target]) => target)
-			.filter((target) => target !== "flixer" && target !== "flixer-indexer" && target !== "flixer-web" && target !== "flixer-streamer");
+		const unsupportedTargets = targets.map(([target]) => target).filter((target) => target !== "flixer" && target !== "flixer-indexer" && target !== "flixer-web" && target !== "flixer-streamer");
 		if (unsupportedTargets.length > 0) {
 			return `Runtime support is not available for: ${unsupportedTargets.join(", ")}.`;
 		}
@@ -523,38 +453,24 @@ export class PluginManagerService {
 			if (!backend.entry.toLowerCase().endsWith(".wasm")) {
 				return "Backend plugins must use a WASI .wasm entry point.";
 			}
-			if (
-				!manifest.capabilities.some(
-					(capability) => capability === "api.routes" || capability === "backend.routes" || capability === "auth.directory" || capability === "auth.oidc" || capability === "auth.oauth",
-				)
-			) {
+			if (!manifest.capabilities.some((capability) => capability === "api.routes" || capability === "backend.routes" || capability === "auth.directory" || capability === "auth.oidc" || capability === "auth.oauth")) {
 				return "Backend plugins must declare a supported backend or authentication capability.";
 			}
-			if (manifest.capabilities.some((capability) => ["auth.directory", "auth.oidc", "auth.oauth"].includes(capability)) && !manifest.permissions.includes("auth.identity.verify"))
-				return "Authentication providers require the auth.identity.verify permission.";
-			if (manifest.capabilities.includes("auth.directory") && !manifest.permissions.includes("auth.credentials"))
-				return "Directory authentication requires the auth.credentials permission.";
+			if (manifest.capabilities.some((capability) => ["auth.directory", "auth.oidc", "auth.oauth"].includes(capability)) && !manifest.permissions.includes("auth.identity.verify")) return "Authentication providers require the auth.identity.verify permission.";
+			if (manifest.capabilities.includes("auth.directory") && !manifest.permissions.includes("auth.credentials")) return "Directory authentication requires the auth.credentials permission.";
 		}
 		const indexer = manifest.targets["flixer-indexer"];
-		if (indexer && !indexer.entry.toLowerCase().endsWith(".wasm"))
-			return "Indexer plugins must use a WASI .wasm entry point.";
-		if (indexer && !manifest.capabilities.some((capability) => capability.startsWith("indexer.provider.")))
-			return "Indexer plugins must declare at least one indexer.provider capability.";
-		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability)) && !manifest.permissions.includes("indexer.provider.override"))
-			return "Indexer provider replacement requires the indexer.provider.override permission.";
-		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability) && !manifest.capabilities.includes(capability.replace(/\.replace$/, ""))))
-			return "Indexer provider replacement requires the corresponding provider capability.";
+		if (indexer && !indexer.entry.toLowerCase().endsWith(".wasm")) return "Indexer plugins must use a WASI .wasm entry point.";
+		if (indexer && !manifest.capabilities.some((capability) => capability.startsWith("indexer.provider."))) return "Indexer plugins must declare at least one indexer.provider capability.";
+		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability)) && !manifest.permissions.includes("indexer.provider.override")) return "Indexer provider replacement requires the indexer.provider.override permission.";
+		if (indexer && manifest.capabilities.some((capability) => /^indexer\.provider\.(movie|series|season|episode|album|images)\.replace$/.test(capability) && !manifest.capabilities.includes(capability.replace(/\.replace$/, "")))) return "Indexer provider replacement requires the corresponding provider capability.";
 		const web = manifest.targets["flixer-web"];
-		if (web && (!web.entry.toLowerCase().endsWith(".js") || !manifest.capabilities.includes("ui.slots") || !manifest.ui?.slots?.length))
-			return "Web slots require a JavaScript entry, the ui.slots capability and at least one slot.";
-		if (web && manifest.ui?.slots?.some((slot) => !manifest.permissions.includes(`ui.slot.${slot.location}`)))
-			return "Web slots require a permission for each declared location.";
+		if (web && (!web.entry.toLowerCase().endsWith(".js") || !manifest.capabilities.includes("ui.slots") || !manifest.ui?.slots?.length)) return "Web slots require a JavaScript entry, the ui.slots capability and at least one slot.";
+		if (web && manifest.ui?.slots?.some((slot) => !manifest.permissions.includes(`ui.slot.${slot.location}`))) return "Web slots require a permission for each declared location.";
 		const streamer = manifest.targets["flixer-streamer"];
 		const streamerCapabilities = ["streamer.playback.authorize", "streamer.manifest", "streamer.processing"];
-		if (streamer && (!streamer.entry.toLowerCase().endsWith(".wasm") || !manifest.capabilities.some((capability) => streamerCapabilities.includes(capability))))
-			return "Streamer plugins require a WASI module and a supported streamer capability.";
-		if (streamer && manifest.capabilities.some((capability) => streamerCapabilities.includes(capability) && !manifest.permissions.includes(capability)))
-			return "Streamer hooks require permission for each declared capability.";
+		if (streamer && (!streamer.entry.toLowerCase().endsWith(".wasm") || !manifest.capabilities.some((capability) => streamerCapabilities.includes(capability)))) return "Streamer plugins require a WASI module and a supported streamer capability.";
+		if (streamer && manifest.capabilities.some((capability) => streamerCapabilities.includes(capability) && !manifest.permissions.includes(capability))) return "Streamer hooks require permission for each declared capability.";
 		if (!backend && !indexer && !web && !streamer) return "Plugin has no supported service target.";
 		return null;
 	}
@@ -571,8 +487,7 @@ export class PluginManagerService {
 			if (visited.has(id)) return;
 			visiting.add(id);
 			for (const [dependencyId, range] of Object.entries(dependencies)) {
-				if (!semver.validRange(range))
-					throw new BadRequest(`Plugin dependency ${dependencyId} has an invalid version range.`);
+				if (!semver.validRange(range)) throw new BadRequest(`Plugin dependency ${dependencyId} has an invalid version range.`);
 				if (dependencyId === id || visiting.has(dependencyId)) {
 					throw new BadRequest(`Plugin dependency cycle includes ${dependencyId}.`);
 				}
@@ -582,9 +497,7 @@ export class PluginManagerService {
 					continue;
 				}
 				if (!semver.satisfies(dependency.version, range)) {
-					throw new BadRequest(
-						`Plugin dependency ${dependencyId} requires ${range}, but ${dependency.version} is installed.`,
-					);
+					throw new BadRequest(`Plugin dependency ${dependencyId} requires ${range}, but ${dependency.version} is installed.`);
 				}
 				if (!dependency.enabled) missing.add(dependencyId);
 				visit(dependencyId, dependency.manifest.dependencies ?? {});
@@ -594,8 +507,7 @@ export class PluginManagerService {
 		};
 
 		visit(manifest.id, manifest.dependencies ?? {});
-		if (missing.size > 0)
-			throw new BadRequest(`Install and enable required dependencies first: ${[...missing].join(", ")}.`);
+		if (missing.size > 0) throw new BadRequest(`Install and enable required dependencies first: ${[...missing].join(", ")}.`);
 	}
 
 	async addRepository(request: AddPluginRepositoryRequest): Promise<PluginRepository> {
@@ -618,9 +530,7 @@ export class PluginManagerService {
 		try {
 			manifest = await fetchPluginRepositoryManifest(url);
 		} catch (error: unknown) {
-			throw new BadRequest(
-				error instanceof Error ? error.message : "Repository manifest could not be validated.",
-			);
+			throw new BadRequest(error instanceof Error ? error.message : "Repository manifest could not be validated.");
 		}
 		if (manifest.id === "flixer.official") {
 			throw new BadRequest("The official repository identifier is reserved.");

@@ -1,6 +1,7 @@
 import { Enum, Integer, Maximum, Minimum, Property, Required } from "@tsed/schema";
 
 export class UpdateAiConfigurationRequest {
+
 	@Property()
 	@Required()
 	enabled!: boolean;

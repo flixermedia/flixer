@@ -1611,6 +1611,7 @@ export interface ApiMediaLibrariesMediaRootsServiceBrowseResult {
 export interface ApiIndexerIndexerSettingsServiceIndexerProviderSetting {
     enabled: boolean;
     apiKey?: string;
+    appId?: string;
 }
 export interface ApiIndexerIndexerSettingsServiceIndexerSubtitleSetting {
     apiKey: string;

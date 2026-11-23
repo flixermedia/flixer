@@ -11,6 +11,7 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_UNPACKED_BYTES = 250 * 1024 * 1024;
 
 function safeEntryPath(name: string, destination: string): string {
+
 	if (!name || name.includes("\\") || name.includes("\0") || isAbsolute(name) || !/^[A-Za-z0-9._/-]+$/.test(name)) {
 		throw new Error("Plugin archive contains an invalid path.");
 	}
@@ -24,9 +25,11 @@ function safeEntryPath(name: string, destination: string): string {
 		throw new Error("Plugin archive entry escapes its staging directory.");
 	}
 	return destinationPath;
+
 }
 
 export async function extractPluginArchive(archive: Buffer, destination: string): Promise<void> {
+
 	const extractor = tar.extract();
 	const entries = new Set<string>();
 	let entryCount = 0;
@@ -83,4 +86,5 @@ export async function extractPluginArchive(archive: Buffer, destination: string)
 		await archivePipeline;
 		throw error;
 	}
+
 }

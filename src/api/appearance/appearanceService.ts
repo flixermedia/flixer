@@ -8,28 +8,13 @@ import { Theme } from "../../entities/theme.entity.js";
 import { ThemeVersion } from "../../entities/themeVersion.entity.js";
 import { AuthService } from "../auth/authService.js";
 import { BUILT_IN_THEME_IDS, DEFAULT_THEME_ID } from "./builtInThemes.js";
-import {
-	THEME_DESCRIPTION_MAX,
-	THEME_FILE_FORMAT,
-	THEME_FILE_MAX_CHARS,
-	THEME_FILE_VERSION,
-	THEME_NAME_MAX,
-	cleanText,
-	sanitizeLibraryAccents,
-	sanitizeSchedules,
-	scheduledThemeId,
-	type ThemeSchedule,
-	parseThemeFile,
-	sanitizeThemeConfig,
-	type ThemeConfig,
-	type ThemeFile,
-} from "./themeSchema.js";
+import { THEME_DESCRIPTION_MAX, THEME_FILE_FORMAT, THEME_FILE_MAX_CHARS, THEME_FILE_VERSION, THEME_NAME_MAX, cleanText, sanitizeLibraryAccents, sanitizeSchedules, scheduledThemeId, type ThemeSchedule, parseThemeFile, sanitizeThemeConfig, type ThemeConfig, type ThemeFile } from "./themeSchema.js";
 
-export const ACTIVE_THEME_SETTING = "active_theme_id";
-export const USER_SELECTION_SETTING = "theme_user_selection_enabled";
-export const SELECTABLE_THEMES_SETTING = "theme_user_selectable_ids";
-export const SCHEDULES_SETTING = "theme_schedules";
-export const LIBRARY_ACCENTS_SETTING = "theme_library_accents";
+const ACTIVE_THEME_SETTING = "active_theme_id";
+const USER_SELECTION_SETTING = "theme_user_selection_enabled";
+const SELECTABLE_THEMES_SETTING = "theme_user_selectable_ids";
+const SCHEDULES_SETTING = "theme_schedules";
+const LIBRARY_ACCENTS_SETTING = "theme_library_accents";
 export const LOGIN_LAYOUT_SETTING = "login_layout";
 export const LOGIN_LAYOUTS = ["classic", "spotlight", "centered", "studio", "cinema", "custom"] as const;
 export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING, USER_SELECTION_SETTING, SELECTABLE_THEMES_SETTING, SCHEDULES_SETTING, LIBRARY_ACCENTS_SETTING, LOGIN_LAYOUT_SETTING];
@@ -37,7 +22,7 @@ export const APPEARANCE_SETTING_KEYS: readonly string[] = [ACTIVE_THEME_SETTING,
 const MAX_CUSTOM_THEMES = 50;
 const MAX_VERSIONS = 20;
 
-export type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
+type LoginLayout = (typeof LOGIN_LAYOUTS)[number];
 
 export interface ThemeView {
 	id: string;
@@ -80,28 +65,35 @@ export interface PublicAppearance {
 
 /** PNG width and height from the header, or null when the bytes are not a PNG. */
 function pngSize(bytes: Buffer): { width: number; height: number } | null {
+
 	if (bytes.length < 24 || bytes.readUInt32BE(0) !== 0x89504e47) {
 		return null;
 	}
 	return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+
 }
 
 function themeId(value: unknown): string {
+
 	if (typeof value !== "string" || !AuthService.isUuid(value)) {
 		throw new NotFound("That theme does not exist.");
 	}
 	return value;
+
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest(`${label} must be an object.`);
 	}
 	return value as Record<string, unknown>;
+
 }
 
 @Injectable()
 export class AppearanceService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly authService: AuthService,
@@ -131,7 +123,7 @@ export class AppearanceService {
 			selectableThemeIds: Array.isArray(selectable) ? selectable.filter((id): id is string => typeof id === "string") : [],
 			schedules: this.storedSchedules(value(SCHEDULES_SETTING)),
 			libraryAccents: this.storedAccents(value(LIBRARY_ACCENTS_SETTING)),
-			loginLayout: LOGIN_LAYOUTS.includes(loginLayout as LoginLayout) ? loginLayout as LoginLayout : "classic",
+			loginLayout: LOGIN_LAYOUTS.includes(loginLayout as LoginLayout) ? (loginLayout as LoginLayout) : "classic",
 		};
 	}
 
@@ -390,10 +382,16 @@ export class AppearanceService {
 		}
 		await this.dataSource.getRepository(Theme).delete({ id: theme.id });
 		if (settings.schedules.some((schedule) => schedule.themeId === theme.id)) {
-			await this.writeSetting(SCHEDULES_SETTING, settings.schedules.filter((schedule) => schedule.themeId !== theme.id));
+			await this.writeSetting(
+				SCHEDULES_SETTING,
+				settings.schedules.filter((schedule) => schedule.themeId !== theme.id),
+			);
 		}
 		if (settings.selectableThemeIds.includes(theme.id)) {
-			await this.writeSetting(SELECTABLE_THEMES_SETTING, settings.selectableThemeIds.filter((other) => other !== theme.id));
+			await this.writeSetting(
+				SELECTABLE_THEMES_SETTING,
+				settings.selectableThemeIds.filter((other) => other !== theme.id),
+			);
 		}
 	}
 

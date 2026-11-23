@@ -95,12 +95,7 @@ async function compactScryptCalls(source, filePath, options) {
 	const rewrites = [];
 
 	function visit(node) {
-		if (
-			node.type === "CallExpression" &&
-			node.callee?.type === "Identifier" &&
-			node.callee.name === "scrypt" &&
-			node.arguments.length === 5
-		) {
+		if (node.type === "CallExpression" && node.callee?.type === "Identifier" && node.callee.name === "scrypt" && node.arguments.length === 5) {
 			const callback = node.arguments[4];
 			if (callback.type === "ArrowFunctionExpression" && callback.body?.type === "BlockStatement") {
 				const callbackBody = source.slice(callback.body.range[0], callback.body.range[1]);
@@ -145,12 +140,7 @@ async function addNonReturnFunctionSpacing(source, filePath, options) {
 	const root = parsed.program ?? parsed;
 	const insertions = [];
 	function visit(node) {
-		if (
-			node.type === "FunctionDeclaration" &&
-			node.body?.type === "BlockStatement" &&
-			node.body.body.length > 0 &&
-			!(node.body.body.length === 1 && node.body.body[0].type === "ReturnStatement")
-		) {
+		if (node.type === "FunctionDeclaration" && node.body?.type === "BlockStatement" && node.body.body.length > 0 && !(node.body.body.length === 1 && node.body.body[0].type === "ReturnStatement")) {
 			const openBrace = node.body.range?.[0];
 			const closeBrace = node.body.range?.[1] - 1;
 			if (typeof openBrace === "number" && source[openBrace] === "{") {
@@ -159,11 +149,7 @@ async function addNonReturnFunctionSpacing(source, filePath, options) {
 					insertions.push(openBrace + 1);
 				}
 			}
-			if (
-				typeof closeBrace === "number" &&
-				source[closeBrace] === "}" &&
-				!/(?:\r\n|\n)[ \t]*(?:\r\n|\n)[ \t]*$/.test(source.slice(0, closeBrace))
-			) {
+			if (typeof closeBrace === "number" && source[closeBrace] === "}" && !/(?:\r\n|\n)[ \t]*(?:\r\n|\n)[ \t]*$/.test(source.slice(0, closeBrace))) {
 				const closeLineStart = source.lastIndexOf("\n", closeBrace) + 1;
 				insertions.push(closeLineStart > openBrace ? closeLineStart : closeBrace);
 			}
@@ -236,12 +222,7 @@ const files =
 	mode === "--write-file"
 		? [resolve(requestedFile)].filter((filePath) => {
 				const relativePath = relative(projectRoot, filePath);
-				if (
-					!relativePath ||
-					relativePath === ".." ||
-					relativePath.startsWith(`..${sep}`) ||
-					isAbsolute(relativePath)
-				) {
+				if (!relativePath || relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
 					throw new Error(`File must be inside the project directory: ${filePath}`);
 				}
 				return true;

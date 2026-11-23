@@ -35,6 +35,7 @@ const messages: Record<Provider, Record<string, string>> = {
 
 /** Returns a customer-safe message and logs provider codes without card details or provider response bodies. */
 export function providerErrorMessage(provider: Provider, status: number, codes: (string | undefined)[]): string {
+
 	const safeCodes = codes.filter((code): code is string => typeof code === "string" && /^[a-zA-Z0-9_]{1,80}$/.test(code));
 	$log.warn({ event: "PAYMENT_PROVIDER_ERROR", provider, status, codes: safeCodes });
 	if (status >= 500 || status === 429) return "The payment provider is temporarily unavailable. Please try again later.";
@@ -42,4 +43,5 @@ export function providerErrorMessage(provider: Provider, status: number, codes: 
 		if (Object.hasOwn(messages[provider], code)) return messages[provider][code];
 	}
 	return "The payment could not be processed. Please try again or contact the server administrator.";
+
 }

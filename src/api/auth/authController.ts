@@ -4,13 +4,13 @@ import { Delete, Get, Patch, Post, Security } from "@tsed/schema";
 import { AuthService } from "./authService.js";
 import { ChangePasswordRequest } from "./changePasswordRequest.js";
 import { DeleteAccountRequest } from "./deleteAccountRequest.js";
-import { LoginRequest } from "./loginRequest.js";
+import { LoginRequest } from "./login/loginRequest.js";
 import { RegisterRequest } from "./registerRequest.js";
-import { SetPasskeyRequiredRequest } from "./setPasskeyRequiredRequest.js";
+import { SetPasskeyRequiredRequest } from "./passkey/setPasskeyRequiredRequest.js";
 import { UpdateProfileRequest } from "./updateProfileRequest.js";
 import { VerifyEmailRequest } from "./verifyEmailRequest.js";
-import { QuickConnectDecisionRequest, QuickConnectPollRequest } from "./quickConnectRequest.js";
-import { QuickConnectService } from "./quickConnectService.js";
+import { QuickConnectDecisionRequest, QuickConnectPollRequest } from "./quickConnect/quickConnectRequest.js";
+import { QuickConnectService } from "./quickConnect/quickConnectService.js";
 
 @Controller("/auth")
 export class AuthController {

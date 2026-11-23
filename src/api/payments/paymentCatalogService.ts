@@ -1,12 +1,13 @@
 import { Inject, Injectable } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
-import { DataSource, ILike } from "typeorm";
+import { DataSource, ILike, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { PaymentCoupon } from "../../entities/paymentCoupon.entity.js";
 import { PaymentPlan } from "../../entities/paymentPlan.entity.js";
 import { PaymentProduct } from "../../entities/paymentProduct.entity.js";
+import { PaymentSubscription } from "../../entities/paymentSubscription.entity.js";
 import { EntitlementService } from "./entitlementService.js";
 import { PaymentConfigService, assertPriceCurrencies } from "./paymentConfigService.js";
 import { isUuid, parsePrices, parseScope, parseScopes, type PlanInterval, type RentalStart } from "./paymentTypes.js";
@@ -17,20 +18,25 @@ const MAX_RENTAL_HOURS = 24 * 365;
 const SEARCHABLE_TYPES = ["movie", "series", "season", "episode", "album", "track", "video"];
 
 function requireBody(value: unknown): Body {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new BadRequest("The request body is invalid.");
 	}
 	return value as Body;
+
 }
 
 function name(value: unknown): string {
+
 	if (typeof value !== "string" || !value.trim() || value.length > 200) {
 		throw new BadRequest("Enter a name of up to 200 characters.");
 	}
 	return value.trim();
+
 }
 
 function description(value: unknown): string | null {
+
 	if (value === undefined || value === null || value === "") {
 		return null;
 	}
@@ -38,6 +44,7 @@ function description(value: unknown): string | null {
 		throw new BadRequest("The description is too long.");
 	}
 	return value.trim();
+
 }
 
 function sortOrder(value: unknown): number {
@@ -46,6 +53,7 @@ function sortOrder(value: unknown): number {
 
 @Injectable()
 export class PaymentCatalogService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly entitlements: EntitlementService,
@@ -155,8 +163,8 @@ export class PaymentCatalogService {
 	}
 
 	async deletePlan(id: string): Promise<void> {
-		const subscribers = await this.dataSource.query(`SELECT 1 FROM payment_subscriptions WHERE plan_id = $1 AND status IN ('trialing','active','past_due') LIMIT 1`, [id]);
-		if (subscribers.length > 0) {
+		const hasSubscribers = await this.dataSource.getRepository(PaymentSubscription).existsBy({ planId: id, status: In(["trialing", "active", "past_due"]) });
+		if (hasSubscribers) {
 			throw new BadRequest("This plan still has subscribers. Turn it off to stop new sign-ups instead of deleting it.");
 		}
 		await this.plans.delete({ id });
@@ -239,13 +247,16 @@ export class PaymentCatalogService {
 			take: 25,
 			select: { id: true, title: true, type: true, year: true, parentId: true, seasonNumber: true, episodeNumber: true },
 		});
-		const artists: { artist: string }[] = await this.dataSource.query(
-			`SELECT DISTINCT COALESCE(metadata->>'albumArtist', metadata->>'artist') AS artist
-			 FROM media_items
-			 WHERE type IN ('album','track') AND COALESCE(metadata->>'albumArtist', metadata->>'artist') ILIKE $1
-			 LIMIT 10`,
-			[like],
-		);
+		const artists = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.select("COALESCE(item.metadata->>'albumArtist', item.metadata->>'artist')", "artist")
+			.distinct(true)
+			// RAW SQL: PostgreSQL JSONB ->> extraction supports artist search metadata.
+			.where("item.type IN ('album', 'track')")
+			.andWhere("COALESCE(item.metadata->>'albumArtist', item.metadata->>'artist') ILIKE :like", { like })
+			.take(10)
+			.getRawMany<{ artist: string | null }>();
 		return {
 			items: rows.map((row) => ({
 				id: row.id,

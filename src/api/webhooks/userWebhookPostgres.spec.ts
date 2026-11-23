@@ -2,13 +2,14 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { DataSource } from "typeorm";
+import { ENTITIES } from "../../datasources/entityList.js";
 import { CreateUserWebhooks1798300000009 } from "../../migrations/createUserWebhooks1798300000009.js";
 import { DefaultUserWebhookUrlRules1798300000010 } from "../../migrations/defaultUserWebhookUrlRules1798300000010.js";
 import { UserWebhookService } from "./userWebhookService.js";
 
 describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated PostgreSQL)", () => {
 	it("migrates, enforces ownership, delivers ordered events and rolls back", async () => {
-		const source = new DataSource({ type: "postgres", host: process.env.WEBHOOK_TEST_PG_SOCKET, port: 55442, username: process.env.USER, database: "webhook_test" });
+		const source = new DataSource({ type: "postgres", host: process.env.WEBHOOK_TEST_PG_SOCKET, port: 55442, username: process.env.USER, database: "webhook_test", entities: ENTITIES });
 		await source.initialize();
 		const runner = source.createQueryRunner();
 		const migration = new CreateUserWebhooks1798300000009();
@@ -17,7 +18,9 @@ describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated Po
 		const server = createServer((request, response) => {
 			let body = "";
 			request.setEncoding("utf8");
-			request.on("data", (chunk: string) => { body += chunk; });
+			request.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			request.on("end", () => {
 				received.push(JSON.parse(body) as { event: string; userId: string });
 				response.writeHead(204).end();
@@ -46,6 +49,8 @@ describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated Po
 			await expect(service.remove(other, hook.id)).rejects.toThrow("not found");
 			await expect(service.save(other, { name: "Stolen", url, enabled: true }, hook.id)).rejects.toThrow("not found");
 			expect((await service.save(user, { name: "Living room", url, enabled: true }, hook.id)).name).toBe("Living room");
+			expect(await service.list(user)).toEqual({ available: true, hooks: [{ id: hook.id, name: "Living room", url, enabled: true }] });
+			expect((await service.list(other)).hooks).toEqual([]);
 			await service.report(other, { event: "playback.started", target: { kind: "video", itemId: item }, position: 0 });
 			await service.report(user, { event: "playback.started", target: { kind: "video", itemId: item }, position: 0 });
 			await service.report(user, { event: "playback.paused", target: { kind: "video", itemId: item }, position: 5 });
@@ -66,7 +71,7 @@ describe.skipIf(!process.env.WEBHOOK_TEST_PG_SOCKET)("user webhooks (isolated Po
 			await migration.down(runner);
 			expect((await runner.query("SELECT to_regclass('user_webhooks') AS name"))[0].name).toBeNull();
 		} finally {
-			await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+			await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 			await runner.query("DROP TABLE IF EXISTS user_webhooks; DROP TABLE IF EXISTS user_webhook_config; DROP TABLE IF EXISTS media_items; DROP TABLE IF EXISTS users");
 			await runner.release();
 			await source.destroy();

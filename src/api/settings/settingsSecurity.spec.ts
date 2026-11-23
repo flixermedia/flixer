@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
-import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../auth/loginSecurity.js";
+import { DEFAULT_LOGIN_SECURITY, getLoginSecurity, setLoginSecurity } from "../auth/login/loginSecurity.js";
 import { DEFAULT_TRUSTED_PROXIES, isTrustedProxy, setTrustedProxyConfig } from "../../config/trustedProxies.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { SettingsService } from "./settingsService.js";
 
 function createService() {
+
 	const repository = {
 		findOneBy: vi.fn(async ({ key }: { key: string }) => ({ key, value: null, isPublic: false, updatedAt: new Date() }) as Setting),
 		save: vi.fn(async (setting: Setting) => setting),
@@ -13,6 +14,7 @@ function createService() {
 	const auth = { requireAdmin: vi.fn().mockResolvedValue(undefined), requireAdminSession: vi.fn().mockResolvedValue(undefined) };
 	const service = new SettingsService({ getRepository: () => repository } as unknown as DataSource, auth as never, {} as never, {} as never, { mask: (_key: string, value: unknown) => value } as never, {} as never);
 	return { service, repository, auth };
+
 }
 
 describe("admin login security settings", () => {

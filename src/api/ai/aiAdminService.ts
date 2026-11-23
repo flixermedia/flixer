@@ -24,6 +24,7 @@ export interface AiAdminConfiguration {
 
 @Injectable()
 export class AiAdminService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async configuration(): Promise<AiAdminConfiguration> {

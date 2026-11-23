@@ -50,6 +50,7 @@ export interface PaymentProvider {
 }
 
 export class PaymentProviderError extends Error {
+
 	constructor(
 		message: string,
 		readonly retryable = false,

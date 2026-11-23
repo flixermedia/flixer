@@ -1,3 +1,4 @@
+import { isRecord } from "../../utils/isRecord.js";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { Inject, Injectable } from "@tsed/di";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -32,11 +33,7 @@ export interface PluginSettingsSchema {
 	[key: string]: unknown;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function secretSettingNames(schema: PluginSettingsSchema): Set<string> {
+function secretSettingNames(schema: PluginSettingsSchema): Set<string> {
 	return new Set(
 		Object.entries(schema.properties ?? {})
 			.filter(([, definition]) => definition?.writeOnly === true || definition?.["x-flixer-secret"] === true)
@@ -45,6 +42,7 @@ export function secretSettingNames(schema: PluginSettingsSchema): Set<string> {
 }
 
 function validateSchema(schema: PluginSettingsSchema) {
+
 	if (!isRecord(schema) || schema.type !== "object" || !isRecord(schema.properties)) {
 		throw new BadRequest("Plugin settings schema must describe an object with properties.");
 	}
@@ -77,16 +75,10 @@ function validateSchema(schema: PluginSettingsSchema) {
 		if (property.type === "array" && !["string", "number", "integer"].includes(property.items?.type ?? "")) {
 			throw new BadRequest(`List setting "${name}" must contain strings or numbers.`);
 		}
-		if (
-			property.enum &&
-			property.enum.some((value) => value !== null && !["string", "number", "boolean"].includes(typeof value))
-		) {
+		if (property.enum && property.enum.some((value) => value !== null && !["string", "number", "boolean"].includes(typeof value))) {
 			throw new BadRequest(`Dropdown setting "${name}" must contain primitive options.`);
 		}
-		if (
-			(property.writeOnly === true || property["x-flixer-secret"] === true) &&
-			(property as { type?: string }).type !== "string"
-		) {
+		if ((property.writeOnly === true || property["x-flixer-secret"] === true) && (property as { type?: string }).type !== "string") {
 			throw new BadRequest(`Secret setting "${name}" must use the string type.`);
 		}
 	}
@@ -101,10 +93,12 @@ function validateSchema(schema: PluginSettingsSchema) {
 	});
 	const validate = ajv.compile(schema);
 	return { validate, secrets: secretSettingNames(schema) };
+
 }
 
 @Injectable()
 export class PluginSettingsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async get(pluginId: string) {
@@ -149,27 +143,19 @@ export class PluginSettingsService {
 		if (!isRecord(request?.values) || !isRecord(request?.secrets)) {
 			throw new BadRequest("Plugin settings must include values and secrets objects.");
 		}
-		if (
-			Buffer.byteLength(JSON.stringify(request.values)) + Buffer.byteLength(JSON.stringify(request.secrets)) >
-			1_048_576
-		) {
+		if (Buffer.byteLength(JSON.stringify(request.values)) + Buffer.byteLength(JSON.stringify(request.secrets)) > 1_048_576) {
 			throw new BadRequest("Plugin settings payload exceeds the 1 MiB size limit.");
 		}
 
 		const { validate, secrets } = validateSchema(schema);
 		const properties = schema.properties ?? {};
 		await this.migrateLegacySecrets(installation, secrets);
-		const values = Object.fromEntries(
-			Object.entries(installation.settings).filter(
-				([name]) => Object.hasOwn(properties, name) && !secrets.has(name),
-			),
-		);
+		const values = Object.fromEntries(Object.entries(installation.settings).filter(([name]) => Object.hasOwn(properties, name) && !secrets.has(name)));
 		const encryptedSecrets = { ...installation.encryptedSecrets };
 		const effective = { ...values };
 
 		for (const name of secrets) {
-			if (encryptedSecrets[name])
-				effective[name] = decryptPluginSettingSecret(pluginId, name, encryptedSecrets[name]!);
+			if (encryptedSecrets[name]) effective[name] = decryptPluginSettingSecret(pluginId, name, encryptedSecrets[name]!);
 		}
 
 		for (const [name, value] of Object.entries(request.values)) {
@@ -196,9 +182,7 @@ export class PluginSettingsService {
 		}
 
 		if (!validate(effective)) {
-			const details = (validate.errors ?? [])
-				.map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`)
-				.join("; ");
+			const details = (validate.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`).join("; ");
 			throw new BadRequest(`Plugin settings are invalid: ${details}`);
 		}
 		if (Buffer.byteLength(JSON.stringify(values)) > 1_048_576) {
@@ -237,11 +221,9 @@ export class PluginSettingsService {
 	private async loadSchema(installation: PluginInstallation): Promise<PluginSettingsSchema | null> {
 		const relativePath = installation.manifest.settingsSchema;
 		if (!relativePath) return null;
-		if (isAbsolute(relativePath) || relativePath.includes("\\"))
-			throw new BadRequest("Plugin settings schema path is invalid.");
+		if (isAbsolute(relativePath) || relativePath.includes("\\")) throw new BadRequest("Plugin settings schema path is invalid.");
 		const path = resolve(installation.installPath, relativePath);
-		if (!path.startsWith(`${resolve(installation.installPath)}${sep}`))
-			throw new BadRequest("Plugin settings schema escapes the package directory.");
+		if (!path.startsWith(`${resolve(installation.installPath)}${sep}`)) throw new BadRequest("Plugin settings schema escapes the package directory.");
 		try {
 			const info = await stat(path);
 			if (!info.isFile() || info.size > 1_048_576) throw new Error("Plugin settings schema has an invalid size.");
@@ -249,9 +231,7 @@ export class PluginSettingsService {
 			if (!isRecord(schema)) throw new Error("Plugin settings schema must be a JSON object.");
 			return schema as PluginSettingsSchema;
 		} catch (error: unknown) {
-			throw new BadRequest(
-				`Plugin settings schema could not be loaded: ${error instanceof Error ? error.message : "unknown error"}`,
-			);
+			throw new BadRequest(`Plugin settings schema could not be loaded: ${error instanceof Error ? error.message : "unknown error"}`);
 		}
 	}
 }

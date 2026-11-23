@@ -4,12 +4,7 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { IndexerClient } from "./indexerClient.js";
-import {
-	INDEXER_CONCURRENCY_KEY,
-	IndexerSettingsService,
-	type IndexerQueueName,
-	type IndexerTaskQueueName,
-} from "./indexerSettingsService.js";
+import { INDEXER_CONCURRENCY_KEY, IndexerSettingsService, type IndexerQueueName, type IndexerTaskQueueName } from "./indexerSettingsService.js";
 
 export type IndexerScanState = "scanning" | "indexing" | "complete" | "failed";
 export const INDEXER_TASK_STATES = ["pending", "active", "scheduled", "retry", "archived", "completed"] as const;
@@ -88,14 +83,7 @@ export class AdminIndexerService {
 	async status(): Promise<IndexerStatus> {
 		const stored = (await this.settings.forIndexer()).concurrency;
 		try {
-			const [scans, stats, concurrency] = await Promise.all([
-				this.indexer.request<{ scans?: IndexerScan[] }>("GET", "/internal/scans"),
-				this.indexer.request<IndexerStats>("GET", "/internal/stats"),
-				this.indexer.request<{ concurrency?: Record<string, number>; max?: number }>(
-					"GET",
-					"/internal/concurrency",
-				),
-			]);
+			const [scans, stats, concurrency] = await Promise.all([this.indexer.request<{ scans?: IndexerScan[] }>("GET", "/internal/scans"), this.indexer.request<IndexerStats>("GET", "/internal/stats"), this.indexer.request<{ concurrency?: Record<string, number>; max?: number }>("GET", "/internal/concurrency")]);
 			return {
 				reachable: true,
 				scans: scans?.scans ?? [],
@@ -123,10 +111,7 @@ export class AdminIndexerService {
 		if (!setting) {
 			throw new BadRequest("The indexer_concurrency setting is missing.");
 		}
-		const current =
-			typeof setting.value === "object" && setting.value !== null
-				? (setting.value as Record<string, unknown>)
-				: {};
+		const current = typeof setting.value === "object" && setting.value !== null ? (setting.value as Record<string, unknown>) : {};
 		setting.value = this.settings.validate(INDEXER_CONCURRENCY_KEY, { ...current, ...request }, current);
 		await repository.save(setting);
 		await this.indexer.reloadSettings();

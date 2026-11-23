@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class RepairChatMlsWelcomeColumns1797500000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`ALTER TABLE "chat_mls_welcomes" ADD COLUMN IF NOT EXISTS "key_package_id" uuid`);
 		await queryRunner.query(`ALTER TABLE "chat_mls_welcomes" ADD COLUMN IF NOT EXISTS "message_id" uuid`);

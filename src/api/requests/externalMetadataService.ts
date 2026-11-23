@@ -6,13 +6,7 @@ import type { RequestMediaType } from "../../entities/mediaRequest.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { discogsImagePath, tmdbImagePath } from "./tmdbImageCache.js";
 import { INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY } from "../indexer/indexerSettingsService.js";
-import {
-	type DiscoverSection,
-	type ExternalMediaCard,
-	type ExternalMediaDetail,
-	splitDiscogsTitle,
-	yearOf,
-} from "./externalMetadata.js";
+import { type DiscoverSection, type ExternalMediaCard, type ExternalMediaDetail, splitDiscogsTitle, yearOf } from "./externalMetadata.js";
 
 const TMDB_API = "https://api.themoviedb.org/3";
 const DISCOGS_API = "https://api.discogs.com";
@@ -78,9 +72,7 @@ export class ExternalMetadataService {
 			throw new NotFound("Not found at the metadata provider.");
 		}
 		if (!response.ok) {
-			throw new BadRequest(
-				`The metadata provider answered with HTTP ${response.status}. Check its API key under Providers.`,
-			);
+			throw new BadRequest(`The metadata provider answered with HTTP ${response.status}. Check its API key under Providers.`);
 		}
 		return asRecord(await response.json());
 	}
@@ -168,11 +160,7 @@ export class ExternalMetadataService {
 		};
 	}
 
-	async search(
-		query: string,
-		type?: RequestMediaType,
-		enabled: Record<RequestMediaType, boolean> = { movie: true, tv: true, music: true },
-	): Promise<ExternalMediaCard[]> {
+	async search(query: string, type?: RequestMediaType, enabled: Record<RequestMediaType, boolean> = { movie: true, tv: true, music: true }): Promise<ExternalMediaCard[]> {
 		const config = await this.isConfigured();
 		const wanted = (kind: RequestMediaType) => (!type || type === kind) && enabled[kind];
 		const jobs: Array<Promise<ExternalMediaCard[]>> = [];
@@ -181,11 +169,7 @@ export class ExternalMetadataService {
 			jobs.push(
 				this.tmdb("/search/multi", { query, include_adult: "false" }).then((body) =>
 					asList(body.results)
-						.filter(
-							(entry) =>
-								(entry.media_type === "movie" && wanted("movie")) ||
-								(entry.media_type === "tv" && wanted("tv")),
-						)
+						.filter((entry) => (entry.media_type === "movie" && wanted("movie")) || (entry.media_type === "tv" && wanted("tv")))
 						.map((entry) => this.tmdbCard(entry, entry.media_type as "movie" | "tv"))
 						.filter((card): card is ExternalMediaCard => card !== null)
 						.slice(0, 24),
@@ -258,8 +242,7 @@ export class ExternalMetadataService {
 			throw new NotFound("Not found at TMDB.");
 		}
 		const runtimes = Array.isArray(body.episode_run_time) ? body.episode_run_time : [];
-		const runtime =
-			typeof body.runtime === "number" ? body.runtime : typeof runtimes[0] === "number" ? runtimes[0] : null;
+		const runtime = typeof body.runtime === "number" ? body.runtime : typeof runtimes[0] === "number" ? runtimes[0] : null;
 		const cast = asList(asRecord(body.credits).cast)
 			.map((person) => text(person.name))
 			.filter((name): name is string => name !== null)
@@ -272,10 +255,7 @@ export class ExternalMetadataService {
 				.map((genre) => text(genre.name))
 				.filter((name): name is string => name !== null),
 			runtimeMinutes: runtime && runtime > 0 ? runtime : null,
-			rating:
-				typeof body.vote_average === "number" && body.vote_average > 0
-					? Math.round(body.vote_average * 10) / 10
-					: null,
+			rating: typeof body.vote_average === "number" && body.vote_average > 0 ? Math.round(body.vote_average * 10) / 10 : null,
 			cast,
 			artist: null,
 			seasons:
@@ -316,10 +296,7 @@ export class ExternalMetadataService {
 			requestId: null,
 			backdrop: null,
 			tagline: null,
-			genres: [
-				...(Array.isArray(body.genres) ? body.genres : []),
-				...(Array.isArray(body.styles) ? body.styles : []),
-			].filter((entry): entry is string => typeof entry === "string"),
+			genres: [...(Array.isArray(body.genres) ? body.genres : []), ...(Array.isArray(body.styles) ? body.styles : [])].filter((entry): entry is string => typeof entry === "string"),
 			runtimeMinutes: null,
 			rating: null,
 			cast: [],

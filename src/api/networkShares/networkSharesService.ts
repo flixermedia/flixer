@@ -8,7 +8,7 @@ import type { MediaRoot } from "../mediaLibraries/mediaRootsService.js";
 import { localPathFor, mountShare, MountError, unmountShare, type MountTarget } from "./shareMounter.js";
 import { decryptSecret, encryptSecret } from "./shareSecrets.js";
 
-export type ShareStatus = "connecting" | "connected" | "error";
+type ShareStatus = "connecting" | "connected" | "error";
 
 export interface PublicNetworkShare {
 	id: string;
@@ -28,7 +28,7 @@ export interface PublicNetworkShare {
 	error: string | null;
 }
 
-export interface ShareInput {
+interface ShareInput {
 	name: string;
 	host: string;
 	share: string;
@@ -48,6 +48,7 @@ const SHARE_PATTERN = /^[^\\/:*?"<>|,\0-\x1f-][^\\/:*?"<>|,\0-\x1f]*$/;
 const ACCOUNT_PATTERN = /^[^\\/:,;"\0-\x1f][^\\/:,;"\0-\x1f]*$/;
 
 function endpoint(value: string, protocol: "webdav" | "s3"): string {
+
 	let parsed: URL;
 	try {
 		parsed = new URL(value);
@@ -58,6 +59,7 @@ function endpoint(value: string, protocol: "webdav" | "s3"): string {
 		throw new BadRequest("Use an HTTP(S) endpoint without embedded credentials, query parameters, or a fragment.");
 	}
 	return parsed.href.replace(/\/$/, "");
+
 }
 
 function safeRemotePath(value: string): boolean {
@@ -66,6 +68,7 @@ function safeRemotePath(value: string): boolean {
 
 /** Validates and normalizes persisted share settings without changing legacy SMB defaults. */
 export function normalizeShareInput(input: ShareInput) {
+
 	const protocol = input.protocol ?? "smb";
 	const name = input.name?.trim();
 	let host = input.host?.trim();
@@ -127,6 +130,7 @@ export function normalizeShareInput(input: ShareInput) {
 		throw new BadRequest("Enter a valid S3 region.");
 	}
 	return { name, protocol, host, share, username, domain: null, region, readOnly: true };
+
 }
 
 export function shareRootId(id: string): string {

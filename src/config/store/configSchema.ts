@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 /** How a configuration value is checked before it is saved. Format checks only; live connectivity tests belong to the setup steps. */
-export type ConfigValidator = (value: string) => string | null;
+type ConfigValidator = (value: string) => string | null;
 
 export interface ConfigKeyDefinition {
 	/** Key in the SQLite store. */
@@ -35,8 +35,7 @@ export const suggestedDatabaseUrl = (): string => `postgres://flixer:flixer@${se
 
 const MIN_SECRET_BYTES = 32;
 
-export const validateSecret: ConfigValidator = (value) =>
-	Buffer.byteLength(value) >= MIN_SECRET_BYTES ? null : `Must be at least ${MIN_SECRET_BYTES} bytes long.`;
+export const validateSecret: ConfigValidator = (value) => (Buffer.byteLength(value) >= MIN_SECRET_BYTES ? null : `Must be at least ${MIN_SECRET_BYTES} bytes long.`);
 
 export const validateHttpUrl: ConfigValidator = (value) => {
 	try {

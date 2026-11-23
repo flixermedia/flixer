@@ -62,7 +62,14 @@ describe("RecommendationsController", () => {
 		const recommendations = { configuration: vi.fn().mockResolvedValue({ enabled: true }), recommend: vi.fn().mockResolvedValue({ items: [] }) };
 		const home = { cardsByIds: vi.fn().mockResolvedValue([{ id: "keep", type: "movie", title: "Keep" }]) };
 		const access = { resolve: vi.fn().mockResolvedValue(policy) };
-		const cache = { forHome: vi.fn().mockResolvedValue({ items: [{ id: "keep", score: 0.8 }, { id: "hide", score: 0.7 }] }) };
+		const cache = {
+			forHome: vi.fn().mockResolvedValue({
+				items: [
+					{ id: "keep", score: 0.8 },
+					{ id: "hide", score: 0.7 },
+				],
+			}),
+		};
 		const userMedia = { dismissedRecommendations: vi.fn().mockResolvedValue(["hide"]) };
 		const controller = new RecommendationsController({} as never, recommendations as never, home as never, access as never, cache as never, userMedia as never);
 

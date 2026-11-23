@@ -4,6 +4,7 @@ import { sanitizeLoggerManagementEvent } from "./sentryService.js";
 describe("logger administration Sentry privacy", () => {
 	it("removes request data and breadcrumbs while retaining the exception", () => {
 		const event = sanitizeLoggerManagementEvent({
+			type: undefined,
 			tags: { sensitive_logger_management: "true" },
 			request: { data: { manageToken: "secret" }, headers: { authorization: "secret" } },
 			extra: { secret: "secret" },
@@ -15,7 +16,7 @@ describe("logger administration Sentry privacy", () => {
 	});
 
 	it("leaves other Sentry events unchanged", () => {
-		const event = { request: { url: "/api/other" }, breadcrumbs: [{ message: "diagnostic" }] };
+		const event = { type: undefined, request: { url: "/api/other" }, breadcrumbs: [{ message: "diagnostic" }] };
 		expect(sanitizeLoggerManagementEvent(event)).toEqual(event);
 	});
 });

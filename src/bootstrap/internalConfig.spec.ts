@@ -101,7 +101,7 @@ describe("internal config and shared secrets", () => {
 			const path = internalConfigPath("indexer");
 			const response = await fetch(base + path, { headers: signIndexerRequest("GET", path, new Uint8Array()) });
 			expect(response.status).toBe(200);
-			const body = await response.json();
+			const body = (await response.json()) as { redis: unknown; version: unknown };
 			expect(body.redis).toEqual({ addr: "redis:6379", username: "", password: "secret", db: 1, tls: false });
 			expect(body.version).toBe(store.version());
 		});
@@ -109,7 +109,7 @@ describe("internal config and shared secrets", () => {
 		it("returns a null redis when none is configured", async () => {
 			const path = internalConfigPath("indexer");
 			const response = await fetch(base + path, { headers: signIndexerRequest("GET", path, new Uint8Array()) });
-			expect((await response.json()).redis).toBeNull();
+			expect(((await response.json()) as { redis: unknown }).redis).toBeNull();
 		});
 
 		it("serves setup routes while unprotected, rejects bad bodies and oversized requests", async () => {

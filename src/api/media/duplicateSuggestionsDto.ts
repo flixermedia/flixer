@@ -1,6 +1,7 @@
 import { Integer, Maximum, Minimum, Property } from "@tsed/schema";
 
 export class DuplicateSuggestionsQuery {
+
 	@Property()
 	@Integer()
 	@Minimum(1)

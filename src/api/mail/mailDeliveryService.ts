@@ -18,7 +18,7 @@ const MAX_RECIPIENTS = 20;
 const POLL_MS = 30_000;
 const CLAIM_MS = 10 * 60_000;
 
-export interface OutgoingMail {
+interface OutgoingMail {
 	from: { address: string; name?: string };
 	to: string[];
 	subject: string;
@@ -88,26 +88,30 @@ export class MailDeliveryService {
 			throw new BadRequest("The sender's domain isn't verified.");
 		}
 
-		const mailbox = await this.mailboxes.findByAddress(sender.address) ?? (mail.system ? await this.mailboxes.ensureSystemMailbox(sender.address) : null);
+		const mailbox = (await this.mailboxes.findByAddress(sender.address)) ?? (mail.system ? await this.mailboxes.ensureSystemMailbox(sender.address) : null);
 		if (!mailbox) throw new BadRequest("Send from one of the mailboxes you created.");
 		const repo = this.dataSource.getRepository(MailMessage);
-		const rows = await repo.save(recipients.map((recipient) => repo.create({
-			id: randomUUID(),
-			mailboxId: mailbox.id,
-			direction: "outbound",
-			status: "queued",
-			fromAddress: sender.address,
-			fromName: mail.from.name ? headerSafe(mail.from.name, 100) : null,
-			toAddresses: [recipient],
-			subject,
-			text: mail.text,
-			html: mail.html ?? null,
-			messageId: `<${randomUUID()}@${sender.domain}>`,
-			attachments: [],
-			inReplyTo: mail.inReplyTo ? headerSafe(mail.inReplyTo, 998) : null,
-			isSystem: mail.system === true,
-			nextAttemptAt: new Date(),
-		})));
+		const rows = await repo.save(
+			recipients.map((recipient) =>
+				repo.create({
+					id: randomUUID(),
+					mailboxId: mailbox.id,
+					direction: "outbound",
+					status: "queued",
+					fromAddress: sender.address,
+					fromName: mail.from.name ? headerSafe(mail.from.name, 100) : null,
+					toAddresses: [recipient],
+					subject,
+					text: mail.text,
+					html: mail.html ?? null,
+					messageId: `<${randomUUID()}@${sender.domain}>`,
+					attachments: [],
+					inReplyTo: mail.inReplyTo ? headerSafe(mail.inReplyTo, 998) : null,
+					isSystem: mail.system === true,
+					nextAttemptAt: new Date(),
+				}),
+			),
+		);
 
 		if (mail.wait) {
 			for (const row of rows) await this.attempt(row);
@@ -185,9 +189,7 @@ export class MailDeliveryService {
 				await repo.update({ id: message.id }, { status: "sent", sentAt: new Date(), attempts, lastError: `Sent through the SMTP relay after direct delivery failed: ${reason}`.slice(0, 1000), nextAttemptAt: null });
 				return;
 			}
-			await repo.update({ id: message.id }, permanent
-				? { status: "failed", attempts, lastError: reason.slice(0, 1000), nextAttemptAt: null }
-				: { attempts, lastError: reason.slice(0, 1000), nextAttemptAt: new Date(Date.now() + RETRY_DELAYS_MINUTES[attempts - 1] * 60_000) });
+			await repo.update({ id: message.id }, permanent ? { status: "failed", attempts, lastError: reason.slice(0, 1000), nextAttemptAt: null } : { attempts, lastError: reason.slice(0, 1000), nextAttemptAt: new Date(Date.now() + RETRY_DELAYS_MINUTES[attempts - 1] * 60_000) });
 		}
 	}
 

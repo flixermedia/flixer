@@ -61,12 +61,11 @@ export type AdminScheduledTaskConfigs = Record<AdminScheduledTaskId, AdminSchedu
 export const ADMIN_SCHEDULED_TASKS_SETTING = "admin_scheduled_tasks";
 
 export function defaultAdminScheduledTaskConfigs(): AdminScheduledTaskConfigs {
-	return Object.fromEntries(
-		ADMIN_SCHEDULED_TASKS.map(({ id, defaultCron }) => [id, { enabled: defaultCron !== "", cron: defaultCron }]),
-	) as AdminScheduledTaskConfigs;
+	return Object.fromEntries(ADMIN_SCHEDULED_TASKS.map(({ id, defaultCron }) => [id, { enabled: defaultCron !== "", cron: defaultCron }])) as AdminScheduledTaskConfigs;
 }
 
 export function readAdminScheduledTaskConfigs(stored: unknown): AdminScheduledTaskConfigs {
+
 	if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
 		throw new Error("Stored scheduled task configuration is invalid.");
 	}
@@ -74,12 +73,7 @@ export function readAdminScheduledTaskConfigs(stored: unknown): AdminScheduledTa
 	for (const task of ADMIN_SCHEDULED_TASKS) {
 		const value = (stored as Record<string, unknown>)[task.id];
 		if (value === undefined) continue;
-		if (
-			typeof value !== "object" ||
-			value === null ||
-			typeof (value as Record<string, unknown>).enabled !== "boolean" ||
-			typeof (value as Record<string, unknown>).cron !== "string"
-		) {
+		if (typeof value !== "object" || value === null || typeof (value as Record<string, unknown>).enabled !== "boolean" || typeof (value as Record<string, unknown>).cron !== "string") {
 			throw new Error(`Stored schedule for ${task.id} is invalid.`);
 		}
 		configs[task.id] = {
@@ -88,6 +82,7 @@ export function readAdminScheduledTaskConfigs(stored: unknown): AdminScheduledTa
 		};
 	}
 	return configs;
+
 }
 
 export function isAdminScheduledTaskId(value: string): value is AdminScheduledTaskId {

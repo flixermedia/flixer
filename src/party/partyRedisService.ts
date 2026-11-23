@@ -6,6 +6,7 @@ export const PARTY_EVENTS_CHANNEL = "flixer:parties:events";
 
 @Injectable()
 export class PartyRedisService {
+
 	private client?: RedisClientType;
 	private subscriber?: RedisClientType;
 
@@ -38,10 +39,7 @@ export class PartyRedisService {
 			await subscriber.connect();
 			await subscriber.subscribe(PARTY_EVENTS_CHANNEL, onMessage);
 		} catch (error) {
-			await Promise.allSettled([
-				client.isOpen ? client.quit() : Promise.resolve(),
-				subscriber.isOpen ? subscriber.quit() : Promise.resolve(),
-			]);
+			await Promise.allSettled([client.isOpen ? client.quit() : Promise.resolve(), subscriber.isOpen ? subscriber.quit() : Promise.resolve()]);
 			throw new Error("Could not initialize Redis for party synchronization.", { cause: error });
 		}
 

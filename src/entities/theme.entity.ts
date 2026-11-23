@@ -4,6 +4,7 @@ import type { ThemeConfig } from "../api/appearance/themeSchema.js";
 /** A selectable look for the whole app. Built-in rows are read-only; admins can create and import more. */
 @Entity("themes")
 export class Theme {
+
 	@PrimaryColumn({ type: "uuid" })
 	id!: string;
 

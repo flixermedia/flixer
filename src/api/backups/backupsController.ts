@@ -5,7 +5,6 @@ import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tse
 import type { PlatformContext } from "@tsed/platform-http";
 import { Delete, Get, Post, Put, Returns, Security } from "@tsed/schema";
 import { rm } from "node:fs/promises";
-import { join } from "node:path";
 import { AuthService } from "../auth/authService.js";
 import { dataPath } from "../../config/dataPath.js";
 import { BackupService } from "./backupService.js";
@@ -91,12 +90,7 @@ export class BackupDownloadController {
 	constructor(private readonly backups: BackupService) {}
 
 	@Get("/download/:name")
-	async download(
-		@PathParams("name") name: string,
-		@QueryParams("expires", String) expires: string | undefined,
-		@QueryParams("signature", String) signature: string | undefined,
-		@Context() ctx: PlatformContext,
-	) {
+	async download(@PathParams("name") name: string, @QueryParams("expires", String) expires: string | undefined, @QueryParams("signature", String) signature: string | undefined, @Context() ctx: PlatformContext) {
 		const { stream, size } = await this.backups.openDownload(name, expires, signature);
 		ctx.response.setHeader("Content-Type", "application/octet-stream");
 		ctx.response.setHeader("Content-Length", String(size));

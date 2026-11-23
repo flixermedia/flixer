@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { UserWebhook, UserWebhookConfig } from "../../entities/userWebhook.entity.js";
 import { AdminUserWebhookController, UserWebhookController } from "./userWebhookController.js";
 import { UserWebhookService, webhookUrl } from "./userWebhookService.js";
 
@@ -10,6 +12,45 @@ const report = { event: "playback.started", target: { kind: "video", itemId }, p
 const access = { resolve: vi.fn().mockResolvedValue({}), visibleIds: vi.fn().mockResolvedValue(new Set([itemId])) };
 
 afterEach(() => vi.unstubAllGlobals());
+
+type ConfigRow = { enabled: boolean; audience: string; allowedUrls: string[] };
+
+/** A data source whose repositories and query-builder results are mocked. */
+function makeSource(options: { config?: () => ConfigRow | null; hooks?: unknown[]; deleted?: number; query?: (sql: string, params?: unknown[]) => Promise<unknown[]> } = {}) {
+
+	const configs = { findOneBy: vi.fn(async () => (options.config ? options.config() : null)), update: vi.fn() };
+	const hooks = { find: vi.fn(async () => options.hooks ?? []), delete: vi.fn(async () => ({ affected: options.deleted ?? 0 })) };
+	const query = options.query ?? (vi.fn().mockResolvedValue([]) as (sql: string, params?: unknown[]) => Promise<unknown[]>);
+	let update: Record<string, unknown> = {};
+	let criteria: Record<string, unknown> = {};
+	const updateBuilder = {
+		update: vi.fn(),
+		set: vi.fn((values: Record<string, unknown>) => {
+			update = values;
+			return updateBuilder;
+		}),
+		where: vi.fn((_sql: string, values: Record<string, unknown>) => {
+			criteria = values;
+			return updateBuilder;
+		}),
+		returning: vi.fn(),
+		execute: vi.fn(async () => ({ raw: await query("UPDATE user_webhooks", [criteria.id, criteria.userId, update.name, update.url, update.enabled]) })),
+		innerJoin: vi.fn(),
+		select: vi.fn(),
+		andWhere: vi.fn(),
+		getRawOne: vi.fn(async () => (await query("JOIN users"))[0] ?? null),
+	};
+	for (const name of ["update", "returning", "innerJoin", "select", "where", "andWhere"] as const) updateBuilder[name].mockReturnValue(updateBuilder);
+	const lockBuilder = { select: vi.fn(), setParameter: vi.fn(), getRawOne: vi.fn().mockResolvedValue({ locked: null }) };
+	for (const name of ["select", "setParameter"] as const) lockBuilder[name].mockReturnValue(lockBuilder);
+	const transaction = vi.fn(async (work: (manager: unknown) => Promise<unknown>) => work({ createQueryBuilder: () => lockBuilder, count: vi.fn().mockResolvedValue(0), insert: vi.fn().mockResolvedValue({}) }));
+	const dataSource = {
+		getRepository: vi.fn((entity: unknown) => (entity === UserWebhookConfig ? configs : entity === UserWebhook ? { ...hooks, createQueryBuilder: vi.fn(() => updateBuilder) } : entity === MediaItem ? { findOne: vi.fn(async () => (await query("FROM media_items"))[0] ?? null) } : undefined)),
+		transaction,
+	};
+	return { dataSource, configs, hooks, query, transaction };
+
+}
 
 describe("personal webhooks", () => {
 	it("requires an admin for policy and binds user actions to the authenticated user", async () => {
@@ -29,32 +70,30 @@ describe("personal webhooks", () => {
 	});
 
 	it("defaults to no reports or writes when disabled or limited to admins", async () => {
-		const query = vi.fn().mockResolvedValue([{ enabled: false, audience: "admins", allowed_urls: [url] }]);
-		const service = new UserWebhookService({ query } as never, access as never);
+		let config: ConfigRow = { enabled: false, audience: "admins", allowedUrls: [url] };
+		const { dataSource, hooks, query } = makeSource({ config: () => config });
+		const service = new UserWebhookService(dataSource as never, access as never);
 		await service.report(user, report);
 		await expect(service.save(user, { name: "Home", url, enabled: true })).rejects.toThrow("not enabled");
-		query.mockResolvedValue([{ enabled: true, audience: "admins", allowed_urls: [url] }]);
+		config = { enabled: true, audience: "admins", allowedUrls: [url] };
 		await service.report(user, report);
 		await expect(service.save(user, { name: "Home", url, enabled: true })).rejects.toThrow("not enabled");
-		expect(query.mock.calls.every(([sql]) => sql.includes("user_webhook_config"))).toBe(true);
+		expect(hooks.find).not.toHaveBeenCalled();
+		expect(query).not.toHaveBeenCalled();
 	});
 
 	it("limits destinations and deletion to the authenticated owner", async () => {
-		const query = vi.fn().mockResolvedValueOnce([{ enabled: true, audience: "everyone", allowed_urls: [url] }]).mockResolvedValueOnce([]);
-		const service = new UserWebhookService({ query } as never, access as never);
+		const { dataSource, hooks } = makeSource({ config: () => ({ enabled: true, audience: "everyone", allowedUrls: [url] }), deleted: 0 });
+		const service = new UserWebhookService(dataSource as never, access as never);
 		await expect(service.save(user, { name: "bad", url: "http://127.0.0.1/admin", enabled: true })).rejects.toThrow("not been approved");
 		await expect(service.remove(user, hookId)).rejects.toThrow("not found");
-		expect(query.mock.calls[1]?.[1]).toEqual([hookId, user.id]);
-		expect(query.mock.calls[1]?.[0]).toContain("user_id = $2");
+		expect(hooks.delete).toHaveBeenCalledWith({ id: hookId, userId: user.id });
 	});
 
 	it("validates regex syntax and matches entire normalized URLs during webhook creation", async () => {
-		const query = vi.fn(async (sql: string, args?: unknown[]) => {
-			if (sql.includes("user_webhook_config")) return [{ enabled: true, audience: "everyone", allowed_urls: ["regex:https://automation\\.example\\.com/.*", url] }];
-			if (sql.includes("UPDATE user_webhooks")) return [{ id: hookId, name: "Home", url: args?.[3], enabled: true }];
-			return [];
-		});
-		const service = new UserWebhookService({ query } as never, access as never);
+		const query = vi.fn(async (sql: string, args?: unknown[]) => (sql.includes("UPDATE user_webhooks") ? [{ id: hookId, name: "Home", url: args?.[3], enabled: true }] : []));
+		const { dataSource } = makeSource({ config: () => ({ enabled: true, audience: "everyone", allowedUrls: ["regex:https://automation\\.example\\.com/.*", url] }), query });
+		const service = new UserWebhookService(dataSource as never, access as never);
 		await expect(service.save(user, { name: "Home", url: "https://AUTOMATION.example.com/hook?key=x", enabled: true }, hookId)).resolves.toMatchObject({ url: "https://automation.example.com/hook?key=x" });
 		await expect(service.save(user, { name: "Home", url: "https://automation.example.com.evil/hook", enabled: true }, hookId)).rejects.toThrow("not been approved");
 		await expect(service.save(user, { name: "Home", url, enabled: true }, hookId)).resolves.toMatchObject({ url });
@@ -64,10 +103,9 @@ describe("personal webhooks", () => {
 	});
 
 	it("accepts HTTP and HTTPS with the default rule without allowing other schemes", async () => {
-		const query = vi.fn(async (sql: string, args?: unknown[]) => sql.includes("user_webhook_config")
-			? [{ enabled: true, audience: "everyone", allowed_urls: ["regex:https?://.*"] }]
-			: [{ id: hookId, url: args?.[3] }]);
-		const service = new UserWebhookService({ query } as never, access as never);
+		const query = vi.fn(async (_sql: string, args?: unknown[]) => [{ id: hookId, url: args?.[3] }]);
+		const { dataSource } = makeSource({ config: () => ({ enabled: true, audience: "everyone", allowedUrls: ["regex:https?://.*"] }), query });
+		const service = new UserWebhookService(dataSource as never, access as never);
 		for (const destination of ["http://127.0.0.1:8123/", "https://public.example/path"]) {
 			await expect(service.save(user, { name: "Home", url: destination, enabled: true }, hookId)).resolves.toMatchObject({ url: destination });
 		}
@@ -78,56 +116,60 @@ describe("personal webhooks", () => {
 		let approved = true;
 		let release: (() => void) | undefined;
 		const query = vi.fn(async (sql: string) => {
-			if (sql.includes("user_webhook_config")) return [{ enabled: true, audience: "everyone", allowed_urls: approved ? ["regex:http://home\\.local/.*"] : [] }];
 			if (sql.includes("FROM media_items")) return [{ id: itemId, title: "Movie", type: "movie" }];
-			if (sql.includes("FROM user_webhooks WHERE")) return [{ id: hookId, name: "Home", enabled: true, url }];
 			if (sql.includes("JOIN users")) return [{ id: hookId }];
 			return [];
 		});
+		const { dataSource, configs } = makeSource({ config: () => ({ enabled: true, audience: "everyone", allowedUrls: approved ? ["regex:http://home\\.local/.*"] : [] }), hooks: [{ id: hookId, name: "Home", enabled: true, url }], query });
 		const fetchMock = vi.fn().mockImplementationOnce(async () => {
-			await new Promise<void>((resolve) => { release = resolve; });
+			await new Promise<void>((resolve) => {
+				release = resolve;
+			});
 			return { ok: true, status: 200, body: null };
 		});
 		vi.stubGlobal("fetch", fetchMock);
-		const service = new UserWebhookService({ query } as never, access as never);
+		const service = new UserWebhookService(dataSource as never, access as never);
 		await service.report(user, report);
 		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 		await service.report(user, report);
 		approved = false;
 		release?.();
-		await vi.waitFor(() => expect(query.mock.calls.filter(([sql]) => sql.includes("user_webhook_config"))).toHaveLength(4));
+		await vi.waitFor(() => expect(configs.findOneBy).toHaveBeenCalledTimes(4));
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("sends only approved, owned webhooks with a user-bound payload and no redirects", async () => {
 		const query = vi.fn(async (sql: string, _args?: unknown[]) => {
-			if (sql.includes("user_webhook_config")) return [{ enabled: true, audience: "everyone", allowed_urls: [url] }];
 			if (sql.includes("FROM media_items")) return [{ id: itemId, title: "Movie", type: "movie" }];
 			if (sql.includes("JOIN users")) return [{ id: hookId }];
-			if (sql.includes("FROM user_webhooks")) return [{ id: hookId, name: "Home", enabled: true, url }, { id: "unapproved", name: "Other", enabled: true, url: "http://other/" }];
 			return [];
+		});
+		const { dataSource, hooks } = makeSource({
+			config: () => ({ enabled: true, audience: "everyone", allowedUrls: [url] }),
+			hooks: [
+				{ id: hookId, name: "Home", enabled: true, url },
+				{ id: "unapproved", name: "Other", enabled: true, url: "http://other/" },
+			],
+			query,
 		});
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, body: null });
 		vi.stubGlobal("fetch", fetchMock);
-		const service = new UserWebhookService({ query } as never, access as never);
+		const service = new UserWebhookService(dataSource as never, access as never);
 		await service.report(user, report);
 		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 		const [destination, options] = fetchMock.mock.calls[0]!;
 		expect(destination).toBe(url);
 		expect(options.redirect).toBe("error");
 		expect(JSON.parse(options.body)).toMatchObject({ event: report.event, userId: user.id, positionSeconds: 5, media: { id: itemId, title: "Movie", kind: "video" } });
-		const ownerQuery = query.mock.calls.find(([sql]) => sql.includes("FROM user_webhooks WHERE user_id"));
-		expect(ownerQuery?.[1]).toEqual([user.id]);
+		expect(hooks.find).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: user.id, enabled: true } }));
 	});
 
 	it("does not disclose metadata for restricted media", async () => {
-		const query = vi.fn(async (sql: string) => sql.includes("user_webhook_config")
-			? [{ enabled: true, audience: "everyone", allowed_urls: [url] }]
-			: [{ id: hookId, name: "Home", url, enabled: true }]);
+		const { dataSource, query } = makeSource({ config: () => ({ enabled: true, audience: "everyone", allowedUrls: [url] }), hooks: [{ id: hookId, name: "Home", url, enabled: true }] });
 		const denied = { resolve: vi.fn().mockResolvedValue({}), visibleIds: vi.fn().mockResolvedValue(new Set()) };
-		const service = new UserWebhookService({ query } as never, denied as never);
+		const service = new UserWebhookService(dataSource as never, denied as never);
 		await expect(service.report(user, report, "token")).rejects.toThrow("not found");
 		expect(denied.resolve).toHaveBeenCalledWith("token");
-		expect(query.mock.calls.some(([sql]) => sql.includes("media_items"))).toBe(false);
+		expect(query).not.toHaveBeenCalled();
 	});
 });

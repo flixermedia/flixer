@@ -1,6 +1,7 @@
 import { MaxLength, Property, Required } from "@tsed/schema";
 
 export class CreateIssueReportRequest {
+
 	@Required()
 	@MaxLength(200)
 	title!: string;
@@ -19,12 +20,14 @@ export class CreateIssueReportRequest {
 }
 
 export class UpdateIssueReportStatusRequest {
+
 	@Required()
 	@MaxLength(16)
 	status!: string;
 }
 
 export class AddIssueReportUpdateRequest {
+
 	@Required()
 	@MaxLength(2000)
 	body!: string;
@@ -34,6 +37,7 @@ export class AddIssueReportUpdateRequest {
 }
 
 export class SetIssueReportChatRequest {
+
 	@Required()
 	open!: boolean;
 }

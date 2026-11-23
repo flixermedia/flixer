@@ -35,11 +35,7 @@ export class MediaLibrariesController {
 
 	/** Lists the sub-folders of a folder inside a root. */
 	@Get("/browse")
-	async browse(
-		@QueryParams("rootId", String) rootId: string,
-		@QueryParams("path", String) path?: string,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async browse(@QueryParams("rootId", String) rootId: string, @QueryParams("path", String) path?: string, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		return this.roots.browse(rootId, path ?? "");
 	}

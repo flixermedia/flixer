@@ -30,9 +30,6 @@ const RATING_AGES: Record<string, number> = {
 	"FSK-18": 18,
 };
 
-/** Labels that mean "not rated", which parents may want to block separately from explicit ratings. */
-export const UNRATED_LABELS = ["NR", "NOT-RATED", "UNRATED", "UR", "NOT-RATED.", "NONE", "N/A"];
-
 /** The limits an administrator can pick from, with the labels they cover. */
 export const RATING_LIMITS: ReadonlyArray<{ age: number; label: string; examples: string }> = [
 	{ age: 0, label: "All ages", examples: "G, TV-Y, TV-G, U" },
@@ -56,11 +53,13 @@ function normalise(raw: string): string {
 
 /** The minimum age for a rating label, or null when it is unrated or unrecognised. */
 export function ratingToAge(raw: string | null | undefined): number | null {
+
 	if (!raw) return null;
 	const label = normalise(raw);
 	if (label in RATING_AGES) return RATING_AGES[label];
 	const bare = /^(?:FSK-)?(\d{1,2})\+?$/.exec(label);
 	return bare ? Number(bare[1]) : null;
+
 }
 
 /**
@@ -68,10 +67,12 @@ export function ratingToAge(raw: string | null | undefined): number | null {
  * `rawSql` must be a trusted SQL expression yielding the rating text.
  */
 export function ratingAgeSql(rawSql: string): string {
+
 	const label = `regexp_replace(regexp_replace(upper(btrim(${rawSql})), '^[A-Z]{2}[:/]', ''), '\\s+', '-', 'g')`;
 	const cases = Object.entries(RATING_AGES)
 		.map(([key, age]) => `WHEN '${key.replace(/'/g, "''")}' THEN ${age}`)
 		.join(" ");
 	const bare = `CASE WHEN ${label} ~ '^(FSK-)?[0-9]{1,2}\\+?$' THEN regexp_replace(${label}, '[^0-9]', '', 'g')::int END`;
 	return `(CASE ${label} ${cases} ELSE ${bare} END)`;
+
 }

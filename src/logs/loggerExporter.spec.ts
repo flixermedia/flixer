@@ -41,9 +41,12 @@ describe("logger exporter", () => {
 	it("aborts stalled delivery and discards buffered events within the shutdown deadline", async () => {
 		vi.useFakeTimers();
 		vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-		const fetcher = vi.fn((_url: string, options: RequestInit) => new Promise<Response>((_resolve, reject) => {
-			options.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-		}));
+		const fetcher = vi.fn(
+			(_url: string, options: RequestInit) =>
+				new Promise<Response>((_resolve, reject) => {
+					options.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+				}),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		exporter.configure(config);
@@ -63,8 +66,11 @@ describe("logger exporter", () => {
 		let resolveFirst: ((response: Response) => void) | undefined;
 		const fetcher = vi.fn((_url: string, _options: RequestInit) =>
 			fetcher.mock.calls.length === 1
-				? new Promise<Response>((resolve) => { resolveFirst = resolve; })
-				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })));
+				? new Promise<Response>((resolve) => {
+						resolveFirst = resolve;
+					})
+				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		exporter.configure(config);
@@ -114,8 +120,7 @@ describe("logger exporter", () => {
 
 	it("exports a bounded duration and trace identifier", async () => {
 		vi.useFakeTimers();
-		const fetcher = vi.fn(async (_url: string, _options: RequestInit) =>
-			new Response(JSON.stringify({ accepted: 2 }), { status: 200 }));
+		const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response(JSON.stringify({ accepted: 2 }), { status: 200 }));
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		exporter.configure(config);
@@ -133,9 +138,7 @@ describe("logger exporter", () => {
 		vi.useFakeTimers();
 		const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
 			const events = (JSON.parse(String(options.body)) as { events: { message: string }[] }).events;
-			return events.some((event) => event.message === "invalid")
-				? new Response("invalid", { status: 400 })
-				: new Response(JSON.stringify({ accepted: events.length }), { status: 200 });
+			return events.some((event) => event.message === "invalid") ? new Response("invalid", { status: 400 }) : new Response(JSON.stringify({ accepted: events.length }), { status: 200 });
 		});
 		vi.stubGlobal("fetch", fetcher);
 		const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
@@ -153,8 +156,7 @@ describe("logger exporter", () => {
 
 	it("keeps queued records when the control plane renews the ingestion credential", async () => {
 		vi.useFakeTimers();
-		const fetcher = vi.fn(async (_url: string, _options: RequestInit) =>
-			new Response(JSON.stringify({ accepted: 1 }), { status: 200 }));
+		const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response(JSON.stringify({ accepted: 1 }), { status: 200 }));
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		const replacement = { ...config, token: "replacement-ingest-token" };
@@ -175,8 +177,11 @@ describe("logger exporter", () => {
 		let calls = 0;
 		const fetcher = vi.fn((_url: string, _options: RequestInit) =>
 			++calls === 1
-				? new Promise<Response>((resolve) => { resolveFirst = resolve; })
-				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })));
+				? new Promise<Response>((resolve) => {
+						resolveFirst = resolve;
+					})
+				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		const replacement = { ...config, token: "replacement-ingest-token" };
@@ -201,8 +206,11 @@ describe("logger exporter", () => {
 		let resolveFirst: ((response: Response) => void) | undefined;
 		const fetcher = vi.fn((_url: string, _options: RequestInit) =>
 			fetcher.mock.calls.length === 1
-				? new Promise<Response>((resolve) => { resolveFirst = resolve; })
-				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })));
+				? new Promise<Response>((resolve) => {
+						resolveFirst = resolve;
+					})
+				: Promise.resolve(new Response(JSON.stringify({ accepted: 1 }), { status: 200 })),
+		);
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
 		const replacement = { ...config, token: "replacement-ingest-token" };
@@ -280,9 +288,7 @@ describe("logger exporter", () => {
 		const bodies: string[] = [];
 		const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
 			bodies.push(String(options.body));
-			return bodies.length === 1
-				? new Response("unavailable", { status: 503 })
-				: new Response(JSON.stringify({ accepted: 1 }), { status: 200 });
+			return bodies.length === 1 ? new Response("unavailable", { status: 503 }) : new Response(JSON.stringify({ accepted: 1 }), { status: 200 });
 		});
 		vi.stubGlobal("fetch", fetcher);
 		const exporter = new LoggerExporter();
@@ -331,9 +337,7 @@ describe("logger exporter", () => {
 	it("opens a bounded circuit after repeated transient delivery failures", async () => {
 		vi.useFakeTimers();
 		let healthy = false;
-		const fetcher = vi.fn(async () => healthy
-			? new Response(JSON.stringify({ accepted: 1 }), { status: 200 })
-			: new Response("unavailable", { status: 503 }));
+		const fetcher = vi.fn(async () => (healthy ? new Response(JSON.stringify({ accepted: 1 }), { status: 200 }) : new Response("unavailable", { status: 503 })));
 		vi.stubGlobal("fetch", fetcher);
 		vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 		const exporter = new LoggerExporter();

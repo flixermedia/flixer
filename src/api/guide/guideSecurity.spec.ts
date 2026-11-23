@@ -23,14 +23,8 @@ describe("guide source network restrictions", () => {
 	});
 
 	it("checks IPTV URL safety without requiring hostname DNS resolution", () => {
-		expect(parseSourceUrl("https://unresolved-stream.example/live/channel.m3u8", true).hostname).toBe(
-			"unresolved-stream.example",
-		);
-		expect(() => parseSourceUrl("http://127.0.0.1/live/channel.m3u8", true)).toThrow(
-			"Source URLs cannot point to private or reserved IP addresses.",
-		);
-		expect(() => parseSourceUrl("https://stream.local/live/channel.m3u8", true)).toThrow(
-			"Source URLs must use a public HTTP(S) host without credentials or a custom port.",
-		);
+		expect(parseSourceUrl("https://unresolved-stream.example/live/channel.m3u8", true).hostname).toBe("unresolved-stream.example");
+		expect(() => parseSourceUrl("http://127.0.0.1/live/channel.m3u8", true)).toThrow("Source URLs cannot point to private or reserved IP addresses.");
+		expect(() => parseSourceUrl("https://stream.local/live/channel.m3u8", true)).toThrow("Source URLs must use a public HTTP(S) host without credentials or a custom port.");
 	});
 });

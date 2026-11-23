@@ -7,6 +7,7 @@ import { PlaybackService } from "./playbackService.js";
 
 @Controller("/playback")
 export class PlaybackController {
+
 	constructor(private readonly playbackService: PlaybackService) {}
 
 	@Get("/samples")

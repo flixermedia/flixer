@@ -4,6 +4,9 @@ import { Conflict, Forbidden, NotFound } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import { appConfig } from "../config/store/appConfig.js";
 import { PartiesService } from "../party/partiesService.js";
+import { ChatMember } from "../entities/chat.entity.js";
+import { ChatMlsDevice, ChatMlsKeyPackage } from "../entities/chatMls.entity.js";
+import { Setting } from "../entities/setting.entity.js";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 
 const CREDENTIAL_TTL_SECONDS = 6 * 60 * 60;
@@ -16,7 +19,7 @@ export interface PartyKeyPackage {
 	available: boolean;
 }
 
-export interface IceServer {
+interface IceServer {
 	urls: string[];
 	username?: string;
 	credential?: string;
@@ -41,6 +44,7 @@ export function derivedTurnSecret(appSecret: string): string {
  */
 @Injectable()
 export class CallService {
+
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly parties: PartiesService,
@@ -55,11 +59,8 @@ export class CallService {
 		if (!(await this.isEnabled())) {
 			throw new Forbidden("Calls are disabled on this server.");
 		}
-		const rows = (await this.dataSource.query(
-			`SELECT user_id FROM chat_members WHERE conversation_id = $1`,
-			[conversationId],
-		)) as Array<{ user_id: string }>;
-		const ids = rows.map((row) => row.user_id);
+		const rows = await this.dataSource.getRepository(ChatMember).find({ select: { userId: true }, where: { conversationId } });
+		const ids = rows.map((row) => row.userId);
 		if (!ids.includes(userId)) {
 			throw new NotFound("Conversation not found.");
 		}
@@ -69,13 +70,21 @@ export class CallService {
 	/** Key packages of the caller's and one peer's active devices, for starting an encrypted voice link inside a party. */
 	async partyKeyPackages(userId: string, partyId: string, peerId: string, lenient = false): Promise<PartyKeyPackage[]> {
 		await this.assertPartyMembers(partyId, [userId, peerId]);
-		const rows = (await this.dataSource.query(
-			`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
-			FROM chat_mls_devices d JOIN chat_mls_key_packages k ON k.device_id = d.id
-			WHERE d.status = 'active' AND d.user_id = ANY($1::uuid[])
-			ORDER BY d.user_id, d.created_at, k.created_at`,
-			[[userId, peerId]],
-		)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>;
+		const rows = await this.dataSource
+			.getRepository(ChatMlsDevice)
+			.createQueryBuilder("device")
+			.innerJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id")
+			.select("device.userId", "user_id")
+			.addSelect("device.id", "device_id")
+			.addSelect("keyPackage.id", "key_package_id")
+			.addSelect("keyPackage.keyPackage", "key_package")
+			.addSelect("keyPackage.usedAt IS NULL", "available")
+			.where("device.status = 'active'")
+			.andWhere("device.userId IN (:...userIds)", { userIds: [userId, peerId] })
+			.orderBy("device.userId", "ASC")
+			.addOrderBy("device.createdAt", "ASC")
+			.addOrderBy("keyPackage.createdAt", "ASC")
+			.getRawMany<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>();
 		const devices = new Map<string, boolean>();
 		for (const row of rows) {
 			devices.set(row.device_id, (devices.get(row.device_id) ?? false) || row.available);
@@ -94,26 +103,23 @@ export class CallService {
 	}
 
 	async claimPartyKeyPackage(userId: string, partyId: string, keyPackageId: string): Promise<PartyKeyPackage & { available: false }> {
-		const owner = (await this.dataSource.query(
-			`SELECT d.user_id FROM chat_mls_key_packages k JOIN chat_mls_devices d ON d.id = k.device_id WHERE k.id = $1`,
-			[keyPackageId],
-		)) as Array<{ user_id: string }>;
-		if (!owner[0]) {
+		const owner = await this.dataSource.getRepository(ChatMlsKeyPackage).createQueryBuilder("keyPackage").innerJoin(ChatMlsDevice, "device", "device.id = keyPackage.deviceId").select("device.userId", "user_id").addSelect("device.id", "device_id").addSelect("keyPackage.keyPackage", "key_package").where("keyPackage.id = :keyPackageId", { keyPackageId }).getRawOne<{ user_id: string; device_id: string; key_package: string }>();
+		if (!owner) {
 			throw new Conflict("That MLS key package was already used or is no longer available.");
 		}
-		await this.assertPartyMembers(partyId, [userId, owner[0].user_id]);
-		const rows = (await this.dataSource.query(
-			`UPDATE chat_mls_key_packages k SET used_at = now()
-			FROM chat_mls_devices d
-			WHERE k.id = $1 AND k.device_id = d.id AND d.status = 'active' AND k.used_at IS NULL
-			RETURNING d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package`,
-			[keyPackageId],
-		)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string }>;
-		const row = rows[0];
-		if (!row) {
+		await this.assertPartyMembers(partyId, [userId, owner.user_id]);
+		const result = await this.dataSource
+			.getRepository(ChatMlsKeyPackage)
+			.createQueryBuilder()
+			.update(ChatMlsKeyPackage)
+			.set({ usedAt: () => "now()" })
+			// RAW SQL: correlated active-device EXISTS predicate keeps the one-time claim atomic.
+			.where('"id" = :keyPackageId AND "device_id" = :deviceId AND "used_at" IS NULL AND EXISTS (SELECT 1 FROM "chat_mls_devices" AS d WHERE d."id" = "chat_mls_key_packages"."device_id" AND d."status" = \'active\')', { keyPackageId, deviceId: owner.device_id })
+			.execute();
+		if (!result.affected) {
 			throw new Conflict("That MLS key package was already used or is no longer available.");
 		}
-		return { userId: row.user_id, deviceId: row.device_id, keyPackageId: row.key_package_id, keyPackage: row.key_package, available: false };
+		return { userId: owner.user_id, deviceId: owner.device_id, keyPackageId, keyPackage: owner.key_package, available: false };
 	}
 
 	private async assertPartyMembers(partyId: string, userIds: string[]): Promise<void> {
@@ -174,9 +180,6 @@ export class CallService {
 	}
 
 	private async setting(key: string): Promise<unknown> {
-		const rows = (await this.dataSource.query(`SELECT value FROM settings WHERE key = $1`, [key])) as Array<{
-			value: unknown;
-		}>;
-		return rows[0]?.value;
+		return (await this.dataSource.getRepository(Setting).findOne({ where: { key } }))?.value;
 	}
 }

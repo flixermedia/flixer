@@ -1,6 +1,7 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreatePluginStorage1795000000000 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
 			CREATE TABLE "plugin_storage" (
@@ -14,9 +15,7 @@ export class CreatePluginStorage1795000000000 implements MigrationInterface {
 				CONSTRAINT "ck_plugin_storage_scope" CHECK ("scope" IN ('plugin', 'user'))
 			)
 		`);
-		await queryRunner.query(
-			`CREATE INDEX "idx_plugin_storage_plugin_owner" ON "plugin_storage" ("plugin_id", "scope", "owner_id")`,
-		);
+		await queryRunner.query(`CREATE INDEX "idx_plugin_storage_plugin_owner" ON "plugin_storage" ("plugin_id", "scope", "owner_id")`);
 	}
 
 	async down(queryRunner: QueryRunner): Promise<void> {

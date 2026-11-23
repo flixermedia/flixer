@@ -3,19 +3,7 @@
 	"$id": "https://flixer.dev/schemas/plugin-manifest-v1.json",
 	"type": "object",
 	"additionalProperties": false,
-	"required": [
-		"manifestVersion",
-		"id",
-		"name",
-		"version",
-		"description",
-		"author",
-		"license",
-		"compatibility",
-		"targets",
-		"capabilities",
-		"permissions"
-	],
+	"required": ["manifestVersion", "id", "name", "version", "description", "author", "license", "compatibility", "targets", "capabilities", "permissions"],
 	"properties": {
 		"manifestVersion": { "const": 1 },
 		"id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 128 },

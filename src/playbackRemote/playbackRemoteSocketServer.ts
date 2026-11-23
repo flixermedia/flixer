@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
+import { CLOSE_UNAUTHORIZED } from "../utils/socketCloseCodes.js";
 
 export const PLAYBACK_REMOTE_PATH = "/api/playback/remote";
 
@@ -13,15 +13,8 @@ const MAX_CLIENTS = 500;
 const MAX_MESSAGE_BYTES = 256 * 1_024;
 const MAX_BUFFERED_BYTES = 512 * 1_024;
 
-export type RemoteCommand =
-	| { action: "play" | "pause" }
-	| { action: "seek"; position: number }
-	| { action: "volume"; volume: number; muted: boolean }
-	| { action: "audio-track"; index: number }
-	| { action: "subtitle"; id: string }
-	| { action: "skip" }
-	| { action: "play-item"; item: RemoteCastItem };
-export interface RemoteAudioTrack {
+type RemoteCommand = { action: "play" | "pause" } | { action: "seek"; position: number } | { action: "volume"; volume: number; muted: boolean } | { action: "audio-track"; index: number } | { action: "subtitle"; id: string } | { action: "skip" } | { action: "play-item"; item: RemoteCastItem };
+interface RemoteAudioTrack {
 	id: string;
 	title: string;
 	artist: string | null;
@@ -30,16 +23,24 @@ export interface RemoteAudioTrack {
 	albumId: string | null;
 	art: { itemId: string; index: number; version?: string } | null;
 }
-export type RemoteCastItem =
-	| { kind: "video"; itemId: string; title: string; startAt?: number }
-	| { kind: "audio"; tracks: RemoteAudioTrack[]; startIndex: number };
-interface RemoteTrack { id: string; label: string }
-interface RemoteChapter { start: number; title: string }
-interface RemoteSegment { start: number; end: number; type: string }
+type RemoteCastItem = { kind: "video"; itemId: string; title: string; startAt?: number } | { kind: "audio"; tracks: RemoteAudioTrack[]; startIndex: number };
+interface RemoteTrack {
+	id: string;
+	label: string;
+}
+interface RemoteChapter {
+	start: number;
+	title: string;
+}
+interface RemoteSegment {
+	start: number;
+	end: number;
+	type: string;
+}
 interface RemoteTrickplay {
 	manifest: { intervalMs: number; thumbWidth: number; thumbHeight: number; columns: number; rows: number; count: number; sheets: number };
 }
-export interface RemotePlayerState {
+interface RemotePlayerState {
 	kind: "audio" | "video";
 	title: string;
 	subtitle?: string;
@@ -57,14 +58,14 @@ export interface RemotePlayerState {
 	segments?: RemoteSegment[];
 	trickplay?: RemoteTrickplay;
 }
-export interface RemoteDevice {
+interface RemoteDevice {
 	clientId: string;
 	deviceName: string;
 	player?: RemotePlayerState;
 	updatedAt: number;
 }
 
-export type PlaybackRemoteAuthenticator = (token: string) => Promise<string>;
+type PlaybackRemoteAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	token?: string;
@@ -77,6 +78,7 @@ interface Connection {
 }
 
 export class PlaybackRemoteSocketServer {
+
 	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 	private readonly connections = new Map<WebSocket, Connection>();
 	private server?: Server;
@@ -119,7 +121,9 @@ export class PlaybackRemoteSocketServer {
 		const authTimeout = setTimeout(() => {
 			if (!connection.userId) ws.close(CLOSE_UNAUTHORIZED, "Authentication timed out");
 		}, AUTH_TIMEOUT_MS);
-		ws.on("pong", () => { connection.alive = true; });
+		ws.on("pong", () => {
+			connection.alive = true;
+		});
 		ws.on("message", (raw) => void this.onMessage(ws, connection, raw));
 		ws.on("error", () => ws.terminate());
 		ws.on("close", () => {
@@ -220,7 +224,7 @@ export class PlaybackRemoteSocketServer {
 	private async revalidate(ws: WebSocket, connection: Connection): Promise<boolean> {
 		if (!connection.token || !connection.userId || ws.readyState !== WebSocket.OPEN) return false;
 		try {
-			if (await this.authenticate(connection.token) === connection.userId && ws.readyState === WebSocket.OPEN) return true;
+			if ((await this.authenticate(connection.token)) === connection.userId && ws.readyState === WebSocket.OPEN) return true;
 		} catch {}
 		ws.close(CLOSE_UNAUTHORIZED, "Session is no longer active");
 		return false;
@@ -242,7 +246,7 @@ export class PlaybackRemoteSocketServer {
 	}
 
 	private async revalidateClients(): Promise<void> {
-		await Promise.all([...this.connections].map(([ws, connection]) => connection.token ? this.revalidate(ws, connection) : Promise.resolve(false)));
+		await Promise.all([...this.connections].map(([ws, connection]) => (connection.token ? this.revalidate(ws, connection) : Promise.resolve(false))));
 	}
 
 	private send(ws: WebSocket, message: unknown): void {
@@ -270,12 +274,14 @@ interface ClientMessage {
 }
 
 function parseMessage(raw: RawData): ClientMessage | null {
+
 	try {
 		const message = JSON.parse(raw.toString()) as unknown;
-		return typeof message === "object" && message !== null ? message as ClientMessage : null;
+		return typeof message === "object" && message !== null ? (message as ClientMessage) : null;
 	} catch {
 		return null;
 	}
+
 }
 
 function isClientId(value: string): boolean {
@@ -283,22 +289,40 @@ function isClientId(value: string): boolean {
 }
 
 function isPlayerState(value: unknown): value is RemotePlayerState {
+
 	if (typeof value !== "object" || value === null) return false;
 	const state = value as Record<string, unknown>;
-	return (state.kind === "audio" || state.kind === "video") && typeof state.title === "string" && state.title.length > 0 && state.title.length <= 200 &&
-		(state.subtitle === undefined || typeof state.subtitle === "string" && state.subtitle.length <= 200) &&
-		(state.itemId === undefined || typeof state.itemId === "string" && state.itemId.length <= 128) &&
-		typeof state.playing === "boolean" && typeof state.position === "number" && Number.isFinite(state.position) && state.position >= 0 && state.position <= 86_400 &&
-		typeof state.duration === "number" && Number.isFinite(state.duration) && state.duration >= 0 && state.duration <= 86_400 &&
-		(state.volume === undefined || typeof state.volume === "number" && Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1) &&
+	return (
+		(state.kind === "audio" || state.kind === "video") &&
+		typeof state.title === "string" &&
+		state.title.length > 0 &&
+		state.title.length <= 200 &&
+		(state.subtitle === undefined || (typeof state.subtitle === "string" && state.subtitle.length <= 200)) &&
+		(state.itemId === undefined || (typeof state.itemId === "string" && state.itemId.length <= 128)) &&
+		typeof state.playing === "boolean" &&
+		typeof state.position === "number" &&
+		Number.isFinite(state.position) &&
+		state.position >= 0 &&
+		state.position <= 86_400 &&
+		typeof state.duration === "number" &&
+		Number.isFinite(state.duration) &&
+		state.duration >= 0 &&
+		state.duration <= 86_400 &&
+		(state.volume === undefined || (typeof state.volume === "number" && Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1)) &&
 		(state.muted === undefined || typeof state.muted === "boolean") &&
-		(state.audioTrackIndex === undefined || state.audioTrackIndex === null || Number.isInteger(state.audioTrackIndex) && state.audioTrackIndex >= 0 && state.audioTrackIndex < 32) &&
-		isTracks(state.audioTracks) && isTracks(state.subtitles) &&
-		(state.subtitleId === undefined || typeof state.subtitleId === "string" && state.subtitleId.length <= 128) &&
-		isChapters(state.chapters) && isSegments(state.segments) && isTrickplay(state.trickplay);
+		(state.audioTrackIndex === undefined || state.audioTrackIndex === null || (Number.isInteger(state.audioTrackIndex) && (state.audioTrackIndex as number) >= 0 && (state.audioTrackIndex as number) < 32)) &&
+		isTracks(state.audioTracks) &&
+		isTracks(state.subtitles) &&
+		(state.subtitleId === undefined || (typeof state.subtitleId === "string" && state.subtitleId.length <= 128)) &&
+		isChapters(state.chapters) &&
+		isSegments(state.segments) &&
+		isTrickplay(state.trickplay)
+	);
+
 }
 
 function parseCommand(value: unknown): RemoteCommand | null {
+
 	if (typeof value !== "object" || value === null) return null;
 	const command = value as Record<string, unknown>;
 	if (command.action === "play" || command.action === "pause") return { action: command.action };
@@ -314,47 +338,49 @@ function parseCommand(value: unknown): RemoteCommand | null {
 		if (item) return { action: "play-item", item };
 	}
 	return null;
+
 }
 
 function parseCastItem(value: unknown): RemoteCastItem | null {
+
 	if (typeof value !== "object" || value === null) return null;
 	const item = value as Record<string, unknown>;
-	if (item.kind === "video" && typeof item.itemId === "string" && item.itemId.length <= 128 && typeof item.title === "string" && item.title.length > 0 && item.title.length <= 200 && (item.startAt === undefined || typeof item.startAt === "number" && Number.isFinite(item.startAt) && item.startAt >= 0 && item.startAt <= 86_400)) {
+	if (item.kind === "video" && typeof item.itemId === "string" && item.itemId.length <= 128 && typeof item.title === "string" && item.title.length > 0 && item.title.length <= 200 && (item.startAt === undefined || (typeof item.startAt === "number" && Number.isFinite(item.startAt) && item.startAt >= 0 && item.startAt <= 86_400))) {
 		return { kind: "video", itemId: item.itemId, title: item.title, ...(typeof item.startAt === "number" ? { startAt: item.startAt } : {}) };
 	}
 	if (item.kind !== "audio" || !Array.isArray(item.tracks) || item.tracks.length === 0 || item.tracks.length > 200 || typeof item.startIndex !== "number" || !Number.isInteger(item.startIndex) || item.startIndex < 0 || item.startIndex >= item.tracks.length) return null;
 	const tracks = item.tracks;
-	if (!tracks.every((entry) => {
-		if (typeof entry !== "object" || entry === null) return false;
-		const track = entry as Record<string, unknown>;
-		return typeof track.id === "string" && track.id.length <= 128 && typeof track.title === "string" && track.title.length > 0 && track.title.length <= 200 &&
-			(track.artist === null || typeof track.artist === "string" && track.artist.length <= 200) &&
-			(track.artistId === null || typeof track.artistId === "string" && track.artistId.length <= 128) &&
-			(track.album === null || typeof track.album === "string" && track.album.length <= 200) &&
-			(track.albumId === null || typeof track.albumId === "string" && track.albumId.length <= 128) &&
-			(track.art === null || typeof track.art === "object" && track.art !== null && typeof (track.art as Record<string, unknown>).itemId === "string" && typeof (track.art as Record<string, unknown>).index === "number");
-	})) return null;
+	if (
+		!tracks.every((entry) => {
+			if (typeof entry !== "object" || entry === null) return false;
+			const track = entry as Record<string, unknown>;
+			return typeof track.id === "string" && track.id.length <= 128 && typeof track.title === "string" && track.title.length > 0 && track.title.length <= 200 && (track.artist === null || (typeof track.artist === "string" && track.artist.length <= 200)) && (track.artistId === null || (typeof track.artistId === "string" && track.artistId.length <= 128)) && (track.album === null || (typeof track.album === "string" && track.album.length <= 200)) && (track.albumId === null || (typeof track.albumId === "string" && track.albumId.length <= 128)) && (track.art === null || (typeof track.art === "object" && track.art !== null && typeof (track.art as Record<string, unknown>).itemId === "string" && typeof (track.art as Record<string, unknown>).index === "number"));
+		})
+	)
+		return null;
 	return { kind: "audio", tracks: tracks as RemoteAudioTrack[], startIndex: item.startIndex };
+
 }
 
 function isTracks(value: unknown): value is RemoteTrack[] | undefined {
-	return value === undefined || Array.isArray(value) && value.length <= 32 && value.every((track) => typeof track?.id === "string" && track.id.length <= 128 && typeof track.label === "string" && track.label.length <= 120);
+	return value === undefined || (Array.isArray(value) && value.length <= 32 && value.every((track) => typeof track?.id === "string" && track.id.length <= 128 && typeof track.label === "string" && track.label.length <= 120));
 }
 
 function isChapters(value: unknown): value is RemoteChapter[] | undefined {
-	return value === undefined || Array.isArray(value) && value.length <= 100 && value.every((chapter) => Number.isFinite(chapter?.start) && chapter.start >= 0 && chapter.start <= 86_400 && typeof chapter.title === "string" && chapter.title.length <= 120);
+	return value === undefined || (Array.isArray(value) && value.length <= 100 && value.every((chapter) => Number.isFinite(chapter?.start) && chapter.start >= 0 && chapter.start <= 86_400 && typeof chapter.title === "string" && chapter.title.length <= 120));
 }
 
 function isSegments(value: unknown): value is RemoteSegment[] | undefined {
-	return value === undefined || Array.isArray(value) && value.length <= 100 && value.every((segment) => Number.isFinite(segment?.start) && segment.start >= 0 && Number.isFinite(segment.end) && segment.end > segment.start && segment.end <= 86_400 && typeof segment.type === "string" && segment.type.length <= 32);
+	return value === undefined || (Array.isArray(value) && value.length <= 100 && value.every((segment) => Number.isFinite(segment?.start) && segment.start >= 0 && Number.isFinite(segment.end) && segment.end > segment.start && segment.end <= 86_400 && typeof segment.type === "string" && segment.type.length <= 32));
 }
 
 function isTrickplay(value: unknown): value is RemoteTrickplay | undefined {
+
 	if (value === undefined) return true;
 	if (typeof value !== "object" || value === null) return false;
 	const trickplay = value as Record<string, unknown>;
 	if (typeof trickplay.manifest !== "object" || trickplay.manifest === null) return false;
 	const manifest = trickplay.manifest as Record<string, unknown>;
-	return ["intervalMs", "thumbWidth", "thumbHeight", "columns", "rows", "count", "sheets"].every((key) => typeof manifest[key] === "number" && Number.isFinite(manifest[key]) && manifest[key] > 0) &&
-		Number(manifest.sheets) <= 1_000 && Number(manifest.count) <= 100_000;
+	return ["intervalMs", "thumbWidth", "thumbHeight", "columns", "rows", "count", "sheets"].every((key) => typeof manifest[key] === "number" && Number.isFinite(manifest[key]) && manifest[key] > 0) && Number(manifest.sheets) <= 1_000 && Number(manifest.count) <= 100_000;
+
 }

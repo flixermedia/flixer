@@ -3,6 +3,7 @@ import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.e
 import { MediaLibraryFolderRequest } from "../mediaLibraries/mediaLibraryRequests.js";
 
 export class ScanLibraryRequest {
+
 	/** Re-reads every item instead of only what changed on disk. */
 	@Property()
 	force?: boolean;
@@ -23,6 +24,7 @@ export class ScanLibraryRequest {
 }
 
 export class LibrarySegmentScanRequest {
+
 	@Property()
 	@Required()
 	@Enum("movie", "episode")
@@ -30,6 +32,7 @@ export class LibrarySegmentScanRequest {
 }
 
 export class RefreshItemRequest {
+
 	@Property()
 	@Required()
 	@MaxLength(64)

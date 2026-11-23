@@ -1,17 +1,25 @@
 import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, Conflict, Forbidden, NotFound, TooManyRequests } from "@tsed/exceptions";
 import { createPublicKey, randomUUID, verify } from "node:crypto";
-import { DataSource, EntityManager } from "typeorm";
+import { DataSource, EntityManager, In, IsNull, Not } from "typeorm";
+import { ChatMember as ChatMemberEntity, ChatMessage as ChatMessageEntity } from "../entities/chat.entity.js";
+import { ChatConversation as ChatConversationEntity } from "../entities/chatConversation.entity.js";
+import { ChatMlsDevice, ChatMlsHistoryBackup, ChatMlsKeyPackage, ChatMlsWelcome } from "../entities/chatMls.entity.js";
+import { IssueReport } from "../entities/issueReport.entity.js";
+import { Notification } from "../entities/notification.entity.js";
+import { Setting } from "../entities/setting.entity.js";
+import { User } from "../entities/user.entity.js";
+import { UserPreference } from "../entities/userPreference.entity.js";
 import { DefaultDataSource } from "../datasources/defaultDataSource.datasource.js";
 import { NotificationService } from "../api/notifications/notificationService.js";
 
 export const MAX_MESSAGE_LENGTH = 2000;
-export const MAX_ENCRYPTED_MESSAGE_LENGTH = 32768;
+const MAX_ENCRYPTED_MESSAGE_LENGTH = 32768;
 const MAX_MLS_PAYLOAD_LENGTH = 32768;
 const MAX_MLS_HISTORY_BACKUP_LENGTH = 29_000_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-export const MAX_GROUP_MEMBERS = 50;
-export const MAX_GROUP_NAME = 60;
+const MAX_GROUP_MEMBERS = 50;
+const MAX_GROUP_NAME = 60;
 const PAGE_SIZE = 50;
 const RATE_WINDOW_MS = 10_000;
 const RATE_LIMIT = 10;
@@ -80,27 +88,21 @@ export function cleanMessage(text: unknown): string {
 }
 
 function cleanEncryptedMessage(value: unknown): string {
-	if (
-		typeof value !== "string" ||
-		value.length === 0 ||
-		value.length > MAX_ENCRYPTED_MESSAGE_LENGTH ||
-		!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
-	) {
+
+	if (typeof value !== "string" || value.length === 0 || value.length > MAX_ENCRYPTED_MESSAGE_LENGTH || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
 		throw new BadRequest(`Encrypted messages must be valid base64 up to ${MAX_ENCRYPTED_MESSAGE_LENGTH} characters.`);
 	}
 	return value;
+
 }
 
 function cleanMlsPayload(value: unknown, label: string): string {
-	if (
-		typeof value !== "string" ||
-		value.length === 0 ||
-		value.length > MAX_MLS_PAYLOAD_LENGTH ||
-		!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
-	) {
+
+	if (typeof value !== "string" || value.length === 0 || value.length > MAX_MLS_PAYLOAD_LENGTH || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
 		throw new BadRequest(`${label} must be valid base64 up to ${MAX_MLS_PAYLOAD_LENGTH} characters.`);
 	}
 	return value;
+
 }
 
 export function cleanName(text: unknown): string {
@@ -152,9 +154,6 @@ const messageOf = (row: MessageRow): ChatMessage => ({
 	createdAt: row.created_at.toISOString(),
 });
 
-const MESSAGE_SELECT = `SELECT m.id, m.sequence, m.conversation_id, m.kind, m.encrypted, m.body, m.created_at, u.username, u.display_name, up.avatar_file
-	FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id`;
-
 /** Direct messages and group chats between the people on this server. */
 export type ChatEvent = { type: "message"; conversationId: string; message: ChatMessage } | { type: "changed"; conversationId: string };
 
@@ -189,8 +188,12 @@ export class ChatService {
 	}
 
 	private async memberIds(id: string): Promise<string[]> {
-		const rows = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [id])) as Array<{ user_id: string }>;
-		return rows.map((row) => row.user_id);
+		const rows = await this.dataSource.getRepository(ChatMemberEntity).find({ select: { userId: true }, where: { conversationId: id } });
+		return rows.map((row) => row.userId);
+	}
+
+	private messageQuery() {
+		return this.dataSource.getRepository(ChatMessageEntity).createQueryBuilder("m").leftJoin(User, "u", "u.id = m.userId").leftJoin(UserPreference, "up", "up.userId = u.id").select("m.id", "id").addSelect("m.sequence", "sequence").addSelect("m.conversationId", "conversation_id").addSelect("m.kind", "kind").addSelect("m.encrypted", "encrypted").addSelect("m.body", "body").addSelect("m.createdAt", "created_at").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file");
 	}
 
 	/** Tells members (plus anyone just removed) to refresh a conversation. */
@@ -200,13 +203,11 @@ export class ChatService {
 	}
 
 	private async defaultEncryptionMode(manager: EntityManager): Promise<"encrypted" | "plaintext"> {
-		const rows = (await manager.query(`SELECT value FROM settings WHERE key = $1 FOR SHARE`, ["chat_e2ee_enabled"])) as Array<{
-			value: unknown;
-		}>;
-		if (!rows[0] || typeof rows[0].value !== "boolean") {
+		const setting = await manager.findOne(Setting, { select: { value: true }, where: { key: "chat_e2ee_enabled" }, lock: { mode: "pessimistic_read" } });
+		if (!setting || typeof setting.value !== "boolean") {
 			throw new Error("The chat_e2ee_enabled setting is missing or invalid.");
 		}
-		return rows[0].value ? "encrypted" : "plaintext";
+		return setting.value ? "encrypted" : "plaintext";
 	}
 
 	async supportChatChanged(id: string): Promise<void> {
@@ -225,47 +226,26 @@ export class ChatService {
 		return this.conversation(userId, id);
 	}
 
-	private async setEncryptionMode(
-		userId: string,
-		id: string,
-		encryptionMode: "encrypted" | "plaintext",
-	): Promise<boolean> {
+	private async setEncryptionMode(userId: string, id: string, encryptionMode: "encrypted" | "plaintext"): Promise<boolean> {
 		return this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`SELECT c.encryption_mode${encryptionMode === "plaintext" ? ", s.value AS downgrade_enabled" : ""}
-				FROM chat_conversations c
-				JOIN chat_members m ON m.conversation_id = c.id AND m.user_id = $2
-				${encryptionMode === "plaintext" ? "JOIN settings s ON s.key = 'chat_user_downgrade_enabled'" : ""}
-				WHERE c.id = $1
-				FOR UPDATE OF c, m${encryptionMode === "plaintext" ? "\n\t\t\t\tFOR SHARE OF s" : ""}`,
-				[id, userId],
-			)) as Array<{ encryption_mode: "encrypted" | "plaintext"; downgrade_enabled?: unknown }>;
-			const conversation = rows[0];
+			const conversation = await manager.createQueryBuilder(ChatConversationEntity, "conversation").innerJoin(ChatMemberEntity, "member", "member.conversationId = conversation.id AND member.userId = :userId", { userId }).select(["conversation.id", "conversation.encryptionMode"]).where("conversation.id = :id", { id }).setLock("pessimistic_write", undefined, ["conversation", "member"]).getOne();
 			if (!conversation) throw new NotFound("Conversation not found.");
-			if (encryptionMode === "plaintext" && conversation.downgrade_enabled !== true) {
-				throw new Forbidden("Your server administrator has not enabled plaintext chat switching.");
+			if (encryptionMode === "plaintext") {
+				const setting = await manager.findOne(Setting, { select: { value: true }, where: { key: "chat_user_downgrade_enabled" }, lock: { mode: "pessimistic_read" } });
+				if (!setting) throw new NotFound("Conversation not found.");
+				if (setting.value !== true) throw new Forbidden("Your server administrator has not enabled plaintext chat switching.");
 			}
-			if (conversation.encryption_mode === encryptionMode) return false;
-			await manager.query(`UPDATE chat_conversations SET encryption_mode = $2 WHERE id = $1`, [id, encryptionMode]);
-			const notice = encryptionMode === "plaintext"
-				? "Switched this conversation to plaintext. Future messages are readable by the server."
-				: "Switched this conversation to end-to-end encryption. Earlier plaintext messages remain readable by the server.";
-			await manager.query(
-				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted)
-				VALUES ($1, $2, $3, 'system', $4, false)`,
-				[randomUUID(), id, userId, notice],
-			);
-			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [id]);
+			if (conversation.encryptionMode === encryptionMode) return false;
+			await manager.getRepository(ChatConversationEntity).update({ id }, { encryptionMode });
+			const notice = encryptionMode === "plaintext" ? "Switched this conversation to plaintext. Future messages are readable by the server." : "Switched this conversation to end-to-end encryption. Earlier plaintext messages remain readable by the server.";
+			await manager.getRepository(ChatMessageEntity).insert({ id: randomUUID(), conversationId: id, userId, kind: "system", body: notice, encrypted: false });
+			await manager.getRepository(ChatConversationEntity).update({ id }, { lastMessageAt: () => "now()" });
 			return true;
 		});
 	}
 
 	async conversations(userId: string): Promise<{ conversations: ChatConversation[]; unread: number }> {
-		const ids = (await this.dataSource.query(
-			`SELECT c.id FROM chat_conversations c JOIN chat_members m ON m.conversation_id = c.id
-			WHERE m.user_id = $1 ORDER BY c.last_message_at DESC LIMIT 200`,
-			[userId],
-		)) as Array<{ id: string }>;
+		const ids = await this.dataSource.getRepository(ChatConversationEntity).createQueryBuilder("conversation").innerJoin(ChatMemberEntity, "member", "member.conversationId = conversation.id").select("conversation.id", "id").where("member.userId = :userId", { userId }).orderBy("conversation.lastMessageAt", "DESC").take(200).getRawMany<{ id: string }>();
 		const conversations = await this.summaries(
 			userId,
 			ids.map((row) => row.id),
@@ -278,13 +258,7 @@ export class ChatService {
 		return (await this.summaries(userId, [id]))[0];
 	}
 
-	async registerMlsDevice(
-		userId: string,
-		deviceId: string,
-		name: unknown,
-		keyPackage: unknown,
-		pairingPublicKey: unknown,
-	): Promise<{ deviceId: string; keyPackageId: string; status: "active" | "pending"; approvalChallenge: string | null }> {
+	async registerMlsDevice(userId: string, deviceId: string, name: unknown, keyPackage: unknown, pairingPublicKey: unknown): Promise<{ deviceId: string; keyPackageId: string; status: "active" | "pending"; approvalChallenge: string | null }> {
 		const label = typeof name === "string" ? name.trim().replace(/\s+/g, " ") : "";
 		if (!label || label.length > 80) throw new BadRequest("Device names are 1 to 80 characters.");
 		const serializedKeyPackage = cleanMlsPayload(keyPackage, "The MLS key package");
@@ -298,106 +272,72 @@ export class ChatService {
 		}
 
 		return this.dataSource.transaction(async (manager) => {
-			await manager.query(`SELECT id FROM users WHERE id = $1 FOR UPDATE`, [userId]);
-			const existing = (await manager.query(
-				`SELECT user_id, status, pairing_public_key, approval_challenge FROM chat_mls_devices WHERE id = $1 FOR UPDATE`,
-				[deviceId],
-			)) as Array<{ user_id: string; status: string; pairing_public_key: string; approval_challenge: string | null }>;
-			if (existing[0] && existing[0].user_id !== userId) {
+			await manager.createQueryBuilder(User, "user").select("user.id").where("user.id = :userId", { userId }).setLock("pessimistic_write").getRawOne();
+			const existing = await manager.getRepository(ChatMlsDevice).createQueryBuilder("device").select("device.userId", "user_id").addSelect("device.status", "status").addSelect("device.pairingPublicKey", "pairing_public_key").addSelect("device.approvalChallenge", "approval_challenge").where("device.id = :deviceId", { deviceId }).setLock("pessimistic_write").getRawOne<{ user_id: string; status: string; pairing_public_key: string | null; approval_challenge: string | null }>();
+			if (existing && existing.user_id !== userId) {
 				throw new Conflict("That chat device is already registered to another account.");
 			}
-			if (existing[0]?.status === "revoked") {
+			if (existing?.status === "revoked") {
 				throw new Conflict("That chat device has been revoked.");
 			}
-			if (existing[0]?.pairing_public_key && existing[0].pairing_public_key !== pairingPublicKey) {
+			if (existing?.pairing_public_key && existing.pairing_public_key !== pairingPublicKey) {
 				throw new Conflict("That chat device is already registered with a different pairing key.");
 			}
 
 			const status = "active";
-			if (existing[0]) {
-				await manager.query(
-					`UPDATE chat_mls_devices SET name = $2, status = 'active', approval_challenge = NULL, approved_at = COALESCE(approved_at, now()), pairing_public_key = COALESCE(pairing_public_key, $3) WHERE id = $1`,
-					[deviceId, label, pairingPublicKey],
-				);
+			if (existing) {
+				await manager.update(ChatMlsDevice, { id: deviceId }, { name: label, status, approvalChallenge: null, approvedAt: () => 'COALESCE("approved_at", now())', pairingPublicKey });
 			} else {
 				const approvalChallenge = null;
-				await manager.query(
-					`INSERT INTO chat_mls_devices (id, user_id, name, status, pairing_public_key, approval_challenge, approved_at)
-					VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7::boolean THEN now() ELSE NULL END)`,
-					[deviceId, userId, label, status, pairingPublicKey, approvalChallenge, status === "active"],
-				);
+				await manager.insert(ChatMlsDevice, { id: deviceId, userId, name: label, status, pairingPublicKey, approvalChallenge, approvedAt: () => "now()" });
 			}
-			const existingPackage = (await manager.query(
-				`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`,
-				[deviceId, serializedKeyPackage],
-			)) as Array<{ id: string }>;
-			const keyPackageId = existingPackage[0]?.id ?? randomUUID();
-			if (!existingPackage[0]) {
-				await manager.query(
-					`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`,
-					[keyPackageId, deviceId, serializedKeyPackage],
-				);
+			const packages = manager.getRepository(ChatMlsKeyPackage);
+			const existingPackage = await packages.findOne({ select: { id: true }, where: { deviceId, keyPackage: serializedKeyPackage }, order: { createdAt: "DESC" } });
+			const keyPackageId = existingPackage?.id ?? randomUUID();
+			if (!existingPackage) {
+				await packages.insert({ id: keyPackageId, deviceId, keyPackage: serializedKeyPackage });
 			}
 			return { deviceId, keyPackageId, status, approvalChallenge: null };
 		});
 	}
 
 	async listMlsDevices(userId: string): Promise<ChatMlsDeviceSummary[]> {
-		const rows = (await this.dataSource.query(
-			`SELECT id, name, status, created_at, approved_at, approval_challenge
-			FROM chat_mls_devices WHERE user_id = $1 ORDER BY created_at`,
-			[userId],
-		)) as Array<{ id: string; name: string; status: ChatMlsDeviceSummary["status"]; created_at: Date; approved_at: Date | null; approval_challenge: string | null }>;
+		const rows = await this.dataSource.getRepository(ChatMlsDevice).find({
+			select: { id: true, name: true, status: true, createdAt: true, approvedAt: true, approvalChallenge: true },
+			where: { userId },
+			order: { createdAt: "ASC" },
+		});
 		return rows.map((row) => ({
 			deviceId: row.id,
 			name: row.name,
-			status: row.status,
-			createdAt: row.created_at.toISOString(),
-			approvedAt: row.approved_at?.toISOString() ?? null,
-			approvalChallenge: row.approval_challenge,
+			status: row.status as ChatMlsDeviceSummary["status"],
+			createdAt: row.createdAt.toISOString(),
+			approvedAt: row.approvedAt?.toISOString() ?? null,
+			approvalChallenge: row.approvalChallenge,
 		}));
 	}
 
 	async chatHistoryBackup(userId: string): Promise<string | null> {
-		const rows = (await this.dataSource.query(
-			`SELECT backup FROM chat_mls_history_backups WHERE user_id = $1`,
-			[userId],
-		)) as Array<{ backup: string }>;
-		return rows[0]?.backup ?? null;
+		const row = await this.dataSource.getRepository(ChatMlsHistoryBackup).findOne({ select: { backup: true }, where: { userId } });
+		return row?.backup ?? null;
 	}
 
 	async saveChatHistoryBackup(userId: string, backup: unknown): Promise<void> {
 		if (typeof backup !== "string" || backup.length === 0 || backup.length > MAX_MLS_HISTORY_BACKUP_LENGTH) {
 			throw new BadRequest("The encrypted chat history backup is invalid or too large.");
 		}
-		await this.dataSource.query(
-			`INSERT INTO chat_mls_history_backups (user_id, backup)
-			VALUES ($1, $2)
-			ON CONFLICT (user_id) DO UPDATE SET backup = EXCLUDED.backup, updated_at = now()`,
-			[userId, backup],
-		);
+		await this.dataSource.getRepository(ChatMlsHistoryBackup).upsert({ userId, backup, updatedAt: () => "now()" }, ["userId"]);
 	}
 
 	async revokeMlsDevice(userId: string, deviceId: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`UPDATE chat_mls_devices SET status = 'revoked', revoked_at = now()
-				WHERE id = $1 AND user_id = $2 AND status <> 'revoked'
-				RETURNING id`,
-				[deviceId, userId],
-			)) as Array<{ id: string }>;
-			if (!rows.length) {
-				const existing = (await manager.query(
-					`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2`,
-					[deviceId, userId],
-				)) as Array<{ id: string }>;
-				if (!existing.length) throw new NotFound("Chat device not found.");
+			const result = await manager.update(ChatMlsDevice, { id: deviceId, userId, status: Not("revoked") }, { status: "revoked", revokedAt: () => "now()" });
+			if (!result.affected) {
+				const existing = await manager.getRepository(ChatMlsDevice).exists({ where: { id: deviceId, userId } });
+				if (!existing) throw new NotFound("Chat device not found.");
 				return;
 			}
-			await manager.query(
-				`UPDATE chat_mls_key_packages SET used_at = COALESCE(used_at, now()) WHERE device_id = $1`,
-				[deviceId],
-			);
+			await manager.update(ChatMlsKeyPackage, { deviceId }, { usedAt: () => 'COALESCE("used_at", now())' });
 		});
 	}
 
@@ -406,115 +346,65 @@ export class ChatService {
 			throw new BadRequest("The device approval signature is invalid.");
 		}
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`SELECT target.approval_challenge, approver.pairing_public_key
-				FROM chat_mls_devices target
-				JOIN chat_mls_devices approver ON approver.user_id = target.user_id
-				WHERE target.id = $1 AND target.user_id = $2 AND target.status = 'pending'
-				AND approver.id = $3 AND approver.status = 'active'
-				FOR UPDATE OF target`,
-				[targetDeviceId, userId, approverDeviceId],
-			)) as Array<{ approval_challenge: string | null; pairing_public_key: string }>;
-			const target = rows[0];
+			const target = await manager.getRepository(ChatMlsDevice).createQueryBuilder("target").innerJoin(ChatMlsDevice, "approver", "approver.userId = target.userId").select("target.approvalChallenge", "approval_challenge").addSelect("approver.pairingPublicKey", "pairing_public_key").where("target.id = :targetDeviceId AND target.userId = :userId AND target.status = 'pending'", { targetDeviceId, userId }).andWhere("approver.id = :approverDeviceId AND approver.status = 'active'", { approverDeviceId }).setLock("pessimistic_write", undefined, ["target"]).getRawOne<{ approval_challenge: string | null; pairing_public_key: string }>();
 			if (!target?.approval_challenge) throw new NotFound("That pending chat device was not found.");
 			const payload = Buffer.from(`flixer-chat-device-approval:v1:${targetDeviceId}:${target.approval_challenge}`);
 			let valid = false;
 			try {
-				valid = verify(
-					"sha256",
-					payload,
-					{ key: Buffer.from(target.pairing_public_key, "base64"), format: "der", type: "spki", dsaEncoding: "ieee-p1363" },
-					Buffer.from(signature, "base64"),
-				);
+				valid = verify("sha256", payload, { key: Buffer.from(target.pairing_public_key, "base64"), format: "der", type: "spki", dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64"));
 			} catch {
 				throw new BadRequest("The device approval signature could not be verified.");
 			}
 			if (!valid) throw new Forbidden("Approval must be signed by a trusted device on this account.");
-			await manager.query(
-				`UPDATE chat_mls_devices SET status = 'active', approved_at = now(), approval_challenge = NULL WHERE id = $1`,
-				[targetDeviceId],
-			);
+			await manager.getRepository(ChatMlsDevice).update({ id: targetDeviceId }, { status: "active", approvedAt: () => "now()", approvalChallenge: null });
 		});
 	}
 
 	async addMlsKeyPackage(userId: string, deviceId: string, keyPackage: unknown): Promise<{ keyPackageId: string }> {
 		const serializedKeyPackage = cleanMlsPayload(keyPackage, "The MLS key package");
-		const device = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-			[deviceId, userId],
-		)) as Array<{ id: string }>;
-		if (!device[0]) throw new NotFound("Active chat device not found.");
-		const duplicate = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_key_packages WHERE device_id = $1 AND key_package = $2 ORDER BY created_at DESC LIMIT 1`,
-			[deviceId, serializedKeyPackage],
-		)) as Array<{ id: string }>;
-		if (duplicate[0]) return { keyPackageId: duplicate[0].id };
+		if (!(await this.dataSource.getRepository(ChatMlsDevice).exists({ where: { id: deviceId, userId, status: "active" } }))) throw new NotFound("Active chat device not found.");
+		const packages = this.dataSource.getRepository(ChatMlsKeyPackage);
+		const duplicate = await packages.findOne({ select: { id: true }, where: { deviceId, keyPackage: serializedKeyPackage }, order: { createdAt: "DESC" } });
+		if (duplicate) return { keyPackageId: duplicate.id };
 		const keyPackageId = randomUUID();
-		await this.dataSource.query(
-			`INSERT INTO chat_mls_key_packages (id, device_id, key_package) VALUES ($1, $2, $3)`,
-			[keyPackageId, deviceId, serializedKeyPackage],
-		);
+		await packages.insert({ id: keyPackageId, deviceId, keyPackage: serializedKeyPackage });
 		return { keyPackageId };
 	}
 
-	async deviceMlsKeyPackages(
-		userId: string,
-		deviceId: string,
-	): Promise<Array<{ keyPackageId: string; keyPackage: string; available: boolean }>> {
-		const rows = (await this.dataSource.query(
-			`SELECT k.id, k.key_package, (k.used_at IS NULL) AS available
-			FROM chat_mls_devices d JOIN chat_mls_key_packages k ON k.device_id = d.id
-			WHERE d.id = $1 AND d.user_id = $2 AND d.status = 'active'
-			ORDER BY k.created_at`,
-			[deviceId, userId],
-		)) as Array<{ id: string; key_package: string; available: boolean }>;
+	async deviceMlsKeyPackages(userId: string, deviceId: string): Promise<Array<{ keyPackageId: string; keyPackage: string; available: boolean }>> {
+		const rows = await this.dataSource.getRepository(ChatMlsDevice).createQueryBuilder("device").innerJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id").select("keyPackage.id", "id").addSelect("keyPackage.keyPackage", "key_package").addSelect("keyPackage.usedAt IS NULL", "available").where("device.id = :deviceId AND device.userId = :userId AND device.status = 'active'", { deviceId, userId }).orderBy("keyPackage.createdAt", "ASC").getRawMany<{ id: string; key_package: string; available: boolean }>();
 		if (!rows.length) {
-			const device = (await this.dataSource.query(
-				`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-				[deviceId, userId],
-			)) as Array<{ id: string }>;
-			if (!device[0]) throw new NotFound("Active chat device not found.");
+			if (!(await this.dataSource.getRepository(ChatMlsDevice).exists({ where: { id: deviceId, userId, status: "active" } }))) throw new NotFound("Active chat device not found.");
 		}
 		return rows.map((row) => ({ keyPackageId: row.id, keyPackage: row.key_package, available: row.available }));
 	}
 
-	async conversationMlsKeyPackages(
-		userId: string,
-		conversationId: string,
-		lenient = false,
-	): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
+	async conversationMlsKeyPackages(userId: string, conversationId: string, lenient = false): Promise<Array<{ userId: string; deviceId: string; keyPackageId: string; keyPackage: string; available: boolean }>> {
 		const member = await this.assertMember(userId, conversationId);
 		if (member.kind === "group") {
-			const support = (await this.dataSource.query(
-				`SELECT user_id FROM issue_reports WHERE conversation_id = $1`,
-				[conversationId],
-			)) as Array<{ user_id: string }>;
-			if (support[0]) await this.ensureSupportRequester(conversationId, support[0].user_id);
+			const support = await this.dataSource.getRepository(IssueReport).find({ select: { userId: true }, where: { conversationId } });
+			if (support[0]) await this.ensureSupportRequester(conversationId, support[0].userId);
 		}
 		// Joiners only need the identity directory, so they skip the "everyone has a spare key package" check.
-		const unready = lenient ? [] : (await this.dataSource.query(
-			`SELECT m.user_id
-			FROM chat_members m
-			LEFT JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
-			LEFT JOIN chat_mls_key_packages k ON k.device_id = d.id AND k.used_at IS NULL
-			WHERE m.conversation_id = $1
-			GROUP BY m.user_id
-			HAVING count(DISTINCT d.id) = 0
-				OR count(DISTINCT d.id) FILTER (WHERE k.id IS NOT NULL) < count(DISTINCT d.id)`,
-			[conversationId],
-		)) as Array<{ user_id: string }>;
-		if (unready.length > 0) {
+		const readiness = lenient
+			? []
+			: await this.dataSource
+					.getRepository(ChatMemberEntity)
+					.createQueryBuilder("member")
+					.leftJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'")
+					.leftJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id AND keyPackage.usedAt IS NULL")
+					.select("member.userId", "user_id")
+					.addSelect("COUNT(DISTINCT device.id)::int", "device_count")
+					// RAW SQL: PostgreSQL FILTER counts devices with at least one unused package.
+					.addSelect("COUNT(DISTINCT device.id) FILTER (WHERE keyPackage.id IS NOT NULL)::int", "ready_count")
+					.where("member.conversationId = :conversationId", { conversationId })
+					.groupBy("member.userId")
+					.getRawMany<{ user_id: string; device_count: number; ready_count: number }>();
+		if (readiness.some((row) => row.device_count === 0 || row.ready_count < row.device_count)) {
 			throw new Conflict("Every active chat device needs an unused MLS key package. Ask each member to open Flixer and try again.");
 		}
-		return (await this.dataSource.query(
-			`SELECT d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package, (k.used_at IS NULL) AS available
-			FROM chat_members m
-			JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
-			JOIN chat_mls_key_packages k ON k.device_id = d.id
-			WHERE m.conversation_id = $1
-			ORDER BY d.user_id, d.created_at, k.created_at`,
-			[conversationId],
-		) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>).map((row) => ({
+		const rows = await this.dataSource.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'").innerJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id").select("device.userId", "user_id").addSelect("device.id", "device_id").addSelect("keyPackage.id", "key_package_id").addSelect("keyPackage.keyPackage", "key_package").addSelect("keyPackage.usedAt IS NULL", "available").where("member.conversationId = :conversationId", { conversationId }).orderBy("device.userId", "ASC").addOrderBy("device.createdAt", "ASC").addOrderBy("keyPackage.createdAt", "ASC").getRawMany<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>();
+		return rows.map((row) => ({
 			userId: row.user_id,
 			deviceId: row.device_id,
 			keyPackageId: row.key_package_id,
@@ -523,7 +413,11 @@ export class ChatService {
 		}));
 	}
 
-	async claimMlsKeyPackage(userId: string, conversationId: string, keyPackageId: string): Promise<{
+	async claimMlsKeyPackage(
+		userId: string,
+		conversationId: string,
+		keyPackageId: string,
+	): Promise<{
 		userId: string;
 		deviceId: string;
 		keyPackageId: string;
@@ -532,44 +426,26 @@ export class ChatService {
 	}> {
 		await this.assertMember(userId, conversationId);
 		return this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`UPDATE chat_mls_key_packages k SET used_at = now()
-				FROM chat_mls_devices d, chat_members m
-				WHERE k.id = $1 AND k.device_id = d.id AND d.status = 'active'
-				AND m.conversation_id = $2 AND m.user_id = d.user_id
-				AND k.used_at IS NULL
-				RETURNING d.user_id, d.id AS device_id, k.id AS key_package_id, k.key_package`,
-				[keyPackageId, conversationId],
-			)) as Array<{ user_id: string; device_id: string; key_package_id: string; key_package: string }>;
-			const row = rows[0];
-			if (!row) throw new Conflict("That MLS key package was already used or is no longer available.");
-			return { userId: row.user_id, deviceId: row.device_id, keyPackageId: row.key_package_id, keyPackage: row.key_package, available: false };
+			const candidate = await manager.getRepository(ChatMlsKeyPackage).createQueryBuilder("keyPackage").innerJoin(ChatMlsDevice, "device", "device.id = keyPackage.deviceId").innerJoin(ChatMemberEntity, "member", "member.userId = device.userId").select("device.userId", "user_id").addSelect("device.id", "device_id").addSelect("keyPackage.id", "key_package_id").addSelect("keyPackage.keyPackage", "key_package").where("keyPackage.id = :keyPackageId AND keyPackage.usedAt IS NULL", { keyPackageId }).andWhere("device.status = 'active'").andWhere("member.conversationId = :conversationId", { conversationId }).getRawOne<{ user_id: string; device_id: string; key_package_id: string; key_package: string }>();
+			if (!candidate) throw new Conflict("That MLS key package was already used or is no longer available.");
+			// RAW SQL: correlated membership and active-device EXISTS predicates keep the one-time claim atomic.
+			const result = await manager
+				.createQueryBuilder()
+				.update(ChatMlsKeyPackage)
+				.set({ usedAt: () => "now()" })
+				.where('"id" = :keyPackageId AND "device_id" = :deviceId AND "used_at" IS NULL AND EXISTS (SELECT 1 FROM "chat_mls_devices" d WHERE d."id" = "chat_mls_key_packages"."device_id" AND d."status" = \'active\' AND EXISTS (SELECT 1 FROM "chat_members" m WHERE m."user_id" = d."user_id" AND m."conversation_id" = :conversationId))', { keyPackageId, deviceId: candidate.device_id, conversationId })
+				.execute();
+			if (!result.affected) throw new Conflict("That MLS key package was already used or is no longer available.");
+			return { userId: candidate.user_id, deviceId: candidate.device_id, keyPackageId: candidate.key_package_id, keyPackage: candidate.key_package, available: false };
 		});
 	}
 
-	async storeMlsWelcome(
-		userId: string,
-		conversationId: string,
-		messageId: string,
-		recipients: Array<{ deviceId: string; keyPackageId: string }>,
-		welcome: unknown,
-		ratchetTree: unknown,
-	): Promise<void> {
+	async storeMlsWelcome(userId: string, conversationId: string, messageId: string, recipients: Array<{ deviceId: string; keyPackageId: string }>, welcome: unknown, ratchetTree: unknown): Promise<void> {
 		await this.assertMember(userId, conversationId);
-		await this.dataSource.transaction((manager) =>
-			this.storeMlsWelcomeRows(manager, userId, conversationId, messageId, recipients, welcome, ratchetTree),
-		);
+		await this.dataSource.transaction((manager) => this.storeMlsWelcomeRows(manager, userId, conversationId, messageId, recipients, welcome, ratchetTree));
 	}
 
-	private async storeMlsWelcomeRows(
-		manager: { query: (sql: string, parameters?: unknown[]) => Promise<unknown[]> },
-		userId: string,
-		conversationId: string,
-		messageId: string,
-		recipients: Array<{ deviceId: string; keyPackageId: string }>,
-		welcome: unknown,
-		ratchetTree: unknown,
-	): Promise<void> {
+	private async storeMlsWelcomeRows(manager: EntityManager, userId: string, conversationId: string, messageId: string, recipients: Array<{ deviceId: string; keyPackageId: string }>, welcome: unknown, ratchetTree: unknown): Promise<void> {
 		const serializedWelcome = cleanMlsPayload(welcome, "The MLS Welcome message");
 		const serializedTree = cleanMlsPayload(ratchetTree, "The MLS ratchet tree");
 		if (!UUID_PATTERN.test(messageId) || !Array.isArray(recipients) || recipients.length === 0 || recipients.length > 200) {
@@ -579,83 +455,60 @@ export class ChatService {
 		if (uniqueRecipients.size !== recipients.length || recipients.some(({ deviceId, keyPackageId }) => !UUID_PATTERN.test(deviceId) || !UUID_PATTERN.test(keyPackageId))) {
 			throw new BadRequest("The MLS Welcome recipients are invalid.");
 		}
-		const message = (await manager.query(
-			`SELECT id FROM chat_messages WHERE id = $1 AND conversation_id = $2 AND user_id = $3 AND kind = 'text'`,
-			[messageId, conversationId, userId],
-		)) as Array<{ id: string }>;
-		if (!message[0]) throw new NotFound("The encrypted chat message was not found.");
+		if (!(await manager.getRepository(ChatMessageEntity).exists({ where: { id: messageId, conversationId, userId, kind: "text" } }))) throw new NotFound("The encrypted chat message was not found.");
 		const packageIds = recipients.map(({ keyPackageId }) => keyPackageId);
 		const deviceIds = recipients.map(({ deviceId }) => deviceId);
 		const welcomeIds = recipients.map(() => randomUUID());
-		const valid = (await manager.query(
-			`SELECT d.id AS device_id, k.id AS key_package_id
-				FROM unnest($1::uuid[], $2::uuid[]) AS r(device_id, key_package_id)
-				JOIN chat_mls_devices d ON d.id = r.device_id AND d.status = 'active'
-				JOIN chat_mls_key_packages k ON k.id = r.key_package_id AND k.device_id = d.id AND k.used_at IS NOT NULL
-				JOIN chat_members m ON m.user_id = d.user_id AND m.conversation_id = $3`,
-			[deviceIds, packageIds, conversationId],
-		)) as Array<{ device_id: string; key_package_id: string }>;
-		if (valid.length !== recipients.length) {
+		const valid = await manager.getRepository(ChatMlsDevice).createQueryBuilder("device").innerJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id").innerJoin(ChatMemberEntity, "member", "member.userId = device.userId").select("device.id", "device_id").addSelect("keyPackage.id", "key_package_id").where("member.conversationId = :conversationId", { conversationId }).andWhere("device.status = 'active'").andWhere("device.id IN (:...deviceIds)", { deviceIds }).andWhere("keyPackage.id IN (:...packageIds)", { packageIds }).andWhere("keyPackage.usedAt IS NOT NULL").getRawMany<{ device_id: string; key_package_id: string }>();
+		const validPairs = new Set(valid.map((row) => `${row.device_id}:${row.key_package_id}`));
+		if (validPairs.size !== recipients.length || recipients.some(({ deviceId, keyPackageId }) => !validPairs.has(`${deviceId}:${keyPackageId}`))) {
 			throw new BadRequest("Every MLS Welcome recipient must be an active device with a claimed key package in this conversation.");
 		}
-		await manager.query(
-			`INSERT INTO chat_mls_welcomes (id, conversation_id, device_id, key_package_id, message_id, welcome, ratchet_tree)
-				SELECT r.id, $1, r.device_id, r.key_package_id, $2, $6, $7
-				FROM unnest($3::uuid[], $4::uuid[], $5::uuid[]) AS r(device_id, key_package_id, id)
-				ON CONFLICT (conversation_id, key_package_id) DO NOTHING`,
-			[conversationId, messageId, deviceIds, packageIds, welcomeIds, serializedWelcome, serializedTree],
-		);
-		const rows = (await manager.query(
-			`SELECT message_id, welcome, ratchet_tree FROM chat_mls_welcomes
-				WHERE conversation_id = $1 AND key_package_id = ANY($2::uuid[])`,
-			[conversationId, packageIds],
-		)) as Array<{ message_id: string; welcome: string; ratchet_tree: string }>;
-		if (
-			rows.length !== recipients.length ||
-			rows.some((row) => row.message_id !== messageId || row.welcome !== serializedWelcome || row.ratchet_tree !== serializedTree)
-		) {
+		await manager
+			.createQueryBuilder()
+			.insert()
+			.into(ChatMlsWelcome)
+			.values(recipients.map(({ deviceId, keyPackageId }, index) => ({ id: welcomeIds[index], conversationId, deviceId, keyPackageId, messageId, welcome: serializedWelcome, ratchetTree: serializedTree })))
+			.orIgnore()
+			.execute();
+		const rows = await manager.getRepository(ChatMlsWelcome).find({
+			select: { messageId: true, welcome: true, ratchetTree: true },
+			where: { conversationId, keyPackageId: In(packageIds) },
+		});
+		if (rows.length !== recipients.length || rows.some((row) => row.messageId !== messageId || row.welcome !== serializedWelcome || row.ratchetTree !== serializedTree)) {
 			throw new Conflict("A different MLS Welcome is already stored for one of these key packages.");
 		}
 	}
 
-	async pendingMlsWelcomes(
-		userId: string,
-		conversationId: string,
-		deviceId: string,
-	): Promise<Array<{ id: string; messageId: string; keyPackageId: string; welcome: string; ratchetTree: string; createdAt: string }>> {
+	async pendingMlsWelcomes(userId: string, conversationId: string, deviceId: string): Promise<Array<{ id: string; messageId: string; keyPackageId: string; welcome: string; ratchetTree: string; createdAt: string }>> {
 		await this.assertMember(userId, conversationId);
-		const device = (await this.dataSource.query(
-			`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-			[deviceId, userId],
-		)) as Array<{ id: string }>;
-		if (!device[0]) throw new NotFound("Chat device not found.");
-		const rows = (await this.dataSource.query(
-			`SELECT id, message_id, key_package_id, welcome, ratchet_tree, created_at FROM chat_mls_welcomes
-			WHERE conversation_id = $1 AND device_id = $2 AND consumed_at IS NULL AND message_id IS NOT NULL
-			ORDER BY created_at ASC`,
-			[conversationId, deviceId],
-		)) as Array<{ id: string; message_id: string; key_package_id: string; welcome: string; ratchet_tree: string; created_at: Date }>;
+		if (!(await this.dataSource.getRepository(ChatMlsDevice).exists({ where: { id: deviceId, userId, status: "active" } }))) throw new NotFound("Chat device not found.");
+		const rows = await this.dataSource.getRepository(ChatMlsWelcome).find({
+			select: { id: true, messageId: true, keyPackageId: true, welcome: true, ratchetTree: true, createdAt: true },
+			where: { conversationId, deviceId, consumedAt: IsNull(), messageId: Not(IsNull()) },
+			order: { createdAt: "ASC" },
+		});
 		return rows.map((row) => ({
 			id: row.id,
-			messageId: row.message_id,
-			keyPackageId: row.key_package_id,
+			messageId: row.messageId,
+			keyPackageId: row.keyPackageId,
 			welcome: row.welcome,
-			ratchetTree: row.ratchet_tree,
-			createdAt: row.created_at.toISOString(),
+			ratchetTree: row.ratchetTree,
+			createdAt: row.createdAt.toISOString(),
 		}));
 	}
 
 	async acknowledgeMlsWelcome(userId: string, conversationId: string, deviceId: string, welcomeId: string): Promise<void> {
 		await this.assertMember(userId, conversationId);
-		const rows = (await this.dataSource.query(
-			`UPDATE chat_mls_welcomes w SET consumed_at = now()
-			FROM chat_mls_devices d
-			WHERE w.id = $1 AND w.conversation_id = $2 AND w.device_id = $3
-			AND d.id = w.device_id AND d.user_id = $4 AND d.status = 'active'
-			RETURNING w.id`,
-			[welcomeId, conversationId, deviceId, userId],
-		)) as Array<{ id: string }>;
-		if (!rows[0]) throw new NotFound("MLS Welcome message not found.");
+		// RAW SQL: correlated EXISTS keeps ownership and active-device validation in the atomic update.
+		const result = await this.dataSource
+			.getRepository(ChatMlsWelcome)
+			.createQueryBuilder()
+			.update(ChatMlsWelcome)
+			.set({ consumedAt: () => "now()" })
+			.where('"id" = :welcomeId AND "conversation_id" = :conversationId AND "device_id" = :deviceId AND EXISTS (SELECT 1 FROM "chat_mls_devices" d WHERE d."id" = "chat_mls_welcomes"."device_id" AND d."user_id" = :userId AND d."status" = \'active\')', { welcomeId, conversationId, deviceId, userId })
+			.execute();
+		if (!result.affected) throw new NotFound("MLS Welcome message not found.");
 	}
 
 	async startDirect(userId: string, username: string): Promise<ChatConversation> {
@@ -664,19 +517,18 @@ export class ChatService {
 			throw new BadRequest("You can't message yourself.");
 		}
 		const key = directKey(userId, other.id);
-		const existing = (await this.dataSource.query(`SELECT id FROM chat_conversations WHERE direct_key = $1`, [key])) as Array<{ id: string }>;
-		if (existing[0]) {
-			return this.conversation(userId, existing[0].id);
+		const existing = await this.dataSource.getRepository(ChatConversationEntity).findOne({ select: { id: true }, where: { directKey: key } });
+		if (existing) {
+			return this.conversation(userId, existing.id);
 		}
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
-			await manager.query(
-				`INSERT INTO chat_conversations (id, kind, direct_key, created_by, encryption_mode)
-				VALUES ($1, 'direct', $2, $3, $4)`,
-				[id, key, userId, encryptionMode],
-			);
-			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member'), ($1, $3, 'member')`, [id, userId, other.id]);
+			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "direct", directKey: key, createdBy: userId, encryptionMode });
+			await manager.getRepository(ChatMemberEntity).insert([
+				{ conversationId: id, userId, role: "member" },
+				{ conversationId: id, userId: other.id, role: "member" },
+			]);
 		});
 		await this.changed(id);
 		return this.conversation(userId, id);
@@ -694,14 +546,11 @@ export class ChatService {
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
-			await manager.query(
-				`INSERT INTO chat_conversations (id, kind, name, created_by, encryption_mode)
-				VALUES ($1, 'group', $2, $3, $4)`,
-				[id, title, userId, encryptionMode],
-			);
-			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'owner')`, [id, userId]);
+			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "group", name: title, createdBy: userId, encryptionMode });
+			const members = manager.getRepository(ChatMemberEntity);
+			await members.insert({ conversationId: id, userId, role: "owner" });
 			for (const person of others) {
-				await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member')`, [id, person.id]);
+				await members.insert({ conversationId: id, userId: person.id, role: "member" });
 			}
 		});
 		await this.system(id, userId, `created the group "${title}"`);
@@ -715,14 +564,11 @@ export class ChatService {
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
 			const encryptionMode = await this.defaultEncryptionMode(manager);
-			await manager.query(
-				`INSERT INTO chat_conversations (id, kind, name, created_by, encryption_mode)
-				VALUES ($1, 'group', $2, $3, $4)`,
-				[id, title, adminId, encryptionMode],
-			);
-			await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'owner')`, [id, adminId]);
+			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "group", name: title, createdBy: adminId, encryptionMode });
+			const members = manager.getRepository(ChatMemberEntity);
+			await members.insert({ conversationId: id, userId: adminId, role: "owner" });
 			if (requesterId !== adminId) {
-				await manager.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member')`, [id, requesterId]);
+				await members.insert({ conversationId: id, userId: requesterId, role: "member" });
 			}
 		});
 		await this.system(id, adminId, "opened a support chat for this issue");
@@ -732,15 +578,16 @@ export class ChatService {
 
 	/** Re-adds the issue requester without changing the existing conversation or its message history. */
 	async ensureSupportRequester(conversationId: string, requesterId: string): Promise<void> {
-		const rows = (await this.dataSource.query(
-			`INSERT INTO chat_members (conversation_id, user_id, role, last_read_at)
-			SELECT c.id, $2, CASE WHEN c.created_by = $2 THEN 'owner' ELSE 'member' END,
-				COALESCE((SELECT max(created_at) FROM chat_messages WHERE conversation_id = c.id), now())
-			FROM chat_conversations c WHERE c.id = $1
-			ON CONFLICT DO NOTHING RETURNING user_id`,
-			[conversationId, requesterId],
-		)) as Array<{ user_id: string }>;
-		if (rows.length === 0) return;
+		// RAW SQL: CASE and COALESCE expressions preserve role and last-read initialization in INSERT ... SELECT.
+		const inserted = await this.dataSource
+			.createQueryBuilder()
+			.insert()
+			.into(ChatMemberEntity, ["conversationId", "userId", "role", "lastReadAt"])
+			.valuesFromSelect((query) => query.select("conversation.id").addSelect(":requesterId").addSelect("CASE WHEN conversation.createdBy = :requesterId THEN 'owner' ELSE 'member' END").addSelect("COALESCE((SELECT MAX(message.created_at) FROM chat_messages message WHERE message.conversation_id = conversation.id), now())").from(ChatConversationEntity, "conversation").where("conversation.id = :conversationId").setParameters({ conversationId, requesterId }))
+			.orIgnore()
+			.returning(["user_id"])
+			.execute();
+		if (!inserted.raw.length) return;
 		await this.system(conversationId, null, "rejoined the issue support chat");
 		await this.changed(conversationId, [requesterId]);
 	}
@@ -751,7 +598,7 @@ export class ChatService {
 			throw new BadRequest("Only groups can be renamed.");
 		}
 		const title = cleanName(name);
-		await this.dataSource.query(`UPDATE chat_conversations SET name = $2 WHERE id = $1`, [id, title]);
+		await this.dataSource.getRepository(ChatConversationEntity).update({ id }, { name: title });
 		await this.system(id, userId, `renamed the group to "${title}"`);
 		await this.changed(id);
 		return this.conversation(userId, id);
@@ -763,14 +610,13 @@ export class ChatService {
 			throw new BadRequest("People can only be added to groups.");
 		}
 		const people = await this.resolve(usernames, userId);
-		const current = (await this.dataSource.query(`SELECT user_id FROM chat_members WHERE conversation_id = $1`, [id])) as Array<{ user_id: string }>;
-		const have = new Set(current.map((row) => row.user_id));
+		const have = new Set(await this.memberIds(id));
 		const fresh = people.filter((person) => !have.has(person.id));
 		if (have.size + fresh.length > MAX_GROUP_MEMBERS) {
 			throw new BadRequest(`Groups can have up to ${MAX_GROUP_MEMBERS} people.`);
 		}
 		for (const person of fresh) {
-			await this.dataSource.query(`INSERT INTO chat_members (conversation_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`, [id, person.id]);
+			await this.dataSource.getRepository(ChatMemberEntity).createQueryBuilder().insert().values({ conversationId: id, userId: person.id, role: "member" }).orIgnore().execute();
 			await this.system(id, userId, `added ${person.display_name || person.username}`);
 		}
 		if (fresh.length > 0) {
@@ -785,66 +631,53 @@ export class ChatService {
 		if (member.kind !== "group") {
 			throw new BadRequest("You can't leave a direct conversation.");
 		}
-		const target = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, m.role FROM chat_members m JOIN users u ON u.id = m.user_id
-			WHERE m.conversation_id = $1 AND lower(u.username) = lower($2)`,
-			[id, username],
-		)) as Array<{ id: string; username: string; display_name: string | null; role: string }>;
-		if (!target[0]) {
+		const target = await this.dataSource.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(User, "user", "user.id = member.userId").select("user.id", "id").addSelect("user.username", "username").addSelect("user.displayName", "display_name").addSelect("member.role", "role").where("member.conversationId = :id", { id }).andWhere("LOWER(user.username) = LOWER(:username)", { username }).getRawOne<{ id: string; username: string; display_name: string | null; role: string }>();
+		if (!target) {
 			throw new NotFound("That person isn't in this group.");
 		}
-		const leaving = target[0].id === userId;
+		const leaving = target.id === userId;
 		if (!leaving && member.role !== "owner") {
 			throw new Forbidden("Only the group owner can remove people.");
 		}
 		const before = await this.memberIds(id);
-		await this.dataSource.query(`DELETE FROM chat_members WHERE conversation_id = $1 AND user_id = $2`, [id, target[0].id]);
-		const remaining = (await this.dataSource.query(`SELECT user_id, role FROM chat_members WHERE conversation_id = $1 ORDER BY joined_at ASC`, [id])) as Array<{ user_id: string; role: string }>;
+		await this.dataSource.getRepository(ChatMemberEntity).delete({ conversationId: id, userId: target.id });
+		const remaining = await this.dataSource.getRepository(ChatMemberEntity).find({ select: { userId: true, role: true }, where: { conversationId: id }, order: { joinedAt: "ASC" } });
 		if (remaining.length === 0) {
-			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = NULL, chat_open = false, updated_at = now() WHERE conversation_id = $1`, [id]);
-			await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
+			await this.dataSource.getRepository(IssueReport).update({ conversationId: id }, { conversationId: null, chatOpen: false, updatedAt: () => "now()" });
+			await this.dataSource.getRepository(ChatConversationEntity).delete({ id });
 			this.publish(before, { type: "changed", conversationId: id });
 			return;
 		}
 		if (!remaining.some((row) => row.role === "owner")) {
-			await this.dataSource.query(`UPDATE chat_members SET role = 'owner' WHERE conversation_id = $1 AND user_id = $2`, [id, remaining[0].user_id]);
+			await this.dataSource.getRepository(ChatMemberEntity).update({ conversationId: id, userId: remaining[0].userId }, { role: "owner" });
 		}
-		const name = target[0].display_name || target[0].username;
+		const name = target.display_name || target.username;
 		await this.system(id, null, leaving ? `${name} left` : `${name} was removed`);
 		await this.changed(id, before);
 	}
 
 	/** Messages oldest first. `before` pages back through history, `after` fetches what arrived since. Fetching marks the thread read. */
-	async messages(
-		userId: string,
-		id: string,
-		options: { before?: string; after?: string; beforeSequence?: string; afterSequence?: string },
-	): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+	async messages(userId: string, id: string, options: { before?: string; after?: string; beforeSequence?: string; afterSequence?: string }): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
 		await this.assertMember(userId, id);
 		const before = this.date(options.before);
 		const after = this.date(options.after);
 		const beforeSequence = this.sequence(options.beforeSequence);
 		const afterSequence = this.sequence(options.afterSequence);
-		const params: unknown[] = [id];
-		let where = "m.conversation_id = $1";
+		const query = this.messageQuery().where("m.conversationId = :conversationId", { conversationId: id });
 		if (beforeSequence) {
-			params.push(beforeSequence);
-			where += ` AND m.sequence < $${params.length}::bigint`;
+			query.andWhere("m.sequence < CAST(:beforeSequence AS bigint)", { beforeSequence });
 		} else if (before) {
-			params.push(before);
-			where += ` AND m.created_at < $${params.length}`;
+			query.andWhere("m.createdAt < :before", { before });
 		}
 		if (afterSequence) {
-			params.push(afterSequence);
-			where += ` AND m.sequence > $${params.length}::bigint`;
+			query.andWhere("m.sequence > CAST(:afterSequence AS bigint)", { afterSequence });
 		} else if (after) {
-			params.push(after);
-			where += ` AND m.created_at > $${params.length}`;
+			query.andWhere("m.createdAt > :after", { after });
 		}
-		const rows = (await this.dataSource.query(
-			`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.sequence ${after || afterSequence ? "ASC" : "DESC"} LIMIT ${PAGE_SIZE + 1}`,
-			params,
-		)) as MessageRow[];
+		const rows = await query
+			.orderBy("m.sequence", after || afterSequence ? "ASC" : "DESC")
+			.take(PAGE_SIZE + 1)
+			.getRawMany<MessageRow>();
 		const hasMore = rows.length > PAGE_SIZE;
 		const page = rows.slice(0, PAGE_SIZE).map(messageOf);
 		await this.markRead(userId, id, false);
@@ -854,22 +687,28 @@ export class ChatService {
 	/** Deletes a conversation for everyone: any direct-chat member, a group owner, or a support-chat member. */
 	async deleteConversation(userId: string, id: string): Promise<void> {
 		const member = await this.assertMember(userId, id);
-		const supportThread = (await this.dataSource.query(`SELECT id FROM issue_reports WHERE conversation_id = $1`, [id])) as Array<{ id: string }>;
+		const supportThread = await this.dataSource.getRepository(IssueReport).find({ select: { id: true }, where: { conversationId: id } });
 		if (member.kind === "group" && member.role !== "owner" && supportThread.length === 0) {
 			throw new Forbidden("Only the group owner can delete it.");
 		}
 		const members = await this.memberIds(id);
 		if (supportThread.length > 0) {
-			await this.dataSource.query(`UPDATE issue_reports SET conversation_id = NULL, chat_open = false, updated_at = now() WHERE conversation_id = $1`, [id]);
+			await this.dataSource.getRepository(IssueReport).update({ conversationId: id }, { conversationId: null, chatOpen: false, updatedAt: () => "now()" });
 		}
-		await this.dataSource.query(`DELETE FROM chat_conversations WHERE id = $1`, [id]);
-		await this.dataSource.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1`, [`/chat/${id}`]).catch(() => undefined);
+		await this.dataSource.getRepository(ChatConversationEntity).delete({ id });
+		await this.dataSource
+			.getRepository(Notification)
+			.delete({ kind: "message", url: `/chat/${id}` })
+			.catch(() => undefined);
 		this.publish(members, { type: "changed", conversationId: id });
 	}
 
 	async markRead(userId: string, id: string, announce = true): Promise<void> {
-		await this.dataSource.query(`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`, [id, userId]);
-		await this.dataSource.query(`DELETE FROM notifications WHERE user_id = $1 AND kind = 'message' AND url = $2`, [userId, `/chat/${id}`]).catch(() => undefined);
+		await this.dataSource.getRepository(ChatMemberEntity).update({ conversationId: id, userId }, { lastReadAt: () => "now()" });
+		await this.dataSource
+			.getRepository(Notification)
+			.delete({ userId, kind: "message", url: `/chat/${id}` })
+			.catch(() => undefined);
 		if (announce) {
 			this.publish([userId], { type: "changed", conversationId: id });
 		}
@@ -893,15 +732,17 @@ export class ChatService {
 			throw new BadRequest("Encrypted chat messages must include the sending device ID.");
 		}
 		const member = await this.assertMember(userId, id);
-		const supportThread = (await this.dataSource.query(
-			`SELECT r.id, r.user_id, r.chat_open,
-				COALESCE((s.value #>> '{}')::boolean, false) AS chat_enabled
-			FROM issue_reports r
-			LEFT JOIN settings s ON s.key = 'issue_reports_chat_enabled'
-			WHERE r.conversation_id = $1`,
-			[id],
-		)) as Array<{ id: string; user_id: string; chat_open: boolean; chat_enabled: boolean }>;
-		const support = supportThread[0];
+		const support = await this.dataSource
+			.getRepository(IssueReport)
+			.createQueryBuilder("report")
+			.leftJoin(Setting, "setting", "setting.key = 'issue_reports_chat_enabled'")
+			.select("report.id", "id")
+			.addSelect("report.userId", "user_id")
+			.addSelect("report.chatOpen", "chat_open")
+			// RAW SQL: JSONB scalar conversion retains the setting's boolean interpretation.
+			.addSelect("COALESCE((setting.value #>> '{}')::boolean, false)", "chat_enabled")
+			.where("report.conversationId = :id", { id })
+			.getRawOne<{ id: string; user_id: string; chat_open: boolean; chat_enabled: boolean }>();
 		if (support && (!support.chat_open || !support.chat_enabled)) {
 			throw new Forbidden("This issue's live chat is closed.");
 		}
@@ -911,62 +752,33 @@ export class ChatService {
 		this.throttle(userId);
 		const messageId = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(`SELECT encryption_mode FROM chat_conversations WHERE id = $1 FOR SHARE`, [id])) as Array<{
-				encryption_mode: "encrypted" | "plaintext";
-			}>;
-			if (!rows[0]) throw new NotFound("Conversation not found.");
-			if ((rows[0].encryption_mode === "encrypted") !== encrypted) {
-				throw new BadRequest(
-					rows[0].encryption_mode === "encrypted"
-						? "This conversation requires end-to-end encrypted messages."
-						: "This conversation has been switched to plaintext messages.",
-				);
+			const conversation = await manager.findOne(ChatConversationEntity, { select: { encryptionMode: true }, where: { id }, lock: { mode: "pessimistic_read" } });
+			if (!conversation) throw new NotFound("Conversation not found.");
+			if ((conversation.encryptionMode === "encrypted") !== encrypted) {
+				throw new BadRequest(conversation.encryptionMode === "encrypted" ? "This conversation requires end-to-end encrypted messages." : "This conversation has been switched to plaintext messages.");
 			}
 			if (encrypted) {
-				const device = (await manager.query(
-					`SELECT id FROM chat_mls_devices WHERE id = $1 AND user_id = $2 AND status = 'active'`,
-					[mlsDeviceId, userId],
-				)) as Array<{ id: string }>;
-				if (!device[0]) throw new Forbidden("This chat device is not active.");
+				if (!(await manager.getRepository(ChatMlsDevice).exists({ where: { id: mlsDeviceId, userId, status: "active" } }))) throw new Forbidden("This chat device is not active.");
 			}
-			await manager.query(
-				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body, encrypted) VALUES ($1, $2, $3, 'text', $4, $5)`,
-				[messageId, id, userId, body, encrypted],
-			);
+			await manager.getRepository(ChatMessageEntity).insert({ id: messageId, conversationId: id, userId, kind: "text", body, encrypted });
 			if (mlsWelcome) {
-				await this.storeMlsWelcomeRows(
-					manager,
-					userId,
-					id,
-					messageId,
-					mlsWelcome.recipients,
-					mlsWelcome.welcome,
-					mlsWelcome.ratchetTree,
-				);
+				await this.storeMlsWelcomeRows(manager, userId, id, messageId, mlsWelcome.recipients, mlsWelcome.welcome, mlsWelcome.ratchetTree);
 			}
 			if (encrypted) {
-				const activeDevices = (await manager.query(
-					`SELECT d.id AS device_id FROM chat_members m
-					JOIN chat_mls_devices d ON d.user_id = m.user_id AND d.status = 'active'
-					WHERE m.conversation_id = $1 AND d.id <> $2`,
-					[id, mlsDeviceId],
-				)) as Array<{ device_id: string }>;
-				const deliveries = (await manager.query(
-					`SELECT device_id FROM chat_mls_welcomes WHERE message_id = $1`,
-					[messageId],
-				)) as Array<{ device_id: string }>;
+				const activeDevices = await manager.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'").select("device.id", "device_id").where("member.conversationId = :id AND device.id <> :mlsDeviceId", { id, mlsDeviceId }).getRawMany<{ device_id: string }>();
+				const deliveries = await manager.getRepository(ChatMlsWelcome).find({ select: { deviceId: true }, where: { messageId } });
 				const expectedDevices = new Set(activeDevices.map(({ device_id }) => device_id));
-				const deliveredDevices = new Set(deliveries.map(({ device_id }) => device_id));
+				const deliveredDevices = new Set(deliveries.map(({ deviceId }) => deviceId));
 				if (deliveredDevices.size !== deliveries.length || expectedDevices.size !== deliveredDevices.size || [...expectedDevices].some((deviceId) => !deliveredDevices.has(deviceId))) {
 					throw new Conflict("Encrypted chat messages must include a Welcome for every other active chat device.");
 				}
 			}
-			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [id]);
-			await manager.query(`UPDATE issue_reports SET updated_at = now() WHERE conversation_id = $1`, [id]);
-			await manager.query(`UPDATE chat_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2`, [id, userId]);
+			await manager.getRepository(ChatConversationEntity).update({ id }, { lastMessageAt: () => "now()" });
+			await manager.getRepository(IssueReport).update({ conversationId: id }, { updatedAt: () => "now()" });
+			await manager.getRepository(ChatMemberEntity).update({ conversationId: id, userId }, { lastReadAt: () => "now()" });
 		});
-		const row = (await this.dataSource.query(`${MESSAGE_SELECT} WHERE m.id = $1`, [messageId])) as MessageRow[];
-		const message = messageOf(row[0]);
+		const row = await this.messageQuery().where("m.id = :messageId", { messageId }).getRawOne<MessageRow>();
+		const message = messageOf(row as MessageRow);
 		await this.notify(id, userId, message).catch((error: unknown) => logger().warn("Could not notify chat members.", error));
 		this.publish(await this.memberIds(id), { type: "changed", conversationId: id });
 		return message;
@@ -974,44 +786,42 @@ export class ChatService {
 
 	/** Unread messages across every conversation, for the navbar badge. */
 	async unreadCount(userId: string): Promise<number> {
-		const rows = (await this.dataSource.query(
-			`SELECT count(*)::int AS n FROM chat_messages msg JOIN chat_members m ON m.conversation_id = msg.conversation_id
-			WHERE m.user_id = $1 AND msg.kind = 'text' AND msg.created_at > m.last_read_at AND msg.user_id IS DISTINCT FROM $1`,
-			[userId],
-		)) as Array<{ n: number }>;
-		return rows[0]?.n ?? 0;
+		const result = await this.dataSource.getRepository(ChatMessageEntity).createQueryBuilder("message").innerJoin(ChatMemberEntity, "member", "member.conversationId = message.conversationId").select("COUNT(*)::int", "n").where("member.userId = :userId", { userId }).andWhere("message.kind = 'text'").andWhere("message.createdAt > member.lastReadAt").andWhere("message.userId IS DISTINCT FROM :userId", { userId }).getRawOne<{ n: number }>();
+		return result?.n ?? 0;
 	}
 
 	async encryptionStatus(): Promise<{ enabled: boolean; supported: boolean; allowUserDowngrade: boolean }> {
-		const rows = (await this.dataSource.query(
-			`SELECT
-				(SELECT value FROM settings WHERE key = 'chat_e2ee_enabled') AS enabled,
-				(SELECT value FROM settings WHERE key = 'chat_user_downgrade_enabled') AS allow_user_downgrade`,
-		)) as Array<{ enabled: unknown; allow_user_downgrade: unknown }>;
-		if (!rows[0] || typeof rows[0].enabled !== "boolean" || typeof rows[0].allow_user_downgrade !== "boolean") {
+		const settings = await this.dataSource.getRepository(Setting).findBy({ key: In(["chat_e2ee_enabled", "chat_user_downgrade_enabled"]) });
+		const enabled = settings.find((setting) => setting.key === "chat_e2ee_enabled")?.value;
+		const allowUserDowngrade = settings.find((setting) => setting.key === "chat_user_downgrade_enabled")?.value;
+		if (typeof enabled !== "boolean" || typeof allowUserDowngrade !== "boolean") {
 			throw new Error("The chat_e2ee_enabled setting is missing or invalid.");
 		}
-		return { enabled: rows[0].enabled, supported: true, allowUserDowngrade: rows[0].allow_user_downgrade };
+		return { enabled, supported: true, allowUserDowngrade };
 	}
 
 	private async notify(id: string, senderId: string, message: ChatMessage): Promise<void> {
-		const recipients = (await this.dataSource.query(
-			`SELECT m.user_id FROM chat_members m JOIN users u ON u.id = m.user_id
-			WHERE m.conversation_id = $1 AND m.user_id <> $2 AND u.disabled_at IS NULL
-			AND m.last_read_at < now() - ($3 || ' milliseconds')::interval`,
-			[id, senderId, String(ACTIVE_MS)],
-		)) as Array<{ user_id: string }>;
+		const recipients = await this.dataSource
+			.getRepository(ChatMemberEntity)
+			.createQueryBuilder("member")
+			.innerJoin(User, "user", "user.id = member.userId")
+			.select("member.userId", "user_id")
+			.where("member.conversationId = :id AND member.userId <> :senderId", { id, senderId })
+			.andWhere("user.disabledAt IS NULL")
+			// RAW SQL: PostgreSQL interval arithmetic uses the database clock.
+			.andWhere("member.lastReadAt < now() - (:activeMs || ' milliseconds')::interval", { activeMs: String(ACTIVE_MS) })
+			.getRawMany<{ user_id: string }>();
 		if (recipients.length === 0) {
 			return;
 		}
-		const info = (await this.dataSource.query(`SELECT kind, name FROM chat_conversations WHERE id = $1`, [id])) as Array<{ kind: string; name: string | null }>;
+		const info = await this.dataSource.getRepository(ChatConversationEntity).findOne({ select: { kind: true, name: true }, where: { id } });
 		const sender = message.sender?.displayName ?? "Someone";
-		const title = info[0]?.kind === "group" ? `${info[0].name}` : sender;
+		const title = info?.kind === "group" ? `${info.name}` : sender;
 		const body = "You have a new chat message.";
 		const ids = recipients.map((row) => row.user_id);
 		const url = `/chat/${id}`;
 		// One inbox entry per conversation: a newer message replaces the unread one instead of piling up.
-		await this.dataSource.query(`DELETE FROM notifications WHERE kind = 'message' AND url = $1 AND read_at IS NULL AND user_id = ANY($2::uuid[])`, [url, ids]);
+		await this.dataSource.getRepository(Notification).delete({ kind: "message", url, readAt: IsNull(), userId: In(ids) });
 		await this.notifications.send({ kind: "message", title, body: body.slice(0, 500), url }, ids);
 	}
 
@@ -1046,32 +856,22 @@ export class ChatService {
 
 	private async system(conversationId: string, userId: string | null, body: string): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
-			const rows = (await manager.query(
-				`SELECT value FROM settings WHERE key = $1 FOR SHARE`,
-				["chat_e2ee_enabled"],
-			)) as Array<{ value: unknown }>;
-			if (!rows[0] || typeof rows[0].value !== "boolean") {
+			const setting = await manager.findOne(Setting, { where: { key: "chat_e2ee_enabled" }, lock: { mode: "pessimistic_read" } });
+			if (!setting || typeof setting.value !== "boolean") {
 				throw new Error("The chat_e2ee_enabled setting is missing or invalid.");
 			}
-			if (rows[0].value) return;
-			await manager.query(
-				`INSERT INTO chat_messages (id, conversation_id, user_id, kind, body) VALUES ($1, $2, $3, 'system', $4)`,
-				[randomUUID(), conversationId, userId, body.slice(0, MAX_MESSAGE_LENGTH)],
-			);
-			await manager.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [conversationId]);
+			if (setting.value) return;
+			await manager.getRepository(ChatMessageEntity).insert({ id: randomUUID(), conversationId, userId, kind: "system", body: body.slice(0, MAX_MESSAGE_LENGTH) });
+			await manager.getRepository(ChatConversationEntity).update({ id: conversationId }, { lastMessageAt: () => "now()" });
 		});
 	}
 
 	private async assertMember(userId: string, id: string): Promise<{ kind: "direct" | "group"; role: string }> {
-		const rows = (await this.dataSource.query(
-			`SELECT c.kind, m.role FROM chat_conversations c JOIN chat_members m ON m.conversation_id = c.id
-			WHERE c.id = $1 AND m.user_id = $2`,
-			[id, userId],
-		)) as Array<{ kind: "direct" | "group"; role: string }>;
-		if (!rows[0]) {
+		const row = await this.dataSource.getRepository(ChatConversationEntity).createQueryBuilder("conversation").innerJoin(ChatMemberEntity, "member", "member.conversationId = conversation.id").select("conversation.kind", "kind").addSelect("member.role", "role").where("conversation.id = :id AND member.userId = :userId", { id, userId }).getRawOne<{ kind: "direct" | "group"; role: string }>();
+		if (!row) {
 			throw new NotFound("Conversation not found.");
 		}
-		return rows[0];
+		return row;
 	}
 
 	/** Finds active, visible people by username. Hidden profiles can't be started a chat with. */
@@ -1080,18 +880,19 @@ export class ChatService {
 		if (names.length === 0) {
 			throw new BadRequest("Pick at least one person.");
 		}
-		const rows = (await this.dataSource.query(
-			`SELECT u.id, u.username, u.display_name, up.avatar_file FROM users u LEFT JOIN user_preferences up ON up.user_id = u.id
-			WHERE lower(u.username) = ANY($1::text[]) AND u.disabled_at IS NULL AND (
-				u.id = $2 OR COALESCE(up.profile_visibility, 'public') = 'public'
-				OR (COALESCE(up.profile_visibility, 'public') = 'friends' AND EXISTS (
-					SELECT 1 FROM social_friendships sf
-					WHERE sf.accepted_at IS NOT NULL
-					AND ((sf.user_low_id = $2 AND sf.user_high_id = u.id) OR (sf.user_high_id = $2 AND sf.user_low_id = u.id))
-				))
-			)`,
-			[names, viewerId],
-		)) as PersonRow[];
+		const rows = await this.dataSource
+			.getRepository(User)
+			.createQueryBuilder("user")
+			.leftJoin(UserPreference, "preference", "preference.userId = user.id")
+			.select("user.id", "id")
+			.addSelect("user.username", "username")
+			.addSelect("user.displayName", "display_name")
+			.addSelect("preference.avatarFile", "avatar_file")
+			.where("LOWER(user.username) IN (:...names)", { names })
+			.andWhere("user.disabledAt IS NULL")
+			// RAW SQL: correlated friendship EXISTS preserves friends-only visibility.
+			.andWhere("(user.id = :viewerId OR COALESCE(preference.profileVisibility, 'public') = 'public' OR (COALESCE(preference.profileVisibility, 'public') = 'friends' AND EXISTS (SELECT 1 FROM social_friendships sf WHERE sf.accepted_at IS NOT NULL AND ((sf.user_low_id = :viewerId AND sf.user_high_id = user.id) OR (sf.user_high_id = :viewerId AND sf.user_low_id = user.id)))))", { viewerId })
+			.getRawMany<PersonRow>();
 		if (rows.length !== names.length) {
 			throw new NotFound("One of those people couldn't be found.");
 		}
@@ -1103,26 +904,21 @@ export class ChatService {
 			return [];
 		}
 		const [conversations, members, lastMessages, unread] = await Promise.all([
-			this.dataSource.query(
-				`SELECT c.id, c.kind, c.name, c.encryption_mode, c.last_message_at,
-					(SELECT r.chat_open FROM issue_reports r WHERE r.conversation_id = c.id LIMIT 1) AS support_chat_open
-				FROM chat_conversations c WHERE c.id = ANY($1::uuid[])`,
-				[ids],
-			),
-			this.dataSource.query(
-				`SELECT m.conversation_id, m.role, u.id, u.username, u.display_name, up.avatar_file
-				FROM chat_members m JOIN users u ON u.id = m.user_id LEFT JOIN user_preferences up ON up.user_id = u.id
-				WHERE m.conversation_id = ANY($1::uuid[]) ORDER BY m.joined_at ASC`,
-				[ids],
-			),
-			this.dataSource.query(`${MESSAGE_SELECT.replace("SELECT", "SELECT DISTINCT ON (m.conversation_id)")} WHERE m.conversation_id = ANY($1::uuid[]) ORDER BY m.conversation_id, m.sequence DESC`, [ids]),
-			this.dataSource.query(
-				`SELECT msg.conversation_id, count(*)::int AS n FROM chat_messages msg
-				JOIN chat_members m ON m.conversation_id = msg.conversation_id AND m.user_id = $1
-				WHERE msg.conversation_id = ANY($2::uuid[]) AND msg.kind = 'text' AND msg.created_at > m.last_read_at AND msg.user_id IS DISTINCT FROM $1
-				GROUP BY msg.conversation_id`,
-				[userId, ids],
-			),
+			this.dataSource
+				.getRepository(ChatConversationEntity)
+				.createQueryBuilder("conversation")
+				.select("conversation.id", "id")
+				.addSelect("conversation.kind", "kind")
+				.addSelect("conversation.name", "name")
+				.addSelect("conversation.encryptionMode", "encryption_mode")
+				.addSelect("conversation.lastMessageAt", "last_message_at")
+				// RAW SQL: correlated support-thread scalar subquery preserves optional support state.
+				.addSelect((subQuery) => subQuery.select("report.chatOpen").from(IssueReport, "report").where("report.conversationId = conversation.id").take(1), "support_chat_open")
+				.where("conversation.id IN (:...ids)", { ids })
+				.getRawMany(),
+			this.dataSource.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(User, "user", "user.id = member.userId").leftJoin(UserPreference, "preference", "preference.userId = user.id").select("member.conversationId", "conversation_id").addSelect("member.role", "role").addSelect("user.id", "id").addSelect("user.username", "username").addSelect("user.displayName", "display_name").addSelect("preference.avatarFile", "avatar_file").where("member.conversationId IN (:...ids)", { ids }).orderBy("member.joinedAt", "ASC").getRawMany(),
+			this.messageQuery().distinctOn(["m.conversationId"]).where("m.conversationId IN (:...ids)", { ids }).orderBy("m.conversationId", "ASC").addOrderBy("m.sequence", "DESC").getRawMany<MessageRow>(),
+			this.dataSource.getRepository(ChatMessageEntity).createQueryBuilder("message").innerJoin(ChatMemberEntity, "member", "member.conversationId = message.conversationId AND member.userId = :userId", { userId }).select("message.conversationId", "conversation_id").addSelect("COUNT(*)::int", "n").where("message.conversationId IN (:...ids)", { ids }).andWhere("message.kind = 'text'").andWhere("message.createdAt > member.lastReadAt").andWhere("message.userId IS DISTINCT FROM :userId", { userId }).groupBy("message.conversationId").getRawMany(),
 		]);
 		const membersBy = new Map<string, ChatMember[]>();
 		for (const row of members as Array<PersonRow & { conversation_id: string; role: "owner" | "member" }>) {

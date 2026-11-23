@@ -14,30 +14,41 @@ import { parseScopes } from "../payments/paymentTypes.js";
 import { ChunkUploadStore } from "../uploads/chunkUploadStore.js";
 
 export const AD_ROOT_ID = "flixer-advertisements";
-export const AD_MAX_BYTES = 100 * 1024 * 1024;
+const AD_MAX_BYTES = 100 * 1024 * 1024;
 export const AD_CHUNK_BYTES = 5 * 1024 * 1024;
 const execFileAsync = promisify(execFile);
 
 function object(value: unknown): Record<string, unknown> {
+
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadRequest("Invalid advertisement data.");
 	return value as Record<string, unknown>;
+
 }
 
 function integer(value: unknown, minimum: number, maximum: number): number {
+
 	if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) throw new BadRequest("Invalid advertisement setting.");
 	return value;
+
 }
 
 function url(value: unknown): string {
+
 	if (typeof value !== "string" || value.length > 2048) throw new BadRequest("Enter a valid advertising URL.");
 	let parsed: URL;
-	try { parsed = new URL(value); } catch { throw new BadRequest("Enter a valid advertising URL."); }
+	try {
+		parsed = new URL(value);
+	} catch {
+		throw new BadRequest("Enter a valid advertising URL.");
+	}
 	if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new BadRequest("Enter an HTTP or HTTPS advertising URL.");
 	return parsed.href;
+
 }
 
 @Injectable()
 export class AdvertisementService {
+
 	private readonly uploads = new ChunkUploadStore(dataPath("advertisements", ".uploads"), AD_MAX_BYTES, AD_CHUNK_BYTES, 24 * 60 * 60 * 1000);
 	private readonly completions = new Map<string, Promise<Advertisement>>();
 
@@ -98,10 +109,7 @@ export class AdvertisementService {
 		}
 		const probe = JSON.parse(result.stdout) as { format?: { format_name?: string; duration?: string }; streams?: { codec_type?: string; codec_name?: string }[] };
 		const duration = Number(probe.format?.duration);
-		if (!probe.format?.format_name?.split(",").includes("mp4") || !Number.isFinite(duration) || duration <= 0 ||
-			!probe.streams?.some((stream) => stream.codec_type === "video" && stream.codec_name === "h264") ||
-			probe.streams.some((stream) => stream.codec_type === "video" && stream.codec_name !== "h264") ||
-			probe.streams.some((stream) => stream.codec_type === "audio" && stream.codec_name !== "aac")) {
+		if (!probe.format?.format_name?.split(",").includes("mp4") || !Number.isFinite(duration) || duration <= 0 || !probe.streams?.some((stream) => stream.codec_type === "video" && stream.codec_name === "h264") || probe.streams.some((stream) => stream.codec_type === "video" && stream.codec_name !== "h264") || probe.streams.some((stream) => stream.codec_type === "audio" && stream.codec_name !== "aac")) {
 			throw new BadRequest("Upload an MP4 with H.264 video and AAC audio.");
 		}
 		const directory = dataPath("advertisements");
@@ -113,10 +121,20 @@ export class AdvertisementService {
 		let saved: Advertisement;
 		try {
 			const repository = this.dataSource.getRepository(Advertisement);
-			saved = await repository.save(repository.create({
-				id: adId, filename, name, targetUrl, durationSeconds: duration,
-				enabled: false, scopes: [{ type: "all", ref: null }], preroll: true, midrollSeconds: [], skipAfterSeconds: null,
-			}));
+			saved = await repository.save(
+				repository.create({
+					id: adId,
+					filename,
+					name,
+					targetUrl,
+					durationSeconds: duration,
+					enabled: false,
+					scopes: [{ type: "all", ref: null }],
+					preroll: true,
+					midrollSeconds: [],
+					skipAfterSeconds: null,
+				}),
+			);
 		} catch (error) {
 			await rename(join(directory, filename), file);
 			throw error;

@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { DataSource, IsNull } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Mailbox, type MailboxKind } from "../../entities/mailbox.entity.js";
+import { MailMessage } from "../../entities/mailMessage.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { normalizeLocalPart, parseAddress } from "./mailAddress.js";
 import { MailDomainService } from "./mailDomainService.js";
@@ -17,8 +18,15 @@ function randomLocal(): string {
 
 /** Slug of a username that is safe as an address local part; null when nothing usable remains. */
 export function usernameLocalPart(username: string): string | null {
-	const slug = username.toLowerCase().replace(/[^a-z0-9._+-]+/g, "-").replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "").replace(/\.{2,}/g, ".").slice(0, 48);
+
+	const slug = username
+		.toLowerCase()
+		.replace(/[^a-z0-9._+-]+/g, "-")
+		.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+		.replace(/\.{2,}/g, ".")
+		.slice(0, 48);
 	return normalizeLocalPart(slug);
+
 }
 
 /** Admin-created inboxes, the noreply system mailbox and per-user addresses. */
@@ -36,19 +44,28 @@ export class MailboxService {
 	}
 
 	async list() {
-		const rows = await this.dataSource.query(
-			`SELECT m.id, m.address, m.kind, m.display_name AS "displayName", m.user_id AS "userId", m.enabled, m.created_at AS "createdAt",
-				u.username AS "username",
-				COUNT(msg.id) FILTER (WHERE msg.direction = 'inbound') AS "received",
-				COUNT(msg.id) FILTER (WHERE msg.direction = 'outbound') AS "sent",
-				COUNT(msg.id) FILTER (WHERE msg.direction = 'inbound' AND msg.read_at IS NULL) AS "unread"
-			FROM mailboxes m
-			LEFT JOIN users u ON u.id = m.user_id
-			LEFT JOIN mail_messages msg ON msg.mailbox_id = m.id
-			GROUP BY m.id, u.username
-			ORDER BY m.kind = 'system' DESC, m.address ASC`,
-		);
-		return (rows as Array<Record<string, unknown>>).map((row) => ({ ...row, received: Number(row.received), sent: Number(row.sent), unread: Number(row.unread) }));
+		const rows = await this.dataSource
+			.getRepository(Mailbox)
+			.createQueryBuilder("mailbox")
+			.leftJoin(User, "user", "user.id = mailbox.userId")
+			.leftJoin(MailMessage, "message", "message.mailboxId = mailbox.id")
+			.select("mailbox.id", "id")
+			.addSelect("mailbox.address", "address")
+			.addSelect("mailbox.kind", "kind")
+			.addSelect("mailbox.displayName", "displayName")
+			.addSelect("mailbox.userId", "userId")
+			.addSelect("mailbox.enabled", "enabled")
+			.addSelect("mailbox.createdAt", "createdAt")
+			.addSelect("user.username", "username")
+			.addSelect("COUNT(message.id) FILTER (WHERE message.direction = 'inbound')", "received")
+			.addSelect("COUNT(message.id) FILTER (WHERE message.direction = 'outbound')", "sent")
+			.addSelect("COUNT(message.id) FILTER (WHERE message.direction = 'inbound' AND message.readAt IS NULL)", "unread")
+			.groupBy("mailbox.id")
+			.addGroupBy("user.username")
+			.orderBy("mailbox.kind = 'system'", "DESC")
+			.addOrderBy("mailbox.address", "ASC")
+			.getRawMany<Record<string, unknown>>();
+		return rows.map((row) => ({ ...row, received: Number(row.received), sent: Number(row.sent), unread: Number(row.unread) }));
 	}
 
 	async get(id: string): Promise<Mailbox> {
@@ -69,19 +86,26 @@ export class MailboxService {
 			throw new BadRequest("This address isn't on a verified domain. Add and verify the domain first.");
 		}
 		if (await this.repo.existsBy({ address: parsed.address })) throw new Conflict("That address already exists.");
-		return this.repo.save(this.repo.create({
-			id: randomUUID(),
-			address: parsed.address,
-			kind: "inbox",
-			displayName: input.displayName?.trim().slice(0, 100) || null,
-			userId: null,
-			enabled: true,
-		}));
+		return this.repo.save(
+			this.repo.create({
+				id: randomUUID(),
+				address: parsed.address,
+				kind: "inbox",
+				displayName: input.displayName?.trim().slice(0, 100) || null,
+				userId: null,
+				enabled: true,
+			}),
+		);
 	}
 
 	async update(id: string, input: { displayName?: string | null; enabled?: boolean }): Promise<Mailbox> {
 		const mailbox = await this.get(id);
-		if (input.displayName !== undefined) mailbox.displayName = input.displayName?.replace(/[\r\n\0]/g, " ").trim().slice(0, 100) || null;
+		if (input.displayName !== undefined)
+			mailbox.displayName =
+				input.displayName
+					?.replace(/[\r\n\0]/g, " ")
+					.trim()
+					.slice(0, 100) || null;
 		if (input.enabled !== undefined) mailbox.enabled = input.enabled === true;
 		return this.repo.save(mailbox);
 	}

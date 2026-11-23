@@ -1,8 +1,12 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
 export class NormalizeChapterTitles1798300000004 implements MigrationInterface {
+
 	async up(queryRunner: QueryRunner): Promise<void> {
-		for (const [column, field] of [["technical", "chapters"], ["metadata", "adminChapters"]] as const) {
+		for (const [column, field] of [
+			["technical", "chapters"],
+			["metadata", "adminChapters"],
+		] as const) {
 			await queryRunner.query(`
 				UPDATE "media_items" AS item
 				SET "${column}" = jsonb_set(item."${column}", '{${field}}', (

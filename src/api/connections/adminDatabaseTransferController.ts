@@ -9,6 +9,7 @@ import { DatabaseTransferService } from "./databaseTransferService.js";
 @Controller("/admin/database-transfer")
 @Security("BearerAuth")
 export class AdminDatabaseTransferController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly transfer: DatabaseTransferService,

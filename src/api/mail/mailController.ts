@@ -10,21 +10,12 @@ import { MailDomainService } from "./mailDomainService.js";
 import { MailInboundService } from "./mailInboundService.js";
 import { MailMessageService } from "./mailMessageService.js";
 import { MailboxService } from "./mailboxService.js";
-import {
-	CreateMailboxRequest,
-	CreateMailDomainRequest,
-	PreviewMailTemplateRequest,
-	SaveMailTemplateRequest,
-	SendMailRequest,
-	SendTestMailRequest,
-	UpdateMailboxRequest,
-	UpdateMailDomainRequest,
-	UpdateMailSettingsRequest,
-} from "./mailRequests.js";
+import { CreateMailboxRequest, CreateMailDomainRequest, PreviewMailTemplateRequest, SaveMailTemplateRequest, SendMailRequest, SendTestMailRequest, UpdateMailboxRequest, UpdateMailDomainRequest, UpdateMailSettingsRequest } from "./mailRequests.js";
 import { MailSettingsService } from "./mailSettingsService.js";
 import { MailTemplateService, templateVariables } from "./mailTemplateService.js";
 
 function sendFile(ctx: PlatformContext, filename: string, size: number) {
+
 	const safeName = filename.replace(/[^\w.\- ]/g, "_");
 	ctx.response.setHeader("Content-Type", "application/octet-stream");
 	ctx.response.setHeader("Content-Length", String(size));
@@ -32,11 +23,13 @@ function sendFile(ctx: PlatformContext, filename: string, size: number) {
 	ctx.response.setHeader("X-Content-Type-Options", "nosniff");
 	ctx.response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
 	ctx.response.setHeader("Cache-Control", "private, no-store");
+
 }
 
 @Controller("/admin/mail")
 @Security("BearerAuth")
 export class AdminMailController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly settings: MailSettingsService,
@@ -153,15 +146,7 @@ export class AdminMailController {
 	}
 
 	@Get("/messages")
-	async listMessages(
-		@HeaderParams("authorization") authorization?: string,
-		@QueryParams("mailboxId", String) mailboxId?: string,
-		@QueryParams("direction", String) direction?: string,
-		@QueryParams("search", String) search?: string,
-		@QueryParams("unread", Boolean) unread?: boolean,
-		@QueryParams("page", Number) page?: number,
-		@QueryParams("limit", Number) limit?: number,
-	) {
+	async listMessages(@HeaderParams("authorization") authorization?: string, @QueryParams("mailboxId", String) mailboxId?: string, @QueryParams("direction", String) direction?: string, @QueryParams("search", String) search?: string, @QueryParams("unread", Boolean) unread?: boolean, @QueryParams("page", Number) page?: number, @QueryParams("limit", Number) limit?: number) {
 		await this.authService.requireAdmin(authorization);
 		return this.messages.list({
 			mailboxId,
@@ -189,12 +174,7 @@ export class AdminMailController {
 	}
 
 	@Get("/messages/:id/attachments/:attachmentId")
-	async attachment(
-		@PathParams("id") id: string,
-		@PathParams("attachmentId") attachmentId: string,
-		@Context() ctx: PlatformContext,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async attachment(@PathParams("id") id: string, @PathParams("attachmentId") attachmentId: string, @Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		const { info, stream, size } = await this.messages.attachment(id, attachmentId);
 		sendFile(ctx, info.filename, size);
@@ -269,6 +249,7 @@ export class AdminMailController {
 @Controller("/mail")
 @Security("BearerAuth")
 export class UserMailController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly settings: MailSettingsService,
@@ -297,13 +278,7 @@ export class UserMailController {
 	}
 
 	@Get("/messages")
-	async list(
-		@HeaderParams("authorization") authorization?: string,
-		@QueryParams("search", String) search?: string,
-		@QueryParams("unread", Boolean) unread?: boolean,
-		@QueryParams("page", Number) page?: number,
-		@QueryParams("limit", Number) limit?: number,
-	) {
+	async list(@HeaderParams("authorization") authorization?: string, @QueryParams("search", String) search?: string, @QueryParams("unread", Boolean) unread?: boolean, @QueryParams("page", Number) page?: number, @QueryParams("limit", Number) limit?: number) {
 		const mailbox = await this.mailboxFor(authorization);
 		return this.messages.list({ mailboxId: mailbox.id, direction: "inbound", search, unreadOnly: unread === true, page, limit });
 	}
@@ -325,12 +300,7 @@ export class UserMailController {
 	}
 
 	@Get("/messages/:id/attachments/:attachmentId")
-	async attachment(
-		@PathParams("id") id: string,
-		@PathParams("attachmentId") attachmentId: string,
-		@Context() ctx: PlatformContext,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async attachment(@PathParams("id") id: string, @PathParams("attachmentId") attachmentId: string, @Context() ctx: PlatformContext, @HeaderParams("authorization") authorization?: string) {
 		const mailbox = await this.mailboxFor(authorization);
 		const { info, stream, size } = await this.messages.attachment(id, attachmentId, { mailboxId: mailbox.id, direction: "inbound" });
 		sendFile(ctx, info.filename, size);

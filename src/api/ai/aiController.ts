@@ -12,6 +12,7 @@ const PREFIX = "/api/internal/ai";
 /** Provides minimal recommendation data to the signed flixer-ai service. */
 @Controller("/internal/ai")
 export class AiController {
+
 	constructor(
 		private readonly data: AiDataService,
 		private readonly admin: AiAdminService,

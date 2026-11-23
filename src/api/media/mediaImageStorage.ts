@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { detectAvatarType, type AvatarType } from "../auth/avatarStorage.js";
+import { detectAvatarType, type AvatarType } from "../auth/avatar/avatarStorage.js";
 import { dataPath } from "../../config/dataPath.js";
 
 export const MAX_MEDIA_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -53,13 +53,7 @@ export function uploadFilename(path: unknown): string | null {
 
 }
 
-export async function saveUpload(
-	rootId: string,
-	relativePath: string,
-	itemId: string,
-	buffer: Buffer,
-	type: AvatarType,
-): Promise<string> {
+export async function saveUpload(rootId: string, relativePath: string, itemId: string, buffer: Buffer, type: AvatarType): Promise<string> {
 
 	const key = mediaKey(rootId, relativePath);
 	const mediaDirectory = dirname(getMediaImageDirectory(key));

@@ -42,9 +42,9 @@ const SEARCH_TYPE_FAMILIES: Partial<Record<MediaItemType, MediaItemType[]>> = {
 	album: ["album", "track"],
 };
 const SEARCH_LIMIT = 60;
-export type MediaSearchEngine = "meilisearch" | "postgresql" | "none";
+type MediaSearchEngine = "meilisearch" | "postgresql" | "none";
 
-export interface SearchFilters {
+interface SearchFilters {
 	type?: string;
 	genre?: string;
 	yearFrom?: number;
@@ -62,14 +62,17 @@ export interface SearchFilters {
 }
 
 export function applyBrowseFilters(query: SelectQueryBuilder<MediaItem>, filters: SearchFilters): void {
+
 	const cast = filters.cast?.trim().slice(0, 100);
 	const studio = filters.studio?.trim().slice(0, 100);
 	if (cast) {
 		const pattern = `%${cast.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		// RAW SQL: jsonb array EXISTS filter on cast
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(item.metadata -> 'cast') = 'array' THEN item.metadata -> 'cast' ELSE '[]'::jsonb END) person WHERE person ->> 'name' ILIKE :cast)`, { cast: pattern });
 	}
 	if (studio) {
 		const pattern = `%${studio.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+		// RAW SQL: jsonb array EXISTS filter on studios
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'studios') = 'array' THEN item.metadata -> 'studios' ELSE '[]'::jsonb END) studio WHERE studio ILIKE :studio)`, { studio: pattern });
 	}
 	const runtime = `COALESCE(CASE WHEN item.metadata ->> 'runtime' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.metadata ->> 'runtime')::numeric END, CASE WHEN item.technical ->> 'duration' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item.technical ->> 'duration')::numeric / 60 END)`;
@@ -80,8 +83,10 @@ export function applyBrowseFilters(query: SelectQueryBuilder<MediaItem>, filters
 		query.andWhere(`CASE WHEN item.technical ->> 'height' ~ '^[0-9]+$' THEN (item.technical ->> 'height')::integer >= :resolution ELSE false END`, { resolution: filters.resolution });
 	}
 	if (filters.audioLanguage?.trim()) {
+		// RAW SQL: jsonb array EXISTS filter on audio languages
 		query.andWhere(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.technical -> 'audioLanguages') = 'array' THEN item.technical -> 'audioLanguages' ELSE '[]'::jsonb END) language WHERE lower(language) = lower(:audioLanguage))`, { audioLanguage: filters.audioLanguage.trim().slice(0, 30) });
 	}
+
 }
 const BROWSE_KINDS: Record<string, MediaItemType[]> = {
 	movies: ["movie", "video"],
@@ -189,7 +194,7 @@ export interface HomeCard {
 	lockReason?: "library" | "rating" | "unrated" | "tags";
 }
 
-export interface HomeFeatured extends HomeCard {
+interface HomeFeatured extends HomeCard {
 	tagline: string | null;
 	overview: string | null;
 	rating: string | null;
@@ -339,7 +344,10 @@ export class MediaHomeService {
 	}
 
 	private async episodeIds(id: string, type: "season" | "series"): Promise<string[]> {
-		const rows: Array<{ id: string }> = await this.dataSource.query(type === "season" ? `SELECT id FROM media_items WHERE parent_id = $1 AND type = 'episode' AND is_placeholder = false` : `SELECT e.id FROM media_items e JOIN media_items s ON e.parent_id = s.id WHERE s.parent_id = $1 AND e.type = 'episode' AND e.is_placeholder = false`, [id]);
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("episode").select("episode.id", "id").where("episode.type = :type", { type: "episode" }).andWhere("episode.isPlaceholder = false");
+		if (type === "season") query.andWhere("episode.parentId = :id", { id });
+		else query.innerJoin(MediaItem, "season", "episode.parentId = season.id").andWhere("season.parentId = :id", { id });
+		const rows = await query.getRawMany<{ id: string }>();
 		return rows.map((row) => row.id);
 	}
 
@@ -351,7 +359,10 @@ export class MediaHomeService {
 		}
 		const repo = this.dataSource.getRepository(MediaItem);
 		const found = await repo.find({ where: { id: In(rows.map((row) => row.itemId)), isPlaceholder: false } });
-		const allowed = await this.access.visibleIds(policy, found.map((item) => item.id));
+		const allowed = await this.access.visibleIds(
+			policy,
+			found.map((item) => item.id),
+		);
 		const items = found.filter((item) => allowed.has(item.id));
 		const byId = new Map(items.map((item) => [item.id, item]));
 		const seasonIds = [...new Set(items.filter((item) => item.type === "episode" && item.parentId).map((item) => item.parentId as string))];
@@ -464,15 +475,9 @@ export class MediaHomeService {
 		const crew = crewOf(metadata.crew);
 		const missingPhotoIds = [...new Set([...cast, ...crew].filter((person) => !person.hasImage).map((person) => person.id))];
 		if (missingPhotoIds.length > 0) {
-			const creditImages = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
-				.innerJoin(MediaItem, "credited_item", "credited_item.id = credit.item_id AND credited_item.is_placeholder = false")
-				.select("DISTINCT credit.person_id", "id")
-				.where("credit.person_id IN (:...ids) AND credit.image IS NOT NULL", { ids: missingPhotoIds });
+			const creditImages = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").innerJoin(MediaItem, "credited_item", "credited_item.id = credit.item_id AND credited_item.is_placeholder = false").select("DISTINCT credit.person_id", "id").where("credit.person_id IN (:...ids) AND credit.image IS NOT NULL", { ids: missingPhotoIds });
 			this.access.restrict(creditImages, "credited_item", policy, { content: true });
-			const [creditsWithImages, profiles] = await Promise.all([
-				creditImages.getRawMany<{ id: string }>(),
-				this.dataSource.getRepository(PersonProfile).findBy({ personId: In(missingPhotoIds) }),
-			]);
+			const [creditsWithImages, profiles] = await Promise.all([creditImages.getRawMany<{ id: string }>(), this.dataSource.getRepository(PersonProfile).findBy({ personId: In(missingPhotoIds) })]);
 			const available = new Set([...creditsWithImages.map((credit) => credit.id), ...profiles.filter((profile) => allowedPersonImage(profile.image)).map((profile) => profile.personId)]);
 			for (const person of [...cast, ...crew]) if (available.has(person.id)) person.hasImage = true;
 		}
@@ -526,7 +531,19 @@ export class MediaHomeService {
 
 	/** Every genre present in the library, for the search filter. */
 	async genres(policy?: AccessPolicy): Promise<string[]> {
-		const rows: Array<{ genre: string }> = await this.dataSource.query(`SELECT DISTINCT g AS genre FROM media_items, jsonb_array_elements_text(CASE WHEN jsonb_typeof(metadata -> 'genres') = 'array' THEN metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE is_placeholder = false ORDER BY g`);
+		const rows = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.innerJoin(
+				// RAW SQL: PostgreSQL JSON array expansion is a set-returning expression.
+				(query) => query.select("jsonb_array_elements_text(CASE WHEN jsonb_typeof(source.metadata -> 'genres') = 'array' THEN source.metadata -> 'genres' ELSE '[]'::jsonb END)", "genre").from(MediaItem, "source").where("source.isPlaceholder = false"),
+				"genres",
+				"TRUE",
+			)
+			.select("DISTINCT genres.genre", "genre")
+			.where("item.isPlaceholder = false")
+			.orderBy("genre", "ASC")
+			.getRawMany<{ genre: string }>();
 		const hidden = new Set(policy?.enforced && policy.displayMode === "hidden" ? policy.blockedTags : []);
 		return rows.map((row) => row.genre).filter((genre) => Boolean(genre) && !hidden.has(genre.trim().toLowerCase()));
 	}
@@ -543,13 +560,15 @@ export class MediaHomeService {
 		const includeChildren = filters.includeChildren === true;
 		const searchableTypes = includeChildren ? [...TOP_LEVEL_TYPES, ...NESTED_SEARCH_TYPES] : TOP_LEVEL_TYPES;
 		const types = filters.type && searchableTypes.includes(filters.type as MediaItemType) ? (includeChildren ? (SEARCH_TYPE_FAMILIES[filters.type as MediaItemType] ?? [filters.type as MediaItemType]) : [filters.type as MediaItemType]) : searchableTypes;
-		const searchIds = extendedFilters ? null : await this.mediaSearch.searchIds(term, {
-			type: types,
-			genre,
-			yearFrom: filters.yearFrom,
-			yearTo: filters.yearTo,
-			sort: filters.sort,
-		});
+		const searchIds = extendedFilters
+			? null
+			: await this.mediaSearch.searchIds(term, {
+					type: types,
+					genre,
+					yearFrom: filters.yearFrom,
+					yearTo: filters.yearTo,
+					sort: filters.sort,
+				});
 		if (searchIds?.length === 0) return { items: [], engine: "meilisearch" };
 		const query_ = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.parentId", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 
@@ -560,6 +579,7 @@ export class MediaHomeService {
 		} else if (term) {
 			const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
 			query_.andWhere(
+				// RAW SQL: search predicate: jsonb arrays and correlated EXISTS over related items and lyrics
 				`(
 						item.title ILIKE :contains
 						OR item.metadata ->> 'overview' ILIKE :contains
@@ -620,6 +640,7 @@ export class MediaHomeService {
 			);
 		}
 		if (genre && !searchIds) {
+			// RAW SQL: jsonb array EXISTS filter on genres
 			query_.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre });
 		}
 		if (!searchIds && Number.isInteger(filters.yearFrom)) {
@@ -629,6 +650,7 @@ export class MediaHomeService {
 			query_.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
 		}
 		if (filters.unwatched) {
+			// RAW SQL: NOT EXISTS subselect on watch_progress
 			query_.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId });
 		}
 
@@ -662,15 +684,15 @@ export class MediaHomeService {
 		const contextById = new Map([...parents, ...series].map((item) => [item.id, item]));
 
 		const cards = orderedItems.slice(0, SEARCH_LIMIT).map((item) => ({
-				id: item.id,
-				type: item.type,
-				title: item.title,
-				year: item.year,
-				searchContext: item.type === "track" ? (contextById.get(item.parentId ?? "")?.title ?? null) : item.type === "episode" ? (contextById.get(item.parentId ?? "")?.type === "series" ? (contextById.get(item.parentId ?? "")?.title ?? null) : (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)) : null,
-				poster: imageIndex(item.images, ["poster"]),
-				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
-				updatedAt: item.updatedAt,
-			}));
+			id: item.id,
+			type: item.type,
+			title: item.title,
+			year: item.year,
+			searchContext: item.type === "track" ? (contextById.get(item.parentId ?? "")?.title ?? null) : item.type === "episode" ? (contextById.get(item.parentId ?? "")?.type === "series" ? (contextById.get(item.parentId ?? "")?.title ?? null) : (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)) : null,
+			poster: imageIndex(item.images, ["poster"]),
+			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			updatedAt: item.updatedAt,
+		}));
 		return { items: policy ? await this.access.shape(policy, cards) : cards, engine: searchIds === null ? "postgresql" : "meilisearch" };
 	}
 
@@ -683,9 +705,11 @@ export class MediaHomeService {
 		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select(["item.id", "item.type", "item.title", "item.year", "item.images", "item.updatedAt"]).where("item.is_placeholder = false").andWhere("item.type IN (:...types)", { types });
 		this.access.restrict(query, "item", policy);
 		applyBrowseFilters(query, filters);
+		// RAW SQL: jsonb array EXISTS filter on genres
 		if (filters.genre?.trim()) query.andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(item.metadata -> 'genres') = 'array' THEN item.metadata -> 'genres' ELSE '[]'::jsonb END) g WHERE lower(g) = lower(:genre))", { genre: filters.genre.trim().slice(0, 60) });
 		if (Number.isInteger(filters.yearFrom)) query.andWhere("item.year >= :yearFrom", { yearFrom: filters.yearFrom });
 		if (Number.isInteger(filters.yearTo)) query.andWhere("item.year <= :yearTo", { yearTo: filters.yearTo });
+		// RAW SQL: NOT EXISTS subselect on watch_progress
 		if (filters.unwatched) query.andWhere("NOT EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true)", { userId: policy.userId });
 		if (sort === "title") {
 			query.orderBy("COALESCE(item.sort_title, item.title)", "ASC");
@@ -695,11 +719,19 @@ export class MediaHomeService {
 			query.orderBy("item.created_at", "DESC").addOrderBy("item.title", "ASC");
 		}
 		const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
-		return { total, items: await this.access.shape(policy, items.map((item) => this.toCard(item))) };
+		return {
+			total,
+			items: await this.access.shape(
+				policy,
+				items.map((item) => this.toCard(item)),
+			),
+		};
 	}
 
 	async browseArtists(sort: string, offset: number, limit: number, policy: AccessPolicy) {
-		const query = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
+		const query = this.dataSource
+			.getRepository(MediaCredit)
+			.createQueryBuilder("credit")
 			.innerJoin(MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false AND item.type = 'album'")
 			.where("credit.role IN (:...roles)", { roles: ["artist", "albumArtist"] })
 			.select("credit.person_id", "id")
@@ -716,11 +748,14 @@ export class MediaHomeService {
 		query.addOrderBy("credit.person_id", "ASC");
 		const rows = await query.offset(offset).limit(limit).getRawMany<{ id: string; name: string; albumCount: string }>();
 		if (rows.length === 0) return { total: Number(count?.total ?? 0), items: [] };
-		const albums = this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit")
+		const albums = this.dataSource
+			.getRepository(MediaCredit)
+			.createQueryBuilder("credit")
 			.innerJoinAndMapOne("credit.item", MediaItem, "item", "item.id = credit.item_id AND item.is_placeholder = false AND item.type = 'album'")
 			.where("credit.person_id IN (:...ids)", { ids: rows.map((row) => row.id) })
 			.andWhere("credit.role IN (:...roles)", { roles: ["artist", "albumArtist"] })
-			.orderBy("item.year", "DESC", "NULLS LAST").addOrderBy("item.title", "ASC");
+			.orderBy("item.year", "DESC", "NULLS LAST")
+			.addOrderBy("item.title", "ASC");
 		this.access.restrict(albums, "item", policy, { content: true });
 		const credits = await albums.getMany();
 		const covers = new Map<string, Array<{ itemId: string; index: number; version: Date }>>();
@@ -737,7 +772,10 @@ export class MediaHomeService {
 	}
 
 	/** Everything a person is credited on (albums, movies, shows), grouped by role, matched by name ignoring case. */
-	async person(id: string, policy: AccessPolicy): Promise<{
+	async person(
+		id: string,
+		policy: AccessPolicy,
+	): Promise<{
 		id: string;
 		name: string;
 		hasImage: boolean;
@@ -839,10 +877,7 @@ export class MediaHomeService {
 		const profileImage = await tryImage(profile?.image);
 		if (profileImage) return profileImage;
 		if (tried.size > 0) {
-			const items = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-				.innerJoin(MediaCredit, "credit", "credit.item_id = item.id")
-				.select(["item.id", "item.metadata"])
-				.where("credit.person_id = :id", { id: id.toLowerCase() }).limit(50).getMany();
+			const items = await this.dataSource.getRepository(MediaItem).createQueryBuilder("item").innerJoin(MediaCredit, "credit", "credit.item_id = item.id").select(["item.id", "item.metadata"]).where("credit.person_id = :id", { id: id.toLowerCase() }).limit(50).getMany();
 			for (const item of items) {
 				for (const list of [item.metadata?.cast, item.metadata?.crew]) {
 					if (!Array.isArray(list)) continue;
@@ -856,7 +891,11 @@ export class MediaHomeService {
 			}
 		}
 		if (tried.size === 0) {
-			const artist = await this.dataSource.getRepository(MediaCredit).createQueryBuilder("credit").where("credit.person_id = :id AND credit.role IN (:...roles)", { id: id.toLowerCase(), roles: ["artist", "albumArtist"] }).getOne();
+			const artist = await this.dataSource
+				.getRepository(MediaCredit)
+				.createQueryBuilder("credit")
+				.where("credit.person_id = :id AND credit.role IN (:...roles)", { id: id.toLowerCase(), roles: ["artist", "albumArtist"] })
+				.getOne();
 			if (artist) {
 				const image = await tryImage((await this.profileOf(artist.personId, artist.name, "artist"))?.image);
 				if (image) return image;
@@ -931,6 +970,7 @@ export class MediaHomeService {
 		this.access.restrict(query, "item", policy, { content: true });
 		if (userId) {
 			query.andWhere(
+				// RAW SQL: NOT (...) with correlated EXISTS over watch_progress and episodes
 				`NOT (
 					(item.type IN ('movie', 'video') AND EXISTS (SELECT 1 FROM watch_progress w WHERE w.user_id = :userId AND w.item_id = item.id AND w.completed = true))
 					OR (item.type = 'series'

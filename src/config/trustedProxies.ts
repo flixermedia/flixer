@@ -1,6 +1,6 @@
 import ipaddr from "ipaddr.js";
 
-export interface TrustedProxyConfig {
+interface TrustedProxyConfig {
 	enabled: boolean;
 	addresses: string[];
 }
@@ -10,6 +10,7 @@ export const DEFAULT_TRUSTED_PROXIES: TrustedProxyConfig = { enabled: false, add
 let activeRanges: Array<[ipaddr.IPv4 | ipaddr.IPv6, number]> = [];
 
 export function validateTrustedProxyConfig(value: unknown): TrustedProxyConfig {
+
 	if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Trusted proxy settings must be an object.");
 	const config = value as Record<string, unknown>;
 	if (typeof config.enabled !== "boolean" || !Array.isArray(config.addresses) || config.addresses.length > 32) {
@@ -29,22 +30,28 @@ export function validateTrustedProxyConfig(value: unknown): TrustedProxyConfig {
 		return entry;
 	});
 	return { enabled: config.enabled, addresses: [...new Set(addresses)] };
+
 }
 
 export function setTrustedProxyConfig(value: TrustedProxyConfig): void {
+
 	const config = validateTrustedProxyConfig(value);
-	activeRanges = config.enabled ? config.addresses.map((entry) => {
-		if (!entry.includes("/")) {
-			const address = ipaddr.process(entry);
-			return [address, address.kind() === "ipv4" ? 32 : 128];
-		}
-		const [address, prefix] = ipaddr.parseCIDR(entry);
-		if (address instanceof ipaddr.IPv6 && address.isIPv4MappedAddress()) return [address.toIPv4Address(), prefix - 96];
-		return [address, prefix];
-	}) : [];
+	activeRanges = config.enabled
+		? config.addresses.map((entry) => {
+				if (!entry.includes("/")) {
+					const address = ipaddr.process(entry);
+					return [address, address.kind() === "ipv4" ? 32 : 128];
+				}
+				const [address, prefix] = ipaddr.parseCIDR(entry);
+				if (address instanceof ipaddr.IPv6 && address.isIPv4MappedAddress()) return [address.toIPv4Address(), prefix - 96];
+				return [address, prefix];
+			})
+		: [];
+
 }
 
 export function isTrustedProxy(value: string): boolean {
+
 	if (!ipaddr.isValid(value)) return false;
 	const address = ipaddr.process(value);
 	return activeRanges.some(([network, prefix]) => {
@@ -52,4 +59,5 @@ export function isTrustedProxy(value: string): boolean {
 		if (address instanceof ipaddr.IPv6 && network instanceof ipaddr.IPv6) return address.match(network, prefix);
 		return false;
 	});
+
 }

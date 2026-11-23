@@ -12,6 +12,7 @@ vi.mock("./webhookSignature.js", () => ({
 }));
 
 function fulfilService(order: Partial<PaymentOrder>, product: unknown = null, plan: unknown = null) {
+
 	let committedStatus: PaymentOrder["status"] = "pending";
 	let stagedStatus: PaymentOrder["status"] | undefined;
 	const repositories = new Map<unknown, Record<string, ReturnType<typeof vi.fn>>>([
@@ -52,6 +53,7 @@ function fulfilService(order: Partial<PaymentOrder>, product: unknown = null, pl
 	const service = new PaymentsService(dataSource, config as never, entitlements as never, {} as never, { touch: vi.fn() } as never);
 
 	return { service, entitlements, getCommittedStatus: () => committedStatus };
+
 }
 
 describe("PaymentsService fulfilment", () => {
@@ -85,12 +87,14 @@ describe("PaymentsService fulfilment", () => {
 });
 
 describe("PaymentsService webhook event persistence", () => {
-	function webhookService(query: ReturnType<typeof vi.fn>) {
-		const events = { existsBy: vi.fn().mockResolvedValue(false) };
+	function webhookService(execute: ReturnType<typeof vi.fn>) {
+
+		const orIgnore = vi.fn(() => ({ execute }));
+		const values = vi.fn(() => ({ orIgnore }));
+		const events = { existsBy: vi.fn().mockResolvedValue(false), createQueryBuilder: vi.fn(() => ({ insert: () => ({ values }) })) };
 		const orders = { findOneBy: vi.fn().mockResolvedValue(null) };
 		const dataSource = {
 			getRepository: vi.fn((entity: unknown) => (entity === PaymentEvent ? events : orders)),
-			query,
 		} as unknown as DataSource;
 		const config = {
 			get: vi.fn().mockResolvedValue({ provider: "stripe" }),
@@ -98,7 +102,8 @@ describe("PaymentsService webhook event persistence", () => {
 			webhookCredentials: vi.fn().mockResolvedValue({ stripeSecret: "secret" }),
 		};
 		const service = new PaymentsService(dataSource, config as never, {} as never, {} as never, {} as never);
-		return { service, dataSource };
+		return { service, dataSource, values, orIgnore };
+
 	}
 
 	const body = JSON.stringify({
@@ -108,17 +113,19 @@ describe("PaymentsService webhook event persistence", () => {
 	});
 
 	it("records webhook IDs with a unique-key conflict guard", async () => {
-		const query = vi.fn().mockResolvedValue(undefined);
-		const { service, dataSource } = webhookService(query);
+		const execute = vi.fn().mockResolvedValue(undefined);
+		const { service, dataSource, values, orIgnore } = webhookService(execute);
 
 		await expect(service.handleWebhook("stripe", body, "signature")).resolves.toEqual({ handled: false });
-		expect(query).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT ("provider", "event_id") DO NOTHING'), [expect.any(String), "stripe", "evt-1"]);
+		expect(values).toHaveBeenCalledWith({ id: expect.any(String), provider: "stripe", eventId: "evt-1" });
+		expect(orIgnore).toHaveBeenCalledOnce();
+		expect(execute).toHaveBeenCalledOnce();
 		expect(dataSource.getRepository).toHaveBeenCalledWith(PaymentEvent);
 	});
 
 	it("propagates failures to persist the webhook ID so the provider can retry", async () => {
-		const query = vi.fn().mockRejectedValue(new Error("database unavailable"));
-		const { service } = webhookService(query);
+		const execute = vi.fn().mockRejectedValue(new Error("database unavailable"));
+		const { service } = webhookService(execute);
 
 		await expect(service.handleWebhook("stripe", body, "signature")).rejects.toThrow("database unavailable");
 	});

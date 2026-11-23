@@ -13,12 +13,7 @@ import { User } from "../../entities/user.entity.js";
 import type { PublicUser } from "../auth/authService.js";
 import { NotificationService } from "../notifications/notificationService.js";
 import { ArrError } from "./arrClient.js";
-import {
-	type DiscoverSection,
-	type ExternalMediaCard,
-	type ExternalMediaDetail,
-	normalizeTitle,
-} from "./externalMetadata.js";
+import { type DiscoverSection, type ExternalMediaCard, type ExternalMediaDetail, normalizeTitle } from "./externalMetadata.js";
 import { ExternalMetadataService } from "./externalMetadataService.js";
 import { type RequestAccess, remainingSeasons, resolveAccess } from "./requestAccess.js";
 import type { ApproveRequestBody, CreateMediaRequest, RequestUserLimitInput } from "./requestRequests.js";
@@ -91,13 +86,7 @@ export class MediaRequestsService {
 	) {}
 
 	$onInit(): void {
-		this.syncTimer = setInterval(
-			() =>
-				void this.syncAvailability().catch((error: unknown) =>
-					logger().error("Request availability sync failed.", error),
-				),
-			SYNC_INTERVAL_MS,
-		);
+		this.syncTimer = setInterval(() => void this.syncAvailability().catch((error: unknown) => logger().error("Request availability sync failed.", error)), SYNC_INTERVAL_MS);
 		this.syncTimer.unref();
 	}
 
@@ -119,10 +108,7 @@ export class MediaRequestsService {
 	}
 
 	private async accessOf(user: PublicUser, settings: RequestSettings): Promise<RequestAccess> {
-		const limit =
-			user.role === "admin"
-				? null
-				: await this.dataSource.getRepository(RequestUserLimit).findOneBy({ userId: user.id });
+		const limit = user.role === "admin" ? null : await this.dataSource.getRepository(RequestUserLimit).findOneBy({ userId: user.id });
 		const access = resolveAccess(user.role === "admin", settings, limit);
 		if (user.role !== "admin" && access.autoApprove) {
 			const policy = await this.dataSource.getRepository(UserAccessPolicy).findOneBy({ userId: user.id });
@@ -230,13 +216,10 @@ export class MediaRequestsService {
 	}
 
 	/** Maps `type:id` to the library item that already holds a title, matched by provider id or else by title and year. */
-	private async libraryMatches(
-		cards: Array<Pick<ExternalMediaCard, "type" | "id" | "title" | "year" | "source">>,
-	): Promise<Map<string, string>> {
+	private async libraryMatches(cards: Array<Pick<ExternalMediaCard, "type" | "id" | "title" | "year" | "source">>): Promise<Map<string, string>> {
 		const matches = new Map<string, string>();
 		const repository = this.dataSource.getRepository(MediaItem);
-		const libraryType = (type: RequestMediaType) =>
-			type === "movie" ? "movie" : type === "tv" ? "series" : "album";
+		const libraryType = (type: RequestMediaType) => (type === "movie" ? "movie" : type === "tv" ? "series" : "album");
 
 		const keys = cards.map((card) => `${card.source}:${card.id}`);
 		const keyed = await repository.find({
@@ -244,9 +227,7 @@ export class MediaRequestsService {
 			where: { externalKey: In(keys), isPlaceholder: false },
 		});
 		for (const item of keyed) {
-			const card = cards.find(
-				(entry) => `${entry.source}:${entry.id}` === item.externalKey && libraryType(entry.type) === item.type,
-			);
+			const card = cards.find((entry) => `${entry.source}:${entry.id}` === item.externalKey && libraryType(entry.type) === item.type);
 			if (card) {
 				matches.set(cardKey(card.type, card.id), item.id);
 			}
@@ -270,12 +251,7 @@ export class MediaRequestsService {
 				if (item.type !== libraryType(card.type) || normalizeTitle(item.title) !== wanted) {
 					return false;
 				}
-				return (
-					card.type === "music" ||
-					card.year === null ||
-					item.year === null ||
-					Math.abs(item.year - card.year) <= 1
-				);
+				return card.type === "music" || card.year === null || item.year === null || Math.abs(item.year - card.year) <= 1;
 			});
 			if (found) {
 				matches.set(cardKey(card.type, card.id), found.id);
@@ -284,11 +260,7 @@ export class MediaRequestsService {
 		return matches;
 	}
 
-	async details(
-		user: PublicUser,
-		type: RequestMediaType,
-		id: string,
-	): Promise<ExternalMediaDetail & { requests: MediaRequestView[]; libraryItemId: string | null }> {
+	async details(user: PublicUser, type: RequestMediaType, id: string): Promise<ExternalMediaDetail & { requests: MediaRequestView[]; libraryItemId: string | null }> {
 		const { settings } = await this.requireRequester(user);
 		if (!settings[type === "movie" ? "movies" : type]) {
 			throw new NotFound("This kind of request is not available.");
@@ -296,16 +268,10 @@ export class MediaRequestsService {
 		const detail = await this.metadata.details(type, id);
 		const [annotated] = await this.annotate([detail], false);
 		const libraryItemId = (await this.libraryMatches([detail])).get(cardKey(type, id)) ?? null;
-		const requests = await this.dataSource
-			.getRepository(MediaRequest)
-			.find({ where: { type, externalId: id }, order: { createdAt: "DESC" } });
+		const requests = await this.dataSource.getRepository(MediaRequest).find({ where: { type, externalId: id }, order: { createdAt: "DESC" } });
 		const views = await this.toViews(requests);
 		const seasons = detail.seasons?.map((season) => {
-			const covering = requests.find(
-				(request) =>
-					request.status !== "declined" &&
-					(request.seasons === null || request.seasons.includes(season.number)),
-			);
+			const covering = requests.find((request) => request.status !== "declined" && (request.seasons === null || request.seasons.includes(season.number)));
 			return { ...season, status: covering?.status ?? ("none" as const) };
 		});
 		return {
@@ -326,9 +292,7 @@ export class MediaRequestsService {
 		if (access.quotaLimit !== null) {
 			const used = await this.quotaUsed(user.id, access.quotaDays);
 			if (used >= access.quotaLimit) {
-				throw new BadRequest(
-					`You have used all ${access.quotaLimit} requests allowed every ${access.quotaDays} days.`,
-				);
+				throw new BadRequest(`You have used all ${access.quotaLimit} requests allowed every ${access.quotaDays} days.`);
 			}
 		}
 
@@ -345,8 +309,7 @@ export class MediaRequestsService {
 		let seasons: number[] | null = null;
 		if (body.type === "tv") {
 			const all = (detail.seasons ?? []).map((season) => season.number);
-			const wanted =
-				body.seasons && body.seasons.length > 0 ? body.seasons.filter((season) => all.includes(season)) : null;
+			const wanted = body.seasons && body.seasons.length > 0 ? body.seasons.filter((season) => all.includes(season)) : null;
 			if (body.seasons && body.seasons.length > 0 && wanted?.length === 0) {
 				throw new BadRequest("Choose at least one valid season.");
 			}
@@ -403,14 +366,7 @@ export class MediaRequestsService {
 		return (await this.toViews([await repository.findOneByOrFail({ id: request.id })]))[0];
 	}
 
-	async list(
-		user: PublicUser,
-		scope: string,
-		status: string | undefined,
-		type: string | undefined,
-		offset: number,
-		limit: number,
-	) {
+	async list(user: PublicUser, scope: string, status: string | undefined, type: string | undefined, offset: number, limit: number) {
 		const settings = await this.settings();
 		if (!settings.enabled) {
 			return { total: 0, counts: Object.fromEntries(ALL_STATUSES.map((entry) => [entry, 0])), items: [] };
@@ -426,25 +382,14 @@ export class MediaRequestsService {
 		if (type === "movie" || type === "tv" || type === "music") {
 			base.andWhere("request.type = :type", { type });
 		}
-		const countRows = await base
-			.clone()
-			.select("request.status", "status")
-			.addSelect("count(*)::int", "count")
-			.groupBy("request.status")
-			.getRawMany<{ status: RequestStatus; count: number }>();
-		const counts = Object.fromEntries(
-			ALL_STATUSES.map((entry) => [entry, countRows.find((row) => row.status === entry)?.count ?? 0]),
-		);
+		const countRows = await base.clone().select("request.status", "status").addSelect("count(*)::int", "count").groupBy("request.status").getRawMany<{ status: RequestStatus; count: number }>();
+		const counts = Object.fromEntries(ALL_STATUSES.map((entry) => [entry, countRows.find((row) => row.status === entry)?.count ?? 0]));
 
 		if (ALL_STATUSES.includes(status as RequestStatus)) {
 			base.andWhere("request.status = :status", { status });
 		}
 		const take = Math.min(Math.max(Number.isInteger(limit) ? limit : 24, 1), MAX_PAGE);
-		const [items, total] = await base
-			.orderBy("request.created_at", "DESC")
-			.skip(Math.max(offset, 0))
-			.take(take)
-			.getManyAndCount();
+		const [items, total] = await base.orderBy("request.created_at", "DESC").skip(Math.max(offset, 0)).take(take).getManyAndCount();
 		return { total, counts, items: await this.toViews(items) };
 	}
 
@@ -482,11 +427,7 @@ export class MediaRequestsService {
 		request.processedBy = admin.id;
 		request.error = null;
 		await this.dataSource.getRepository(MediaRequest).save(request);
-		await this.notifyRequester(
-			request,
-			"Request declined",
-			`${request.title} was declined${request.declineReason ? `: ${request.declineReason}` : "."}`,
-		);
+		await this.notifyRequester(request, "Request declined", `${request.title} was declined${request.declineReason ? `: ${request.declineReason}` : "."}`);
 		return (await this.toViews([request]))[0];
 	}
 
@@ -572,12 +513,7 @@ export class MediaRequestsService {
 				if (matches.has(cardKey(request.type, request.externalId))) {
 					request.status = "available";
 					await repository.save(request);
-					await this.notifyRequester(
-						request,
-						"Now available",
-						`${request.title} is now in your library.`,
-						`/media/${matches.get(cardKey(request.type, request.externalId))}`,
-					);
+					await this.notifyRequester(request, "Now available", `${request.title} is now in your library.`, `/media/${matches.get(cardKey(request.type, request.externalId))}`);
 					changed += 1;
 				}
 			}
@@ -587,24 +523,15 @@ export class MediaRequestsService {
 		}
 	}
 
-	private async notifyRequester(
-		request: MediaRequest,
-		title: string,
-		body: string,
-		url = "/requests",
-	): Promise<void> {
+	private async notifyRequester(request: MediaRequest, title: string, body: string, url = "/requests"): Promise<void> {
 		if (!(await this.settings()).notifyUsers) {
 			return;
 		}
-		await this.notifications
-			.send({ title, body: body.slice(0, 500), url, kind: "request" }, [request.userId])
-			.catch((error: unknown) => logger().warn("Could not notify the requester.", error));
+		await this.notifications.send({ title, body: body.slice(0, 500), url, kind: "request" }, [request.userId]).catch((error: unknown) => logger().warn("Could not notify the requester.", error));
 	}
 
 	private async notifyAdmins(request: MediaRequest, user: PublicUser): Promise<void> {
-		const admins = await this.dataSource
-			.getRepository(User)
-			.find({ select: { id: true }, where: { role: "admin" } });
+		const admins = await this.dataSource.getRepository(User).find({ select: { id: true }, where: { role: "admin" } });
 		if (admins.length === 0) {
 			return;
 		}
@@ -625,15 +552,11 @@ export class MediaRequestsService {
 		if (requests.length === 0) {
 			return [];
 		}
-		const users = await this.dataSource
-			.getRepository(User)
-			.find({
-				select: { id: true, username: true, displayName: true },
-				where: { id: In([...new Set(requests.map((request) => request.userId))]) },
-			});
-		const serviceIds = [
-			...new Set(requests.map((request) => request.serviceId).filter((id): id is string => id !== null)),
-		];
+		const users = await this.dataSource.getRepository(User).find({
+			select: { id: true, username: true, displayName: true },
+			where: { id: In([...new Set(requests.map((request) => request.userId))]) },
+		});
+		const serviceIds = [...new Set(requests.map((request) => request.serviceId).filter((id): id is string => id !== null))];
 		const services = serviceIds.length > 0 ? await this.services.list() : [];
 		return requests.map((request) => {
 			const owner = users.find((entry) => entry.id === request.userId);
@@ -663,12 +586,10 @@ export class MediaRequestsService {
 
 	async listUserLimits(): Promise<RequestUserLimitView[]> {
 		const [users, limits] = await Promise.all([
-			this.dataSource
-				.getRepository(User)
-				.find({
-					select: { id: true, username: true, displayName: true, role: true },
-					order: { username: "ASC" },
-				}),
+			this.dataSource.getRepository(User).find({
+				select: { id: true, username: true, displayName: true, role: true },
+				order: { username: "ASC" },
+			}),
 			this.dataSource.getRepository(RequestUserLimit).find(),
 		]);
 		return users.map((user) =>
@@ -680,9 +601,7 @@ export class MediaRequestsService {
 	}
 
 	async updateUserLimit(userId: string, input: RequestUserLimitInput): Promise<RequestUserLimitView> {
-		const user = await this.dataSource
-			.getRepository(User)
-			.findOne({ select: { id: true, username: true, displayName: true, role: true }, where: { id: userId } });
+		const user = await this.dataSource.getRepository(User).findOne({ select: { id: true, username: true, displayName: true, role: true }, where: { id: userId } });
 		if (!user) {
 			throw new NotFound("User not found.");
 		}

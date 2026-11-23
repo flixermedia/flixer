@@ -5,52 +5,30 @@ import { DefaultDataSource } from "../../datasources/defaultDataSource.datasourc
 import { Setting } from "../../entities/setting.entity.js";
 import { PluginInstallation } from "../../entities/pluginInstallation.entity.js";
 import { SECRET_MASK } from "../settings/secretMask.js";
+import { isRecord } from "../../utils/isRecord.js";
 
 export const INDEXER_LANGUAGE_KEY = "indexer_language";
 export const INDEXER_PROVIDERS_KEY = "indexer_providers";
 export const INDEXER_CONCURRENCY_KEY = "indexer_concurrency";
-export const INDEXER_SUBTITLES_KEY = "indexer_subtitles";
-export const INDEXER_SETTING_KEYS = [
-	INDEXER_LANGUAGE_KEY,
-	INDEXER_PROVIDERS_KEY,
-	INDEXER_CONCURRENCY_KEY,
-	INDEXER_SUBTITLES_KEY,
-];
+const INDEXER_SUBTITLES_KEY = "indexer_subtitles";
+export const INDEXER_SETTING_KEYS = [INDEXER_LANGUAGE_KEY, INDEXER_PROVIDERS_KEY, INDEXER_CONCURRENCY_KEY, INDEXER_SUBTITLES_KEY];
 
 /** Providers that need an API key (or client name) and the ones that work without one. */
-export const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
-export const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "theintrodb", "introdb"];
-export const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
+const KEYED_PROVIDERS = ["tmdb", "tvdb", "omdb", "fanart", "audiodb", "discogs", "anidb"];
+const KEYLESS_PROVIDERS = ["musicbrainz", "anilist", "lrclib", "unison", "theintrodb", "introdb"];
+const INDEXER_PROVIDERS = [...KEYED_PROVIDERS, ...KEYLESS_PROVIDERS];
 
 /** Worker queues of the indexer pipeline and the highest concurrency it accepts. */
-export const INDEXER_QUEUES = [
-	"scan",
-	"identify",
-	"metadata",
-	"images",
-	"probe",
-	"refresh",
-	"trickplay",
-	"themes",
-	"lyrics",
-	"intro-movies",
-	"intro-episodes",
-] as const;
+const INDEXER_QUEUES = ["scan", "identify", "metadata", "images", "probe", "refresh", "trickplay", "themes", "lyrics", "intro-movies", "intro-episodes"] as const;
 export type IndexerQueueName = (typeof INDEXER_QUEUES)[number];
-export const INDEXER_TASK_QUEUES = [
-	...INDEXER_QUEUES,
-	"identify-priority",
-	"metadata-priority",
-	"images-priority",
-	"probe-priority",
-	"refresh-priority",
-] as const;
+export const INDEXER_TASK_QUEUES = [...INDEXER_QUEUES, "identify-priority", "metadata-priority", "images-priority", "probe-priority", "refresh-priority"] as const;
 export type IndexerTaskQueueName = (typeof INDEXER_TASK_QUEUES)[number];
-export const INDEXER_MAX_CONCURRENCY = 64;
+const INDEXER_MAX_CONCURRENCY = 64;
 
 export interface IndexerProviderSetting {
 	enabled: boolean;
 	apiKey?: string;
+	appId?: string;
 }
 
 export interface IndexerSubtitleSetting {
@@ -72,14 +50,9 @@ export interface IndexerSettings {
 
 const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** The indexer's dynamic configuration: metadata providers, worker concurrency and the metadata language. */
 @Injectable()
 export class IndexerSettingsService {
-
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	/** Validates a new value for an indexer setting; masked secrets keep the stored value. */
@@ -128,6 +101,7 @@ export class IndexerSettingsService {
 				providers[name] = {
 					enabled: provider.enabled !== false,
 					apiKey: typeof provider.apiKey === "string" ? provider.apiKey : "",
+					...(typeof provider.appId === "string" ? { appId: provider.appId } : {}),
 				};
 			}
 		}
@@ -149,15 +123,11 @@ export class IndexerSettingsService {
 			apiKey: typeof subs.apiKey === "string" ? subs.apiKey : "",
 			username: typeof subs.username === "string" ? subs.username : "",
 			password: typeof subs.password === "string" ? subs.password : "",
-			languages: Array.isArray(subs.languages)
-				? subs.languages.filter((item): item is string => typeof item === "string")
-				: [],
+			languages: Array.isArray(subs.languages) ? subs.languages.filter((item): item is string => typeof item === "string") : [],
 			autoFetch: subs.autoFetch !== false,
 		};
 		const themes = { enabled: value("themes_enabled") === true };
-		const installations = await this.dataSource
-			.getRepository(PluginInstallation)
-			.find({ where: { enabled: true } });
+		const installations = await this.dataSource.getRepository(PluginInstallation).find({ where: { enabled: true } });
 		const plugins = installations.flatMap((installation) => {
 			const indexerTarget = installation.manifest.targets["flixer-indexer"];
 			const backendTarget = installation.manifest.targets.flixer;
@@ -204,11 +174,7 @@ export class IndexerSettingsService {
 			return secret ? raw : raw.trim();
 		};
 		const languages = value.languages ?? [];
-		if (
-			!Array.isArray(languages) ||
-			languages.length > 10 ||
-			!languages.every((item) => typeof item === "string" && LANGUAGE_PATTERN.test(item))
-		) {
+		if (!Array.isArray(languages) || languages.length > 10 || !languages.every((item) => typeof item === "string" && LANGUAGE_PATTERN.test(item))) {
 			throw new BadRequest("Subtitle languages must be a list of up to 10 language codes such as en or pt-BR.");
 		}
 		if (value.autoFetch !== undefined && typeof value.autoFetch !== "boolean") {
@@ -223,10 +189,7 @@ export class IndexerSettingsService {
 		};
 	}
 
-	private validateProviders(
-		value: unknown,
-		current: Record<string, unknown>,
-	): Record<string, IndexerProviderSetting> {
+	private validateProviders(value: unknown, current: Record<string, unknown>): Record<string, IndexerProviderSetting> {
 		if (!isRecord(value)) {
 			throw new BadRequest("The indexer_providers setting must be an object keyed by provider name.");
 		}
@@ -241,6 +204,17 @@ export class IndexerSettingsService {
 			const entry: IndexerProviderSetting = { enabled: provider.enabled };
 			const previous = current[name];
 			const previousKey = isRecord(previous) && typeof previous.apiKey === "string" ? previous.apiKey : "";
+			if (name === "lrclib") {
+				const appId = provider.appId;
+				if (appId !== undefined) {
+					if (typeof appId !== "string" || appId.length > 128) {
+						throw new BadRequest('The App ID for "lrclib" must be text up to 128 characters.');
+					}
+					entry.appId = appId.trim();
+				} else if (isRecord(previous) && typeof previous.appId === "string") {
+					entry.appId = previous.appId;
+				}
+			}
 			if (provider.apiKey !== undefined) {
 				if (typeof provider.apiKey !== "string" || provider.apiKey.length > 512) {
 					throw new BadRequest(`The API key for "${name}" must be text up to 512 characters.`);
@@ -260,6 +234,7 @@ export class IndexerSettingsService {
 				result[name] = {
 					enabled: previous.enabled,
 					...(typeof previous.apiKey === "string" ? { apiKey: previous.apiKey } : {}),
+					...(typeof previous.appId === "string" ? { appId: previous.appId } : {}),
 				};
 			} else if (name === "theintrodb") {
 				result[name] = { enabled: true };
@@ -280,9 +255,7 @@ export class IndexerSettingsService {
 				throw new BadRequest(`Unknown indexer queue "${queue}".`);
 			}
 			if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > INDEXER_MAX_CONCURRENCY) {
-				throw new BadRequest(
-					`Concurrency for "${queue}" must be a whole number between 1 and ${INDEXER_MAX_CONCURRENCY}.`,
-				);
+				throw new BadRequest(`Concurrency for "${queue}" must be a whole number between 1 and ${INDEXER_MAX_CONCURRENCY}.`);
 			}
 			result[queue] = count;
 		}

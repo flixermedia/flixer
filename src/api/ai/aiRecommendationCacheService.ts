@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { AiRecommendationCache } from "../../entities/aiRecommendationCache.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
+import { User } from "../../entities/user.entity.js";
 
 interface CachedRecommendationResponse {
 	items: Array<{
@@ -14,7 +15,7 @@ interface CachedRecommendationResponse {
 	}>;
 }
 
-interface RecommendationCacheState {
+export interface RecommendationCacheState {
 	entries: Record<string, CachedRecommendationResponse>;
 	lastRefreshAt: string | null;
 	entryScopes: Record<string, "movies" | "music" | "general">;
@@ -37,6 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isCachedRecommendationResponse(value: unknown): value is CachedRecommendationResponse {
+
 	if (!isRecord(value) || !Array.isArray(value.items)) {
 		return false;
 	}
@@ -46,9 +48,11 @@ function isCachedRecommendationResponse(value: unknown): value is CachedRecommen
 		}
 		return item.reason === undefined || item.reason === null || typeof item.reason === "string";
 	});
+
 }
 
 function validateState(value: unknown): RecommendationCacheState {
+
 	if (!isRecord(value) || !isRecord(value.entries)) {
 		throw new BadRequest("Invalid recommendation cache state.");
 	}
@@ -94,25 +98,16 @@ function validateState(value: unknown): RecommendationCacheState {
 	}
 
 	return { entries, lastRefreshAt, entryScopes, refreshTimes };
+
 }
 
 @Injectable()
 export class AiRecommendationCacheService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listUsers() {
-		const rows = (await this.dataSource.query(`
-			SELECT
-				u.id AS "userId",
-				u.username AS "username",
-				COALESCE(u.display_name, u.username) AS "displayName",
-				c.entries AS "entries",
-				c.entry_scopes AS "entryScopes",
-				c.last_refresh_at AS "lastRefreshAt"
-			FROM users u
-			LEFT JOIN ai_recommendation_caches c ON c.user_id = u.id
-			ORDER BY u.username
-		`)) as RecommendationCacheUserRow[];
+		const rows = await this.dataSource.getRepository(User).createQueryBuilder("user").leftJoin(AiRecommendationCache, "cache", "cache.userId = user.id").select("user.id", "userId").addSelect("user.username", "username").addSelect("COALESCE(user.displayName, user.username)", "displayName").addSelect("cache.entries", "entries").addSelect("cache.entryScopes", "entryScopes").addSelect("cache.lastRefreshAt", "lastRefreshAt").orderBy("user.username", "ASC").getRawMany<RecommendationCacheUserRow>();
 		const mediaIds = new Set<string>();
 		for (const row of rows) {
 			for (const response of Object.values(row.entries ?? {})) {
@@ -153,14 +148,16 @@ export class AiRecommendationCacheService {
 		return {
 			entries: (row?.entries as RecommendationCacheState["entries"]) ?? {},
 			lastRefreshAt: row?.lastRefreshAt?.toISOString() ?? null,
-			entryScopes: row?.entryScopes ?? {},
+			entryScopes: (row?.entryScopes ?? {}) as RecommendationCacheState["entryScopes"],
 			refreshTimes: row?.refreshTimes ?? {},
 		};
 	}
 
 	async forHome(userId: string, scope: "movies" | "music", types: string[]): Promise<CachedRecommendationResponse | null> {
 		const state = await this.get(userId);
-		const key = createHash("sha256").update(JSON.stringify({ limit: 20, filters: { types } })).digest("hex");
+		const key = createHash("sha256")
+			.update(JSON.stringify({ limit: 20, filters: { types } }))
+			.digest("hex");
 		const exact = state.entries[key];
 		if (isCachedRecommendationResponse(exact) && (state.entryScopes[key] ?? "movies") === scope) return exact;
 		const candidates = Object.entries(state.entries)

@@ -4,6 +4,7 @@ import { DataSource, In, MoreThan } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { MediaSegment } from "../../entities/mediaSegment.entity.js";
+import { isRecord } from "../../utils/isRecord.js";
 
 const INTRO_TYPES = ["intro", "credits"] as const;
 type IntroType = (typeof INTRO_TYPES)[number];
@@ -18,27 +19,19 @@ export interface IntroSyncCandidate {
 	episode?: number;
 }
 
-export interface IntroSegmentUpdate {
+interface IntroSegmentUpdate {
 	itemId: string;
 	segments: Partial<Record<IntroType, TimedSegment | null>>;
 }
 
-export type ExistingIntroSegments = Partial<Record<IntroType, true>>;
+type ExistingIntroSegments = Partial<Record<IntroType, true>>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SEGMENT_MS = 7 * 24 * 60 * 60 * 1000;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export function parseIntroSegmentUpdate(value: unknown): IntroSegmentUpdate {
-	if (
-		!isRecord(value) ||
-		typeof value.itemId !== "string" ||
-		!UUID_PATTERN.test(value.itemId) ||
-		!isRecord(value.segments)
-	) {
+
+	if (!isRecord(value) || typeof value.itemId !== "string" || !UUID_PATTERN.test(value.itemId) || !isRecord(value.segments)) {
 		throw new BadRequest("itemId and a segments object are required.");
 	}
 	const segments: IntroSegmentUpdate["segments"] = {};
@@ -50,26 +43,19 @@ export function parseIntroSegmentUpdate(value: unknown): IntroSegmentUpdate {
 			segments[type as IntroType] = null;
 			continue;
 		}
-		if (
-			!isRecord(segment) ||
-			typeof segment.startMs !== "number" ||
-			!Number.isSafeInteger(segment.startMs) ||
-			typeof segment.endMs !== "number" ||
-			!Number.isSafeInteger(segment.endMs) ||
-			segment.startMs < 0 ||
-			segment.endMs <= segment.startMs ||
-			segment.endMs > MAX_SEGMENT_MS
-		) {
+		if (!isRecord(segment) || typeof segment.startMs !== "number" || !Number.isSafeInteger(segment.startMs) || typeof segment.endMs !== "number" || !Number.isSafeInteger(segment.endMs) || segment.startMs < 0 || segment.endMs <= segment.startMs || segment.endMs > MAX_SEGMENT_MS) {
 			throw new BadRequest("Segment times must be valid whole milliseconds.");
 		}
 		segments[type as IntroType] = { startMs: segment.startMs, endMs: segment.endMs };
 	}
 	return { itemId: value.itemId.toLowerCase(), segments };
+
 }
 
 /** Provides a paged backfill feed and replaces provider-owned timing rows. */
 @Injectable()
 export class IndexerIntroSegmentsService {
+
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async existing(itemId: string): Promise<ExistingIntroSegments> {
@@ -79,17 +65,12 @@ export class IndexerIntroSegmentsService {
 		});
 		const existing: ExistingIntroSegments = {};
 		for (const { type } of rows) {
-			existing[type] = true;
+			existing[type as keyof ExistingIntroSegments] = true;
 		}
 		return existing;
 	}
 
-	async candidates(
-		type: "movie" | "episode",
-		afterId: string | undefined,
-		limit: number,
-		libraryId?: string,
-	): Promise<{ items: IntroSyncCandidate[]; nextCursor: string | null }> {
+	async candidates(type: "movie" | "episode", afterId: string | undefined, limit: number, libraryId?: string): Promise<{ items: IntroSyncCandidate[]; nextCursor: string | null }> {
 		const repository = this.dataSource.getRepository(MediaItem);
 		const where: Record<string, unknown> = { type, isPlaceholder: false };
 		if (libraryId) {
@@ -119,10 +100,7 @@ export class IndexerIntroSegmentsService {
 		const seasonsById = new Map(seasons.map((item) => [item.id, item]));
 		const seriesById = new Map(series.map((item) => [item.id, item]));
 		const output = items.map((item): IntroSyncCandidate => {
-			const providerIds =
-				type === "movie"
-					? (item.providerIds ?? {})
-					: (seriesById.get(seasonsById.get(item.parentId ?? "")?.parentId ?? "")?.providerIds ?? {});
+			const providerIds = type === "movie" ? (item.providerIds ?? {}) : (seriesById.get(seasonsById.get(item.parentId ?? "")?.parentId ?? "")?.providerIds ?? {});
 			const duration = Number(item.technical?.duration ?? 0);
 			const durationMs = Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1000) : undefined;
 			return {
@@ -139,6 +117,7 @@ export class IndexerIntroSegmentsService {
 
 	async replace(update: IntroSegmentUpdate): Promise<void> {
 		await this.dataSource.transaction(async (manager) => {
+			// RAW SQL: PostgreSQL advisory transaction lock function has no ORM equivalent.
 			await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`flixer:theintrodb:${update.itemId}`]);
 			const item = await manager.getRepository(MediaItem).findOneBy({ id: update.itemId });
 			if (!item || item.isPlaceholder) {
@@ -151,9 +130,7 @@ export class IndexerIntroSegmentsService {
 			await repository.delete({ itemId: item.id, source: "theintrodb" });
 			const rows = INTRO_TYPES.flatMap((type) => {
 				const segment = update.segments[type];
-				return segment
-					? [{ itemId: item.id, type, source: "theintrodb" as const, ...segment, submissions: 0 }]
-					: [];
+				return segment ? [{ itemId: item.id, type, source: "theintrodb" as const, ...segment, submissions: 0 }] : [];
 			});
 			if (rows.length) {
 				await repository.save(rows);

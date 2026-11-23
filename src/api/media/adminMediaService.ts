@@ -4,13 +4,14 @@ import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { MEDIA_ITEM_TYPES, MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaOrganizationSettings } from "../../entities/mediaOrganization.entity.js";
+import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
 import { normalizeChapterTitle } from "./chapterTitles.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
 
-export const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
+const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb", "disc"] as const;
 const MAX_IMAGES_PER_ITEM = 60;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
 const MAX_PROVIDER_ID_LENGTH = 256;
@@ -79,7 +80,7 @@ function episodeArtworkIndex(images: unknown[] | null | undefined): number | nul
 
 }
 
-export interface MediaItemQuery {
+interface MediaItemQuery {
 	libraryId?: string;
 	type?: string;
 	parentId?: string;
@@ -92,6 +93,7 @@ export interface MediaItemQuery {
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
 const POPULAR_ITEMS_PER_SECTION = 13;
+// RAW SQL: shared predicate: correlated EXISTS subqueries over child items
 const REVIEW_QUEUE_PREDICATE = `(item.match_confidence IN ('low', 'unidentified', 'unknown')
 	OR EXISTS (
 		SELECT 1 FROM media_items child
@@ -132,10 +134,7 @@ export class AdminMediaService {
 			return this.popularOverview();
 		}
 
-		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item")
-			.leftJoin("media_items", "parent", "parent.id = item.parent_id")
-			.addSelect("parent.title", "parentTitle")
-			.where("item.is_placeholder = false");
+		const builder = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").leftJoin("media_items", "parent", "parent.id = item.parent_id").addSelect("parent.title", "parentTitle").where("item.is_placeholder = false");
 		if (query.reviewOnly) {
 			builder.andWhere(REVIEW_QUEUE_PREDICATE);
 		}
@@ -183,19 +182,9 @@ export class AdminMediaService {
 
 	private async globalCategoryCounts(reviewOnly = false): Promise<MediaCategoryCounts> {
 		const counts = Object.fromEntries(Object.keys(MEDIA_CATEGORIES).map((category) => [category, 0])) as MediaCategoryCounts;
-		const scope = reviewOnly
-			? `item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album') AND ${REVIEW_QUEUE_PREDICATE}`
-			: "item.is_placeholder = false AND item.parent_id IS NULL AND item.type IN ('movie', 'video', 'series', 'album')";
-		const rows = await this.dataSource.query<Array<{ category: MediaCategory; count: string | number }>>(`
-			SELECT CASE
-				WHEN item.type IN ('movie', 'video') THEN 'movies'
-				WHEN item.type = 'series' THEN 'tvShows'
-				ELSE 'music'
-			END AS category, COUNT(*)::int AS count
-			FROM media_items item
-			WHERE ${scope}
-			GROUP BY category
-		`);
+		const query = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").select("CASE WHEN item.type IN ('movie', 'video') THEN 'movies' WHEN item.type = 'series' THEN 'tvShows' ELSE 'music' END", "category").addSelect("COUNT(*)::int", "count").where("item.isPlaceholder = false").andWhere("item.parentId IS NULL").andWhere("item.type IN ('movie', 'video', 'series', 'album')");
+		if (reviewOnly) query.andWhere(REVIEW_QUEUE_PREDICATE);
+		const rows = await query.groupBy("category").getRawMany<{ category: MediaCategory; count: number }>();
 		for (const row of rows) counts[row.category] = Number(row.count);
 		return counts;
 	}
@@ -222,8 +211,41 @@ export class AdminMediaService {
 	}
 
 	private async popularOverview() {
-		const rows = await this.dataSource.query<
-			Array<{
+		const watcherCounts = this.dataSource.getRepository(WatchProgress).createQueryBuilder("progress").select("progress.itemId", "item_id").addSelect("COUNT(*)", "watcher_count").groupBy("progress.itemId");
+		const candidates = this.dataSource.getRepository(MediaItem).createQueryBuilder("item").leftJoin("watcher_counts", "watcher", "watcher.item_id = item.id").select("item.id", "id").addSelect("CASE WHEN item.type IN ('movie', 'video') THEN 'movies' WHEN item.type = 'series' THEN 'tvShows' ELSE 'music' END", "section").addSelect("COALESCE(watcher.watcher_count, 0)", "watcher_count").addSelect("COALESCE(item.sortTitle, item.title)", "sort_title").where("item.isPlaceholder = false").andWhere("item.parentId IS NULL").andWhere("item.type IN ('movie', 'video', 'series', 'album')");
+		const rankedItems = this.dataSource.createQueryBuilder().select("candidate.id", "id").addSelect("candidate.section", "section").addSelect("ROW_NUMBER() OVER (PARTITION BY candidate.section ORDER BY candidate.watcher_count DESC, candidate.sort_title ASC, candidate.id ASC)", "section_rank").addSelect("COUNT(*) OVER (PARTITION BY candidate.section)", "section_total").addSelect("COUNT(*) OVER ()", "total").from("candidates", "candidate");
+		const rows = await this.dataSource
+			.getRepository(MediaItem)
+			.createQueryBuilder("item")
+			.addCommonTableExpression(watcherCounts, "watcher_counts")
+			.addCommonTableExpression(candidates, "candidates")
+			.addCommonTableExpression(rankedItems, "ranked_items")
+			.innerJoin("ranked_items", "ranked", "ranked.id = item.id")
+			.leftJoin(MediaItem, "parent", "parent.id = item.parentId")
+			.select("item.id", "id")
+			.addSelect("item.libraryId", "libraryId")
+			.addSelect("item.parentId", "parentId")
+			.addSelect("item.type", "type")
+			.addSelect("item.title", "title")
+			.addSelect("item.year", "year")
+			.addSelect("item.seasonNumber", "seasonNumber")
+			.addSelect("item.episodeNumber", "episodeNumber")
+			.addSelect("item.path", "path")
+			.addSelect("item.providerIds", "providerIds")
+			.addSelect("item.matchConfidence", "matchConfidence")
+			.addSelect("item.matchEvidence", "matchEvidence")
+			.addSelect("item.sizeBytes", "sizeBytes")
+			.addSelect("item.editedFields", "editedFields")
+			.addSelect("item.images", "images")
+			.addSelect("item.updatedAt", "updatedAt")
+			.addSelect("parent.title", "parentTitle")
+			.addSelect("ranked.total", "total")
+			.addSelect("ranked.section", "section")
+			.addSelect("ranked.section_total", "sectionTotal")
+			.where("ranked.section_rank <= :limit", { limit: POPULAR_ITEMS_PER_SECTION })
+			.orderBy("ranked.section", "ASC")
+			.addOrderBy("ranked.section_rank", "ASC")
+			.getRawMany<{
 				id: string;
 				libraryId: string;
 				parentId: string | null;
@@ -244,70 +266,7 @@ export class AdminMediaService {
 				total: string | number;
 				section: MediaCategory;
 				sectionTotal: string | number;
-			}>
-		>(
-			`
-			WITH watcher_counts AS (
-				SELECT item_id, COUNT(*) AS watcher_count
-				FROM watch_progress
-				GROUP BY item_id
-			),
-			candidates AS (
-				SELECT
-					item.id,
-					CASE WHEN item.type IN ('movie', 'video') THEN 'movies'
-						WHEN item.type = 'series' THEN 'tvShows'
-						ELSE 'music'
-					END AS section,
-					COALESCE(watcher_counts.watcher_count, 0) AS watcher_count,
-					COALESCE(item.sort_title, item.title) AS sort_title
-				FROM media_items item
-				LEFT JOIN watcher_counts ON watcher_counts.item_id = item.id
-				WHERE item.is_placeholder = false
-					AND item.parent_id IS NULL
-					AND item.type IN ('movie', 'video', 'series', 'album')
-			),
-			ranked_items AS (
-				SELECT
-					id,
-					section,
-					ROW_NUMBER() OVER (
-						PARTITION BY section
-						ORDER BY watcher_count DESC, sort_title ASC, id ASC
-					) AS section_rank,
-					COUNT(*) OVER (PARTITION BY section) AS section_total,
-					COUNT(*) OVER () AS total
-				FROM candidates
-			)
-			SELECT
-				item.id,
-				item.library_id AS "libraryId",
-				item.parent_id AS "parentId",
-				item.type,
-				item.title,
-				item.year,
-				item.season_number AS "seasonNumber",
-				item.episode_number AS "episodeNumber",
-				item.path,
-				item.provider_ids AS "providerIds",
-				item.match_confidence AS "matchConfidence",
-				item.match_evidence AS "matchEvidence",
-				item.size_bytes AS "sizeBytes",
-				item.edited_fields AS "editedFields",
-				item.images,
-				item.updated_at AS "updatedAt",
-				parent.title AS "parentTitle",
-				ranked_items.total,
-				ranked_items.section,
-				ranked_items.section_total AS "sectionTotal"
-			FROM ranked_items
-			JOIN media_items item ON item.id = ranked_items.id
-			LEFT JOIN media_items parent ON parent.id = item.parent_id
-			WHERE ranked_items.section_rank <= $1
-			ORDER BY ranked_items.section, ranked_items.section_rank
-		`,
-			[POPULAR_ITEMS_PER_SECTION],
-		);
+			}>();
 
 		const categoryCounts: MediaCategoryCounts = { movies: 0, tvShows: 0, music: 0 };
 		for (const row of rows) categoryCounts[row.section] = Number(row.sectionTotal);
@@ -342,6 +301,7 @@ export class AdminMediaService {
 	async matchConflicts(id: string): Promise<Array<{ id: string; title: string; path: string; providers: string[] }>> {
 		const item = await this.find(id);
 		if (!["movie", "series"].includes(item.type)) return [];
+		// RAW SQL: LATERAL jsonb_each_text join with array_agg
 		return this.dataSource.query(
 			`SELECT other.id, other.title, other.path, array_agg(ids.key ORDER BY ids.key) AS providers
 			 FROM media_items other
@@ -502,15 +462,13 @@ export class AdminMediaService {
 		item.editedFields = [...edited];
 		await repository.save(item);
 		let nfoWriteFailed = false;
-		const nfoRelevantChange = request.title !== undefined || request.sortTitle !== undefined || request.year !== undefined ||
-			request.seasonNumber !== undefined || request.episodeNumber !== undefined || request.episodeEndNumber !== undefined ||
-			request.overview !== undefined || request.providerIds !== undefined;
+		const nfoRelevantChange = request.title !== undefined || request.sortTitle !== undefined || request.year !== undefined || request.seasonNumber !== undefined || request.episodeNumber !== undefined || request.episodeEndNumber !== undefined || request.overview !== undefined || request.providerIds !== undefined;
 		if (nfoRelevantChange && !item.isPlaceholder && item.path && ["movie", "video", "series", "season", "episode", "album"].includes(item.type)) {
 			try {
 				const writeSettings = await this.dataSource.getRepository(MediaOrganizationSettings).findOneBy({ libraryId: item.libraryId });
 				if (writeSettings?.nfoWritesEnabled) {
 					const metadata = item.metadata ?? {};
-					const text = (value: unknown) => typeof value === "string" ? value : "";
+					const text = (value: unknown) => (typeof value === "string" ? value : "");
 					const fields: Record<string, string> = {
 						title: item.title,
 						originaltitle: text(metadata.originalTitle),
@@ -531,10 +489,10 @@ export class AdminMediaService {
 							clearProviderIds: Object.keys(previousProviderIds).filter((provider) => !Object.hasOwn(item.providerIds ?? {}, provider)),
 						},
 					});
-				if (!item.nfoPresent) {
-					item.nfoPresent = true;
-					await repository.save(item);
-				}
+					if (!item.nfoPresent) {
+						item.nfoPresent = true;
+						await repository.save(item);
+					}
 				}
 			} catch {
 				nfoWriteFailed = true;

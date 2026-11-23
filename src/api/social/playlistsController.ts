@@ -47,7 +47,10 @@ export class PlaylistsController {
 	async get(@PathParams("id") id: string, @HeaderParams("authorization") authorization?: string) {
 		const policy = await this.access.resolve(authorization);
 		const playlist = await this.playlists.get(policy.userId, uuid(id));
-		const visible = await this.access.visibleIds(policy, playlist.tracks.map((track) => track.id));
+		const visible = await this.access.visibleIds(
+			policy,
+			playlist.tracks.map((track) => track.id),
+		);
 		return { ...playlist, tracks: playlist.tracks.filter((track) => visible.has(track.id)) };
 	}
 
@@ -81,6 +84,10 @@ export class PlaylistsController {
 	@Returns(204)
 	async reorder(@PathParams("id") id: string, @BodyParams() request: PlaylistOrderRequest, @HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		await this.playlists.reorder(user.id, uuid(id), request.itemIds.map((itemId) => uuid(itemId, "Song")));
+		await this.playlists.reorder(
+			user.id,
+			uuid(id),
+			request.itemIds.map((itemId) => uuid(itemId, "Song")),
+		);
 	}
 }

@@ -7,6 +7,7 @@ import { JobScheduler } from "../../jobs/jobScheduler.js";
 import { isAdminScheduledTaskId } from "../../jobs/adminScheduledTasks.js";
 
 class AdminScheduledTaskScheduleRequest {
+
 	@Property()
 	@Required()
 	enabled!: boolean;
@@ -20,6 +21,7 @@ class AdminScheduledTaskScheduleRequest {
 @Controller("/admin/scheduled-tasks")
 @Security("BearerAuth")
 export class AdminScheduledTasksController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly jobScheduler: JobScheduler,
@@ -32,11 +34,7 @@ export class AdminScheduledTasksController {
 	}
 
 	@Put("/:id")
-	async saveSchedule(
-		@PathParams("id") id: string,
-		@BodyParams() request: AdminScheduledTaskScheduleRequest,
-		@HeaderParams("authorization") authorization?: string,
-	) {
+	async saveSchedule(@PathParams("id") id: string, @BodyParams() request: AdminScheduledTaskScheduleRequest, @HeaderParams("authorization") authorization?: string) {
 		await this.authService.requireAdmin(authorization);
 		if (!isAdminScheduledTaskId(id)) throw new BadRequest("Unknown scheduled task.");
 		await this.jobScheduler.saveAdminTaskSchedule(id, request);

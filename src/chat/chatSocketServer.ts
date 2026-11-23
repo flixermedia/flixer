@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { CLOSE_UNAUTHORIZED } from "../logs/liveLogSocketServer.js";
+import { CLOSE_UNAUTHORIZED } from "../utils/socketCloseCodes.js";
 import type { CallService } from "./callService.js";
 import type { ChatEvent, ChatService } from "./chatService.js";
 import { AuthService } from "../api/auth/authService.js";
@@ -18,7 +18,7 @@ const MAX_SIGNALS_PER_WINDOW = 60;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
 const MAX_PENDING_EVENTS = 256;
 
-export type ChatAuthenticator = (token: string) => Promise<string>;
+type ChatAuthenticator = (token: string) => Promise<string>;
 
 interface Connection {
 	authenticated: boolean;
@@ -42,13 +42,13 @@ interface Connection {
  * Sending messages stays on the REST API so validation, rate limiting and notifications live in one place.
  */
 export class ChatSocketServer {
+
 	private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
 	private readonly connections = new Map<WebSocket, Connection>();
 	private server?: Server;
 	private heartbeat?: NodeJS.Timeout;
 	private unsubscribe?: () => void;
-	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) =>
-		this.handleUpgrade(request, socket, head);
+	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
 
 	constructor(
 		private readonly authenticate: ChatAuthenticator,
@@ -83,9 +83,7 @@ export class ChatSocketServer {
 					continue;
 				}
 				connection.pendingEvents++;
-				connection.delivery = connection.delivery
-					.then(() => this.sendAuthenticated(ws, connection, event))
-					.finally(() => connection.pendingEvents--);
+				connection.delivery = connection.delivery.then(() => this.sendAuthenticated(ws, connection, event)).finally(() => connection.pendingEvents--);
 			}
 		}
 	}
@@ -160,7 +158,7 @@ export class ChatSocketServer {
 			return;
 		}
 		if (connection.authenticated) {
-			if (message.type === "call-signal" && connection.userId && await this.revalidate(ws, connection)) {
+			if (message.type === "call-signal" && connection.userId && (await this.revalidate(ws, connection))) {
 				await this.relaySignal(ws, connection.userId, connection, message as Record<string, unknown>);
 			}
 			return;
@@ -182,12 +180,7 @@ export class ChatSocketServer {
 		this.send(ws, { type: "ready" });
 	}
 
-	private async relaySignal(
-		ws: WebSocket,
-		userId: string,
-		connection: Connection,
-		message: Record<string, unknown>,
-	): Promise<void> {
+	private async relaySignal(ws: WebSocket, userId: string, connection: Connection, message: Record<string, unknown>): Promise<void> {
 		const { conversationId, callId, to, payload } = message;
 		const now = Date.now();
 		connection.signals = connection.signals.filter((at) => now - at < SIGNAL_WINDOW_MS);
@@ -196,17 +189,7 @@ export class ChatSocketServer {
 			return;
 		}
 		connection.signals.push(now);
-		if (
-			!this.calls ||
-			typeof conversationId !== "string" ||
-			!AuthService.isUuid(conversationId) ||
-			typeof callId !== "string" ||
-			!/^[\w-]{1,64}$/.test(callId) ||
-			typeof payload !== "string" ||
-			payload.length === 0 ||
-			payload.length > MAX_SIGNAL_PAYLOAD_CHARS ||
-			(to !== undefined && typeof to !== "string")
-		) {
+		if (!this.calls || typeof conversationId !== "string" || !AuthService.isUuid(conversationId) || typeof callId !== "string" || !/^[\w-]{1,64}$/.test(callId) || typeof payload !== "string" || payload.length === 0 || payload.length > MAX_SIGNAL_PAYLOAD_CHARS || (to !== undefined && typeof to !== "string")) {
 			this.send(ws, { type: "call-error", callId, reason: "invalid" });
 			return;
 		}

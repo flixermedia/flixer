@@ -1,35 +1,30 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DataSource } from "typeorm";
+import { ENTITIES } from "../../datasources/entityList.js";
 import { CreateMediaSourceGroups1798300000011 } from "../../migrations/createMediaSourceGroups1798300000011.js";
 import { MediaSourceGroupService } from "./mediaSourceGroupService.js";
+import { HEAVY_HOOK_TIMEOUT, createIsolatedSchema, type IsolatedSchema } from "../../datasources/testPostgres.js";
 
 const databaseUrl = process.env.MEDIA_GROUP_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
-	const schema = `media_group_test_${randomUUID().replaceAll("-", "")}`;
 	const library = randomUUID();
 	const otherLibrary = randomUUID();
-	let admin: DataSource;
+	let isolated: IsolatedSchema;
 	let database: DataSource;
 	let service: MediaSourceGroupService;
 
 	const item = async (type = "series", libraryId = library, placeholder = false) => {
 		const id = randomUUID();
-		await database.query(
-			"INSERT INTO media_items (id, library_id, type, is_placeholder) VALUES ($1, $2, $3, $4)",
-			[id, libraryId, type, placeholder],
-		);
+		await database.query("INSERT INTO media_items (id, library_id, type, is_placeholder) VALUES ($1, $2, $3, $4)", [id, libraryId, type, placeholder]);
 		return id;
 	};
 	const groups = async () => database.query("SELECT primary_id, source_id FROM media_source_groups ORDER BY primary_id, source_id");
 
 	beforeAll(async () => {
-		admin = new DataSource({ type: "postgres", url: databaseUrl });
-		await admin.initialize();
-		await admin.query(`CREATE SCHEMA "${schema}"`);
-		database = new DataSource({ type: "postgres", url: databaseUrl, extra: { options: `-c search_path=${schema}` } });
-		await database.initialize();
+		isolated = await createIsolatedSchema(databaseUrl as string, { prefix: "media_group_test", migrate: false });
+		database = isolated.db;
 		await database.query("CREATE TABLE media_items (id uuid PRIMARY KEY, library_id uuid NOT NULL, type text NOT NULL, is_placeholder boolean NOT NULL, parent_id uuid REFERENCES media_items(id) ON DELETE CASCADE)");
 		await database.query("CREATE TABLE watch_progress (user_id uuid NOT NULL, item_id uuid NOT NULL REFERENCES media_items(id) ON DELETE CASCADE, completed boolean NOT NULL, PRIMARY KEY (user_id, item_id))");
 		const runner = database.createQueryRunner();
@@ -39,14 +34,10 @@ describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
 			await runner.release();
 		}
 		service = new MediaSourceGroupService(database);
-	});
+	}, HEAVY_HOOK_TIMEOUT);
 
 	afterAll(async () => {
-		if (database?.isInitialized) await database.destroy();
-		if (admin?.isInitialized) {
-			await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-			await admin.destroy();
-		}
+		await isolated?.drop();
 	});
 
 	it("merges and splits sources without changing or deleting their rows", async () => {
@@ -138,16 +129,20 @@ describe.skipIf(!databaseUrl)("media source groups with PostgreSQL", () => {
 		await service.split(source);
 		const descendants = await database.query("SELECT id, parent_id FROM media_items WHERE id = ANY($1::uuid[]) ORDER BY id", [[firstSeason, secondSeason, firstEpisode, secondEpisode]]);
 		expect(descendants).toHaveLength(4);
-		expect(descendants).toEqual(expect.arrayContaining([
-			{ id: firstSeason, parent_id: primary },
-			{ id: secondSeason, parent_id: source },
-			{ id: firstEpisode, parent_id: firstSeason },
-			{ id: secondEpisode, parent_id: secondSeason },
-		]));
-		expect(await database.query("SELECT item_id, completed FROM watch_progress WHERE user_id = $1 ORDER BY item_id", [user])).toEqual(expect.arrayContaining([
-			{ item_id: firstEpisode, completed: true },
-			{ item_id: secondEpisode, completed: false },
-		]));
+		expect(descendants).toEqual(
+			expect.arrayContaining([
+				{ id: firstSeason, parent_id: primary },
+				{ id: secondSeason, parent_id: source },
+				{ id: firstEpisode, parent_id: firstSeason },
+				{ id: secondEpisode, parent_id: secondSeason },
+			]),
+		);
+		expect(await database.query("SELECT item_id, completed FROM watch_progress WHERE user_id = $1 ORDER BY item_id", [user])).toEqual(
+			expect.arrayContaining([
+				{ item_id: firstEpisode, completed: true },
+				{ item_id: secondEpisode, completed: false },
+			]),
+		);
 	});
 
 	it("returns not found for missing sources", async () => {

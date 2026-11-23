@@ -56,7 +56,7 @@ export class WatchProgressRequest {
 }
 
 /** A manually edited chapter range, measured from the start of the media. */
-export class UpdateMediaChapterRequest {
+class UpdateMediaChapterRequest {
 
 	@Property()
 	@Required()

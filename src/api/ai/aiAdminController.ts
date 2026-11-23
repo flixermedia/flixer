@@ -10,6 +10,7 @@ import { UpdateAiConfigurationRequest } from "./aiAdminRequests.js";
 @Controller("/admin/ai")
 @Security("BearerAuth")
 export class AiAdminController {
+
 	constructor(
 		private readonly authService: AuthService,
 		private readonly ai: AiAdminService,
