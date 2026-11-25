@@ -3,6 +3,7 @@ import { BadRequest } from "@tsed/exceptions";
 import { DataSource } from "typeorm";
 import type { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsManager, rlsRepo } from "../../datasources/rlsContext.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
 import { AuthService } from "../auth/authService.js";
 
@@ -107,7 +108,7 @@ export class PreferencesService {
 
 	async get(authorization?: string): Promise<Preferences> {
 		const user = await this.authService.getAuthenticatedUser(authorization);
-		const row = await this.dataSource.getRepository(UserPreference).findOneBy({ userId: user.id });
+		const row = await rlsRepo(this.dataSource, UserPreference).findOneBy({ userId: user.id });
 		return publicPreferences(row?.data ?? {});
 	}
 
@@ -124,7 +125,7 @@ export class PreferencesService {
 			}
 		}
 
-		return this.dataSource.transaction(async (manager) => {
+		return rlsManager(this.dataSource).transaction(async (manager) => {
 			const repository = manager.getRepository(UserPreference);
 			const row = await repository.findOne({ where: { userId: user.id }, lock: { mode: "pessimistic_write" } });
 			const data: Record<string, unknown> = { ...row?.data };

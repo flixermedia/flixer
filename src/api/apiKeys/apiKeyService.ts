@@ -3,6 +3,7 @@ import { Unauthorized } from "@tsed/exceptions";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsRepo } from "../../datasources/rlsContext.js";
 import { ApiKey } from "../../entities/apiKey.entity.js";
 import { User } from "../../entities/user.entity.js";
 
@@ -58,13 +59,13 @@ export class ApiKeyService {
 	}
 
 	async list(): Promise<PublicApiKey[]> {
-		const keys = await this.dataSource.getRepository(ApiKey).find({ relations: { user: true }, order: { createdAt: "DESC" } });
+		const keys = await rlsRepo(this.dataSource, ApiKey).find({ relations: { user: true }, order: { createdAt: "DESC" } });
 		return keys.map((key) => this.toPublic(key));
 	}
 
 	async create(owner: User, name: string): Promise<CreatedApiKey> {
 		const secret = `${API_KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
-		const repository = this.dataSource.getRepository(ApiKey);
+		const repository = rlsRepo(this.dataSource, ApiKey);
 		const saved = await repository.save(
 			repository.create({
 				id: randomUUID(),
@@ -81,7 +82,7 @@ export class ApiKeyService {
 	}
 
 	async revoke(id: string): Promise<boolean> {
-		const result = await this.dataSource.getRepository(ApiKey).delete({ id });
+		const result = await rlsRepo(this.dataSource, ApiKey).delete({ id });
 		return (result.affected ?? 0) > 0;
 	}
 

@@ -20,6 +20,7 @@ import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { isInvitesOnlyMode } from "../config/runtimeMode.js";
 import { PageBuilderService } from "../api/appearance/pageBuilderService.js";
+import { PermissionAlertService } from "../api/notifications/permissionAlertService.js";
 
 const PAYMENTS_RENEWAL_JOB = "payments-renewals";
 const ANALYTICS_RETENTION_JOB = "analytics-retention";
@@ -69,6 +70,7 @@ export class JobScheduler {
 		private readonly guide: GuideService,
 		private readonly payments: PaymentsService,
 		private readonly pageBuilder: PageBuilderService,
+		private readonly permissionAlerts: PermissionAlertService,
 	) {}
 
 	async $onInit(): Promise<void> {
@@ -434,6 +436,8 @@ export class JobScheduler {
 			if (!signal.aborted) {
 				logger().error(`Scheduled task ${id} failed.`, error);
 				this.sentryService.captureException(error);
+				const url = id === "scan-libraries" || id === "refresh-metadata" || id === "trickplay" ? "/admin?tab=indexer" : "/admin?tab=jobs";
+				void this.permissionAlerts.reportError(error, { source: "flixer", operation: `job:${id}`, url }).catch(() => {});
 				throw error;
 			}
 			if (!(error instanceof Error && error.name === "AbortError")) {

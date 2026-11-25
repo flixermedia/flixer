@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DataSource, In, IsNull, LessThan } from "typeorm";
 import webpush from "web-push";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsRepo } from "../../datasources/rlsContext.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Notification, type NotificationKind } from "../../entities/notification.entity.js";
 import { PushKey } from "../../entities/pushKey.entity.js";
@@ -103,7 +104,7 @@ export class NotificationService {
 	}
 
 	async list(userId: string) {
-		const repo = this.dataSource.getRepository(Notification);
+		const repo = rlsRepo(this.dataSource, Notification);
 		const [items, unread] = await Promise.all([repo.find({ where: { userId }, order: { createdAt: "DESC" }, take: INBOX_LIMIT }), repo.count({ where: { userId, readAt: IsNull() } })]);
 		return {
 			unread,
@@ -113,12 +114,12 @@ export class NotificationService {
 
 	async markRead(userId: string, ids?: string[]): Promise<void> {
 		const where = ids && ids.length > 0 ? { userId, id: In(ids), readAt: IsNull() } : { userId, readAt: IsNull() };
-		await this.dataSource.getRepository(Notification).update(where, { readAt: new Date() });
+		await rlsRepo(this.dataSource, Notification).update(where, { readAt: new Date() });
 		this.publish([userId]);
 	}
 
 	async remove(userId: string, id: string): Promise<void> {
-		const result = await this.dataSource.getRepository(Notification).delete({ id, userId });
+		const result = await rlsRepo(this.dataSource, Notification).delete({ id, userId });
 		if (!result.affected) {
 			throw new NotFound("Notification not found.");
 		}
@@ -138,15 +139,15 @@ export class NotificationService {
 		}
 		logger().info(`Push subscription registered for ${host}.`);
 		// An endpoint identifies one browser profile; if it moved to another account, it follows the latest sign-in.
-		await this.dataSource.getRepository(PushSubscription).upsert({ id: randomUUID(), userId, endpoint: input.endpoint, p256dh: input.p256dh, auth: input.auth }, ["endpoint"]);
+		await rlsRepo(this.dataSource, PushSubscription).upsert({ id: randomUUID(), userId, endpoint: input.endpoint, p256dh: input.p256dh, auth: input.auth }, ["endpoint"]);
 	}
 
 	async unsubscribe(userId: string, endpoint: string): Promise<void> {
-		await this.dataSource.getRepository(PushSubscription).delete({ userId, endpoint });
+		await rlsRepo(this.dataSource, PushSubscription).delete({ userId, endpoint });
 	}
 
 	async isSubscribed(userId: string, endpoint: string): Promise<boolean> {
-		return this.dataSource.getRepository(PushSubscription).existsBy({ userId, endpoint });
+		return rlsRepo(this.dataSource, PushSubscription).existsBy({ userId, endpoint });
 	}
 
 	/** Sends a message to the given users, or to every enabled user when none are given. */

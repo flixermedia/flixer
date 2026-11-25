@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DataSource, In } from "typeorm";
 import { RE2JS } from "re2js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsManager, rlsRepo } from "../../datasources/rlsContext.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { UserWebhook, UserWebhookConfig } from "../../entities/userWebhook.entity.js";
 import { User } from "../../entities/user.entity.js";
@@ -113,7 +114,7 @@ export class UserWebhookService {
 
 	async list(actor: Actor) {
 		const config = await this.config();
-		const rows = await this.dataSource.getRepository(UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id }, order: { createdAt: "ASC" } });
+		const rows = await rlsRepo(this.dataSource, UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id }, order: { createdAt: "ASC" } });
 		const hooks: Hook[] = rows.map(({ id, name, url, enabled }) => ({ id, name, url, enabled }));
 		return { available: permitted(config, actor), hooks };
 	}
@@ -130,8 +131,8 @@ export class UserWebhookService {
 		if (!allowsUrl(config, url)) throw new BadRequest("This webhook URL has not been approved by an administrator.");
 		if (id && !AuthService.isUuid(id)) throw new NotFound("Webhook not found.");
 		const rows: Hook[] = id
-			? ((await this.dataSource.getRepository(UserWebhook).createQueryBuilder().update(UserWebhook).set({ name: value.name.trim(), url, enabled }).where('"id" = :id AND "user_id" = :userId', { id, userId: actor.id }).returning(["id", "name", "url", "enabled"]).execute()).raw as Hook[])
-			: await this.dataSource.transaction(async (manager) => {
+			? ((await rlsRepo(this.dataSource, UserWebhook).createQueryBuilder().update(UserWebhook).set({ name: value.name.trim(), url, enabled }).where('"id" = :id AND "user_id" = :userId', { id, userId: actor.id }).returning(["id", "name", "url", "enabled"]).execute()).raw as Hook[])
+			: await rlsManager(this.dataSource).transaction(async (manager) => {
 					// RAW SQL: PostgreSQL advisory transaction lock function serializes per-user cap changes.
 					await manager.createQueryBuilder().select("pg_advisory_xact_lock(hashtextextended(:lockKey, 0))", "locked").setParameter("lockKey", `user-webhooks:${actor.id}`).getRawOne();
 					if ((await manager.count(UserWebhook, { where: { userId: actor.id } })) >= 10) return [];
@@ -148,14 +149,14 @@ export class UserWebhookService {
 
 	async remove(actor: Actor, id: string): Promise<void> {
 		if (!AuthService.isUuid(id)) throw new NotFound("Webhook not found.");
-		const result = await this.dataSource.getRepository(UserWebhook).delete({ id, userId: actor.id });
+		const result = await rlsRepo(this.dataSource, UserWebhook).delete({ id, userId: actor.id });
 		if (!result.affected) throw new NotFound("Webhook not found.");
 	}
 
 	async report(actor: Actor, raw: unknown, authorization?: string): Promise<void> {
 		const config = await this.config();
 		if (!permitted(config, actor)) return;
-		const hooks = await this.dataSource.getRepository(UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id, enabled: true } });
+		const hooks = await rlsRepo(this.dataSource, UserWebhook).find({ select: { id: true, name: true, url: true, enabled: true }, where: { userId: actor.id, enabled: true } });
 		if (!hooks.some((hook) => allowsUrl(config, hook.url))) return;
 		const value = object(raw);
 		if (typeof value.event !== "string" || !(EVENTS as readonly string[]).includes(value.event) || typeof value.position !== "number" || !Number.isFinite(value.position) || value.position < 0 || value.position > 604800) {

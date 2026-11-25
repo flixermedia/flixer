@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, IsNull, Not, type EntityManager } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsManager, rlsRepo } from "../../datasources/rlsContext.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { SocialFriendship } from "../../entities/social.entity.js";
 import { User } from "../../entities/user.entity.js";
@@ -80,7 +81,7 @@ export class UserMediaService {
 
 	async history(userId: string, offset = 0, limit = MAX_HISTORY_PAGE_SIZE + 1) {
 		// RAW SQL: window functions and CTEs with array_agg grouping over playback_history
-		const rows = (await this.dataSource.query(
+		const rows = (await rlsManager(this.dataSource).query(
 			`${HISTORY_GROUPS_SQL}
 			SELECT (array_agg(id ORDER BY started_at DESC, id DESC))[1] AS id, kind, group_item_id AS item_id,
 				COALESCE(array_agg(DISTINCT item_id) FILTER (WHERE item_id IS NOT NULL), ARRAY[]::uuid[]) AS source_item_ids,
@@ -107,7 +108,7 @@ export class UserMediaService {
 
 	async clearHistory(userId: string): Promise<void> {
 		// RAW SQL: data-modifying CTE moving playback_history into hidden sessions
-		await this.dataSource.query(
+		await rlsManager(this.dataSource).query(
 			`
 			WITH hidden AS (
 				INSERT INTO playback_history_hidden_sessions (user_id, id)
@@ -120,7 +121,7 @@ export class UserMediaService {
 
 	async removeHistory(userId: string, id: string): Promise<void> {
 		// RAW SQL: window-function CTEs with data-modifying CTE over playback_history
-		await this.dataSource.query(
+		await rlsManager(this.dataSource).query(
 			`
 			${HISTORY_GROUPS_SQL}, target_group AS (
 				SELECT group_number FROM grouped_history WHERE id = $2
@@ -136,7 +137,7 @@ export class UserMediaService {
 	}
 
 	async watchLater(userId: string): Promise<SocialItem[]> {
-		const rows = await this.dataSource.getRepository(WatchLaterItem).find({ select: { itemId: true, addedAt: true }, where: { userId }, order: { addedAt: "DESC" }, take: 500 });
+		const rows = await rlsRepo(this.dataSource, WatchLaterItem).find({ select: { itemId: true, addedAt: true }, where: { userId }, order: { addedAt: "DESC" }, take: 500 });
 		const at = new Map(rows.map((row) => [row.itemId, row.addedAt]));
 		return (
 			await loadSocialItems(
@@ -148,7 +149,7 @@ export class UserMediaService {
 	}
 
 	async watchLaterIds(userId: string): Promise<string[]> {
-		const rows = await this.dataSource.getRepository(WatchLaterItem).find({ select: { itemId: true }, where: { userId } });
+		const rows = await rlsRepo(this.dataSource, WatchLaterItem).find({ select: { itemId: true }, where: { userId } });
 		return rows.map((row) => row.itemId);
 	}
 
@@ -158,7 +159,7 @@ export class UserMediaService {
 	}
 
 	async removeWatchLater(userId: string, itemId: string): Promise<void> {
-		await this.dataSource.getRepository(WatchLaterItem).delete({ userId, itemId });
+		await rlsRepo(this.dataSource, WatchLaterItem).delete({ userId, itemId });
 	}
 
 	async collections(userId: string, policy: AccessPolicy) {
@@ -184,7 +185,7 @@ export class UserMediaService {
 	async createCollection(userId: string, input: { name: string; description?: string | null; isPublic?: boolean }) {
 		const name = input.name?.trim();
 		if (!name || name.length > 100) throw new BadRequest("Collection name must be 1 to 100 characters.");
-		const repo = this.dataSource.getRepository(VideoCollection);
+		const repo = rlsRepo(this.dataSource, VideoCollection);
 		if ((await repo.countBy({ userId })) >= MAX_COLLECTIONS) throw new BadRequest(`You can have up to ${MAX_COLLECTIONS} video collections.`);
 		const created = await repo.save(repo.create({ id: randomUUID(), userId, name, description: this.cleanDescription(input.description), isPublic: input.isPublic ?? false }));
 		return { id: created.id, name: created.name, description: created.description, isPublic: created.isPublic, itemCount: 0, createdAt: created.createdAt, updatedAt: created.updatedAt };
@@ -200,8 +201,7 @@ export class UserMediaService {
 		if (changes.description !== undefined) collection.description = this.cleanDescription(changes.description);
 		if (typeof changes.isPublic === "boolean") collection.isPublic = changes.isPublic;
 		// RAW SQL: scalar count in RETURNING preserves same-statement item totals.
-		const result = await this.dataSource
-			.getRepository(VideoCollection)
+		const result = await rlsRepo(this.dataSource, VideoCollection)
 			.createQueryBuilder()
 			.update(VideoCollection)
 			.set({ name: collection.name, description: collection.description, isPublic: collection.isPublic, updatedAt: () => "now()" })
@@ -214,7 +214,7 @@ export class UserMediaService {
 	}
 
 	async deleteCollection(userId: string, id: string): Promise<void> {
-		await this.dataSource.getRepository(VideoCollection).delete({ id, userId });
+		await rlsRepo(this.dataSource, VideoCollection).delete({ id, userId });
 	}
 
 	async collection(viewerId: string, id: string) {
@@ -222,7 +222,7 @@ export class UserMediaService {
 		if (!collection) throw new NotFound("Collection not found.");
 		const isOwner = collection.user_id === viewerId;
 		if (!isOwner && (!collection.is_public || !(await this.ownerVisible(viewerId, collection.user_id)))) throw new NotFound("Collection not found.");
-		const entries = await this.dataSource.getRepository(VideoCollectionItem).find({ select: { itemId: true, addedAt: true }, where: { collectionId: id }, order: { position: "ASC" } });
+		const entries = await rlsRepo(this.dataSource, VideoCollectionItem).find({ select: { itemId: true, addedAt: true }, where: { collectionId: id }, order: { position: "ASC" } });
 		const cards = await loadSocialItems(
 			this.dataSource,
 			entries.map((entry) => entry.itemId),
@@ -234,7 +234,7 @@ export class UserMediaService {
 	async addCollectionItem(userId: string, id: string, itemId: string): Promise<void> {
 		await this.ownedCollection(userId, id);
 		await this.requireVideoItem(itemId);
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			const owned = await manager.findOne(VideoCollection, { select: { id: true }, where: { id, userId }, lock: { mode: "pessimistic_write" } });
 			if (!owned) throw new NotFound("Collection not found.");
 			const aggregate = await manager.getRepository(VideoCollectionItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.collectionId = :id", { id }).getRawOne<{ count: number; next: number }>();
@@ -246,7 +246,7 @@ export class UserMediaService {
 	}
 
 	async removeCollectionItem(userId: string, id: string, itemId: string): Promise<void> {
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			const owned = await manager.findOne(VideoCollection, { select: { id: true }, where: { id, userId }, lock: { mode: "pessimistic_write" } });
 			if (!owned) throw new NotFound("Collection not found.");
 			await manager.delete(VideoCollectionItem, { collectionId: id, itemId });
@@ -256,7 +256,7 @@ export class UserMediaService {
 
 	async reorderCollection(userId: string, id: string, itemIds: string[]): Promise<void> {
 		if (itemIds.length > MAX_COLLECTION_ITEMS || new Set(itemIds).size !== itemIds.length) throw new BadRequest("Invalid collection order.");
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			const owned = await manager.findOne(VideoCollection, { select: { id: true }, where: { id, userId }, lock: { mode: "pessimistic_write" } });
 			if (!owned) throw new NotFound("Collection not found.");
 			const rows = await manager.find(VideoCollectionItem, { select: { itemId: true }, where: { collectionId: id } });
@@ -280,7 +280,7 @@ export class UserMediaService {
 	}
 
 	async queue(userId: string): Promise<SocialItem[]> {
-		const rows = await this.dataSource.getRepository(UpNextQueueItem).find({ select: { itemId: true, addedAt: true }, where: { userId }, order: { position: "ASC" } });
+		const rows = await rlsRepo(this.dataSource, UpNextQueueItem).find({ select: { itemId: true, addedAt: true }, where: { userId }, order: { position: "ASC" } });
 		return (
 			await loadSocialItems(
 				this.dataSource,
@@ -292,7 +292,7 @@ export class UserMediaService {
 
 	async addToQueue(userId: string, itemId: string): Promise<void> {
 		await this.requireVideoItem(itemId, PLAYABLE_VIDEO_TYPES);
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			await this.lockUser(manager, userId);
 			const aggregate = await manager.getRepository(UpNextQueueItem).createQueryBuilder("entry").select("COUNT(*)::int", "count").addSelect("COALESCE(MAX(entry.position) + 1, 0)::int", "next").where("entry.userId = :userId", { userId }).getRawOne<{ count: number; next: number }>();
 			const { count = 0, next = 0 } = aggregate ?? {};
@@ -302,14 +302,14 @@ export class UserMediaService {
 	}
 
 	async removeFromQueue(userId: string, itemId: string): Promise<void> {
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			await this.lockUser(manager, userId);
 			await manager.delete(UpNextQueueItem, { userId, itemId });
 		});
 	}
 
 	async clearQueue(userId: string): Promise<void> {
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			await this.lockUser(manager, userId);
 			await manager.delete(UpNextQueueItem, { userId });
 		});
@@ -317,7 +317,7 @@ export class UserMediaService {
 
 	async reorderQueue(userId: string, itemIds: string[]): Promise<void> {
 		if (itemIds.length > MAX_QUEUE_ITEMS || new Set(itemIds).size !== itemIds.length) throw new BadRequest("Invalid queue order.");
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			await this.lockUser(manager, userId);
 			const rows = await manager.find(UpNextQueueItem, { select: { itemId: true }, where: { userId } });
 			if (rows.length !== itemIds.length || rows.some((row) => !itemIds.includes(row.itemId))) throw new BadRequest("Order must contain every queued item exactly once.");
@@ -344,20 +344,20 @@ export class UserMediaService {
 			select: { id: true, type: true },
 		});
 		if (!item || !["movie", "series", "album", "video"].includes(item.type)) throw new NotFound("Recommendation item not found.");
-		await this.dataSource.getRepository(RecommendationFeedback).upsert({ userId, itemId, feedback, updatedAt: () => "now()" }, ["userId", "itemId"]);
+		await rlsRepo(this.dataSource, RecommendationFeedback).upsert({ userId, itemId, feedback, updatedAt: () => "now()" }, ["userId", "itemId"]);
 	}
 
 	async clearRecommendationFeedback(userId: string, itemId: string): Promise<void> {
-		await this.dataSource.getRepository(RecommendationFeedback).delete({ userId, itemId });
+		await rlsRepo(this.dataSource, RecommendationFeedback).delete({ userId, itemId });
 	}
 
 	async dismissedRecommendations(userId: string): Promise<string[]> {
-		const rows = await this.dataSource.getRepository(RecommendationFeedback).find({ select: { itemId: true }, where: { userId, feedback: "dismiss" } });
+		const rows = await rlsRepo(this.dataSource, RecommendationFeedback).find({ select: { itemId: true }, where: { userId, feedback: "dismiss" } });
 		return rows.map((row) => row.itemId);
 	}
 
 	async dismissedRecommendationItems(userId: string): Promise<SocialItem[]> {
-		const rows = await this.dataSource.getRepository(RecommendationFeedback).find({ select: { itemId: true, updatedAt: true }, where: { userId, feedback: "dismiss" }, order: { updatedAt: "DESC" } });
+		const rows = await rlsRepo(this.dataSource, RecommendationFeedback).find({ select: { itemId: true, updatedAt: true }, where: { userId, feedback: "dismiss" }, order: { updatedAt: "DESC" } });
 		return (
 			await loadSocialItems(
 				this.dataSource,

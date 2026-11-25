@@ -12,6 +12,7 @@ import { indexerWriteLimiter } from "./workLimiter.js";
 import { MediaSearchService } from "../media/mediaSearchService.js";
 import { MEDIA_ITEM_TYPES, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { PluginIndexerHostService } from "../plugins/pluginIndexerHostService.js";
+import { PermissionAlertService } from "../notifications/permissionAlertService.js";
 
 const PREFIX = "/api/indexer";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -32,6 +33,7 @@ export class IndexerApiController {
 		private readonly introSegments: IndexerIntroSegmentsService,
 		private readonly mediaSearch: MediaSearchService,
 		private readonly pluginHost: PluginIndexerHostService,
+		private readonly permissionAlerts: PermissionAlertService,
 	) {}
 
 	@Get("/libraries")
@@ -299,5 +301,32 @@ export class IndexerApiController {
 			}
 		}
 		return this.writes.run(() => this.items.removePaths(id.toLowerCase(), targets));
+	}
+
+	/** Records a filesystem permission error reported by an internal service and notifies admins. */
+	@Post("/permission-error")
+	async reportPermissionError(@RawBodyParams() raw: Buffer | string | undefined, @HeaderParams(INDEXER_TIMESTAMP_HEADER) timestamp?: string, @HeaderParams(INDEXER_SIGNATURE_HEADER) signature?: string) {
+		const body = Buffer.from(raw ?? "");
+		verifyIndexerRequest({ method: "POST", path: `${PREFIX}/permission-error`, body, timestamp, signature });
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(body.toString("utf8"));
+		} catch {
+			throw new BadRequest("The request body must be valid JSON.");
+		}
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			throw new BadRequest("Invalid permission error payload.");
+		}
+		const record = parsed as Record<string, unknown>;
+		const message = typeof record.message === "string" ? record.message.trim() : "";
+		if (!message || message.length > 1000) {
+			throw new BadRequest("message is required.");
+		}
+		const source = typeof record.source === "string" && record.source.trim() ? record.source.trim().slice(0, 64) : "flixer-indexer";
+		const operation = typeof record.operation === "string" && record.operation.trim() ? record.operation.trim().slice(0, 128) : undefined;
+		const path = typeof record.path === "string" && record.path.trim() ? record.path.trim().slice(0, 1024) : undefined;
+		const url = source === "flixer-indexer" ? "/admin?tab=indexer" : "/admin?tab=logs";
+		const reported = await this.permissionAlerts.report({ source, operation, path, message, url });
+		return { reported };
 	}
 }

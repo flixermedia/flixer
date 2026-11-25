@@ -4,8 +4,9 @@ import "@tsed/platform-log-request";
 import { Configuration, Inject } from "@tsed/di";
 import { application } from "@tsed/platform-http";
 import type { PlatformFastifyPluginSettings } from "@tsed/platform-fastify";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { QueryRunner } from "typeorm";
 import { join } from "node:path";
 
 import "@tsed/platform-fastify";
@@ -18,6 +19,7 @@ import { isTrustedProxy } from "./config/trustedProxies.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { AuthService } from "./api/auth/authService.js";
 import { shouldBlockForMaintenance } from "./api/settings/maintenanceGuard.js";
+import { applyRlsSession, runInRlsScope } from "./datasources/rlsContext.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
 import { LoggerExportService } from "./logs/loggerExportService.js";
@@ -118,6 +120,58 @@ export class Server {
 				});
 				return reply;
 			}
+		});
+
+		const rlsQueryRunners = new WeakMap<FastifyRequest, { qr: QueryRunner; finished: boolean }>();
+		const finishRls = async (request: FastifyRequest, commit: boolean): Promise<void> => {
+			const entry = rlsQueryRunners.get(request);
+			if (!entry || entry.finished) return;
+			entry.finished = true;
+			rlsQueryRunners.delete(request);
+			try {
+				if (entry.qr.isTransactionActive) {
+					if (commit) await entry.qr.commitTransaction();
+					else await entry.qr.rollbackTransaction();
+				}
+			} finally {
+				await entry.qr.release();
+			}
+		};
+
+		fastify.addHook("onRequest", (request, _reply, done) => {
+			const path = request.url.split("?")[0] || "";
+			const authorization = request.headers.authorization;
+			if (!this.dataSource.isInitialized || !authorization || !path.startsWith("/api/") || path.startsWith("/api/auth/") || path.startsWith("/api/setup/") || path.startsWith("/api/oidc/")) {
+				done();
+				return;
+			}
+			void this.authService
+				.getUserFromKeyOrSession(authorization)
+				.then(async (user) => {
+					const qr = this.dataSource.createQueryRunner();
+					await qr.connect();
+					await qr.startTransaction();
+					try {
+						await applyRlsSession(qr, { userId: user.id, role: user.role });
+					} catch (error) {
+						if (qr.isTransactionActive) await qr.rollbackTransaction().catch(() => {});
+						await qr.release().catch(() => {});
+						throw error;
+					}
+					rlsQueryRunners.set(request, { qr, finished: false });
+					runInRlsScope(qr.manager, done);
+				})
+				.catch(() => {
+					done();
+				});
+		});
+
+		fastify.addHook("onResponse", async (request: FastifyRequest, reply: FastifyReply) => {
+			await finishRls(request, reply.statusCode < 500);
+		});
+
+		fastify.addHook("onError", async (request: FastifyRequest) => {
+			await finishRls(request, false);
 		});
 		fastify.use("/.well-known/oauth-authorization-server/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
 			if (request.url !== "/" && !request.url?.startsWith("/?")) return next();

@@ -3,6 +3,7 @@ import { Inject, Injectable, logger } from "@tsed/di";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsRepo } from "../../datasources/rlsContext.js";
 import { SocialFriendInvite, SocialFriendship } from "../../entities/social.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { UserPreference } from "../../entities/userPreference.entity.js";
@@ -44,7 +45,7 @@ export class FriendsService {
 	) {}
 
 	async list(userId: string) {
-		const rows = await this.dataSource.getRepository(SocialFriendship).createQueryBuilder("f").innerJoin(User, "u", "u.id = CASE WHEN f.userLowId = :userId THEN f.userHighId ELSE f.userLowId END", { userId }).leftJoin(UserPreference, "up", "up.userId = u.id").select("f.userLowId", "user_low_id").addSelect("f.userHighId", "user_high_id").addSelect("f.requestedBy", "requested_by").addSelect("f.acceptedAt", "accepted_at").addSelect("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file").where("(f.userLowId = :userId OR f.userHighId = :userId)", { userId }).andWhere("u.disabledAt IS NULL").orderBy("LOWER(COALESCE(u.displayName, u.username))", "ASC").getRawMany<FriendshipRow & UserRow>();
+		const rows = await rlsRepo(this.dataSource, SocialFriendship).createQueryBuilder("f").innerJoin(User, "u", "u.id = CASE WHEN f.userLowId = :userId THEN f.userHighId ELSE f.userLowId END", { userId }).leftJoin(UserPreference, "up", "up.userId = u.id").select("f.userLowId", "user_low_id").addSelect("f.userHighId", "user_high_id").addSelect("f.requestedBy", "requested_by").addSelect("f.acceptedAt", "accepted_at").addSelect("u.id", "id").addSelect("u.username", "username").addSelect("u.displayName", "display_name").addSelect("up.avatarFile", "avatar_file").where("(f.userLowId = :userId OR f.userHighId = :userId)", { userId }).andWhere("u.disabledAt IS NULL").orderBy("LOWER(COALESCE(u.displayName, u.username))", "ASC").getRawMany<FriendshipRow & UserRow>();
 		const friends: FriendPerson[] = [];
 		const incoming: FriendPerson[] = [];
 		const outgoing: FriendPerson[] = [];
@@ -60,7 +61,7 @@ export class FriendsService {
 	async status(viewerId: string, otherId: string): Promise<FriendshipStatus> {
 		if (viewerId === otherId) return "self";
 		const [low, high] = pair(viewerId, otherId);
-		const row = await this.dataSource.getRepository(SocialFriendship).findOne({ select: { requestedBy: true, acceptedAt: true }, where: { userLowId: low, userHighId: high } });
+		const row = await rlsRepo(this.dataSource, SocialFriendship).findOne({ select: { requestedBy: true, acceptedAt: true }, where: { userLowId: low, userHighId: high } });
 		if (!row) return "none";
 		if (row.acceptedAt) return "friends";
 		return row.requestedBy === viewerId ? "outgoing" : "incoming";
@@ -69,7 +70,7 @@ export class FriendsService {
 	async areFriends(firstId: string, secondId: string): Promise<boolean> {
 		if (firstId === secondId) return true;
 		const [low, high] = pair(firstId, secondId);
-		return this.dataSource.getRepository(SocialFriendship).existsBy({ userLowId: low, userHighId: high, acceptedAt: Not(IsNull()) });
+		return rlsRepo(this.dataSource, SocialFriendship).existsBy({ userLowId: low, userHighId: high, acceptedAt: Not(IsNull()) });
 	}
 
 	async request(userId: string, username: string) {
@@ -89,7 +90,7 @@ export class FriendsService {
 		const expiresAt = options.mode === "expires" && expiresInHours ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000) : null;
 		const maxUses = options.mode === "once" ? 1 : null;
 		const token = randomUUID();
-		await this.dataSource.getRepository(SocialFriendInvite).insert({ token, ownerId: viewerId, maxUses, expiresAt });
+		await rlsRepo(this.dataSource, SocialFriendInvite).insert({ token, ownerId: viewerId, maxUses, expiresAt });
 		return { token, expiresAt };
 	}
 
@@ -186,7 +187,7 @@ export class FriendsService {
 		const target = await this.findUser(username);
 		if (!target) throw new NotFound("Person not found.");
 		const [low, high] = pair(userId, target.id);
-		await this.dataSource.getRepository(SocialFriendship).delete({ userLowId: low, userHighId: high });
+		await rlsRepo(this.dataSource, SocialFriendship).delete({ userLowId: low, userHighId: high });
 	}
 
 	private async findUser(username: string): Promise<UserRow | undefined> {

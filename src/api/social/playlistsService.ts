@@ -3,6 +3,7 @@ import { BadRequest, NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource, IsNull, Not } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsManager, rlsRepo } from "../../datasources/rlsContext.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
 import { Playlist } from "../../entities/playlist.entity.js";
 import { PlaylistItem } from "../../entities/playlistItem.entity.js";
@@ -48,13 +49,13 @@ export class PlaylistsService {
 	constructor(@Inject(DefaultDataSource) private readonly dataSource: DataSource) {}
 
 	async listOwn(userId: string): Promise<PlaylistSummary[]> {
-		const rows = await this.dataSource.getRepository(Playlist).find({ where: { userId }, order: { updatedAt: "DESC" } });
+		const rows = await rlsRepo(this.dataSource, Playlist).find({ where: { userId }, order: { updatedAt: "DESC" } });
 		return this.summaries(rows);
 	}
 
 	/** Playlists others may see on a profile: the public ones, or all of them for the owner. */
 	async listForProfile(ownerId: string, includePrivate: boolean): Promise<PlaylistSummary[]> {
-		const rows = await this.dataSource.getRepository(Playlist).find({
+		const rows = await rlsRepo(this.dataSource, Playlist).find({
 			where: includePrivate ? { userId: ownerId } : { userId: ownerId, isPublic: true },
 			order: { updatedAt: "DESC" },
 		});
@@ -67,7 +68,7 @@ export class PlaylistsService {
 			throw new BadRequest("Playlist name must be 1 to 100 characters.");
 		}
 		const description = this.cleanDescription(input.description);
-		const repo = this.dataSource.getRepository(Playlist);
+		const repo = rlsRepo(this.dataSource, Playlist);
 		if ((await repo.countBy({ userId })) >= MAX_PLAYLISTS) {
 			throw new BadRequest(`You can have up to ${MAX_PLAYLISTS} playlists.`);
 		}
@@ -76,7 +77,7 @@ export class PlaylistsService {
 	}
 
 	async update(userId: string, id: string, changes: { name?: string; description?: string | null; isPublic?: boolean }): Promise<PlaylistSummary> {
-		const repo = this.dataSource.getRepository(Playlist);
+		const repo = rlsRepo(this.dataSource, Playlist);
 		const playlist = await repo.findOneBy({ id, userId });
 		if (!playlist) {
 			throw new NotFound("Playlist not found.");
@@ -99,12 +100,12 @@ export class PlaylistsService {
 	}
 
 	async remove(userId: string, id: string): Promise<void> {
-		await this.dataSource.getRepository(Playlist).delete({ id, userId });
+		await rlsRepo(this.dataSource, Playlist).delete({ id, userId });
 	}
 
 	/** One playlist with its songs, for its owner or, when public, anyone whose owner has not hidden their profile. */
 	async get(viewerId: string, id: string) {
-		const playlist = await this.dataSource.getRepository(Playlist).findOneBy({ id });
+		const playlist = await rlsRepo(this.dataSource, Playlist).findOneBy({ id });
 		if (!playlist) {
 			throw new NotFound("Playlist not found.");
 		}
@@ -113,7 +114,7 @@ export class PlaylistsService {
 			throw new NotFound("Playlist not found.");
 		}
 
-		const entries = await this.dataSource.getRepository(PlaylistItem).find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
+		const entries = await rlsRepo(this.dataSource, PlaylistItem).find({ where: { playlistId: id }, order: { position: "ASC", addedAt: "ASC" } });
 		const loaded = await loadSocialItems(
 			this.dataSource,
 			entries.map((entry) => entry.itemId),
@@ -142,7 +143,7 @@ export class PlaylistsService {
 		if (item.type !== "track" && item.type !== "album") {
 			throw new BadRequest("Only songs and albums can be added to a playlist.");
 		}
-		return this.dataSource.transaction(async (manager) => {
+		return rlsManager(this.dataSource).transaction(async (manager) => {
 			// Serialises concurrent adds so positions stay unique and the size cap holds.
 			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
 			const trackIds =
@@ -182,14 +183,14 @@ export class PlaylistsService {
 
 	async removeTrack(userId: string, id: string, itemId: string): Promise<void> {
 		await this.requireOwned(userId, id);
-		await this.dataSource.getRepository(PlaylistItem).delete({ playlistId: id, itemId });
-		await this.dataSource.getRepository(Playlist).update({ id }, { updatedAt: new Date() });
+		await rlsRepo(this.dataSource, PlaylistItem).delete({ playlistId: id, itemId });
+		await rlsRepo(this.dataSource, Playlist).update({ id }, { updatedAt: new Date() });
 	}
 
 	/** Replaces the order; `itemIds` must be exactly the songs now in the playlist. */
 	async reorder(userId: string, id: string, itemIds: string[]): Promise<void> {
 		await this.requireOwned(userId, id);
-		await this.dataSource.transaction(async (manager) => {
+		await rlsManager(this.dataSource).transaction(async (manager) => {
 			await manager.findOne(Playlist, { select: { id: true }, where: { id }, lock: { mode: "pessimistic_write" } });
 			const current = await manager.find(PlaylistItem, { select: { itemId: true }, where: { playlistId: id } });
 			const wanted = new Set(itemIds);
@@ -209,7 +210,7 @@ export class PlaylistsService {
 
 	/** The user's own playlists that already hold the song. */
 	async containing(userId: string, itemId: string): Promise<string[]> {
-		const rows = await this.dataSource.getRepository(Playlist).createQueryBuilder("p").innerJoin(PlaylistItem, "pi", "pi.playlistId = p.id").select("p.id", "id").where("p.userId = :userId", { userId }).andWhere("pi.itemId = :itemId", { itemId }).getRawMany<{ id: string }>();
+		const rows = await rlsRepo(this.dataSource, Playlist).createQueryBuilder("p").innerJoin(PlaylistItem, "pi", "pi.playlistId = p.id").select("p.id", "id").where("p.userId = :userId", { userId }).andWhere("pi.itemId = :itemId", { itemId }).getRawMany<{ id: string }>();
 		return rows.map((row) => row.id);
 	}
 
@@ -222,7 +223,7 @@ export class PlaylistsService {
 	}
 
 	private async requireOwned(userId: string, id: string): Promise<Playlist> {
-		const playlist = await this.dataSource.getRepository(Playlist).findOneBy({ id, userId });
+		const playlist = await rlsRepo(this.dataSource, Playlist).findOneBy({ id, userId });
 		if (!playlist) {
 			throw new NotFound("Playlist not found.");
 		}
@@ -230,11 +231,11 @@ export class PlaylistsService {
 	}
 
 	private async ownerVisible(viewerId: string, ownerId: string): Promise<boolean> {
-		const preferences = await this.dataSource.getRepository(UserPreference).findOne({ select: { profileVisibility: true }, where: { userId: ownerId } });
+		const preferences = await rlsRepo(this.dataSource, UserPreference).findOne({ select: { profileVisibility: true }, where: { userId: ownerId } });
 		const visibility = preferences?.profileVisibility ?? "public";
 		if (visibility === "public" || viewerId === ownerId) return true;
 		if (visibility === "hidden") return false;
-		return this.dataSource.getRepository(SocialFriendship).existsBy([
+		return rlsRepo(this.dataSource, SocialFriendship).existsBy([
 			{ userLowId: viewerId, userHighId: ownerId, acceptedAt: Not(IsNull()) },
 			{ userLowId: ownerId, userHighId: viewerId, acceptedAt: Not(IsNull()) },
 		]);

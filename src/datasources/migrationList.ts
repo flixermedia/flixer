@@ -19,6 +19,11 @@ import { AddInviteEmailVerificationControl1798300000038 } from "../migrations/ad
 import { AddInviteDisablePlexOnlineSources1798300000039 } from "../migrations/addInviteDisablePlexOnlineSources1798300000039.js";
 import { AddInviteServerExternalUrl1798300000040 } from "../migrations/addInviteServerExternalUrl1798300000040.js";
 import { AddMediaLibraryIgnoreLocalImages1798300000041 } from "../migrations/addMediaLibraryIgnoreLocalImages1798300000041.js";
+import { CreateRlsFoundation1798300000042 } from "../migrations/createRlsFoundation1798300000042.js";
+import { EnableUserOwnedRls1798300000043 } from "../migrations/enableUserOwnedRls1798300000043.js";
+import { EnableRemainingUserOwnedRls1798300000044 } from "../migrations/enableRemainingUserOwnedRls1798300000044.js";
+import { EnableSocialAndSharedRls1798300000045 } from "../migrations/enableSocialAndSharedRls1798300000045.js";
+import { EnableCatalogAndAdminRls1798300000046 } from "../migrations/enableCatalogAndAdminRls1798300000046.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
@@ -210,4 +215,9 @@ export const MIGRATIONS = [
 	AddInviteDisablePlexOnlineSources1798300000039,
 	AddInviteServerExternalUrl1798300000040,
 	AddMediaLibraryIgnoreLocalImages1798300000041,
+	CreateRlsFoundation1798300000042,
+	EnableUserOwnedRls1798300000043,
+	EnableRemainingUserOwnedRls1798300000044,
+	EnableSocialAndSharedRls1798300000045,
+	EnableCatalogAndAdminRls1798300000046,
 ];

@@ -3,6 +3,7 @@ import { NotFound } from "@tsed/exceptions";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsManager, rlsRepo } from "../../datasources/rlsContext.js";
 import { Favorite } from "../../entities/favorite.entity.js";
 import { ListeningHistory } from "../../entities/listeningHistory.entity.js";
 import { MediaItem } from "../../entities/mediaItem.entity.js";
@@ -107,7 +108,7 @@ export class ProfilesService {
 	}
 
 	async setVisibility(userId: string, visibility: "public" | "hidden" | "friends") {
-		await this.dataSource.getRepository(UserPreference).upsert({ userId, profileVisibility: visibility }, ["userId"]);
+		await rlsRepo(this.dataSource, UserPreference).upsert({ userId, profileVisibility: visibility }, ["userId"]);
 		return { visibility };
 	}
 
@@ -155,7 +156,7 @@ export class ProfilesService {
 		if (!continuing) {
 			try {
 				// RAW SQL: data-modifying CTEs with ON CONFLICT DO UPDATE across listening_history, listening_events and playback_history
-				await this.dataSource.query(
+				await rlsManager(this.dataSource).query(
 					`WITH recorded AS (
 						INSERT INTO listening_history (user_id, item_id, played_at, play_count) VALUES ($1, $2, now(), 1)
 						ON CONFLICT (user_id, item_id) DO UPDATE SET played_at = now(), play_count = listening_history.play_count + 1

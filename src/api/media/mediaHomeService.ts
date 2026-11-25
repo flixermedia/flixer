@@ -4,6 +4,7 @@ import { NotFound } from "@tsed/exceptions";
 import { DataSource, In, type SelectQueryBuilder } from "typeorm";
 import { MediaAccessService, type AccessPolicy } from "../access/mediaAccessService.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
+import { rlsRepo } from "../../datasources/rlsContext.js";
 import { MediaCredit, personIdOf } from "../../entities/mediaCredit.entity.js";
 import { MediaItem, type MediaItemType } from "../../entities/mediaItem.entity.js";
 import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
@@ -298,7 +299,7 @@ export class MediaHomeService {
 	}
 
 	async getProgress(userId: string, itemId: string) {
-		const row = await this.dataSource.getRepository(WatchProgress).findOneBy({ userId, itemId });
+		const row = await rlsRepo(this.dataSource, WatchProgress).findOneBy({ userId, itemId });
 		return { positionSeconds: row && !row.completed ? row.positionSeconds : 0, completed: row?.completed ?? false };
 	}
 
@@ -308,7 +309,7 @@ export class MediaHomeService {
 		if (!item || !CONTINUE_TYPES.includes(item.type)) {
 			throw new NotFound("Media item not found.");
 		}
-		const repo = this.dataSource.getRepository(WatchProgress);
+		const repo = rlsRepo(this.dataSource, WatchProgress);
 		const completed = durationSeconds > 0 && positionSeconds >= durationSeconds * COMPLETED_FRACTION;
 		if (!completed && positionSeconds < MIN_RESUME_SECONDS) {
 			const existing = await repo.findOneBy({ userId, itemId });
@@ -350,7 +351,7 @@ export class MediaHomeService {
 		if (ids.length === 0) {
 			return;
 		}
-		const progress = this.dataSource.getRepository(WatchProgress);
+		const progress = rlsRepo(this.dataSource, WatchProgress);
 		if (watched) {
 			await progress.upsert(
 				ids.map((id) => ({ userId, itemId: id, positionSeconds: 0, completed: true, updatedAt: new Date() })),
@@ -371,7 +372,7 @@ export class MediaHomeService {
 
 	/** Unfinished movies, episodes and videos the user has started, most recent first. */
 	private async continueWatching(userId: string, policy: AccessPolicy): Promise<ContinueCard[]> {
-		const rows = await this.dataSource.getRepository(WatchProgress).find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
+		const rows = await rlsRepo(this.dataSource, WatchProgress).find({ where: { userId, completed: false }, order: { updatedAt: "DESC" }, take: CONTINUE_LIMIT * 2 });
 		if (rows.length === 0) {
 			return [];
 		}
@@ -467,7 +468,7 @@ export class MediaHomeService {
 		const watchedIds = new Set(
 			userId && episodeIds.length > 0
 				? (
-						await this.dataSource.getRepository(WatchProgress).find({
+						await rlsRepo(this.dataSource, WatchProgress).find({
 							where: { userId, itemId: In(episodeIds), completed: true },
 							select: { itemId: true },
 						})
