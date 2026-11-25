@@ -58,6 +58,7 @@
 		"@tsed/schema": "^8.44.0",
 		"@tsed/socketio": "^8.44.0",
 		"ajv": "^8.20.0",
+		"blurhash": "^2.0.5",
 		"cross-env": "^10.1.0",
 		"dotenv": "^18.0.8",
 		"dotenv-expand": "^1000.0.0",

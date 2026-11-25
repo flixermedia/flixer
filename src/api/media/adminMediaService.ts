@@ -7,6 +7,7 @@ import { MediaOrganizationSettings } from "../../entities/mediaOrganization.enti
 import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
 import { UpdateMediaItemRequest } from "./adminMediaRequests.js";
+import { computeBlurhash } from "./blurhash.js";
 import { normalizeChapterTitle } from "./chapterTitles.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { deleteUpload, detectImageType, MANUAL_PROVIDER, MAX_MEDIA_IMAGE_BYTES, mimeForUpload, readUpload, saveUpload, UPLOAD_PREFIX, uploadFilename } from "./mediaImageStorage.js";
@@ -24,6 +25,7 @@ interface StoredImage {
 	width?: unknown;
 	height?: unknown;
 	language?: unknown;
+	blurhash?: unknown;
 }
 
 export interface MediaItemImage {
@@ -33,6 +35,7 @@ export interface MediaItemImage {
 	width: number | null;
 	height: number | null;
 	language: string | null;
+	blurhash: string | null;
 	/** Whether the file has been downloaded; remote candidates have not. */
 	available: boolean;
 	/** Uploaded by an admin, so it can be removed and survives rescans. */
@@ -53,6 +56,7 @@ function toImage(raw: unknown, index: number): MediaItemImage {
 		width: typeof image.width === "number" ? image.width : null,
 		height: typeof image.height === "number" ? image.height : null,
 		language: typeof image.language === "string" && image.language ? image.language : null,
+		blurhash: typeof image.blurhash === "string" && image.blurhash ? image.blurhash : null,
 		available: typeof image.path === "string" && image.path.length > 0,
 		manual: image.provider === MANUAL_PROVIDER && uploadFilename(image.path) !== null,
 	};
@@ -316,6 +320,8 @@ export class AdminMediaService {
 		);
 	}
 
+	private readonly pendingBlurhashes = new Set<string>();
+
 	/** The bytes of one of an item's images, read from flixer's own storage or fetched from the indexer. A width scales it down. */
 	async image(id: string, index: number, width?: number): Promise<{ data: Buffer; mime: string }> {
 		const item = await this.find(id);
@@ -324,7 +330,33 @@ export class AdminMediaService {
 			throw new NotFound("Image not found.");
 		}
 		const path = stored.path;
-		return resizeImage(() => this.readImage(path), `${id}:${index}:${path}:${item.updatedAt.getTime()}`, normalizeWidth(width));
+		const result = await resizeImage(() => this.readImage(path), `${id}:${index}:${path}:${item.updatedAt.getTime()}`, normalizeWidth(width));
+		if (typeof stored.blurhash !== "string" || !stored.blurhash) {
+			void this.cacheImageBlurhash(id, index, path, result.data, result.mime);
+		}
+		return result;
+	}
+
+	private async cacheImageBlurhash(id: string, index: number, path: string, data: Buffer, mime: string): Promise<void> {
+		const key = `${id}:${index}:${path}`;
+		if (this.pendingBlurhashes.has(key)) return;
+		this.pendingBlurhashes.add(key);
+		try {
+			const blurhash = await computeBlurhash(data, mime);
+			if (!blurhash) return;
+			const repository = this.dataSource.getRepository(MediaItem);
+			const current = await repository.findOneBy({ id });
+			if (!current || !Array.isArray(current.images)) return;
+			const target = current.images[index] as StoredImage | undefined;
+			if (!target || target.path !== path || (typeof target.blurhash === "string" && target.blurhash)) return;
+			const updated = [...current.images];
+			updated[index] = { ...target, blurhash };
+			await repository.update({ id }, { images: updated as never });
+		} catch {
+			// Best-effort background cache; never fail image delivery.
+		} finally {
+			this.pendingBlurhashes.delete(key);
+		}
 	}
 
 	private async readImage(path: string): Promise<{ data: Buffer; mime: string }> {
@@ -364,7 +396,8 @@ export class AdminMediaService {
 			throw new BadRequest("This item has no stable library path for image storage.");
 		}
 		const filename = await saveUpload(item.rootId, item.relativePath, item.id, buffer, detected);
-		item.images = [...(item.images ?? []), { type, path: `${UPLOAD_PREFIX}${filename}`, provider: MANUAL_PROVIDER }];
+		const blurhash = await computeBlurhash(buffer, detected.mime);
+		item.images = [...(item.images ?? []), { type, path: `${UPLOAD_PREFIX}${filename}`, provider: MANUAL_PROVIDER, ...(blurhash ? { blurhash } : {}) }];
 		await repository.save(item);
 		return this.get(id);
 	}

@@ -98,6 +98,7 @@ const BROWSE_KINDS: Record<string, MediaItemType[]> = {
 interface StoredImage {
 	type?: unknown;
 	path?: unknown;
+	blurhash?: unknown;
 }
 
 /** Index of the first downloaded image of one of the given types, preferring earlier types in the list. */
@@ -111,6 +112,17 @@ function imageIndex(images: unknown[] | null | undefined, types: string[]): numb
 		}
 	}
 	return null;
+
+}
+
+function imageBlurhash(images: unknown[] | null | undefined, types: string[]): string | null {
+
+	const index = imageIndex(images, types);
+	if (index === null) {
+		return null;
+	}
+	const image = (images ?? [])[index] as StoredImage | undefined;
+	return typeof image?.blurhash === "string" && image.blurhash ? image.blurhash : null;
 
 }
 
@@ -189,6 +201,8 @@ export interface HomeCard {
 	/** Image indexes to request from /media/items/:id/images/:index, or null when none has been downloaded. */
 	poster: number | null;
 	backdrop: number | null;
+	posterBlurhash?: string | null;
+	backdropBlurhash?: string | null;
 	logo?: number | null;
 	updatedAt: Date;
 	/** Set when the item is restricted for this user and the admin chose to show restricted media locked. */
@@ -209,7 +223,7 @@ export interface HomeLibrary {
 	type: string;
 	itemCount: number;
 	/** A representative item whose artwork is shown for the library. */
-	cover: { itemId: string; index: number; updatedAt: Date } | null;
+	cover: { itemId: string; index: number; blurhash?: string | null; updatedAt: Date } | null;
 }
 
 export interface ContinueCard {
@@ -220,6 +234,7 @@ export interface ContinueCard {
 	/** The item whose image to show; episodes fall back to their series' artwork. */
 	imageItemId: string;
 	imageIndex: number | null;
+	imageBlurhash?: string | null;
 	imageUpdatedAt: Date;
 	positionSeconds: number;
 	progress: number;
@@ -396,6 +411,7 @@ export class MediaHomeService {
 				index = imageIndex(series.images, ["backdrop", "thumb", "poster"]);
 				imageSource = series;
 			}
+			const imageBlurhashValue = imageBlurhash(imageSource.images, ["backdrop", "thumb", "poster"]);
 			const duration = row.durationSeconds > 0 ? row.durationSeconds : (runtimeOf(item) ?? 0) * 60;
 			cards.push({
 				id: item.id,
@@ -404,6 +420,7 @@ export class MediaHomeService {
 				subtitle,
 				imageItemId: imageSource.id,
 				imageIndex: index,
+				imageBlurhash: imageBlurhashValue,
 				imageUpdatedAt: imageSource.updatedAt,
 				positionSeconds: row.positionSeconds,
 				progress: duration > 0 ? Math.min(99, Math.max(1, Math.round((row.positionSeconds / duration) * 100))) : 0,
@@ -469,7 +486,9 @@ export class MediaHomeService {
 			overview: textOf(entry.metadata?.overview),
 			runtimeMinutes: runtimeOf(entry),
 			poster: imageIndex(entry.images, ["poster"]),
+			posterBlurhash: imageBlurhash(entry.images, ["poster"]),
 			thumb: imageIndex(entry.images, ["thumb", "backdrop", "poster"]),
+			thumbBlurhash: imageBlurhash(entry.images, ["thumb", "backdrop", "poster"]),
 			updatedAt: entry.updatedAt,
 		});
 
@@ -521,6 +540,8 @@ export class MediaHomeService {
 			chapters: parseMediaChapters(item.technical, item.metadata),
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			posterBlurhash: imageBlurhash(item.images, ["poster"]),
+			backdropBlurhash: imageBlurhash(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
 			hasTheme: this.themes ? await this.themes.hasTheme(item) : false,
@@ -695,6 +716,8 @@ export class MediaHomeService {
 			searchContext: item.type === "track" ? (contextById.get(item.parentId ?? "")?.title ?? null) : item.type === "episode" ? (contextById.get(item.parentId ?? "")?.type === "series" ? (contextById.get(item.parentId ?? "")?.title ?? null) : (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)) : null,
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			posterBlurhash: imageBlurhash(item.images, ["poster"]),
+			backdropBlurhash: imageBlurhash(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
 		}));
@@ -930,6 +953,8 @@ export class MediaHomeService {
 			year: item.year,
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			posterBlurhash: imageBlurhash(item.images, ["poster"]),
+			backdropBlurhash: imageBlurhash(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
 		};
@@ -955,7 +980,7 @@ export class MediaHomeService {
 				for (const item of recent) {
 					const index = imageIndex(item.images, ["backdrop", "thumb", "poster"]);
 					if (index !== null) {
-						cover = { itemId: item.id, index, updatedAt: item.updatedAt };
+						cover = { itemId: item.id, index, blurhash: imageBlurhash(item.images, ["backdrop", "thumb", "poster"]), updatedAt: item.updatedAt };
 						break;
 					}
 				}
@@ -1005,6 +1030,8 @@ export class MediaHomeService {
 				year: item.year,
 				poster: imageIndex(item.images, ["poster"]),
 				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+				posterBlurhash: imageBlurhash(item.images, ["poster"]),
+				backdropBlurhash: imageBlurhash(item.images, ["backdrop", "thumb"]),
 				logo: imageIndex(item.images, ["logo"]),
 				updatedAt: item.updatedAt,
 			};

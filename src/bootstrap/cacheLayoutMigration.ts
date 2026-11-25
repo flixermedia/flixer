@@ -7,16 +7,19 @@ import { dataPath } from "../config/dataPath.js";
 const MARKER_FILE = ".layout-v2";
 
 async function exists(path: string): Promise<boolean> {
+
 	try {
 		await stat(path);
 		return true;
 	} catch {
 		return false;
 	}
+
 }
 
 /** Moves `src` to `dest`, merging directory contents if `dest` already exists. */
 async function moveMerge(src: string, dest: string): Promise<void> {
+
 	if (!(await exists(src))) return;
 	await mkdir(dirname(dest), { recursive: true });
 	if (!(await exists(dest))) {
@@ -40,9 +43,11 @@ async function moveMerge(src: string, dest: string): Promise<void> {
 		}
 	}
 	await rm(src, { recursive: true, force: true });
+
 }
 
 async function migrateKeyedSubdir(srcRoot: string, libraryRoot: string, nestedName?: string): Promise<void> {
+
 	if (!(await exists(srcRoot))) return;
 	for (const entry of await readdir(srcRoot, { withFileTypes: true })) {
 		if (!entry.isDirectory()) continue;
@@ -51,21 +56,18 @@ async function migrateKeyedSubdir(srcRoot: string, libraryRoot: string, nestedNa
 		await moveMerge(src, dest);
 	}
 	await rm(srcRoot, { recursive: true, force: true });
+
 }
 
 async function migrateTrailers(srcRoot: string, libraryRoot: string, dataSource?: DataSource): Promise<void> {
+
 	if (!(await exists(srcRoot))) return;
 	const entries = await readdir(srcRoot, { withFileTypes: true });
 	const keyByItemId = new Map<string, string>();
 	if (dataSource && entries.length > 0) {
-		const ids = entries
-			.map((e) => /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[1-9]\d*\.mp4$/i.exec(e.name)?.[1]?.toLowerCase())
-			.filter((id): id is string => Boolean(id));
+		const ids = entries.map((e) => /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[1-9]\d*\.mp4$/i.exec(e.name)?.[1]?.toLowerCase()).filter((id): id is string => Boolean(id));
 		if (ids.length > 0) {
-			const rows: Array<{ id: string; root_id: string | null; relative_path: string | null }> = await dataSource.query(
-				`SELECT id, root_id, relative_path FROM media_items WHERE id = ANY($1::uuid[])`,
-				[[...new Set(ids)]],
-			);
+			const rows: Array<{ id: string; root_id: string | null; relative_path: string | null }> = await dataSource.query(`SELECT id, root_id, relative_path FROM media_items WHERE id = ANY($1::uuid[])`, [[...new Set(ids)]]);
 			for (const row of rows) {
 				if (row.root_id && row.relative_path) {
 					const key = createHash("sha256").update(`${row.root_id}\n${row.relative_path}`).digest("hex").slice(0, 32);
@@ -82,10 +84,12 @@ async function migrateTrailers(srcRoot: string, libraryRoot: string, dataSource?
 		await moveMerge(join(srcRoot, entry.name), dest);
 	}
 	await rm(srcRoot, { recursive: true, force: true });
+
 }
 
 /** Migrates legacy DATA_DIR/cache/* directories into cache/library/* and cache/providers/* and updates stored image paths. */
 export async function migrateCacheLayout(dataSource?: DataSource): Promise<void> {
+
 	const cacheRoot = dataPath("cache");
 	if (!(await exists(cacheRoot))) return;
 	const marker = join(cacheRoot, MARKER_FILE);
@@ -123,4 +127,5 @@ export async function migrateCacheLayout(dataSource?: DataSource): Promise<void>
 	}
 
 	await writeFile(marker, "v2\n");
+
 }

@@ -16,6 +16,7 @@ const SETTING_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_.-]{0,127}$/;
 const REQUEST_WEBHOOK_TOKEN_SETTING = "requests_webhook_token";
 
 function isJsonValue(value: unknown): value is JsonValue {
+
 	if (value === null || typeof value === "string" || typeof value === "boolean") {
 		return true;
 	}
@@ -30,9 +31,11 @@ function isJsonValue(value: unknown): value is JsonValue {
 	}
 
 	return false;
+
 }
 
 function parseDefinitions(value: unknown): SettingDefinition[] {
+
 	if (!Array.isArray(value)) {
 		throw new Error("settings.json must contain an array of setting definitions.");
 	}
@@ -58,6 +61,7 @@ function parseDefinitions(value: unknown): SettingDefinition[] {
 			isPublic: item.isPublic,
 		};
 	});
+
 }
 
 function readDefinitions(): SettingDefinition[] {
@@ -65,6 +69,7 @@ function readDefinitions(): SettingDefinition[] {
 }
 
 async function synchronizeDefinitions(manager: EntityManager, definitions: SettingDefinition[]): Promise<void> {
+
 	const repository = manager.getRepository(Setting);
 	const existingSettings = await repository.find();
 	const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]));
@@ -102,9 +107,11 @@ async function synchronizeDefinitions(manager: EntityManager, definitions: Setti
 	if (settingsToSave.length > 0) {
 		await repository.save(settingsToSave);
 	}
+
 }
 
 export async function synchronizeSettings(dataSource: DataSource): Promise<void> {
+
 	const definitions = readDefinitions();
 	if (definitions.some(({ key }) => key === ADMIN_SCHEDULED_TASKS_SETTING)) {
 		throw new Error(`Setting "${ADMIN_SCHEDULED_TASKS_SETTING}" is defined more than once.`);
@@ -129,4 +136,5 @@ export async function synchronizeSettings(dataSource: DataSource): Promise<void>
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:sync-settings"]);
 		await synchronizeDefinitions(manager, definitions);
 	});
+
 }
