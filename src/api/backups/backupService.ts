@@ -38,7 +38,7 @@ export interface BackupEntry {
 	versions: Record<string, string>;
 }
 
-type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish" | "prune";
+type BackupStepName = "dump-database" | "archive-config" | "archive-secrets" | "archive-avatars" | "archive-advertisements" | "archive-plugins" | "archive-cache" | "encrypt-finish" | "prune";
 
 interface BackupRunStep {
 	name: string;
@@ -448,7 +448,15 @@ export class BackupService {
 					logger().warn(message);
 				},
 				onStep: (step) => {
-					const messages = { "archive-config": "Archiving settings", "archive-secrets": "Archiving shared secrets", "archive-cache": "Archiving cache", "encrypt-finish": passphrase ? "Encrypting and finishing the archive" : "Finishing the archive" };
+					const messages = {
+						"archive-config": "Archiving settings",
+						"archive-secrets": "Archiving shared secrets",
+						"archive-avatars": "Archiving avatars",
+						"archive-advertisements": "Archiving advertisements",
+						"archive-plugins": "Archiving plugins",
+						"archive-cache": "Archiving cache",
+						"encrypt-finish": passphrase ? "Encrypting and finishing the archive" : "Finishing the archive",
+					};
 					this.startStep(run, step, messages[step]);
 				},
 			});
@@ -493,11 +501,15 @@ export class BackupService {
 		} else {
 			note("The shared secrets folder was not found; secrets are not in this backup.");
 		}
-		const cacheDir = dataPath("cache");
-		if (await isDirectory(cacheDir)) {
-			sources.cache = { dir: cacheDir };
-		} else {
-			note("The cache folder was not found; cache is not in this backup.");
+		const extraDirs: Array<["avatars" | "advertisements" | "plugins", string]> = [
+			["avatars", dataPath("avatars")],
+			["advertisements", dataPath("advertisements")],
+			["plugins", dataPath("plugins")],
+		];
+		for (const [component, dir] of extraDirs) {
+			if (await isDirectory(dir)) {
+				sources[component] = { dir };
+			}
 		}
 		return sources;
 	}

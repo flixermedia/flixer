@@ -356,6 +356,9 @@ services:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/config:/data/config
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/avatars:/data/avatars
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/nginx:/data/nginx
             - ${PROJECT_DIR:-${PWD}}:${PROJECT_DIR:-${PWD}}:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/updater-state:/state

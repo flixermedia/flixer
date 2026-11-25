@@ -13,6 +13,7 @@ import { SECRET_MASK } from "./secretMask.js";
 import { REQUEST_SETTING_KEYS, validateRequestSetting } from "../requests/requestSettings.js";
 import { TRANSCODING_SETTING_KEYS, validateTranscodingSetting } from "./transcodingSettings.js";
 import { SettingRequest } from "./settingRequest.js";
+import { invalidateMaintenanceCache } from "./maintenanceGuard.js";
 import { APPEARANCE_SETTING_KEYS } from "../appearance/appearanceService.js";
 import { LOG_SUCCESSFUL_API_REQUESTS_SETTING, setLogSuccessfulApiRequests } from "../../config/logger/requestLog.js";
 import { setLoginSecurity, validateLoginSecurity } from "../auth/login/loginSecurity.js";
@@ -226,7 +227,7 @@ export class SettingsService {
 		if (key === "updates_state") {
 			throw new BadRequest("The update state is managed by Flixer.");
 		}
-		if (key === "updates_check_enabled" || key === "updates_auto_update") {
+		if (key === "updates_check_enabled" || key === "updates_auto_update" || key === "maintenance_mode") {
 			if (typeof request.value !== "boolean") {
 				throw new BadRequest(`The ${key} setting must be a boolean.`);
 			}
@@ -270,6 +271,7 @@ export class SettingsService {
 
 		setting.value = INDEXER_SETTING_KEYS.includes(key) ? this.indexerSettings.validate(key, request.value, setting.value) : request.value;
 		const saved = await settings.save(setting);
+		if (key === "maintenance_mode") invalidateMaintenanceCache();
 		if (key === "login_security") setLoginSecurity(validateLoginSecurity(saved.value));
 		if (key === "trusted_proxies") setTrustedProxyConfig(validateTrustedProxyConfig(saved.value));
 		if (key === LOG_SUCCESSFUL_API_REQUESTS_SETTING) {

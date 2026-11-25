@@ -16,6 +16,8 @@ import * as api from "./api.js";
 import { config } from "./config/config.js";
 import { isTrustedProxy } from "./config/trustedProxies.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
+import { AuthService } from "./api/auth/authService.js";
+import { shouldBlockForMaintenance } from "./api/settings/maintenanceGuard.js";
 import { JobScheduler } from "./jobs/jobScheduler.js";
 import { LiveLogService } from "./logs/liveLogService.js";
 import { LoggerExportService } from "./logs/loggerExportService.js";
@@ -101,9 +103,22 @@ export class Server {
 
 	protected app = application();
 	@Inject(OidcProviderService) private readonly oidc!: OidcProviderService;
+	@Inject(DefaultDataSource) private readonly dataSource!: DefaultDataSource;
+	@Inject(AuthService) private readonly authService!: AuthService;
 
 	$beforeRoutesInit(): void {
 		const fastify = this.app.getApp() as FastifyInstance;
+		fastify.addHook("onRequest", async (request, reply) => {
+			if (await shouldBlockForMaintenance(request.url, request.headers.authorization, this.dataSource, this.authService)) {
+				reply.code(503).send({
+					name: "MAINTENANCE",
+					message: "Flixer is in maintenance mode. Please check back in a moment.",
+					maintenance: true,
+					status: 503,
+				});
+				return reply;
+			}
+		});
 		fastify.use("/.well-known/oauth-authorization-server/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
 			if (request.url !== "/" && !request.url?.startsWith("/?")) return next();
 			request.url = `/.well-known/oauth-authorization-server${request.url.slice(1)}`;

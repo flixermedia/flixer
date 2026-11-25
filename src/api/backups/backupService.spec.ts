@@ -124,17 +124,17 @@ describe("BackupService", () => {
 		expect(run).toMatchObject({ kind: "backup", status: "running" });
 		const done = await waitDone(run);
 		expect(done.status).toBe("succeeded");
-		expect(done.steps!.map((step) => step.name)).toEqual(["dump-database", "archive-config", "archive-secrets", "archive-cache", "encrypt-finish", "prune"]);
+		expect(done.steps!.map((step) => step.name)).toEqual(["dump-database", "archive-config", "archive-secrets", "encrypt-finish", "prune"]);
 		expect(done.steps!.every((step) => step.status === "succeeded" && step.finishedAt)).toBe(true);
 		expect(done.encrypted).toBe(false);
 		expect(dumped).toEqual(["postgres://user:pw@db:5432/flixer"]);
 		expect(files().every((name) => isBackupName(name))).toBe(true);
 		const [entry] = await service.list();
-		expect(entry).toMatchObject({ encrypted: false, components: ["database", "config", "secrets", "cache"], versions: { flixer: expect.any(String) } });
+		expect(entry).toMatchObject({ encrypted: false, components: ["database", "config", "secrets"], versions: { flixer: expect.any(String) } });
 		const out = join(root, "extracted");
 		await extractArchive(join(dir(), entry!.name), out);
 		expect(readFileSync(join(out, "database.dump"), "utf8")).toBe("PGDMP-fake");
-		expect(readFileSync(join(out, "cache/sub/a.txt"), "utf8")).toBe("cache");
+		expect(() => statSync(join(out, "cache"))).toThrow();
 		expect(readFileSync(join(out, "secrets/app-secret"), "utf8")).toBe("tokensecret");
 		expect(statSync(join(out, "config/flixer-config.db")).size).toBeGreaterThan(0);
 		expect(readdirSync(join(out, "config")).some((name) => name.endsWith("-wal"))).toBe(false);
@@ -204,13 +204,12 @@ describe("BackupService", () => {
 		expect((await waitDone(await service.create())).status).toBe("succeeded");
 	});
 
-	it("fails cleanly when the archive step breaks", async () => {
+	it("succeeds without cache even when the cache folder is absent", async () => {
 		rmSync(join(root, "cache"), { recursive: true });
 		const done = await waitDone(await service.create());
 		expect(done.status).toBe("succeeded");
 		const [entry] = await service.list();
 		expect(entry!.components).not.toContain("cache");
-		expect(done.log.some((line) => line.includes("cache folder was not found"))).toBe(true);
 	});
 
 	it("lists only readable archives, newest first, and prunes only .flxbak", async () => {

@@ -156,6 +156,11 @@
 		"isPublic": false
 	},
 	{
+		"key": "maintenance_mode",
+		"defaultValue": false,
+		"isPublic": false
+	},
+	{
 		"key": "updates_updater_url",
 		"defaultValue": "",
 		"isPublic": false

@@ -21,7 +21,7 @@ const KDF_ITERATIONS = 600_000;
 const GCM_TAG = 16;
 const CHECK_LABEL = "flixer-backup-passphrase-check";
 
-export const COMPONENTS = ["database", "config", "secrets", "cache"] as const;
+export const COMPONENTS = ["database", "config", "secrets", "avatars", "advertisements", "plugins", "cache"] as const;
 type BackupComponent = (typeof COMPONENTS)[number];
 
 export class BackupCorruptError extends Error {
@@ -75,6 +75,9 @@ export interface ArchiveSources {
 	database?: string;
 	config?: DirectorySource;
 	secrets?: DirectorySource;
+	avatars?: DirectorySource;
+	advertisements?: DirectorySource;
+	plugins?: DirectorySource;
 	cache?: DirectorySource;
 }
 
@@ -83,7 +86,7 @@ interface WriteArchiveOptions {
 	sources: ArchiveSources;
 	versions?: Record<string, string>;
 	passphrase?: string;
-	onStep?: (step: "archive-config" | "archive-secrets" | "archive-cache" | "encrypt-finish") => void;
+	onStep?: (step: "archive-config" | "archive-secrets" | "archive-avatars" | "archive-advertisements" | "archive-plugins" | "archive-cache" | "encrypt-finish") => void;
 	warn?: (message: string) => void;
 }
 

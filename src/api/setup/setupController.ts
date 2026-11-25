@@ -4,6 +4,7 @@ import type { PlatformContext } from "@tsed/platform-http";
 import { Get, Post, Security } from "@tsed/schema";
 import { DataSource } from "typeorm";
 import { setupStatus } from "../../bootstrap/setupStatus.js";
+import { isMaintenanceModeEnabled } from "../settings/maintenanceGuard.js";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { User } from "../../entities/user.entity.js";
 import { RECOVERY_CODE_HEADER } from "../../setup/recovery.js";
@@ -21,8 +22,11 @@ export class SetupController {
 
 	/** Public, and answers the same way during bootstrap and normal operation. */
 	@Get("/status")
-	status() {
-		return setupStatus();
+	async status() {
+		return {
+			...setupStatus(),
+			maintenance: await isMaintenanceModeEnabled(this.dataSource),
+		};
 	}
 
 	/** Public: writes the setup recovery key to the server log for someone locked out of the wizard. */
