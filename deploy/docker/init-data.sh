@@ -37,10 +37,8 @@ find "$LOGGER_LOGS" -mindepth 1 -maxdepth 1 ! -name logger \
 find "$APP_LOGS" -type d -exec chmod 0750 {} +
 find "$APP_LOGS" -type f -exec chmod 0640 {} +
 chown 70:70 "$DATA_ROOT/database"
-chown -R 65532:65532 "$DATA_ROOT/cache"
-find "$DATA_ROOT/cache" -type d -exec chmod 2775 {} +
+chown -R 1000:1000 "$DATA_ROOT/cache" "$DATA_ROOT/ai"
 chmod 0755 "$DATA_ROOT/plugins"
-chown 10001:10001 "$DATA_ROOT/ai" "$DATA_ROOT/ai/models"
 chown 1000:1000 /run/flixer-secrets
 chmod 0755 /run/flixer-secrets
 touch /run/flixer-secrets/logger-ca.crt

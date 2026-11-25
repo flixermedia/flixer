@@ -114,8 +114,6 @@ services:
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://flixer-updater:8093
             MEILISEARCH_URL: http://meilisearch:7700
-        group_add:
-            - "65532"
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets
