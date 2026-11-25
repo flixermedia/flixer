@@ -18,7 +18,7 @@ services:
         restart: "no"
 
     nginx-config-init:
-        image: ghcr.io/flixermedia/flixer:${FLIXER_VERSION:-latest}
+        image: flixermedia/flixer:${FLIXER_VERSION:-latest}
         user: "0:0"
         entrypoint: ["/bin/sh", "-c"]
         command:
@@ -42,7 +42,7 @@ services:
         restart: "no"
 
     logger-cert-init:
-        image: ghcr.io/flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
+        image: flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
         user: "1000:1000"
         command: ["--init-cert"]
         depends_on:
@@ -53,7 +53,7 @@ services:
         restart: "no"
 
     logger:
-        image: ghcr.io/flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
+        image: flixermedia/flixer-logger:${LOGGER_VERSION:-latest}
         user: "1000:1000"
         environment:
             FLIXER_URL: http://api:8081
@@ -89,7 +89,7 @@ services:
         init: true
 
     api:
-        image: ghcr.io/flixermedia/flixer:${FLIXER_VERSION:-latest}
+        image: flixermedia/flixer:${FLIXER_VERSION:-latest}
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -143,7 +143,7 @@ services:
         init: true
 
     streamer:
-        image: ghcr.io/flixermedia/flixer-streamer:${STREAMER_VERSION:-latest}
+        image: flixermedia/flixer-streamer:${STREAMER_VERSION:-latest}
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -174,7 +174,7 @@ services:
         init: true
 
     indexer:
-        image: ghcr.io/flixermedia/flixer-indexer:${INDEXER_VERSION:-latest}
+        image: flixermedia/flixer-indexer:${INDEXER_VERSION:-latest}
         depends_on:
             data-init:
                 condition: service_completed_successfully
@@ -204,7 +204,7 @@ services:
         init: true
 
     ai:
-        image: ghcr.io/flixermedia/flixer-ai:${AI_VERSION:-latest}
+        image: flixermedia/flixer-ai:${AI_VERSION:-latest}
         profiles: ["ai"]
         depends_on:
             data-init:
@@ -320,7 +320,7 @@ services:
         restart: unless-stopped
 
     web:
-        image: ghcr.io/flixermedia/flixer-web:${WEB_VERSION:-latest}
+        image: flixermedia/flixer-web:${WEB_VERSION:-latest}
         expose:
             - "80"
         healthcheck:
@@ -337,7 +337,7 @@ services:
     # and rolls back if one does not become healthy. It needs this folder mounted at the same path as on the host
     # (PROJECT_DIR defaults to the current directory). Update the updater itself by pulling its image manually.
     flixer-updater:
-        image: ghcr.io/flixermedia/flixer-updater:latest
+        image: flixermedia/flixer-updater:latest
         depends_on:
             data-init:
                 condition: service_completed_successfully

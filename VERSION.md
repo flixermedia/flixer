@@ -60,22 +60,23 @@ format fails the release job.
 ## What the release publishes
 
 After validation, GitHub Actions builds the Docker image and publishes it to
-GitHub Container Registry (GHCR):
+Docker Hub and GitHub Container Registry (GHCR):
 
-- `ghcr.io/flixermedia/flixer:X.Y.Z` — immutable version-specific release tag.
-- `ghcr.io/flixermedia/flixer:latest` — points to the most recently published
+- `flixermedia/flixer:X.Y.Z` / `ghcr.io/flixermedia/flixer:X.Y.Z` — immutable version-specific release tag.
+- `flixermedia/flixer:latest` / `ghcr.io/flixermedia/flixer:latest` — points to the most recently published
   release.
 
 The image also includes the version in its
 `org.opencontainers.image.version` label. The workflow then creates a GitHub
 Release for the same tag and generates release notes from the repository
-history. It uses the workflow's `GITHUB_TOKEN`; repository Actions settings
-must allow workflows to write packages and releases.
+history. It uses `GITHUB_TOKEN` for GHCR/releases and `DOCKERHUB_USERNAME` /
+`DOCKERHUB_TOKEN` for Docker Hub; repository Actions settings must allow
+workflows to write packages and releases.
 
 For example, release `v1.2.3` can be pulled with:
 
 ```powershell
-docker pull ghcr.io/flixermedia/flixer:1.2.3
+docker pull flixermedia/flixer:1.2.3
 ```
 
 Use the version-specific image tag when pinning deployments. Avoid reusing or

@@ -106,3 +106,14 @@ jobs:
                   tag_name: v${{ steps.version.outputs.package_version }}
                   target_commitish: ${{ github.sha }}
                   generate_release_notes: true
+
+            - name: Notify flixer-invites
+              if: steps.version.outputs.release == 'true' && env.INVITES_DISPATCH_TOKEN != ''
+              env:
+                  INVITES_DISPATCH_TOKEN: ${{ secrets.INVITES_DISPATCH_TOKEN }}
+              run: |
+                  curl -fsS -X POST \
+                    -H "Authorization: Bearer $INVITES_DISPATCH_TOKEN" \
+                    -H "Accept: application/vnd.github+json" \
+                    https://api.github.com/repos/flixermedia/flixer-invites/dispatches \
+                    -d '{"event_type":"upstream-release"}'

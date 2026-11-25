@@ -290,7 +290,7 @@ On startup, `data-init` moves legacy entries from `DATA_DIR/logs` to
 overwriting an existing destination. Flixer, Streamer and Indexer use console
 output and Logger rather than application-managed log files.
 
-The Logger image is `ghcr.io/flixermedia/flixer-logger`; `LOGGER_VERSION` can
+The Logger image is `flixermedia/flixer-logger` (also mirrored on `ghcr.io/flixermedia/flixer-logger`); `LOGGER_VERSION` can
 pin its tag. The updater detects the bundled Logger using
 `FLIXER_LOGGER_LOCAL_ENDPOINT` or the local owner bootstrap's loopback default.
 AI and Logger updates require stable GitHub releases with matching numeric
