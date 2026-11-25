@@ -325,6 +325,130 @@ each_parallel() {
   wait
 }
 
+format_logs() {
+  ruby -rjson -rtty-logger -rpastel -e '
+$stdout.sync = true
+Encoding.default_external = Encoding::UTF_8
+tty = $stdout.tty?
+pastel = Pastel.new(enabled: tty)
+min_level = (ENV["LOG_LEVEL"] || "debug").downcase.to_sym
+min_level = :debug if min_level == :trace
+
+logger = TTY::Logger.new(output: $stdout) do |config|
+  config.metadata = [:time]
+  config.level = min_level
+  config.handlers = [[:console, { enable_color: tty }]]
+end
+
+svc_colors = {
+  "api" => :cyan,
+  "streamer" => :magenta,
+  "indexer" => :blue,
+  "logger" => :yellow,
+  "ai" => :green,
+  "updater" => :bright_blue,
+  "web" => :bright_cyan,
+  "docs" => :white,
+}
+
+level_map = {
+  "ERROR" => :error, "ERR" => :error, "FATAL" => :fatal,
+  "WARN" => :warn, "WARNING" => :warn,
+  "INFO" => :info, "DEBUG" => :debug, "TRACE" => :debug,
+}
+
+line_re = /^\[([a-z]+)\]\s*(.*)$/
+tsed_re = /^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)\]\s+\[([A-Z]+)\s*\]\s+\[([^\]]+)\]\s+-\s+(.*)$/
+py_log_re = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s+(INFO|WARNING|WARN|ERROR|CRITICAL|DEBUG)\s+(\S+)\s+(.*)$/
+uvicorn_re = /^(INFO|WARNING|WARN|ERROR|CRITICAL|DEBUG):\s+(.*)$/
+
+buffers = {}
+
+emit_json = lambda do |svc, svc_tag, obj, fallback_lvl = "INFO"|
+  obj = obj.dup
+  obj.delete("time")
+  obj.delete("timestamp")
+  obj.delete("ts")
+  obj.delete("app")
+  obj.delete("service")
+  lvl = (obj.delete("level") || obj.delete("lvl") || fallback_lvl).to_s.upcase
+  msg = (obj.delete("msg") || obj.delete("message") || obj.delete("event") || "").to_s
+  method = level_map.fetch(lvl, :info)
+  fields = obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+  logger.public_send(method, "#{svc_tag} #{msg}".rstrip, **fields)
+end
+
+$stdin.each_line do |raw|
+  raw = raw.sub(/\r?\n\z/, "")
+  m = line_re.match(raw)
+  unless m
+    puts raw
+    next
+  end
+  svc, rest = m[1], m[2]
+  clean = rest.gsub(/\e\[[0-9;]*[mK]/, "")
+  color = svc_colors.fetch(svc, :white)
+  svc_tag = pastel.bold.public_send(color, "[#{svc}]")
+
+  if buffers.key?(svc)
+    buf = buffers[svc]
+    buf[:lines] << clean
+    if clean.strip == "}"
+      buffers.delete(svc)
+      begin
+        obj = JSON.parse(buf[:lines].join("\n"))
+        if obj.is_a?(Hash)
+          emit_json.call(svc, svc_tag, obj, buf[:lvl])
+          next
+        end
+      rescue JSON::ParserError
+      end
+      buf[:lines].each { |l| puts "#{svc_tag} #{l}" }
+    end
+    next
+  end
+
+  if (tm = tsed_re.match(clean))
+    lvl, _tag, body = tm[2].upcase, tm[3], tm[4]
+    if body.strip == "{"
+      buffers[svc] = { lvl: lvl, lines: ["{"] }
+      next
+    end
+    logger.public_send(level_map.fetch(lvl, :info), "#{svc_tag} #{body}")
+    next
+  end
+
+  if (pm = py_log_re.match(clean))
+    lvl, _mod, body = pm[1].upcase, pm[2], pm[3]
+    logger.public_send(level_map.fetch(lvl, :info), "#{svc_tag} #{body}")
+    next
+  end
+
+  if (um = uvicorn_re.match(clean))
+    lvl, body = um[1].upcase, um[2]
+    logger.public_send(level_map.fetch(lvl, :info), "#{svc_tag} #{body}")
+    next
+  end
+
+  unless clean.start_with?("{")
+    puts "#{svc_tag} #{rest}"
+    next
+  end
+  begin
+    obj = JSON.parse(clean)
+  rescue JSON::ParserError
+    puts "#{svc_tag} #{rest}"
+    next
+  end
+  unless obj.is_a?(Hash)
+    puts "#{svc_tag} #{rest}"
+    next
+  end
+  emit_json.call(svc, svc_tag, obj)
+end
+'
+}
+
 # Reads supervisor-managed output; service prefixes allow a single service to be selected.
 tail_logs() {
   local s pattern context lines="${LOG_LINES:-20}"
@@ -349,7 +473,7 @@ tail_logs() {
     fi
   fi
   if [ "$#" -eq 0 ] || [ "$1" = all ]; then
-    "${docker_command[@]}" logs --tail "$lines" --follow "$container"
+    "${docker_command[@]}" logs --tail "$lines" --follow "$container" | format_logs
     return
   fi
   for s in "$@"; do
@@ -359,7 +483,7 @@ tail_logs() {
     esac
   done
   pattern="$(printf '%s\n' "$@" | paste -sd'|' -)"
-  "${docker_command[@]}" logs --tail "$lines" --follow "$container" | grep --line-buffered -E "^\[($pattern)\] "
+  "${docker_command[@]}" logs --tail "$lines" --follow "$container" | grep --line-buffered -E "^\[($pattern)\] " | format_logs
 }
 
 targets() { if [ "$#" -eq 0 ] || [ "$1" = all ]; then echo $SERVICES; else echo "$@"; fi; }
@@ -368,15 +492,31 @@ case "${1:-status}" in
   start) reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
   stop) each_parallel stop_one $(targets "${@:2}") ;;
   restart) each_parallel stop_one $(targets "${@:2}"); reset_secret $(targets "${@:2}"); each_parallel start_one $(targets "${@:2}") ;;
-  status) for s in $SERVICES; do
-    if is_running "$s"; then
-      if [ "$s" = logger ]; then
-        if curl -fsS --max-time 2 http://127.0.0.1:8098/api/health/ready >/dev/null; then echo "logger: ready"; else echo "logger: running, not ready"; fi
-      elif [ "$s" = updater ]; then
-        if curl -fsS --max-time 2 http://127.0.0.1:8093/health >/dev/null; then echo "updater: ready (development mode)"; else echo "updater: running, not ready"; fi
-      else echo "$s: running"; fi
-    else echo "$s: stopped"; fi
-  done ;;
+  status) {
+    for s in $SERVICES; do
+      if is_running "$s"; then
+        if [ "$s" = logger ]; then
+          if curl -fsS --max-time 2 http://127.0.0.1:8098/api/health/ready >/dev/null; then printf '%s\t%s\t%s\n' "$s" "ready" "127.0.0.1:8098"; else printf '%s\t%s\t%s\n' "$s" "not ready" "127.0.0.1:8098"; fi
+        elif [ "$s" = updater ]; then
+          if curl -fsS --max-time 2 http://127.0.0.1:8093/health >/dev/null; then printf '%s\t%s\t%s\n' "$s" "ready" "development mode"; else printf '%s\t%s\t%s\n' "$s" "not ready" "127.0.0.1:8093"; fi
+        else printf '%s\t%s\t%s\n' "$s" "running" "-"; fi
+      else printf '%s\t%s\t%s\n' "$s" "stopped" "-"; fi
+    done
+  } | ruby -rtty-table -rpastel -e '
+pastel = Pastel.new(enabled: $stdout.tty?)
+rows = $stdin.each_line.map do |line|
+  svc, state, details = line.chomp.split("\t", 3)
+  badge = case state
+          when "ready" then pastel.green.bold("● ready")
+          when "running" then pastel.cyan.bold("● running")
+          when "not ready" then pastel.yellow.bold("◐ not ready")
+          else pastel.dim("○ stopped")
+          end
+  [pastel.bold(svc), badge, details]
+end
+table = TTY::Table.new(header: [pastel.bold("Service"), pastel.bold("State"), pastel.bold("Details")], rows: rows)
+puts table.render($stdout.tty? ? :unicode : :ascii, padding: [0, 1])
+' ;;
   logs) tail_logs $(targets "${@:2}") ;;
   *) echo "usage: flixer-stack [start|stop|restart|status|logs] [all|service]"; exit 1 ;;
 esac

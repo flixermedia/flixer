@@ -6,7 +6,7 @@ name: Publish installer
 on:
     push:
         branches: [main]
-        paths: [install.sh, install.ps1, manage.sh, manage.ps1, deploy/docker/installer.test.mjs, deploy/docker/installer.test.ps1, .github/workflows/publish-installer.yml]
+        paths: [deploy/docker/install.sh, deploy/docker/install.ps1, deploy/docker/manage.sh, deploy/docker/manage.ps1, deploy/docker/installer.test.mjs, deploy/docker/installer.test.ps1, .github/workflows/publish-installer.yml]
     workflow_dispatch:
 
 permissions:
@@ -33,16 +33,16 @@ jobs:
             - uses: actions/checkout@v4
             - name: Lint installer
               run: |
-                  bash -n install.sh
+                  bash -n deploy/docker/install.sh
                   sudo apt-get install -y shellcheck >/dev/null
-                  shellcheck -S warning install.sh manage.sh
+                  shellcheck -S warning deploy/docker/install.sh deploy/docker/manage.sh
                   FLIXER_TEST_PWSH="$(command -v pwsh)" node --test deploy/docker/installer.test.mjs
             - name: Build site
               run: |
                   mkdir site
-                  cp install.sh site/index.html
-                  cp install.sh site/install.sh
-                  cp install.ps1 site/install.ps1
+                  cp deploy/docker/install.sh site/index.html
+                  cp deploy/docker/install.sh site/install.sh
+                  cp deploy/docker/install.ps1 site/install.ps1
                   echo get.flixer.dev > site/CNAME
             - uses: actions/configure-pages@v5
             - uses: actions/upload-pages-artifact@v3

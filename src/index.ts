@@ -3,6 +3,8 @@ import { tryCatch } from "@dschz/try-catch";
 import { $log } from "@tsed/logger";
 import { PlatformFastify } from "@tsed/platform-fastify";
 import { startBootstrapServer, stopBootstrapServer } from "./bootstrap/bootstrapServer.js";
+import { migrateCacheLayout } from "./bootstrap/cacheLayoutMigration.js";
+import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
 import { announceRecovery } from "./setup/recovery.js";
 import { updateRuntime } from "./bootstrap/setupStatus.js";
 import { waitForDatabase } from "./bootstrap/waitForDatabase.js";
@@ -30,6 +32,7 @@ async function startServer(): Promise<void> {
 			$log.info("Running Flixer in standalone invites mode (FLIXER_MODE=invites). Media services are stripped down.");
 		}
 		const platform = await PlatformFastify.bootstrap(Server);
+		await migrateCacheLayout(platform.injector.get(DefaultDataSource));
 		await platform.listen();
 		updateRuntime({ mode: "ready" });
 		return platform;

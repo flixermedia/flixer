@@ -72,8 +72,8 @@ export class AdminPageBuilderController {
 		return this.pages.list(authorization);
 	}
 	@Post("/")
-	create(@HeaderParams("authorization") authorization?: string) {
-		return this.pages.create(authorization);
+	create(@BodyParams() body?: unknown, @HeaderParams("authorization") authorization?: string) {
+		return this.pages.create(authorization, body);
 	}
 	@Put("/:id")
 	save(@PathParams("id") id: string, @BodyParams() body: unknown, @HeaderParams("authorization") authorization?: string) {

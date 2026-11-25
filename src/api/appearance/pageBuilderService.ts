@@ -119,19 +119,26 @@ export class PageBuilderService {
 		});
 	}
 
-	async home(authorization?: string): Promise<PublishedPage> {
+	async home(authorization?: string): Promise<PublishedPage | null> {
 		const [settings, pages] = await Promise.all([this.site(), this.pages()]);
 		const page = pages.find((item) => item.id === settings.homePageId && item.kind === "page")?.published;
-		if (!page) throw new NotFound("Home page not found.");
+		if (!page) return null;
 		return this.publicPage(page.slug, authorization);
 	}
 
-	async create(authorization?: string): Promise<BuilderPage> {
+	async create(authorization?: string, input?: unknown): Promise<BuilderPage> {
 		await this.auth.requireAdmin(authorization);
 		const pages = await this.pages();
 		if (pages.length >= 50) throw new BadRequest("You can create at most 49 pages.");
+		const rawCluster = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>).clusterId : undefined;
+		let clusterId: string | null = null;
+		if (typeof rawCluster === "string" && rawCluster.trim()) {
+			const parent = pages.find((item) => item.kind === "page" && item.id === rawCluster.trim());
+			if (!parent) throw new BadRequest("Cluster page not found.");
+			clusterId = parent.clusterId ?? parent.id;
+		}
 		const id = randomUUID();
-		const page: BuilderPage = { id, title: "New page", slug: `page-${id}`, kind: "page", draft: { blocks: [] }, published: null };
+		const page: BuilderPage = { id, title: "New page", slug: `page-${id}`, kind: "page", clusterId, draft: { blocks: [] }, published: null };
 		await this.write(page);
 		return page;
 	}

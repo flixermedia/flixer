@@ -112,6 +112,27 @@ export class IndexerClient {
 		};
 	}
 
+	/** Whether the indexer has a downloaded theme song for the item; defaults to false if unreachable. */
+	async hasTheme(task: IndexerThemeTask): Promise<boolean> {
+		const body = Buffer.from(JSON.stringify(task));
+		const url = new URL(`${this.baseUrl()}/internal/theme/exists`);
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: { ...signIndexerRequest("POST", url.pathname, body), "content-type": "application/json" },
+				body,
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+			});
+			if (!response.ok) {
+				return false;
+			}
+			const payload = (await response.json()) as { exists?: boolean };
+			return payload.exists === true;
+		} catch {
+			return false;
+		}
+	}
+
 	/** An item's downloaded theme song, or null when the indexer has none. */
 	async fetchTheme(task: IndexerThemeTask): Promise<Buffer | null> {
 		const body = Buffer.from(JSON.stringify(task));

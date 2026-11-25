@@ -44,8 +44,8 @@ export class StreamerRootsController {
 			console.error("[advertisements] Could not initialize advertisement storage for the streamer", error);
 		}
 		try {
-			await mkdir(dataPath("cache", "trailers"), { recursive: true });
-			roots.push({ id: TRAILER_ROOT_ID, path: dataPath("cache", "trailers") });
+			await mkdir(dataPath("cache", "library"), { recursive: true });
+			roots.push({ id: TRAILER_ROOT_ID, path: dataPath("cache", "library") });
 		} catch (error) {
 			console.error("[trailers] Could not initialize trailer storage for the streamer", error);
 		}

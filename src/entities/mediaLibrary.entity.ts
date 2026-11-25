@@ -29,6 +29,10 @@ export class MediaLibrary {
 	@Column({ name: "image_storage", type: "varchar", length: 16, default: "cache" })
 	imageStorage!: MediaImageStorage;
 
+	/** Ignore local image files in the media folders and always download artwork from providers instead. */
+	@Column({ name: "ignore_local_images", type: "boolean", default: false })
+	ignoreLocalImages!: boolean;
+
 	@Column({ type: "jsonb", default: () => "'[]'" })
 	folders!: MediaLibraryFolder[];
 

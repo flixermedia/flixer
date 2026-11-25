@@ -115,6 +115,7 @@ describe("page builder publishing", () => {
 
 	it("filters restricted navigation and protects a restricted home page", async () => {
 		const { service } = setup();
+		expect(await service.home()).toBeNull();
 		const page = await service.create("admin");
 		await service.save(page.id, { title: "Members", slug: "members", access: "signed-in", draft: { blocks: [] } }, "admin");
 		await service.publish(page.id, "admin");

@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        ffmpeg postgresql-client-17 redis-tools iputils-ping build-essential cifs-utils gh python3 python3-venv python3-pip \
+        ffmpeg postgresql-client-17 redis-tools iputils-ping build-essential cifs-utils gh python3 python3-venv python3-pip ruby \
         xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 \
         xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic \
         fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf \
@@ -55,7 +55,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 \
         libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 \
         libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 \
-        adb
+        adb; \
+    gem install --no-document tty-logger tty-table pastel
 
 # Node (flixer, flixer-web) and Go (flixer-indexer, flixer-streamer) from the official tarballs, so versions match the repos' Dockerfiles.
 COPY --from=node /out/ /usr/local/

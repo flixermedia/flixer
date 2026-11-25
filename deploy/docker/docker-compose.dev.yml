@@ -1,7 +1,7 @@
 # Development stack: the same as docker-compose.yml, but the API, streamer, indexer and web are built from the sibling
 # checkouts (../flixer-streamer, ../flixer-indexer, ../flixer-web) instead of pulling published images.
-# Usage: docker compose -f docker-compose.dev.yml up --build
-# Settings (in .env next to this file): DATA_DIR is required, MEDIA_PATH defaults to ./media.
+# Usage: docker compose -f deploy/docker/docker-compose.dev.yml up --build
+# Settings (in .env next to this file): DATA_DIR is required, MEDIA_PATH defaults to ../../media.
 name: flixer-dev
 
 services:
@@ -62,7 +62,7 @@ services:
 
     api:
         build:
-            context: .
+            context: ../..
             dockerfile: Dockerfile
         image: flixer-dev/api:local
         depends_on:
@@ -84,7 +84,7 @@ services:
             FLIXER_AI_URL: http://ai:8094
             MEILISEARCH_URL: http://meilisearch:7700
         volumes:
-            - ${MEDIA_PATH:-./media}:/media:ro
+            - ${MEDIA_PATH:-../../media}:/media:ro
             - flixer-secrets:/run/flixer-secrets
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/advertisements:/data/advertisements
@@ -110,7 +110,7 @@ services:
 
     streamer:
         build:
-            context: ../flixer-streamer
+            context: ../../../flixer-streamer
             dockerfile: Dockerfile
         image: flixer-dev/streamer:local
         environment:
@@ -121,7 +121,7 @@ services:
             TRICKPLAY_DIR: /data/cache/trickplay
             FLIXER_URL: http://api:8081
         volumes:
-            - ${MEDIA_PATH:-./media}:/media:ro
+            - ${MEDIA_PATH:-../../media}:/media:ro
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache:ro
@@ -140,7 +140,7 @@ services:
 
     indexer:
         build:
-            context: ../flixer-indexer
+            context: ../../../flixer-indexer
             dockerfile: Dockerfile
         image: flixer-dev/indexer:local
         depends_on:
@@ -158,7 +158,7 @@ services:
             TRICKPLAY_DIR: /data/cache/trickplay
         volumes:
             # Read-write so artwork can be stored alongside media.
-            - ${MEDIA_PATH:-./media}:/media
+            - ${MEDIA_PATH:-../../media}:/media
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/cache:/data/cache
             - flixer-secrets:/run/flixer-secrets:ro
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/logs/logger/tls.crt:/run/flixer-secrets/logger-ca.crt:ro
@@ -170,7 +170,7 @@ services:
 
     ai:
         build:
-            context: ../flixer-ai
+            context: ../../../flixer-ai
             dockerfile: Dockerfile
         image: flixer-dev/ai:local
         depends_on:
@@ -231,7 +231,7 @@ services:
     pgboss-dashboard:
         profiles: ["debug"]
         build:
-            context: ./deploy/coder/pgboss
+            context: ../coder/pgboss
         environment:
             DATABASE_URL: ${PGBOSS_DASHBOARD_DATABASE_URL:-postgres://flixer:flixer@postgres:5432/flixer}
             PGBOSS_DASHBOARD_READ_ONLY: "1"
@@ -282,7 +282,7 @@ services:
 
     web:
         build:
-            context: ../flixer-web
+            context: ../../../flixer-web
             dockerfile: Dockerfile
         image: flixer-dev/web:local
         expose:

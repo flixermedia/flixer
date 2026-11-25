@@ -70,7 +70,7 @@ New-Item -ItemType Directory -Force -Path $ManagementDir | Out-Null
 $manager = Join-Path $ManagementDir 'manage.ps1'
 $temp = "$manager.tmp"
 try {
-    Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/flixermedia/flixer/$Ref/manage.ps1" -OutFile $temp
+    Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/flixermedia/flixer/$Ref/deploy/docker/manage.ps1" -OutFile $temp
     $installerArgs = @('--yes', '--dir', $LinuxDir, '--ref', $Ref)
     if ($Fresh) { $installerArgs += '--fresh' }
     if ($Update) { $installerArgs += '--update' }
@@ -87,7 +87,7 @@ ref=$(printf '%s' "$1" | base64 -d)
 shift
 args=()
 for arg in "$@"; do args+=("$(printf '%s' "$arg" | base64 -d)"); done
-curl -fsSL "https://raw.githubusercontent.com/flixermedia/flixer/$ref/install.sh" | bash -s -- "${args[@]}"
+curl -fsSL "https://raw.githubusercontent.com/flixermedia/flixer/$ref/deploy/docker/install.sh" | bash -s -- "${args[@]}"
 '@
     if ($Fresh -and -not $ConfirmReset -and -not $Yes) {
         $encodedDir = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($LinuxDir))

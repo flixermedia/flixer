@@ -1,8 +1,9 @@
 import { Injectable, logger } from "@tsed/di";
 import { BadGateway, BadRequest, NotFound, ServiceUnavailable } from "@tsed/exceptions";
+import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rename, rm, stat, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { dataPath } from "../../config/dataPath.js";
 
@@ -21,17 +22,21 @@ export class TrailerCacheService {
 	private readonly waiters: Array<() => void> = [];
 	private active = 0;
 
-	private filename(id: string, tmdbId: string): string {
+	private relativeTrailerPath(id: string, tmdbId: string, rootId?: string | null, relativePath?: string | null): string {
 		if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !/^[1-9]\d*$/.test(tmdbId)) {
 			throw new BadRequest("Invalid trailer identity.");
 		}
-		return `${id.toLowerCase()}-${tmdbId}.mp4`;
+		if (rootId && relativePath) {
+			const key = createHash("sha256").update(`${rootId}\n${relativePath}`).digest("hex").slice(0, 32);
+			return `${key}/trailer-${tmdbId}.mp4`;
+		}
+		return `trailers/${id.toLowerCase()}-${tmdbId}.mp4`;
 	}
 
-	async find(id: string, tmdbId: string): Promise<string | null> {
-		const name = this.filename(id, tmdbId);
+	async find(id: string, tmdbId: string, rootId?: string | null, relativePath?: string | null): Promise<string | null> {
+		const name = this.relativeTrailerPath(id, tmdbId, rootId, relativePath);
 		try {
-			const info = await stat(dataPath("cache", "trailers", name));
+			const info = await stat(dataPath("cache", "library", name));
 			if (!info.isFile() || info.size === 0 || info.size > MAX_BYTES) {
 				throw new Error("Cached trailer is not a valid file.");
 			}
@@ -42,8 +47,8 @@ export class TrailerCacheService {
 		}
 	}
 
-	async download(id: string, tmdbId: string, key: string): Promise<void> {
-		const name = this.filename(id, tmdbId);
+	async download(id: string, tmdbId: string, key: string, rootId?: string | null, relativePath?: string | null): Promise<void> {
+		const name = this.relativeTrailerPath(id, tmdbId, rootId, relativePath);
 		if (!/^[A-Za-z0-9_-]{11}$/.test(key)) throw new BadRequest("Invalid trailer video ID.");
 		const current = this.pending.get(name);
 		if (current) return current;
@@ -72,8 +77,8 @@ export class TrailerCacheService {
 		}
 	}
 
-	queue(id: string, tmdbId: string, key: string): void {
-		void this.download(id, tmdbId, key).catch((error: unknown) => {
+	queue(id: string, tmdbId: string, key: string, rootId?: string | null, relativePath?: string | null): void {
+		void this.download(id, tmdbId, key, rootId, relativePath).catch((error: unknown) => {
 			logger().warn(`Could not cache trailer for item ${id}.`, error);
 		});
 	}
@@ -104,9 +109,10 @@ export class TrailerCacheService {
 	}
 
 	private async downloadFile(name: string, key: string): Promise<void> {
-		const directory = dataPath("cache", "trailers");
-		await mkdir(directory, { recursive: true });
-		const temp = await mkdtemp(join(directory, ".download-"));
+		const directory = dataPath("cache", "library");
+		const destination = join(directory, name);
+		await mkdir(dirname(destination), { recursive: true });
+		const temp = await mkdtemp(join(dirname(destination), ".download-"));
 		try {
 			const output = join(temp, "trailer.mp4");
 			try {
@@ -124,18 +130,18 @@ export class TrailerCacheService {
 			if (!info.isFile() || info.size === 0 || info.size > MAX_BYTES) {
 				throw new BadGateway("The downloaded trailer is empty or exceeds 250 MiB.");
 			}
-			await rename(output, join(directory, name));
+			await rename(output, destination);
 		} finally {
 			await rm(temp, { recursive: true, force: true });
 		}
 	}
 
-	async remove(id: string, tmdbId: string): Promise<void> {
-		const name = this.filename(id, tmdbId);
+	async remove(id: string, tmdbId: string, rootId?: string | null, relativePath?: string | null): Promise<void> {
+		const name = this.relativeTrailerPath(id, tmdbId, rootId, relativePath);
 		const current = this.pending.get(name);
 		if (current) await current;
 		try {
-			await unlink(dataPath("cache", "trailers", name));
+			await unlink(dataPath("cache", "library", name));
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new NotFound("Cached trailer not found.");
 			throw error;

@@ -343,17 +343,18 @@ if $RESET_EXISTING; then
 fi
 run mkdir -p "$INSTALL_DIR/deploy/docker" "$DATA_DIR" "$MEDIA_PATH"
 
-fetch() { # fetch <file>
-    info "Downloading $1"
-    if $DRY_RUN; then echo "  [dry-run] $REPO_RAW/$REF/$1 -> $INSTALL_DIR/$1"; return; fi
-    curl -fsSL "$REPO_RAW/$REF/$1" -o "$INSTALL_DIR/$1.tmp" && mv "$INSTALL_DIR/$1.tmp" "$INSTALL_DIR/$1"
+fetch() { # fetch <repo-path> [dest-path]
+    local dest="${2:-$1}"
+    info "Downloading $dest"
+    if $DRY_RUN; then echo "  [dry-run] $REPO_RAW/$REF/$1 -> $INSTALL_DIR/$dest"; return; fi
+    curl -fsSL "$REPO_RAW/$REF/$1" -o "$INSTALL_DIR/$dest.tmp" && mv "$INSTALL_DIR/$dest.tmp" "$INSTALL_DIR/$dest"
 }
 fetch docker-compose.yml
 fetch deploy/docker/init-data.sh
-fetch manage.sh
-fetch manage.ps1
+fetch deploy/docker/manage.sh manage.sh
+fetch deploy/docker/manage.ps1 manage.ps1
 run chmod +x "$INSTALL_DIR/manage.sh"
-$USE_SMB && fetch docker-compose.smb-volume.yml
+$USE_SMB && fetch deploy/docker/docker-compose.smb-volume.yml docker-compose.smb-volume.yml
 
 # --- .env -------------------------------------------------------------------
 ENV_FILE="$INSTALL_DIR/.env"

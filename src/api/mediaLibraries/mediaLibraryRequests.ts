@@ -31,6 +31,9 @@ export class CreateMediaLibraryRequest {
 	@Enum(...MEDIA_IMAGE_STORAGES)
 	imageStorage?: MediaImageStorage;
 
+	@Property()
+	ignoreLocalImages?: boolean;
+
 	@Required()
 	@CollectionOf(MediaLibraryFolderRequest)
 	@MinItems(1)
@@ -52,6 +55,9 @@ export class UpdateMediaLibraryRequest {
 	@Property()
 	@Enum(...MEDIA_IMAGE_STORAGES)
 	imageStorage?: MediaImageStorage;
+
+	@Property()
+	ignoreLocalImages?: boolean;
 
 	@CollectionOf(MediaLibraryFolderRequest)
 	@MinItems(1)

@@ -43,6 +43,15 @@ export class ThemesService {
 		return row?.value === true;
 	}
 
+	/** Whether a downloaded theme song is available for the given item. */
+	async hasTheme(item: Pick<MediaItem, "libraryId" | "path" | "rootId" | "relativePath" | "type" | "externalKey">): Promise<boolean> {
+		const task = themeTaskFor(item);
+		if (!task || !(await this.enabled())) {
+			return false;
+		}
+		return this.indexer.hasTheme(task);
+	}
+
 	/** The theme song of a movie or show as MP3 bytes. */
 	async audio(itemId: string): Promise<Buffer> {
 		if (!(await this.enabled())) {

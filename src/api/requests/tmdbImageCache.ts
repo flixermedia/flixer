@@ -49,7 +49,7 @@ export function cachedImageUrl(url: string | null): string | null {
 
 }
 
-/** Downloads TMDB images once and serves them from DATA_DIR/cache/tmdb afterwards. */
+/** Downloads TMDB images once and serves them from DATA_DIR/cache/providers/tmdb afterwards. */
 @Injectable()
 export class TmdbImageCache {
 
@@ -74,7 +74,7 @@ export class TmdbImageCache {
 	}
 
 	private async load(size: string, file: string): Promise<Buffer> {
-		const directory = dataPath("cache", "tmdb", size);
+		const directory = dataPath("cache", "providers", "tmdb", size);
 		const target = join(directory, file);
 		try {
 			return await readFile(target);
@@ -102,7 +102,7 @@ export class TmdbImageCache {
 	}
 }
 
-/** Downloads Discogs images once and serves them from DATA_DIR/cache/discogs afterwards. */
+/** Downloads Discogs images once and serves them from DATA_DIR/cache/providers/discogs afterwards. */
 @Injectable()
 export class DiscogsImageCache {
 
@@ -128,7 +128,7 @@ export class DiscogsImageCache {
 	}
 
 	private async load(url: URL, key: string): Promise<Buffer> {
-		const directory = dataPath("cache", "discogs");
+		const directory = dataPath("cache", "providers", "discogs");
 		const target = join(directory, key);
 		try {
 			return await readFile(target);

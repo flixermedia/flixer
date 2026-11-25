@@ -18,6 +18,7 @@ import { RepairInvitationUsages1798300000037 } from "../migrations/repairInvitat
 import { AddInviteEmailVerificationControl1798300000038 } from "../migrations/addInviteEmailVerificationControl1798300000038.js";
 import { AddInviteDisablePlexOnlineSources1798300000039 } from "../migrations/addInviteDisablePlexOnlineSources1798300000039.js";
 import { AddInviteServerExternalUrl1798300000040 } from "../migrations/addInviteServerExternalUrl1798300000040.js";
+import { AddMediaLibraryIgnoreLocalImages1798300000041 } from "../migrations/addMediaLibraryIgnoreLocalImages1798300000041.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
@@ -208,4 +209,5 @@ export const MIGRATIONS = [
 	AddInviteEmailVerificationControl1798300000038,
 	AddInviteDisablePlexOnlineSources1798300000039,
 	AddInviteServerExternalUrl1798300000040,
+	AddMediaLibraryIgnoreLocalImages1798300000041,
 ];

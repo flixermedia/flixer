@@ -50,53 +50,53 @@ cp "$TEST_ROOT/$file" "$out"
 		const dir = join(temp, "install with spaces");
 		const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TEST_ROOT: root, TEST_LOG: log, TEST_DATA: join(dir, "data"), TEST_MEDIA: join(dir, "media") };
 		const run = (script, args, extra = {}) => spawnSync("bash", [join(root, script), ...args], { encoding: "utf8", env: { ...env, ...extra } });
-		let result = run("install.sh", ["--yes", "--no-start", "--dir", dir]);
+		let result = run("deploy/docker/install.sh", ["--yes", "--no-start", "--dir", dir]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.match(readFileSync(join(dir, ".env"), "utf8"), /^COMPOSE_PROFILES=ai$/m);
 		assert.ok(readFileSync(join(dir, "manage.ps1"), "utf8").includes("wsl.exe"));
 		const off = join(temp, "without-ai");
-		result = run("install.sh", ["--yes", "--no-ai", "--no-start", "--dir", off]);
+		result = run("deploy/docker/install.sh", ["--yes", "--no-ai", "--no-start", "--dir", off]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.doesNotMatch(readFileSync(join(off, ".env"), "utf8"), /^COMPOSE_PROFILES=/m);
 		writeFileSync(join(bin, "uname"), "#!/bin/bash\necho Darwin\n");
 		chmodSync(join(bin, "uname"), 0o755);
 		const mac = join(temp, "mac");
-		result = run("install.sh", ["--yes", "--no-start", "--dir", mac]);
+		result = run("deploy/docker/install.sh", ["--yes", "--no-start", "--dir", mac]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.doesNotMatch(readFileSync(join(mac, ".env"), "utf8"), /^MEILISEARCH_STORAGE=/m);
 		rmSync(join(bin, "uname"));
 		writeFileSync(join(off, ".env"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
 		const offCompose = readFileSync(join(off, "docker-compose.yml"), "utf8");
-		result = run("install.sh", ["--yes", "--no-start", "--dir", off]);
+		result = run("deploy/docker/install.sh", ["--yes", "--no-start", "--dir", off]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(readFileSync(join(off, ".env"), "utf8"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
 		assert.equal(readFileSync(join(off, "docker-compose.yml"), "utf8"), offCompose);
 		assert.match(result.stdout, /Images pulled; the stack was not started/);
-		result = run("install.sh", ["--yes", "--fresh", "--dir", off]);
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--dir", off]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /not confirmed/);
 		assert.equal(readFileSync(join(off, ".env"), "utf8"), "DATA_DIR=existing\nCOMPOSE_PROFILES=calls\n");
-		result = run("install.sh", ["--yes", "--update", "--dir", join(temp, "missing")]);
+		result = run("deploy/docker/install.sh", ["--yes", "--update", "--dir", join(temp, "missing")]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /requires an existing/);
-		result = run("install.sh", ["--yes", "--update", "--no-ai", "--dir", off]);
+		result = run("deploy/docker/install.sh", ["--yes", "--update", "--no-ai", "--dir", off]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /configuration options cannot be used/);
 		const populated = join(temp, "populated");
 		mkdirSync(populated);
 		writeFileSync(join(populated, "keep"), "existing data");
-		result = run("install.sh", ["--yes", "--fresh", "--no-start", "--dir", join(temp, "fresh"), "--data", populated]);
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--no-start", "--dir", join(temp, "fresh"), "--data", populated]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /nonempty data directory/);
 		assert.equal(readFileSync(join(populated, "keep"), "utf8"), "existing data");
 
 		mkdirSync(join(dir, "data", "updater-state"), { recursive: true });
 		writeFileSync(join(dir, "data", "updater-state", "versions.env"), "FLIXER_VERSION=1.2.3\n");
-		result = run("install.sh", ["--yes", "--update", "--dir", dir]);
+		result = run("deploy/docker/install.sh", ["--yes", "--update", "--dir", dir]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.match(readFileSync(log, "utf8"), /versions\.env pull/);
 		assert.match(readFileSync(log, "utf8"), /versions\.env up -d/);
-		result = run("install.sh", ["--yes", "--update", "--dir", dir], { FAIL_PULL: "yes" });
+		result = run("deploy/docker/install.sh", ["--yes", "--update", "--dir", dir], { FAIL_PULL: "yes" });
 		assert.equal(result.status, 7);
 		for (const action of ["start", "stop", "restart", "update", "status"]) {
 			result = spawnSync("bash", [join(dir, "manage.sh"), action], { encoding: "utf8", env });
@@ -117,45 +117,45 @@ cp "$TEST_ROOT/$file" "$out"
 		const originalEnv = readFileSync(join(dir, ".env"), "utf8");
 		const dockerPath = spawnSync("which", ["docker"], { encoding: "utf8" }).stdout?.trim();
 		if (dockerPath && spawnSync(dockerPath, ["compose", "version"], { encoding: "utf8" }).status === 0) {
-			result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--dry-run", "--no-start", "--dir", dir], { REAL_CONFIG: "yes", REAL_DOCKER: dockerPath });
+			result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--dry-run", "--no-start", "--dir", dir], { REAL_CONFIG: "yes", REAL_DOCKER: dockerPath });
 			assert.equal(result.status, 0, result.stderr);
 			assert.match(result.stderr, /temporary correction/);
 		}
-		result = run("install.sh", ["--yes", "--fresh", "--no-start", "--dir", dir]);
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--no-start", "--dir", dir]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /not confirmed/);
 		assert.ok(!readdirSync(dir).some((name) => name.startsWith(".flixer-reset-compose.")));
 		assert.equal(readFileSync(join(dir, "data", "database-marker"), "utf8"), "database");
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_MEDIA: join(dir, "data") });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_MEDIA: join(dir, "data") });
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /MEDIA_PATH/);
 		symlinkSync(join(dir, "data"), join(temp, "data-link"));
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_DATA: join(temp, "data-link") });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_DATA: join(temp, "data-link") });
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /not a symlink/);
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_DATA: "/" });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_DATA: "/" });
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /broad or installation directory/);
 		writeFileSync(join(bin, "uname"), "#!/bin/bash\necho Darwin\n");
 		writeFileSync(join(bin, "mount"), '#!/bin/bash\nprintf "volume on %s/nested (apfs, local)\\n" "$TEST_DATA"\n');
 		chmodSync(join(bin, "uname"), 0o755);
 		chmodSync(join(bin, "mount"), 0o755);
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir]);
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /contains a mount point/);
 		rmSync(join(bin, "uname"));
 		rmSync(join(bin, "mount"));
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { COMPOSE_PROJECT_NAME: "override" });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { COMPOSE_PROJECT_NAME: "override" });
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /Unset exported COMPOSE_PROJECT_NAME/);
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { FAIL_DOWN: "yes" });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { FAIL_DOWN: "yes" });
 		assert.notEqual(result.status, 0);
 		assert.equal(readFileSync(join(dir, "data", "database-marker"), "utf8"), "database");
 		assert.equal(readFileSync(join(dir, ".env"), "utf8"), originalEnv);
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--dry-run", "--no-start", "--dir", dir]);
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--dry-run", "--no-start", "--dir", dir]);
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(readFileSync(join(dir, "data", "database-marker"), "utf8"), "database");
-		result = run("install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_PORT: "2525" });
+		result = run("deploy/docker/install.sh", ["--yes", "--fresh", "--confirm-reset", "--no-start", "--dir", dir], { TEST_PORT: "2525" });
 		assert.equal(result.status, 0, result.stderr);
 		const backup = readdirSync(dir, { withFileTypes: true }).find((entry) => entry.isDirectory() && entry.name.startsWith("data.flixer-backup-"))?.name;
 		assert.ok(backup);
@@ -183,7 +183,7 @@ cp "$TEST_ROOT/$file" "$out"
 		if (spawnSync("script", ["--version"], { encoding: "utf8" }).status === 0) {
 			writeFileSync(join(dir, "data", "second-marker"), "second");
 			const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
-			const command = ["bash", join(root, "install.sh"), "--no-start", "--no-ai", "--dir", dir].map(quote).join(" ");
+			const command = ["bash", join(root, "deploy/docker/install.sh"), "--no-start", "--no-ai", "--dir", dir].map(quote).join(" ");
 			const interactive = (input) => spawnSync("script", ["-q", "-e", "-c", command, "/dev/null"], { encoding: "utf8", env, input });
 			result = interactive("\nfresh\nn\n");
 			assert.notEqual(result.status, 0);
@@ -256,10 +256,10 @@ if [ -n "\${out:-}" ]; then cp "$TEST_ROOT/$file" "$out"; else cat "$TEST_ROOT/$
 			driver,
 			`function global:Invoke-WebRequest {
     param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
-    Copy-Item (Join-Path $env:TEST_ROOT 'manage.ps1') $OutFile
+    Copy-Item (Join-Path $env:TEST_ROOT 'deploy/docker/manage.ps1') $OutFile
 }
-& (Join-Path $env:TEST_ROOT 'install.ps1') -Yes -NoStart -ManagementDir $env:TEST_MANAGER
-& (Join-Path $env:TEST_ROOT 'install.ps1') -Yes -Update -ManagementDir $env:TEST_MANAGER
+& (Join-Path $env:TEST_ROOT 'deploy/docker/install.ps1') -Yes -NoStart -ManagementDir $env:TEST_MANAGER
+& (Join-Path $env:TEST_ROOT 'deploy/docker/install.ps1') -Yes -Update -ManagementDir $env:TEST_MANAGER
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') start
 & (Join-Path $env:TEST_MANAGER 'manage.ps1') stop
 `,

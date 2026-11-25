@@ -34,7 +34,7 @@ export class MediaTrailerService {
 			return null;
 		}
 		const enabled = (await this.dataSource.getRepository(Setting).findOneBy({ key: "trailers_cache_enabled" }))?.value === true;
-		const cached = enabled ? await this.cache.find(id, tmdbId) : null;
+		const cached = enabled ? await this.cache.find(id, tmdbId, item.rootId, item.relativePath) : null;
 		if (cached) {
 			const playback = await this.playback.issueTrailer(policy.userId, item, cached);
 			return { key: null, name: item.title, streamUrl: playback.mediaSource.streamUrl };
@@ -42,7 +42,7 @@ export class MediaTrailerService {
 		const trailer = await this.metadata.trailer(item.type === "movie" ? "movie" : "tv", tmdbId);
 		if (!trailer) return null;
 		const url = await this.cache.remoteUrl(trailer.key);
-		if (enabled) this.cache.queue(id, tmdbId, trailer.key);
+		if (enabled) this.cache.queue(id, tmdbId, trailer.key, item.rootId, item.relativePath);
 		return { key: null, name: trailer.name, streamUrl: this.playback.issueRemoteTrailer(policy.userId, item, url) };
 	}
 
@@ -55,7 +55,7 @@ export class MediaTrailerService {
 		}
 		const trailer = await this.metadata.trailer(item.type === "movie" ? "movie" : "tv", tmdbId);
 		if (!trailer) throw new NotFound("No YouTube trailer is available for this title.");
-		await this.cache.download(item.id, tmdbId, trailer.key);
+		await this.cache.download(item.id, tmdbId, trailer.key, item.rootId, item.relativePath);
 	}
 
 	async removeTrailer(id: string, authorization?: string): Promise<void> {
@@ -63,6 +63,6 @@ export class MediaTrailerService {
 		const item = await this.dataSource.getRepository(MediaItem).findOneBy({ id, isPlaceholder: false });
 		const tmdbId = item?.providerIds?.tmdb;
 		if (!item || !tmdbId || !/^[1-9]\d*$/.test(tmdbId)) throw new NotFound("Cached trailer not found.");
-		await this.cache.remove(item.id, tmdbId);
+		await this.cache.remove(item.id, tmdbId, item.rootId, item.relativePath);
 	}
 }

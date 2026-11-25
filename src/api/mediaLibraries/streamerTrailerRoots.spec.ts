@@ -46,7 +46,7 @@ describe("streamer trailer root", () => {
 				roots: [
 					{ id: "media", path: "/media" },
 					{ id: "flixer-advertisements", path: join(directory, "advertisements") },
-					{ id: "flixer-trailers", path: join(directory, "cache", "trailers") },
+					{ id: "flixer-trailers", path: join(directory, "cache", "library") },
 				],
 			});
 			await expect(controller.list(timestamp, "00")).rejects.toThrow("Invalid streamer signature");

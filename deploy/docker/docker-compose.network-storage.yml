@@ -1,6 +1,6 @@
 # Managed NFS, WebDAV, and S3/MinIO mounts. Linux hosts only.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.network-storage.yml up -d
+#   docker compose -f docker-compose.yml -f deploy/docker/docker-compose.network-storage.yml up -d
 #
 # The API needs mount privileges and /dev/fuse for rclone-backed WebDAV/S3 mounts. Mount propagation
 # makes the read-only filesystems visible to the scanner and streamer containers.

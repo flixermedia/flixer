@@ -188,7 +188,7 @@ async function mountLinux(target: MountTarget, path: string): Promise<void> {
 			await run(privilegedCommand, privilegedArgs, secretsOf(target), env);
 		} catch (error: unknown) {
 			if (error instanceof MountError && process.getuid?.() !== 0) {
-				throw new MountError(`${error.message} NFS mounting needs root or SYS_ADMIN in Docker; use docker-compose.network-storage.yml.`);
+				throw new MountError(`${error.message} NFS mounting needs root or SYS_ADMIN in Docker; use deploy/docker/docker-compose.network-storage.yml.`);
 			}
 			throw error;
 		}
@@ -202,7 +202,7 @@ async function mountLinux(target: MountTarget, path: string): Promise<void> {
 		await run(command, args, secretsOf(target), env);
 	} catch (error: unknown) {
 		if (error instanceof MountError && process.getuid?.() !== 0) {
-			throw new MountError(`${error.message} Mounting a share from inside the container needs root or the SYS_ADMIN capability (Linux hosts only, with docker-compose.smb.yml). On Docker Desktop (macOS/Windows) use docker-compose.smb-volume.yml instead, or mount the share yourself and list its folder in STREAM_MEDIA_ROOT.`);
+			throw new MountError(`${error.message} Mounting a share from inside the container needs root or the SYS_ADMIN capability (Linux hosts only, with deploy/docker/docker-compose.smb.yml). On Docker Desktop (macOS/Windows) use docker-compose.smb-volume.yml instead, or mount the share yourself and list its folder in STREAM_MEDIA_ROOT.`);
 		}
 		throw error;
 	}

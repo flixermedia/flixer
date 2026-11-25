@@ -10,6 +10,7 @@ import { MediaLibrary } from "../../entities/mediaLibrary.entity.js";
 import { PersonProfile } from "../../entities/personProfile.entity.js";
 import { WatchProgress } from "../../entities/watchProgress.entity.js";
 import { IndexerClient } from "../indexer/indexerClient.js";
+import { ThemesService } from "../themes/themesService.js";
 import { MediaSearchService } from "./mediaSearchService.js";
 import { normalizeWidth, resizeImage } from "./mediaImageResizer.js";
 import { allowedPersonImage, fetchPersonImage } from "./personImages.js";
@@ -188,6 +189,7 @@ export interface HomeCard {
 	/** Image indexes to request from /media/items/:id/images/:index, or null when none has been downloaded. */
 	poster: number | null;
 	backdrop: number | null;
+	logo?: number | null;
 	updatedAt: Date;
 	/** Set when the item is restricted for this user and the admin chose to show restricted media locked. */
 	locked?: true;
@@ -240,6 +242,7 @@ export class MediaHomeService {
 		@Inject(IndexerClient) private readonly indexer: IndexerClient,
 		private readonly mediaSearch: MediaSearchService,
 		private readonly access: MediaAccessService,
+		private readonly themes?: ThemesService,
 	) {}
 
 	private readonly profileLookups = new Map<string, Promise<PersonProfile | null>>();
@@ -425,7 +428,7 @@ export class MediaHomeService {
 			throw new NotFound("Media item not found.");
 		}
 		if (blocked) {
-			return { id: item.id, type: item.type, title: item.title, year: item.year, poster: imageIndex(item.images, ["poster"]), locked: true as const, lockReason: blocked, children: [] };
+			return { id: item.id, type: item.type, title: item.title, year: item.year, poster: imageIndex(item.images, ["poster"]), locked: true as const, lockReason: blocked, hasTheme: false, children: [] };
 		}
 		const parent = item.parentId ? await repo.findOneBy({ id: item.parentId }) : null;
 		const series = parent?.parentId && parent.type === "season" ? await repo.findOneBy({ id: parent.parentId }) : null;
@@ -520,6 +523,7 @@ export class MediaHomeService {
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
 			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
+			hasTheme: this.themes ? await this.themes.hasTheme(item) : false,
 			parent: parent ? { id: parent.id, type: parent.type, title: parent.title } : null,
 			series: series ? { id: series.id, title: series.title } : null,
 			children: children.map((child) => ({
@@ -691,6 +695,7 @@ export class MediaHomeService {
 			searchContext: item.type === "track" ? (contextById.get(item.parentId ?? "")?.title ?? null) : item.type === "episode" ? (contextById.get(item.parentId ?? "")?.type === "series" ? (contextById.get(item.parentId ?? "")?.title ?? null) : (contextById.get(contextById.get(item.parentId ?? "")?.parentId ?? "")?.title ?? null)) : null,
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
 		}));
 		return { items: policy ? await this.access.shape(policy, cards) : cards, engine: searchIds === null ? "postgresql" : "meilisearch" };
@@ -925,6 +930,7 @@ export class MediaHomeService {
 			year: item.year,
 			poster: imageIndex(item.images, ["poster"]),
 			backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+			logo: imageIndex(item.images, ["logo"]),
 			updatedAt: item.updatedAt,
 		};
 	}
@@ -999,6 +1005,7 @@ export class MediaHomeService {
 				year: item.year,
 				poster: imageIndex(item.images, ["poster"]),
 				backdrop: imageIndex(item.images, ["backdrop", "thumb"]),
+				logo: imageIndex(item.images, ["logo"]),
 				updatedAt: item.updatedAt,
 			};
 			return {

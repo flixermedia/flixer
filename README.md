@@ -80,7 +80,7 @@ updating.
 ### Managed network storage (Linux)
 
 For NFS, WebDAV, or S3-compatible storage, start the stack with
-`docker-compose.network-storage.yml` as an overlay. This grants the API
+`deploy/docker/docker-compose.network-storage.yml` as an overlay. This grants the API
 container mount capabilities and `/dev/fuse`; remote roots are mounted
 read-only and shared with the streamer and indexer. WebDAV and S3/MinIO mounts
 use `rclone`.
@@ -91,7 +91,7 @@ Organization plans are previews by default. The Libraries admin page has
 separate per-library switches for organization writes and automatic NFO
 corrections on metadata save; both default off and are stored in Flixer. To
 permit writes to local `MEDIA_PATH`, additionally apply
-`docker-compose.media-organization.yml` after reviewing host permissions and
+`deploy/docker/docker-compose.media-organization.yml` after reviewing host permissions and
 backups. Managed network roots remain read-only. NFO write failures are
 reported separately; the database edit is retained.
 
@@ -251,7 +251,7 @@ docker compose up -d
 
 `DATA_DIR` maps into containers as `/data`; `MEDIA_PATH` is the host library
 root. Set `HTTP_PORT` if needed. Only the reverse proxy should be published to
-the host. See [`.env.example`](.env.example) and the [installer source](install.sh)
+the host. See [`.env.example`](.env.example) and the [installer source](deploy/docker/install.sh)
 for more options.
 
 Login attempts are limited per client IP and username by default. Configure
@@ -319,12 +319,12 @@ is supplied. Use `--data-dir /path/to/data` to choose another data directory.
 
 Bug reports, pull requests and documentation improvements are welcome. For
 source-based development, clone the sibling services and run
-`docker compose -f docker-compose.dev.yml up --build`. See
+`docker compose -f deploy/docker/docker-compose.dev.yml up --build`. See
 [FEATURES.md](FEATURES.md), [VERSION.md](VERSION.md) and
 [SECURITY.md](SECURITY.md) for additional information.
 
 For optional local queue and Redis inspection, run
-`docker compose -f docker-compose.dev.yml --profile debug up -d --build pgboss-dashboard redis-insight`.
+`docker compose -f deploy/docker/docker-compose.dev.yml --profile debug up -d --build pgboss-dashboard redis-insight`.
 The read-only pg-boss dashboard is at http://localhost:3001 and Redis Insight is
 at http://localhost:5540; add a Redis connection with host `redis` and port
 `6379`. These ports bind to loopback only. Redis Insight can modify Redis data,

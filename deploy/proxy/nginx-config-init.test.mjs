@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { load } from "js-yaml";
 
-for (const composeFile of ["docker-compose.yml", "docker-compose.dev.yml"]) {
+for (const composeFile of ["docker-compose.yml", "deploy/docker/docker-compose.dev.yml"]) {
 	const compose = load(readFileSync(new URL(`../../${composeFile}`, import.meta.url), "utf8"));
 	const command = compose.services["nginx-config-init"].command[0];
 

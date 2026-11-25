@@ -21,7 +21,7 @@ function mediaKey(rootId: string, relativePath: string): string {
 }
 
 function getMediaImageDirectory(key: string): string {
-	return dataPath("cache", "images", key, "manual");
+	return dataPath("cache", "library", key, "manual");
 }
 
 async function ensureSharedDirectory(directory: string): Promise<void> {

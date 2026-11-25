@@ -1,5 +1,5 @@
 # Give the API OS-level write access to its local MEDIA_PATH only:
-# docker compose -f docker-compose.yml -f docker-compose.media-organization.yml up -d
+# docker compose -f docker-compose.yml -f deploy/docker/docker-compose.media-organization.yml up -d
 # This does not enable any Flixer write feature: enable organization or NFO writes
 # separately for each library in the admin dashboard. Managed network roots remain read-only.
 services:

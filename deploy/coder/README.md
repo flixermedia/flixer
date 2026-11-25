@@ -23,7 +23,7 @@ In the workspace the indexer and streamer run inside it, so `indexer` and `strea
 `/etc/hosts` by the setup script) and default to `localhost`, while Postgres and Redis resolve as `postgres` and `redis`. The setup wizard pre-fills these, and administrators can change all four addresses
 under Admin → Settings → Connections.
 
-The workspace image has Node 26, Go 1.26, Python 3.12, ffmpeg, PostgreSQL 17 client tools (`psql`, `pg_dump`, and `pg_restore`), and the Redis CLI. Postgres, Redis, and Meilisearch run as
+The workspace image has Node 26, Go 1.26, Python 3.12, Ruby 3.3 (with TTY Toolkit gems for `flixer-stack`), ffmpeg, PostgreSQL 17 client tools (`psql`, `pg_dump`, and `pg_restore`), and the Redis CLI. Postgres, Redis, and Meilisearch run as
 sidecars on a per-workspace Docker network. Meilisearch uses the same `APP_SECRET` that Flixer publishes for the
 streamer, and its index is persisted in its own Docker volume. Tailscale joins each workspace to your tailnet, and an
 authenticated SMB share exposes `~/projects` to tailnet devices. Project repositories are stored in the persistent

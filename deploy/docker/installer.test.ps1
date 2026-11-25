@@ -16,33 +16,33 @@ function global:wsl.exe {
 function global:Read-Host { param([string]$Prompt) return $global:resetAnswer }
 function global:Invoke-WebRequest {
     param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
-    if ($Uri -notmatch '/manage.ps1$') { throw "Unexpected download $Uri" }
-    Copy-Item (Join-Path $root 'manage.ps1') $OutFile
+    if ($Uri -notmatch '/deploy/docker/manage.ps1$') { throw "Unexpected download $Uri" }
+    Copy-Item (Join-Path $root 'deploy/docker/manage.ps1') $OutFile
 }
 function Decode([string]$value) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($value)) }
 try {
-    & (Join-Path $root 'install.ps1') -Yes -Distro Ubuntu -NoAi -NoStart -Port 8090 -ManagementDir (Join-Path $temp 'flixer-management')
+    & (Join-Path $root 'deploy/docker/install.ps1') -Yes -Distro Ubuntu -NoAi -NoStart -Port 8090 -ManagementDir (Join-Path $temp 'flixer-management')
     $manager = Join-Path $temp 'flixer-management/manage.ps1'
     $config = Get-Content -Raw (Join-Path $temp 'flixer-management/wsl-install.json') | ConvertFrom-Json
     if ($config.distro -ne 'Ubuntu' -or $config.linuxDir -ne '/home/flixer user/flixer') { throw 'WSL configuration was not saved correctly.' }
-    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' } | Select-Object -Last 1
+    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' } | Select-Object -Last 1
     if (-not $bootstrap) { throw 'WSL installer was not invoked.' }
     $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
     if ($separator -lt 0) { throw "Missing argument separator: $($bootstrap.Arguments -join '|')" }
     $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
     if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--ref|main|--port|8090|--no-ai|--no-start') { throw "Incorrect installer arguments: $decoded" }
-    & (Join-Path $root 'install.ps1') -Yes -Distro Ubuntu -Update -ManagementDir (Join-Path $temp 'flixer-management')
-    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' } | Select-Object -Last 1
+    & (Join-Path $root 'deploy/docker/install.ps1') -Yes -Distro Ubuntu -Update -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' } | Select-Object -Last 1
     $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
     $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
     if (($decoded -join '|') -ne 'main|--yes|--dir|/home/flixer user/flixer|--ref|main|--update') { throw "Incorrect update arguments: $decoded" }
-    & (Join-Path $root 'install.ps1') -Yes -Distro Ubuntu -Fresh -ConfirmReset -ManagementDir (Join-Path $temp 'flixer-management')
-    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' } | Select-Object -Last 1
+    & (Join-Path $root 'deploy/docker/install.ps1') -Yes -Distro Ubuntu -Fresh -ConfirmReset -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstrap = $global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' } | Select-Object -Last 1
     $separator = [array]::IndexOf($bootstrap.Arguments, '-s')
     $decoded = @($bootstrap.Arguments[($separator + 1)..($bootstrap.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
     if (($decoded -join '|') -notmatch '\|--fresh\|--confirm-reset') { throw "Reset confirmation was not forwarded: $decoded" }
-    & (Join-Path $root 'install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management')
-    $bootstraps = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' })
+    & (Join-Path $root 'deploy/docker/install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management')
+    $bootstraps = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' })
     $preview = $bootstraps[$bootstraps.Count - 2]
     $separator = [array]::IndexOf($preview.Arguments, '-s')
     $decoded = @($preview.Arguments[($separator + 1)..($preview.Arguments.Length - 1)] | ForEach-Object { Decode $_ })
@@ -53,9 +53,9 @@ try {
     if (($decoded -join '|') -notmatch '\|--confirm-reset') { throw "Interactive confirmation was not forwarded: $decoded" }
     $global:resetAnswer = 'no'
     $failed = $false
-    $before = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' }).Count
-    try { & (Join-Path $root 'install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management') } catch { $failed = $true }
-    $after = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/install.sh' }).Count
+    $before = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' }).Count
+    try { & (Join-Path $root 'deploy/docker/install.ps1') -Distro Ubuntu -Fresh -NoAi -ManagementDir (Join-Path $temp 'flixer-management') } catch { $failed = $true }
+    $after = @($global:wslCalls | Where-Object { $_.Script -match 'flixermedia/flixer/\$ref/deploy/docker/install.sh' }).Count
     if (-not $failed -or $after -ne ($before + 1)) { throw 'Declined reset must run only the preview and fail.' }
     foreach ($action in @('start', 'stop', 'restart', 'update', 'status')) { & $manager $action }
     $management = @($global:wslCalls | Where-Object { $_.Script -match 'manage.sh' })
@@ -70,7 +70,7 @@ try {
     try { & $manager update } catch { $failed = $true }
     if (-not $failed) { throw 'WSL failures must fail management.' }
     $failed = $false
-    try { & (Join-Path $root 'install.ps1') -Yes } catch { $failed = $true }
+    try { & (Join-Path $root 'deploy/docker/install.ps1') -Yes } catch { $failed = $true }
     if (-not $failed) { throw 'WSL preflight failures must fail installation.' }
     # The deliberately failed WSL mock leaves a nonzero native exit code.
     $global:LASTEXITCODE = 0

@@ -1,20 +1,27 @@
 import { BadRequest } from "@tsed/exceptions";
 import { sanitizeImage } from "./themeSchema.js";
 
-const PAGE_BLOCK_TYPES = ["heading", "text", "image", "auth", "auth-field", "auth-custom", "auth-action", "button", "video", "card", "columns"] as const;
+const PAGE_BLOCK_TYPES = ["heading", "text", "image", "auth", "auth-field", "auth-custom", "auth-action", "button", "video", "card", "columns", "hero", "media-row"] as const;
 type PageBlockType = (typeof PAGE_BLOCK_TYPES)[number];
 const AUTH_FIELDS = ["username", "password", "email", "displayName", "submit", "switch", "passkey", "quickConnect", "providers", "resend"] as const;
 type AuthField = (typeof AUTH_FIELDS)[number];
+const MEDIA_ROW_SOURCES = ["continue", "recent", "library", "collection"] as const;
+type MediaRowSource = (typeof MEDIA_ROW_SOURCES)[number];
 interface PageBlockStyle {
 	align?: "left" | "center" | "right";
 	color?: string;
 	background?: string;
 	spacing?: "compact" | "normal" | "spacious";
+	fontSize?: "sm" | "md" | "lg" | "xl";
+	radius?: "none" | "sm" | "md" | "lg" | "full";
+	shadow?: "none" | "sm" | "md" | "lg";
+	opacity?: number;
 }
 interface PagePosition {
 	x: number;
 	y: number;
 	width: number;
+	height?: number;
 }
 export interface PageBlock {
 	id: string;
@@ -22,7 +29,10 @@ export interface PageBlock {
 	text: string;
 	image: string | null;
 	description?: string;
+	buttonText?: string;
 	href?: string;
+	source?: MediaRowSource;
+	sourceId?: string;
 	field?: AuthField;
 	allowedFields?: string[];
 	style?: PageBlockStyle;
@@ -53,6 +63,7 @@ export interface BuilderPage {
 	title: string;
 	slug: string;
 	kind: "page" | "login";
+	clusterId?: string | null;
 	draft: PageContent;
 	access?: PageAccess;
 	published: PublishedPage | null;
@@ -106,6 +117,22 @@ function blockStyle(value: unknown): PageBlockStyle | undefined {
 		if (!["compact", "normal", "spacious"].includes(String(source.spacing))) throw new BadRequest("Invalid spacing.");
 		result.spacing = source.spacing as PageBlockStyle["spacing"];
 	}
+	if (source.fontSize !== undefined) {
+		if (!["sm", "md", "lg", "xl"].includes(String(source.fontSize))) throw new BadRequest("Invalid font size.");
+		result.fontSize = source.fontSize as PageBlockStyle["fontSize"];
+	}
+	if (source.radius !== undefined) {
+		if (!["none", "sm", "md", "lg", "full"].includes(String(source.radius))) throw new BadRequest("Invalid border radius.");
+		result.radius = source.radius as PageBlockStyle["radius"];
+	}
+	if (source.shadow !== undefined) {
+		if (!["none", "sm", "md", "lg"].includes(String(source.shadow))) throw new BadRequest("Invalid shadow.");
+		result.shadow = source.shadow as PageBlockStyle["shadow"];
+	}
+	if (source.opacity !== undefined) {
+		if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 100) throw new BadRequest("Invalid opacity.");
+		result.opacity = Math.round(source.opacity);
+	}
 	return result;
 
 }
@@ -113,9 +140,10 @@ function blockStyle(value: unknown): PageBlockStyle | undefined {
 function position(value: unknown): PagePosition {
 
 	const source = object(value);
-	const { x, y, width } = source;
+	const { x, y, width, height } = source;
 	if (typeof x !== "number" || typeof y !== "number" || typeof width !== "number" || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || x < 0 || y < 0 || y > 5000 || width < 10 || width > 100 || x + width > 100) throw new BadRequest("Invalid block position.");
-	return { x, y, width };
+	if (height !== undefined && (typeof height !== "number" || !Number.isFinite(height) || height < 40 || height > 2000)) throw new BadRequest("Invalid block height.");
+	return height === undefined ? { x, y, width } : { x, y, width, height };
 
 }
 
@@ -136,7 +164,7 @@ export function sanitizePageContent(value: unknown, kind: BuilderPage["kind"]): 
 		if (!PAGE_BLOCK_TYPES.includes(block.type as PageBlockType)) throw new BadRequest("Unknown page block.");
 		const type = block.type as PageBlockType;
 		if ((type === "auth" || type === "auth-field" || type === "auth-custom" || type === "auth-action") && depth !== 0) throw new BadRequest("Sign-in elements must be at the top level.");
-		const image = type === "image" || type === "card" ? sanitizeImage(block.image, "Page image", { maxBytes: 256 * 1024, rasterOnly: true }) : null;
+		const image = type === "image" || type === "card" || type === "hero" ? sanitizeImage(block.image, "Page image", { maxBytes: 256 * 1024, rasterOnly: true }) : null;
 		imageBytes += image?.length ?? 0;
 		const result: PageBlock = { id, type, text: type === "auth" || type === "columns" ? "" : text(block.text, type === "text" ? 4000 : 160, "Block text"), image };
 		if (type === "auth-field") {
@@ -156,8 +184,15 @@ export function sanitizePageContent(value: unknown, kind: BuilderPage["kind"]): 
 			const positions = object(block.position);
 			result.position = { desktop: position(positions.desktop), mobile: position(positions.mobile) };
 		}
-		if (type === "button" || type === "video" || type === "card") result.href = safeUrl(block.href);
-		if (type === "card") result.description = text(block.description ?? "", 2000, "Card description");
+		if (type === "button" || type === "video" || type === "card" || type === "hero") result.href = safeUrl(block.href);
+		if (type === "card" || type === "hero") result.description = text(block.description ?? "", 2000, "Block description");
+		if (type === "hero") result.buttonText = text(block.buttonText ?? "", 80, "Button text");
+		if (type === "media-row") {
+			const source = block.source ?? "recent";
+			if (!MEDIA_ROW_SOURCES.includes(source as MediaRowSource)) throw new BadRequest("Invalid media row source.");
+			result.source = source as MediaRowSource;
+			if (block.sourceId !== undefined && block.sourceId !== "") result.sourceId = text(block.sourceId, 80, "Media source id");
+		}
 		if (type === "columns") {
 			if (!Array.isArray(block.columns) || block.columns.length < 2 || block.columns.length > 3 || block.columns.some((column) => !Array.isArray(column))) throw new BadRequest("Columns must contain two or three lists of blocks.");
 			result.columns = block.columns.map((column: unknown[]) => column.map((child) => parseBlock(child, depth + 1)));
@@ -180,16 +215,18 @@ export function sanitizePageContent(value: unknown, kind: BuilderPage["kind"]): 
 
 }
 
-export function sanitizePageDraft(value: unknown, kind: BuilderPage["kind"]): Pick<BuilderPage, "title" | "slug" | "draft" | "access"> {
+export function sanitizePageDraft(value: unknown, kind: BuilderPage["kind"]): Pick<BuilderPage, "title" | "slug" | "draft" | "access" | "clusterId"> {
 
 	const input = object(value);
 	const title = text(input.title, 80, "Page title");
 	const slug = kind === "login" ? "login" : text(input.slug, 80, "Page address").toLowerCase();
 	const access = input.access ?? "public";
+	const clusterId = input.clusterId === undefined || input.clusterId === null || input.clusterId === "" ? null : text(input.clusterId, 80, "Cluster id");
 	if (access !== "public" && access !== "signed-in") throw new BadRequest("Invalid page access.");
 	if (kind === "login" && access !== "public") throw new BadRequest("The login page must be public.");
+	if (kind === "login" && clusterId) throw new BadRequest("The login page cannot belong to a cluster.");
 	if (!title) throw new BadRequest("A page title is required.");
 	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || (kind === "page" && slug === "login")) throw new BadRequest("Choose a valid page address.");
-	return { title, slug, access, draft: sanitizePageContent(input.draft, kind) };
+	return { title, slug, access, clusterId, draft: sanitizePageContent(input.draft, kind) };
 
 }

@@ -19,6 +19,7 @@ export interface PublicMediaLibrary {
 	name: string;
 	type: MediaLibraryType;
 	imageStorage: MediaImageStorage;
+	ignoreLocalImages: boolean;
 	folders: PublicMediaLibraryFolder[];
 	createdAt: Date;
 }
@@ -27,6 +28,7 @@ interface LibraryInput {
 	name?: string;
 	type?: MediaLibraryType;
 	imageStorage?: MediaImageStorage;
+	ignoreLocalImages?: boolean;
 	folders?: MediaLibraryFolder[];
 }
 
@@ -55,6 +57,7 @@ export class MediaLibrariesService {
 			name: library.name,
 			type: library.type,
 			imageStorage: library.imageStorage,
+			ignoreLocalImages: library.ignoreLocalImages,
 			folders: library.folders.map((folder) => {
 				const root = roots.find((entry) => entry.id === folder.rootId);
 				return {
@@ -105,13 +108,14 @@ export class MediaLibrariesService {
 		return [...paths];
 	}
 
-	async create(input: Required<Pick<LibraryInput, "name" | "type" | "folders">> & Pick<LibraryInput, "imageStorage">): Promise<PublicMediaLibrary> {
+	async create(input: Required<Pick<LibraryInput, "name" | "type" | "folders">> & Pick<LibraryInput, "imageStorage" | "ignoreLocalImages">): Promise<PublicMediaLibrary> {
 		const repository = this.dataSource.getRepository(MediaLibrary);
 		const library = repository.create({
 			id: randomUUID(),
 			name: input.name.trim(),
 			type: input.type,
 			imageStorage: input.imageStorage ?? "cache",
+			ignoreLocalImages: input.ignoreLocalImages ?? false,
 			folders: await this.validateFolders(input.folders),
 		});
 		return this.toPublic(await this.save(library), this.roots.list());
@@ -130,6 +134,9 @@ export class MediaLibrariesService {
 		}
 		if (input.imageStorage !== undefined) {
 			library.imageStorage = input.imageStorage;
+		}
+		if (input.ignoreLocalImages !== undefined) {
+			library.ignoreLocalImages = input.ignoreLocalImages;
 		}
 		if (input.folders !== undefined) {
 			library.folders = await this.validateFolders(input.folders);
@@ -187,6 +194,6 @@ export class MediaLibrariesService {
 				};
 			}),
 		);
-		return { id: library.id, name: library.name, type: library.type, imageStorage: library.imageStorage, folders, createdAt: library.createdAt };
+		return { id: library.id, name: library.name, type: library.type, imageStorage: library.imageStorage, ignoreLocalImages: library.ignoreLocalImages, folders, createdAt: library.createdAt };
 	}
 }

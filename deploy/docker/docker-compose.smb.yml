@@ -1,6 +1,6 @@
 # Lets flixer connect SMB shares itself (Admin > Libraries > Network shares) when running in Docker.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.smb.yml up -d
+#   docker compose -f docker-compose.yml -f deploy/docker/docker-compose.smb.yml up -d
 #
 # Needs a Linux host: Docker Desktop on Windows/macOS cannot provide the shared mount propagation
 # required to mount SMB shares inside the API container. There, mount the share on the host and

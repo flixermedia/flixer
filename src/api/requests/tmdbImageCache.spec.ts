@@ -24,7 +24,7 @@ describe("TmdbImageCache", () => {
 		expect(cachedImageUrl(null)).toBeNull();
 	});
 
-	it("downloads once, stores under cache/tmdb and serves from disk afterwards", async () => {
+	it("downloads once, stores under cache/providers/tmdb and serves from disk afterwards", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JPEG));
 		const cache = new TmdbImageCache();
 		const first = await cache.get("w342", "abc123.jpg");
@@ -32,7 +32,7 @@ describe("TmdbImageCache", () => {
 		expect(first.mime).toBe("image/jpeg");
 		expect(second.data.equals(JPEG)).toBe(true);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect((await readFile(join(dir, "cache", "tmdb", "w342", "abc123.jpg"))).equals(JPEG)).toBe(true);
+		expect((await readFile(join(dir, "cache", "providers", "tmdb", "w342", "abc123.jpg"))).equals(JPEG)).toBe(true);
 	});
 
 	it("rejects unknown sizes, traversal and non-image bodies", async () => {
