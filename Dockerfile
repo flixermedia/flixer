@@ -40,6 +40,7 @@ COPY --from=build --chown=node:node /opt/dist ./dist
 COPY --chown=node:node package.json processes.config.cjs ./
 COPY --chown=node:node resources ./resources
 COPY --chown=node:node deploy/proxy/nginx.conf ./resources/nginx.conf
+COPY --chown=node:node deploy/proxy/maintenance.html ./resources/maintenance.html
 
 # Named volumes copy this ownership on first use, so the node user can write settings and the shared secret.
 RUN mkdir -p /var/lib/flixer/config /run/flixer-secrets /data/backups "$WORKDIR/logs" \
