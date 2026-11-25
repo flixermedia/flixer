@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { DataSource, EntityManager } from "typeorm";
 import { Setting } from "../entities/setting.entity.js";
 import { ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminScheduledTaskConfigs } from "../jobs/adminScheduledTasks.js";
+import settingsDefinitions from "./settings.json" with { type: "json" };
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -13,12 +12,10 @@ interface SettingDefinition {
 	isPublic: boolean;
 }
 
-const SETTINGS_FILE = join(process.cwd(), "src", "config", "settings.json");
 const SETTING_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_.-]{0,127}$/;
 const REQUEST_WEBHOOK_TOKEN_SETTING = "requests_webhook_token";
 
 function isJsonValue(value: unknown): value is JsonValue {
-
 	if (value === null || typeof value === "string" || typeof value === "boolean") {
 		return true;
 	}
@@ -33,11 +30,9 @@ function isJsonValue(value: unknown): value is JsonValue {
 	}
 
 	return false;
-
 }
 
 function parseDefinitions(value: unknown): SettingDefinition[] {
-
 	if (!Array.isArray(value)) {
 		throw new Error("settings.json must contain an array of setting definitions.");
 	}
@@ -63,25 +58,13 @@ function parseDefinitions(value: unknown): SettingDefinition[] {
 			isPublic: item.isPublic,
 		};
 	});
-
 }
 
-async function readDefinitions(): Promise<SettingDefinition[]> {
-
-	const contents = await readFile(SETTINGS_FILE, "utf8");
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(contents);
-	} catch (error) {
-		throw new Error(`Unable to parse ${SETTINGS_FILE}.`, { cause: error });
-	}
-
-	return parseDefinitions(parsed);
-
+function readDefinitions(): SettingDefinition[] {
+	return parseDefinitions(settingsDefinitions);
 }
 
 async function synchronizeDefinitions(manager: EntityManager, definitions: SettingDefinition[]): Promise<void> {
-
 	const repository = manager.getRepository(Setting);
 	const existingSettings = await repository.find();
 	const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]));
@@ -119,12 +102,10 @@ async function synchronizeDefinitions(manager: EntityManager, definitions: Setti
 	if (settingsToSave.length > 0) {
 		await repository.save(settingsToSave);
 	}
-
 }
 
 export async function synchronizeSettings(dataSource: DataSource): Promise<void> {
-
-	const definitions = await readDefinitions();
+	const definitions = readDefinitions();
 	if (definitions.some(({ key }) => key === ADMIN_SCHEDULED_TASKS_SETTING)) {
 		throw new Error(`Setting "${ADMIN_SCHEDULED_TASKS_SETTING}" is defined more than once.`);
 	}
@@ -148,5 +129,4 @@ export async function synchronizeSettings(dataSource: DataSource): Promise<void>
 		await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["flixer:sync-settings"]);
 		await synchronizeDefinitions(manager, definitions);
 	});
-
 }
