@@ -76,6 +76,7 @@ export class MailInboundService {
 		const server = new SMTPServer({
 			name: settings.hostname ?? os.hostname(),
 			banner: "Flixer mail",
+			useProxy: process.env.MAIL_PROXY_PROTOCOL === "true",
 			secure: false,
 			key,
 			cert,

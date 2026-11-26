@@ -283,7 +283,7 @@ export class SettingsService {
 		if (SMTP_SETTING_KEYS.includes(key)) {
 			this.mailService.reset();
 		}
-		if (INDEXER_SETTING_KEYS.includes(key)) {
+		if (INDEXER_SETTING_KEYS.includes(key) || key === "themes_enabled") {
 			await this.indexerClient.reloadSettings();
 		}
 

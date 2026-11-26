@@ -89,9 +89,14 @@ export class MailDomainService {
 
 	async remove(id: string): Promise<void> {
 		const domain = await this.require(id);
-		const inUse = await this.dataSource.getRepository(Mailbox).findBy({ address: Like(`%@%${domain.domain}`) });
-		if (inUse.some((box) => domainCovers(domain.domain, domain.allowSubdomains, box.address.slice(box.address.lastIndexOf("@") + 1)))) {
+		const mailboxRepo = this.dataSource.getRepository(Mailbox);
+		const inUse = await mailboxRepo.findBy({ address: Like(`%@%${domain.domain}`) });
+		const matching = inUse.filter((box) => domainCovers(domain.domain, domain.allowSubdomains, box.address.slice(box.address.lastIndexOf("@") + 1)));
+		if (matching.some((box) => box.kind !== "system")) {
 			throw new Conflict("Delete this domain's mailboxes before removing the domain.");
+		}
+		if (matching.length > 0) {
+			await mailboxRepo.delete(matching.map((box) => box.id));
 		}
 		await this.dataSource.getRepository(MailDomain).delete({ id });
 	}

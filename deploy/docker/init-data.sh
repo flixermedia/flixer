@@ -11,7 +11,7 @@ mkdir -p \
 	"$DATA_ROOT/cache/theme" "$DATA_ROOT/cache/subtitles" "$DATA_ROOT/cache/trickplay" \
 	"$DATA_ROOT/cache/trailers" "$DATA_ROOT/mounts" "$DATA_ROOT/backups" \
 	"$DATA_ROOT/plugins" "$DATA_ROOT/meilisearch" "$DATA_ROOT/ai/models" \
-	"$APP_LOGS" "$LOGGER_LOGS"
+	"$DATA_ROOT/mail" "$DATA_ROOT/emails" "$APP_LOGS" "$LOGGER_LOGS"
 
 # Move legacy shared logs without touching a logger database or replacing a file.
 find "$LOGGER_LOGS" -mindepth 1 -maxdepth 1 ! -name logger \
@@ -33,7 +33,8 @@ find "$LOGGER_LOGS" -mindepth 1 -maxdepth 1 ! -name logger \
 	chmod 0755 "$LOGGER_LOGS"
 	chown -R 1000:1000 \
 		"$DATA_ROOT/advertisements" "$DATA_ROOT/avatars" "$DATA_ROOT/config" \
-	"$DATA_ROOT/mounts" "$DATA_ROOT/backups" "$DATA_ROOT/plugins" "$APP_LOGS"
+		"$DATA_ROOT/mounts" "$DATA_ROOT/backups" "$DATA_ROOT/plugins" \
+		"$DATA_ROOT/mail" "$DATA_ROOT/emails" "$APP_LOGS"
 find "$APP_LOGS" -type d -exec chmod 0750 {} +
 find "$APP_LOGS" -type f -exec chmod 0640 {} +
 chown 70:70 "$DATA_ROOT/database"

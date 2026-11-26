@@ -118,6 +118,7 @@ services:
             WEB_INTERNAL_URL: http://web
             UPDATER_URL: http://flixer-updater:8093
             MEILISEARCH_URL: http://meilisearch:7700
+            MAIL_PROXY_PROTOCOL: "true"
         volumes:
             - ${MEDIA_PATH:-./media}:/media:ro
             - flixer-secrets:/run/flixer-secrets
@@ -130,8 +131,11 @@ services:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/backups:/data/backups
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mounts:/data/mounts
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/plugins:/data/plugins
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/mail:/data/mail
+            - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/emails:/data/emails
         expose:
             - "8081"
+            - "2525"
         healthcheck:
             test:
                 - CMD
@@ -370,10 +374,19 @@ services:
     # Reverse proxy reads the Nginx config copied from the Flixer image into DATA_DIR.
     proxy:
         image: nginx:alpine
+        command:
+            - /bin/sh
+            - -c
+            - |
+                if ! grep -q "stream {" /etc/nginx/nginx.conf; then
+                    printf '\nstream {\n    resolver 127.0.0.11 valid=30s;\n    server {\n        listen 25;\n        proxy_pass api:2525;\n        proxy_protocol on;\n    }\n}\n' >> /etc/nginx/nginx.conf
+                fi
+                exec nginx -g 'daemon off;'
         volumes:
             - ${DATA_DIR:?Set DATA_DIR in .env to the folder for Flixer's data}/nginx:/etc/nginx/conf.d:ro
         ports:
             - "${HTTP_PORT:-8080}:80"
+            - "${SMTP_PORT:-25}:25"
         depends_on:
             nginx-config-init:
                 condition: service_completed_successfully

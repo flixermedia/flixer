@@ -252,17 +252,17 @@
 	},
 	{
 		"key": "sentry_ai_dsn",
-		"defaultValue": null,
+		"defaultValue": "https://fa9aed18e55845081e31ea4da0dca947@o4512285684596736.ingest.us.sentry.io/4512393106685952",
 		"isPublic": false
 	},
 	{
 		"key": "sentry_logger_dsn",
-		"defaultValue": null,
+		"defaultValue": "https://8b0cccf80fb58b67b3b97b2577a9290e@o4512285684596736.ingest.us.sentry.io/4512393111273472",
 		"isPublic": false
 	},
 	{
 		"key": "sentry_updater_dsn",
-		"defaultValue": null,
+		"defaultValue": "https://bf0a9701ed115e5928fdd8b118334944@o4512285684596736.ingest.us.sentry.io/4512393428664320",
 		"isPublic": false
 	},
 	{ "key": "themes_enabled", "defaultValue": false, "isPublic": true },
