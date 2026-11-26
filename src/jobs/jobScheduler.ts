@@ -16,6 +16,8 @@ import { ADMIN_SCHEDULED_TASKS, ADMIN_SCHEDULED_TASKS_SETTING, defaultAdminSched
 import { cleanupExpiredUserSessions, SESSION_CLEANUP_JOB } from "./sessionCleanupJob.js";
 import { disableExpiredInviteAccounts, INVITE_EXPIRY_JOB } from "./inviteExpiryJob.js";
 import { INVITE_EXTERNAL_SYNC_JOB, syncExternalInviteAccounts } from "./inviteSyncJob.js";
+import { CLOUD_ENTITLEMENTS_SYNC_CRON, CLOUD_ENTITLEMENTS_SYNC_JOB } from "./cloudSyncJob.js";
+import { CloudEntitlementService } from "../api/cloud/cloudEntitlementService.js";
 import { PaymentsService } from "../api/payments/paymentsService.js";
 import { cleanupExpiredOidcArtifacts } from "../api/oidc/oidcCleanup.js";
 import { isInvitesOnlyMode } from "../config/runtimeMode.js";
@@ -29,7 +31,7 @@ const PAGE_PUBLICATION_JOB = "page-publication";
 const SESSION_CLEANUP_CRON = "0 * * * *";
 const PG_BOSS_CONNECTION_POOL_SIZE = 2;
 const SCHEDULER_SHUTDOWN_TIMEOUT_MS = 30_000;
-const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, INVITE_EXPIRY_JOB, INVITE_EXTERNAL_SYNC_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
+const SUPPORTED_JOB_QUEUES = new Set([SESSION_CLEANUP_JOB, PAYMENTS_RENEWAL_JOB, ANALYTICS_RETENTION_JOB, INVITE_EXPIRY_JOB, INVITE_EXTERNAL_SYNC_JOB, CLOUD_ENTITLEMENTS_SYNC_JOB, ...ADMIN_SCHEDULED_TASKS.map(({ queue }) => queue)]);
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AdminTaskRunStatus {
@@ -71,6 +73,7 @@ export class JobScheduler {
 		private readonly payments: PaymentsService,
 		private readonly pageBuilder: PageBuilderService,
 		private readonly permissionAlerts: PermissionAlertService,
+		private readonly cloudEntitlements: CloudEntitlementService,
 	) {}
 
 	async $onInit(): Promise<void> {
@@ -155,6 +158,16 @@ export class JobScheduler {
 				}
 			});
 			await boss.schedule(INVITE_EXTERNAL_SYNC_JOB, "* * * * *");
+			await boss.createQueue(CLOUD_ENTITLEMENTS_SYNC_JOB);
+			await boss.work(CLOUD_ENTITLEMENTS_SYNC_JOB, async () => {
+				const [jobError] = await tryCatch(() => this.cloudEntitlements.syncEntitlements({ scheduled: true }));
+				if (jobError) {
+					logger().error(`Job ${CLOUD_ENTITLEMENTS_SYNC_JOB} failed.`, jobError);
+					this.sentryService.captureException(jobError);
+					throw jobError;
+				}
+			});
+			await boss.schedule(CLOUD_ENTITLEMENTS_SYNC_JOB, CLOUD_ENTITLEMENTS_SYNC_CRON, undefined, { tz: "UTC" });
 			if (!isInvitesOnlyMode()) {
 				for (const task of ADMIN_SCHEDULED_TASKS) {
 					await boss.createQueue(task.queue, { expireInSeconds: 24 * 60 * 60, retryLimit: 2 });

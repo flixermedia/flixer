@@ -3,6 +3,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	appType: "custom",
+	server: {
+		watch: {
+			ignored: ["**/data/**", "**/*.db", "**/*.db-shm", "**/*.db-wal"],
+		},
+	},
 	test: {
 		// Only unit specs; the .mjs suites use node:test and run via `npm run test:node`.
 		include: ["src/**/*.spec.ts"],

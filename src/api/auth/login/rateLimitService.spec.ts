@@ -21,7 +21,7 @@ describe("RateLimitService", () => {
 		vi.useFakeTimers();
 		const limiter = new RateLimitService();
 		state.context = { request: { raw: { ip: "192.0.2.1" } } };
-		for (let attempt = 0; attempt < 5; attempt++) await limiter.consume("quickConnectStart", "limited");
+		for (let attempt = 0; attempt < 30; attempt++) await limiter.consume("quickConnectStart", "limited");
 		await expect(limiter.consume("quickConnectStart", "limited")).rejects.toThrow("limited");
 		await expect(limiter.consume("quickConnectDecision", "limited")).resolves.toBeUndefined();
 		await vi.advanceTimersByTimeAsync(600_000);
@@ -42,13 +42,13 @@ describe("RateLimitService", () => {
 			}
 		});
 		try {
-			for (let attempt = 0; attempt < 5; attempt++) {
+			for (let attempt = 0; attempt < 30; attempt++) {
 				const response = await server.inject({ url: "/", remoteAddress: "192.0.2.20", headers: { "x-real-ip": `198.51.100.${attempt}`, "x-forwarded-for": `198.51.100.${attempt}` } });
 				expect(response.statusCode).toBe(200);
 			}
 			expect((await server.inject({ url: "/", remoteAddress: "192.0.2.20", headers: { "x-real-ip": "198.51.100.10", "x-forwarded-for": "198.51.100.10" } })).statusCode).toBe(429);
 			const requestFor = (client: string) => server.inject({ url: "/", remoteAddress: "192.0.2.10", headers: { "x-forwarded-for": client } });
-			for (let attempt = 0; attempt < 5; attempt++) expect((await requestFor("198.51.100.1")).statusCode).toBe(200);
+			for (let attempt = 0; attempt < 30; attempt++) expect((await requestFor("198.51.100.1")).statusCode).toBe(200);
 			expect((await requestFor("198.51.100.1")).statusCode).toBe(429);
 			expect((await requestFor("198.51.100.2")).statusCode).toBe(200);
 		} finally {

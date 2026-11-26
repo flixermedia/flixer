@@ -109,6 +109,16 @@
 			},
 			"theintrodb": {
 				"enabled": true
+			},
+			"theaudiodb": {
+				"enabled": true,
+				"apiKey": "123"
+			},
+			"musicbrainz": {
+				"enabled": true
+			},
+			"unison": {
+				"enabled": true
 			}
 		},
 		"isPublic": false
@@ -296,5 +306,8 @@
 	{ "key": "player_crop_movies", "defaultValue": true, "isPublic": true },
 	{ "key": "player_crop_tv", "defaultValue": true, "isPublic": true },
 	{ "key": "widevine_drm_enabled", "defaultValue": false, "isPublic": true },
-	{ "key": "widevine_license_server_url", "defaultValue": "", "isPublic": true }
+	{ "key": "widevine_license_server_url", "defaultValue": "", "isPublic": true },
+	{ "key": "cloud_link_state", "defaultValue": null, "isPublic": false },
+	{ "key": "cloud_instance_id", "defaultValue": null, "isPublic": false },
+	{ "key": "cloud_auto_sync_enabled", "defaultValue": true, "isPublic": false }
 ]

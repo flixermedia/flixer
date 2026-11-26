@@ -150,11 +150,11 @@ describe("QuickConnectService", () => {
 
 	it("limits starts and shares the decision budget between approvals and denials", async () => {
 		const { service, requests } = setup();
-		for (let attempt = 0; attempt < 5; attempt++) await service.start();
+		for (let attempt = 0; attempt < 30; attempt++) await service.start();
 		await expect(service.start()).rejects.toThrow(/rate limited/i);
-		expect(requests.save).toHaveBeenCalledTimes(5);
+		expect(requests.save).toHaveBeenCalledTimes(30);
 
-		for (let attempt = 0; attempt < 20; attempt++) {
+		for (let attempt = 0; attempt < 60; attempt++) {
 			await expect(service.approve("Bearer session-token", "invalid")).rejects.toThrow(/valid Quick Connect code/i);
 		}
 		await expect(service.deny("Bearer session-token", "invalid")).rejects.toThrow(/rate limited/i);

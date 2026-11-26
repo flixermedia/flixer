@@ -10,8 +10,8 @@ interface RequestContextLike {
 export class RateLimitService {
 
 	private readonly policies = {
-		quickConnectStart: new RateLimiterMemory({ points: 5, duration: 600 }),
-		quickConnectDecision: new RateLimiterMemory({ points: 20, duration: 600 }),
+		quickConnectStart: new RateLimiterMemory({ points: 30, duration: 600 }),
+		quickConnectDecision: new RateLimiterMemory({ points: 60, duration: 600 }),
 	};
 
 	async consume(policy: keyof RateLimitService["policies"], message: string): Promise<void> {

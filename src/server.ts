@@ -26,6 +26,7 @@ import { LoggerExportService } from "./logs/loggerExportService.js";
 import { LoggerControlSocket } from "./api/logger/loggerControlSocket.js";
 import { LoggerLocalBootstrapService } from "./api/logger/loggerLocalBootstrapService.js";
 import { LiveService } from "./live/liveService.js";
+import { PrioritySupportGateway } from "./api/cloud/prioritySupportGateway.js";
 import { MailDeliveryService } from "./api/mail/mailDeliveryService.js";
 import { MailInboundService } from "./api/mail/mailInboundService.js";
 import { PartyGateway } from "./party/partyGateway.js";
@@ -61,7 +62,7 @@ const fastifyPlugins = [
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LoggerExportService, LoggerControlSocket, LoggerLocalBootstrapService, LiveService, MailDeliveryService, MailInboundService, PartyGateway, ChatGateway, NotificationGateway, PlaybackRemoteService],
+	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LoggerExportService, LoggerControlSocket, LoggerLocalBootstrapService, LiveService, PrioritySupportGateway, MailDeliveryService, MailInboundService, PartyGateway, ChatGateway, NotificationGateway, PlaybackRemoteService],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE

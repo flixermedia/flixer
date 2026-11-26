@@ -67,3 +67,5 @@ export { AnalyticsController, AnalyticsReportController } from "./api/analytics/
 export { AdminUserWebhookController, UserWebhookController } from "./api/webhooks/userWebhookController.js";
 export { InvitesAdminController } from "./api/invites/invitesAdminController.js";
 export { InvitesController } from "./api/invites/invitesController.js";
+export { CloudController } from "./api/cloud/cloudController.js";
+export { PrioritySupportController } from "./api/cloud/prioritySupportController.js";

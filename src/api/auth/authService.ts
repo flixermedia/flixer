@@ -19,6 +19,7 @@ import { appConfig } from "../../config/store/appConfig.js";
 import { EmailVerificationService } from "./emailVerificationService.js";
 import { LoginThrottle } from "./login/loginThrottle.js";
 import { getLoginSecurity } from "./login/loginSecurity.js";
+import { isTrustedProxy } from "../../config/trustedProxies.js";
 import { PaymentsService, type SignupAction, type SignupPayment } from "../payments/paymentsService.js";
 import { InviteFulfillmentService } from "../invites/inviteFulfillmentService.js";
 import type { InviteDestination } from "../invites/inviteDestination.js";
@@ -38,7 +39,25 @@ const LAST_SEEN_GRANULARITY_MS = 60_000;
 const MAX_USER_AGENT_LENGTH = 512;
 
 interface RequestContextLike {
-	request?: { get(name: string): unknown; raw?: { ip?: string } };
+	request?: { get(name: string): unknown; raw?: { ip?: string; socket?: { remoteAddress?: string } } };
+}
+
+function readTrustedHeaderIp(request: NonNullable<RequestContextLike["request"]>): string {
+	const forwarded = request.get("x-forwarded-for");
+	const hops = typeof forwarded === "string" && forwarded.trim()
+		? forwarded.split(",").map((entry) => entry.trim()).filter(Boolean)
+		: [];
+	for (let i = hops.length - 1; i >= 0; i--) {
+		if (!isTrustedProxy(hops[i])) return hops[i];
+	}
+	for (const header of ["cf-connecting-ip", "x-real-ip", "true-client-ip"]) {
+		const value = request.get(header);
+		if (typeof value === "string") {
+			const trimmed = value.trim();
+			if (trimmed && !isTrustedProxy(trimmed)) return trimmed;
+		}
+	}
+	return hops[0] || "";
 }
 
 /** Reads the caller's User-Agent and address from the current request, if there is one. */
@@ -50,12 +69,17 @@ function readClientInfo(): { userAgent: string | null; ipAddress: string | null 
 	}
 
 	const userAgent = request.get("user-agent");
-	const forwarded = request.get("x-forwarded-for");
-	const forwardedFor = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "";
+	const rawIp = request.raw?.ip || "";
+	const socketIp = request.raw?.socket?.remoteAddress || rawIp;
+	const resolvedIp = rawIp && !isTrustedProxy(rawIp)
+		? rawIp
+		: isTrustedProxy(socketIp)
+			? (readTrustedHeaderIp(request) || rawIp)
+			: rawIp;
 
 	return {
 		userAgent: typeof userAgent === "string" && userAgent ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
-		ipAddress: (forwardedFor || request.raw?.ip || "").slice(0, 64) || null,
+		ipAddress: resolvedIp.slice(0, 64) || null,
 	};
 
 }

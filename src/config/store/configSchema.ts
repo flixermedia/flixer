@@ -120,6 +120,8 @@ export const CONFIG_KEYS = {
 	loggerUpdaterIngestExpiry: { key: "logger_updater_ingest_expiry", env: "FLIXER_LOGGER_UPDATER_INGEST_EXPIRY", secret: false },
 	loggerUpdaterIngestId: { key: "logger_updater_ingest_id", env: "FLIXER_LOGGER_UPDATER_INGEST_ID", secret: false },
 	streamerPublicUrl: { key: "streamer_public_url", env: "STREAMER_PUBLIC_URL", secret: false, defaultValue: "" },
+	cloudWebUrl: { key: "cloud_web_url", env: "FLIXER_CLOUD_URL", secret: false, defaultValue: "https://flixer.dev", validate: validateHttpUrl },
+	cloudApiUrl: { key: "cloud_api_url", env: "FLIXER_CLOUD_API_URL", secret: false, defaultValue: "https://us-central1-flixermedia.cloudfunctions.net", validate: validateHttpUrl },
 } as const satisfies Record<string, ConfigKeyDefinition>;
 
 export type ConfigName = keyof typeof CONFIG_KEYS;
