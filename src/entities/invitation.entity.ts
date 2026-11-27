@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { InvitationServer } from "./invitationServer.entity.js";
 import { InviteServer } from "./inviteServer.entity.js";
 import type { LibraryAccessMode } from "./userAccessPolicy.entity.js";
 
@@ -27,6 +28,14 @@ export class Invitation {
 	@ManyToOne(() => InviteServer, { onDelete: "CASCADE", eager: true })
 	@JoinColumn({ name: "server_id" })
 	server?: InviteServer | null;
+
+	/** All external media servers targeted by this invitation (supports multi-service invites). */
+	@OneToMany(() => InvitationServer, (target) => target.invitation, { eager: true })
+	targets?: InvitationServer[];
+
+	/** Whether redeeming this invite creates or links a Flixer account (true by default). */
+	@Column({ name: "include_flixer", type: "boolean", default: true })
+	includeFlixer!: boolean;
 
 	/** How often the invitation can be redeemed; null means unlimited. */
 	@Column({ name: "max_uses", type: "int", nullable: true })

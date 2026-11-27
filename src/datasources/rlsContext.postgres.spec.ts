@@ -37,8 +37,8 @@ describe.skipIf(!databaseUrl)("PostgreSQL Row-Level Security", () => {
 
 		const users = dataSource.getRepository(User);
 		await users.insert([
-			{ id: userA, username: `rls-a-${userA.slice(0, 8)}`, passwordHash: "hash", role: "user", disabled: false },
-			{ id: userB, username: `rls-b-${userB.slice(0, 8)}`, passwordHash: "hash", role: "user", disabled: false },
+			{ id: userA, username: `rls-a-${userA.slice(0, 8)}`, passwordHash: "hash", role: "user" },
+			{ id: userB, username: `rls-b-${userB.slice(0, 8)}`, passwordHash: "hash", role: "user" },
 		]);
 		const favorites = dataSource.getRepository(Favorite);
 		await favorites.insert([

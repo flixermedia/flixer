@@ -1,9 +1,11 @@
-import { BodyParams, PathParams } from "@tsed/platform-params";
+import { BodyParams, HeaderParams, PathParams } from "@tsed/platform-params";
 import { Controller } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
-import { Get, Post } from "@tsed/schema";
+import { Get, Post, Security } from "@tsed/schema";
+import { AuthService } from "../auth/authService.js";
 import { AcceptInvitationRequest, AcceptPlexInvitationRequest, LoginInvitationRequest, PlexInvitePollRequest, ResendInviteVerificationRequest } from "./inviteRequests.js";
 import { InviteRedemptionService } from "./inviteRedemptionService.js";
+import { InvitesService } from "./invitesService.js";
 
 const CODE_PATTERN = /^[a-zA-Z0-9-]{4,64}$/;
 
@@ -11,7 +13,18 @@ const CODE_PATTERN = /^[a-zA-Z0-9-]{4,64}$/;
 @Controller("/invites")
 export class InvitesController {
 
-	constructor(private readonly redemption: InviteRedemptionService) {}
+	constructor(
+		private readonly redemption: InviteRedemptionService,
+		private readonly invites: InvitesService,
+		private readonly auth: AuthService,
+	) {}
+
+	@Get("/linked-accounts")
+	@Security("BearerAuth")
+	async listMyLinkedAccounts(@HeaderParams("authorization") authorization?: string) {
+		const user = await this.auth.getAuthenticatedUser(authorization);
+		return this.invites.listLinkedAccountsForUser(user.id);
+	}
 
 	@Get("/:code")
 	describe(@PathParams("code") code: string) {
@@ -44,8 +57,12 @@ export class InvitesController {
 	}
 
 	@Post("/:code/plex/accept")
-	acceptPlex(@PathParams("code") code: string, @BodyParams() request: AcceptPlexInvitationRequest) {
-		return this.redemption.redeemWithPlex(this.parseCode(code), request.plexAuthTicket);
+	acceptPlex(
+		@PathParams("code") code: string,
+		@BodyParams() request: AcceptPlexInvitationRequest,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		return this.redemption.redeemWithPlex(this.parseCode(code), request.plexAuthTicket, authorization);
 	}
 
 	private parseCode(code: string): string {

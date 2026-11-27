@@ -5,6 +5,7 @@ import { EnableUserOwnedRls1798300000043 } from "./enableUserOwnedRls17983000000
 import { EnableRemainingUserOwnedRls1798300000044 } from "./enableRemainingUserOwnedRls1798300000044.js";
 import { EnableSocialAndSharedRls1798300000045 } from "./enableSocialAndSharedRls1798300000045.js";
 import { EnableCatalogAndAdminRls1798300000046 } from "./enableCatalogAndAdminRls1798300000046.js";
+import { AddMultiServiceInvitesAndLinkedAccounts1798300000047 } from "./addMultiServiceInvitesAndLinkedAccounts1798300000047.js";
 
 describe("RLS migration coverage", () => {
 	it("enables ROW LEVEL SECURITY on every entity table in ENTITIES", async () => {
@@ -21,6 +22,7 @@ describe("RLS migration coverage", () => {
 		await new EnableRemainingUserOwnedRls1798300000044().up(recorder as never);
 		await new EnableSocialAndSharedRls1798300000045().up(recorder as never);
 		await new EnableCatalogAndAdminRls1798300000046().up(recorder as never);
+		await new AddMultiServiceInvitesAndLinkedAccounts1798300000047().up(recorder as never);
 
 		const entitySet = new Set<unknown>(ENTITIES);
 		const entityTables = getMetadataArgsStorage()

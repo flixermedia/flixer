@@ -98,6 +98,18 @@ export class InvitesAdminController {
 		return syncExternalInviteAccounts(this.dataSource, (userId) => this.payments.purgeUser(userId));
 	}
 
+	@Get("/linked-accounts")
+	async listAllLinkedAccounts(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.invites.listAllLinkedAccounts();
+	}
+
+	@Get("/users/:userId/linked-accounts")
+	async listUserLinkedAccounts(@PathParams("userId") userId: string, @HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.invites.listLinkedAccountsForUser(this.parseId(userId, "User not found."));
+	}
+
 	private parseId(id: string, message: string): string {
 		if (!AuthService.isUuid(id)) {
 			throw new NotFound(message);

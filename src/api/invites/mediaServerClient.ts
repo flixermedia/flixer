@@ -1099,6 +1099,59 @@ export async function deleteExternalAccount(type: InviteServerType, url: string,
 
 }
 
+/** Pushes a Flixer profile image to an existing Jellyfin/Emby account. Best-effort; throws MediaServerError on failure. */
+export async function uploadExternalUserAvatar(
+	type: InviteServerType,
+	url: string,
+	apiKey: string | null,
+	externalUserId: string,
+	imageBuffer: Buffer,
+	contentType: string,
+): Promise<void> {
+	if ((type !== "jellyfin" && type !== "emby") || !apiKey) return;
+	const headers = {
+		"Content-Type": contentType,
+		...jellyfinAuthHeaders(apiKey),
+	};
+	await request(
+		`${normalizeUrl(url)}/Users/${encodeURIComponent(externalUserId)}/Images/Primary`,
+		{ method: "POST", headers, body: imageBuffer.toString("base64") },
+		"Could not upload the profile image to the media server",
+	);
+}
+
+/** Merges additional library access onto an existing Jellyfin/Emby user policy. */
+export async function grantExternalLibraryAccess(
+	type: InviteServerType,
+	url: string,
+	apiKey: string | null,
+	externalUserId: string,
+	libraryIds: string[],
+	allowDownloads: boolean,
+): Promise<void> {
+	if ((type !== "jellyfin" && type !== "emby") || !apiKey) return;
+	const headers = { "Content-Type": "application/json", ...jellyfinAuthHeaders(apiKey) };
+	const existing = await request(`${normalizeUrl(url)}/Users/${encodeURIComponent(externalUserId)}`, { headers: jellyfinAuthHeaders(apiKey) }, "Could not load the media server account");
+	const body: unknown = await existing.json().catch(() => null);
+	const current = isRecord(body) && isRecord(body.Policy) ? body.Policy : {};
+	const currentAll = Boolean(current.EnableAllFolders);
+	const currentFolders = Array.isArray(current.EnabledFolders) ? current.EnabledFolders.filter((v): v is string => typeof v === "string") : [];
+	const nextAll = currentAll || libraryIds.length === 0;
+	const nextFolders = nextAll ? [] : Array.from(new Set([...currentFolders, ...libraryIds]));
+	const policy = {
+		...current,
+		IsDisabled: false,
+		EnableAllFolders: nextAll,
+		EnabledFolders: nextFolders,
+		EnableContentDownloading: Boolean(current.EnableContentDownloading) || allowDownloads,
+	};
+	await request(
+		`${normalizeUrl(url)}/Users/${encodeURIComponent(externalUserId)}/Policy`,
+		{ method: "POST", headers, body: JSON.stringify(policy) },
+		"Could not update library access on the media server",
+	);
+}
+
 /** Lists existing accounts/shares on the media server for deletion sync. Returns null for "other" servers. */
 export async function listExternalAccounts(type: InviteServerType, url: string, apiKey: string | null): Promise<ExternalAccountSummary[] | null> {
 

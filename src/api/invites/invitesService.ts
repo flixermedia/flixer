@@ -4,8 +4,10 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Invitation } from "../../entities/invitation.entity.js";
+import { InvitationServer } from "../../entities/invitationServer.entity.js";
 import { InvitationUsage } from "../../entities/invitationUsage.entity.js";
 import { InviteServer } from "../../entities/inviteServer.entity.js";
+import { UserLinkedAccount } from "../../entities/userLinkedAccount.entity.js";
 import { isUniqueViolation } from "../../utils/isUniqueViolation.js";
 import { decryptSecret, encryptSecret } from "./inviteSecrets.js";
 import { testMediaServerConnection, validatePlexServerVersion } from "./mediaServerClient.js";
@@ -33,6 +35,8 @@ export interface AdminInvitation {
 	code: string;
 	label: string | null;
 	server: { id: string; name: string; type: InviteServer["type"] } | null;
+	servers: { id: string; name: string; type: InviteServer["type"] }[];
+	includeFlixer: boolean;
 	maxUses: number | null;
 	usedCount: number;
 	expiresAt: Date | null;
@@ -45,6 +49,23 @@ export interface AdminInvitation {
 	skipEmailVerification: boolean;
 	disablePlexOnlineSources: boolean;
 	userExpiresInDays: number | null;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface PublicLinkedAccount {
+	id: string;
+	userId: string;
+	serverId: string;
+	serverName: string;
+	serverType: InviteServer["type"];
+	serverUrl: string | null;
+	externalUserId: string | null;
+	externalUsername: string | null;
+	externalEmail: string | null;
+	status: UserLinkedAccount["status"];
+	error: string | null;
+	lastSyncedAt: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -173,13 +194,54 @@ export class InvitesService {
 
 	// ---- Invitations ---------------------------------------------------------------------------------------------
 
+	/** All external servers attached to an invitation (supporting both legacy `serverId` and `targets`). */
+	resolveTargetServers(invitation: Invitation): InviteServer[] {
+		const byId = new Map<string, InviteServer>();
+		for (const target of invitation.targets ?? []) {
+			if (target.server) {
+				byId.set(target.server.id, target.server);
+			}
+		}
+		if (invitation.serverId && invitation.server && !byId.has(invitation.server.id)) {
+			byId.set(invitation.server.id, invitation.server);
+		}
+		return Array.from(byId.values());
+	}
+
+	private async resolveRequestedServers(serverIds?: string[], singleServerId?: string | null): Promise<InviteServer[]> {
+		const rawIds = serverIds !== undefined ? serverIds : singleServerId ? [singleServerId] : [];
+		const uniqueIds = Array.from(new Set(rawIds.map((id) => id.trim()).filter(Boolean)));
+		const resolved: InviteServer[] = [];
+		for (const id of uniqueIds) {
+			resolved.push(await this.requireServer(id));
+		}
+		return resolved;
+	}
+
+	private async syncInvitationTargets(invitationId: string, servers: InviteServer[]): Promise<void> {
+		const repo = this.dataSource.getRepository(InvitationServer);
+		await repo.delete({ invitationId });
+		if (servers.length === 0) return;
+		const rows = servers.map((server) =>
+			repo.create({
+				id: randomUUID(),
+				invitationId,
+				serverId: server.id,
+			}),
+		);
+		await repo.save(rows);
+	}
+
 	/** The API shape of an invitation; the eager server relation is reduced so its secrets never serialize. */
 	toAdminInvitation(invitation: Invitation): AdminInvitation {
+		const servers = this.resolveTargetServers(invitation).map((s) => ({ id: s.id, name: s.name, type: s.type }));
 		return {
 			id: invitation.id,
 			code: invitation.code,
 			label: invitation.label,
-			server: invitation.serverId && invitation.server ? { id: invitation.server.id, name: invitation.server.name, type: invitation.server.type } : null,
+			server: invitation.serverId && invitation.server ? { id: invitation.server.id, name: invitation.server.name, type: invitation.server.type } : servers[0] ?? null,
+			servers,
+			includeFlixer: invitation.includeFlixer ?? true,
 			maxUses: invitation.maxUses,
 			usedCount: invitation.usedCount,
 			expiresAt: invitation.expiresAt,
@@ -203,13 +265,15 @@ export class InvitesService {
 	}
 
 	async createInvitation(request: CreateInvitationRequest, createdBy: string): Promise<AdminInvitation> {
-		const server = request.serverId ? await this.requireServer(request.serverId) : null;
+		const servers = await this.resolveRequestedServers(request.serverIds, request.serverId);
+		const primaryServer = servers[0] ?? null;
 		const repository = this.dataSource.getRepository(Invitation);
 		const invitation = repository.create({
 			id: randomUUID(),
 			code: (request.code ?? generateCode()).toUpperCase(),
 			label: request.label?.trim() || null,
-			serverId: request.serverId ?? null,
+			serverId: primaryServer?.id ?? null,
+			includeFlixer: request.includeFlixer ?? true,
 			maxUses: request.maxUses ?? null,
 			expiresAt: request.expiresAt ?? null,
 			libraryMode: request.libraryMode ?? "all",
@@ -218,12 +282,13 @@ export class InvitesService {
 			allowDownloads: request.allowDownloads ?? true,
 			skipPayment: request.skipPayment ?? false,
 			skipEmailVerification: request.skipEmailVerification ?? false,
-			disablePlexOnlineSources: request.disablePlexOnlineSources ?? server?.type === "plex",
+			disablePlexOnlineSources: request.disablePlexOnlineSources ?? servers.some((s) => s.type === "plex"),
 			userExpiresInDays: request.userExpiresInDays ?? null,
 			createdBy,
 		});
 		const [error] = await this.trySave(Invitation, invitation);
 		if (error) throw error;
+		await this.syncInvitationTargets(invitation.id, servers);
 		return this.toAdminInvitation(await this.requireInvitation(invitation.id));
 	}
 
@@ -231,21 +296,24 @@ export class InvitesService {
 		const invitation = await this.requireInvitation(id);
 		if (request.code !== undefined) invitation.code = request.code.trim().toUpperCase();
 		if (request.label !== undefined) invitation.label = request.label?.trim() || null;
-		if ("serverId" in request) {
-			const nextServerId = request.serverId?.trim() || null;
-			if (nextServerId !== invitation.serverId) {
+		if ("serverIds" in request || "serverId" in request) {
+			const rawIds = request.serverIds !== undefined ? request.serverIds : request.serverId ? [request.serverId] : [];
+			const nextIds = Array.from(new Set(rawIds.map((sid) => sid.trim()).filter(Boolean)));
+			const currentIds = this.resolveTargetServers(invitation).map((s) => s.id);
+			const changed = nextIds.length !== currentIds.length || nextIds.some((sid, idx) => sid !== currentIds[idx]);
+			if (changed) {
 				if (invitation.usedCount > 0) {
 					throw new BadRequest("Destination server cannot be changed after an invitation has been used.");
 				}
-				if (nextServerId) {
-					invitation.server = await this.requireServer(nextServerId);
-					invitation.serverId = invitation.server.id;
-				} else {
-					invitation.server = null;
-					invitation.serverId = null;
+				const nextServers = await this.resolveRequestedServers(request.serverIds, request.serverId);
+				invitation.server = nextServers[0] ?? null;
+				invitation.serverId = nextServers[0]?.id ?? null;
+				if (typeof this.dataSource.getRepository(InvitationServer)?.delete === "function") {
+					await this.syncInvitationTargets(invitation.id, nextServers);
 				}
 			}
 		}
+		if (request.includeFlixer !== undefined) invitation.includeFlixer = request.includeFlixer;
 		if ("maxUses" in request) invitation.maxUses = request.maxUses ?? null;
 		if ("expiresAt" in request) invitation.expiresAt = request.expiresAt ? new Date(request.expiresAt) : null;
 		if (request.disabled !== undefined) invitation.disabled = request.disabled;
@@ -292,6 +360,40 @@ export class InvitesService {
 		}));
 	}
 
+	private toPublicLinkedAccount(account: UserLinkedAccount): PublicLinkedAccount {
+		return {
+			id: account.id,
+			userId: account.userId,
+			serverId: account.serverId,
+			serverName: account.server?.name ?? "Media Server",
+			serverType: account.server?.type ?? "other",
+			serverUrl: account.server ? (account.server.externalUrl?.trim() || account.server.url) : null,
+			externalUserId: account.externalUserId,
+			externalUsername: account.externalUsername,
+			externalEmail: account.externalEmail,
+			status: account.status,
+			error: account.error,
+			lastSyncedAt: account.lastSyncedAt,
+			createdAt: account.createdAt,
+			updatedAt: account.updatedAt,
+		};
+	}
+
+	async listLinkedAccountsForUser(userId: string): Promise<PublicLinkedAccount[]> {
+		const rows = await this.dataSource.getRepository(UserLinkedAccount).find({
+			where: { userId },
+			order: { createdAt: "ASC" },
+		});
+		return rows.map((row) => this.toPublicLinkedAccount(row));
+	}
+
+	async listAllLinkedAccounts(): Promise<PublicLinkedAccount[]> {
+		const rows = await this.dataSource.getRepository(UserLinkedAccount).find({
+			order: { createdAt: "ASC" },
+		});
+		return rows.map((row) => this.toPublicLinkedAccount(row));
+	}
+
 	// ---- Redemption ----------------------------------------------------------------------------------------------
 
 	/** Finds an existing, enabled invitation by code (even if its uses are exhausted, so existing invited users can resume). */
@@ -300,7 +402,8 @@ export class InvitesService {
 		if (!invitation || invitation.disabled) {
 			throw new NotFound("This invite does not exist or is no longer active.");
 		}
-		if (invitation.serverId && !invitation.server?.enabled) {
+		const servers = this.resolveTargetServers(invitation);
+		if (servers.some((s) => !s.enabled)) {
 			throw new NotFound("This invite does not exist or is no longer active.");
 		}
 		return invitation;
@@ -318,7 +421,8 @@ export class InvitesService {
 		if (invitation.maxUses !== null && invitation.usedCount >= invitation.maxUses) {
 			throw new NotFound("This invite has already been used.");
 		}
-		if (invitation.serverId && !invitation.server?.enabled) {
+		const servers = this.resolveTargetServers(invitation);
+		if (servers.some((s) => !s.enabled)) {
 			throw new NotFound("This invite does not exist or is no longer active.");
 		}
 		return invitation;
@@ -344,7 +448,8 @@ export class InvitesService {
 		});
 		// Reload outside the lock so the eager server relation is attached.
 		const invitation = await this.requireInvitation(claimed.id);
-		if (invitation.serverId && !invitation.server?.enabled) {
+		const servers = this.resolveTargetServers(invitation);
+		if (servers.some((s) => !s.enabled)) {
 			await this.release(invitation.id);
 			throw new NotFound("This invite does not exist or is no longer active.");
 		}

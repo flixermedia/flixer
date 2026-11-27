@@ -9,7 +9,7 @@ import { User } from "../../entities/user.entity.js";
 import { UserAccessPolicy } from "../../entities/userAccessPolicy.entity.js";
 import { AuthService, type AuthResult, type PaymentPending, type VerificationPending } from "../auth/authService.js";
 import { PaymentsService } from "../payments/paymentsService.js";
-import { InviteFulfillmentService, decryptPendingCredentials, encryptPendingCredentials, type PendingInviteCredentials } from "./inviteFulfillmentService.js";
+import { InviteFulfillmentService, decryptPendingCredentials, encryptPendingCredentials, type LinkedServiceOutcome, type PendingInviteCredentials } from "./inviteFulfillmentService.js";
 import { buildInviteDestination, type InviteDestination } from "./inviteDestination.js";
 import { InvitesService } from "./invitesService.js";
 import { MediaServerError } from "./mediaServerClient.js";
@@ -18,10 +18,17 @@ import type { AcceptInvitationRequest, LoginInvitationRequest } from "./inviteRe
 
 export type { InviteDestination } from "./inviteDestination.js";
 
+export interface PublicInviteService {
+	id: string;
+	type: InviteDestination["type"];
+	name: string | null;
+}
+
 export interface PublicInvitation {
 	code: string;
 	label: string | null;
 	destination: { type: InviteDestination["type"]; name: string | null };
+	services: PublicInviteService[];
 	paymentRequired: boolean;
 	expiresAt: Date | null;
 	usesRemaining: number | null;
@@ -29,9 +36,15 @@ export interface PublicInvitation {
 
 export interface InviteAccountExists {
 	accountExists: true;
+	existingUsername?: string;
 }
 
-export type RedemptionResult = (AuthResult | VerificationPending | PaymentPending | InviteAccountExists) & { destination: InviteDestination };
+export type RedemptionResult = (AuthResult | VerificationPending | PaymentPending | InviteAccountExists) & {
+	destination: InviteDestination;
+	services?: PublicInviteService[];
+	linkedServices?: LinkedServiceOutcome[];
+	plexPending?: boolean;
+};
 
 @Injectable()
 export class InviteRedemptionService {
@@ -43,6 +56,35 @@ export class InviteRedemptionService {
 		private readonly payments: PaymentsService,
 		private readonly fulfillment: InviteFulfillmentService,
 	) {}
+
+	private targetServers(invitation: Invitation) {
+		if (typeof this.invites.resolveTargetServers === "function") {
+			return this.invites.resolveTargetServers(invitation);
+		}
+		return invitation.serverId && invitation.server ? [invitation.server] : [];
+	}
+
+	private buildPublicServices(invitation: Invitation): PublicInviteService[] {
+		const targets = this.targetServers(invitation);
+		const services: PublicInviteService[] = targets.map((s) => ({
+			id: s.id,
+			type: s.type,
+			name: s.name,
+		}));
+		if (invitation.includeFlixer ?? true) {
+			services.unshift({ id: "flixer", type: "flixer", name: null });
+		}
+		return services;
+	}
+
+	private hasPlexTarget(invitation: Invitation): boolean {
+		return this.targetServers(invitation).some((s) => s.type === "plex");
+	}
+
+	private hasNonPlexServices(invitation: Invitation): boolean {
+		const hasNonPlexTarget = this.targetServers(invitation).some((s) => s.type !== "plex");
+		return hasNonPlexTarget || (invitation.includeFlixer ?? true);
+	}
 
 	/** What a visitor opening the invite link may know before signing up. */
 	async describe(code: string): Promise<PublicInvitation> {
@@ -57,23 +99,26 @@ export class InviteRedemptionService {
 				throw new NotFound("This invite has already been used.");
 			}
 		}
+		const targets = this.targetServers(invitation);
+		const primary = targets[0] ?? invitation.server ?? null;
 		return {
 			code: invitation.code,
 			label: invitation.label,
 			destination: {
-				type: invitation.server?.type ?? "flixer",
-				name: invitation.server?.name ?? null,
+				type: primary?.type ?? "flixer",
+				name: primary?.name ?? null,
 			},
+			services: this.buildPublicServices(invitation),
 			paymentRequired: await this.paymentRequired(invitation),
 			expiresAt: invitation.expiresAt,
 			usesRemaining,
 		};
 	}
 
-	/** Starts a Wizarr-style Plex OAuth PIN window for a Plex invitation. */
+	/** Starts a Wizarr-style Plex OAuth PIN window for an invitation that includes a Plex server. */
 	async startPlexAuth(code: string): Promise<PlexAuthStartResult> {
 		const invitation = await this.invites.findActiveByCode(code);
-		if (invitation.server?.type !== "plex") {
+		if (!this.hasPlexTarget(invitation)) {
 			throw new BadRequest("This invitation does not use Plex sign-in.");
 		}
 		try {
@@ -89,7 +134,7 @@ export class InviteRedemptionService {
 	/** Polls Plex for the PIN's completion and returns an encrypted ticket + account summary once authorised. */
 	async pollPlexAuth(code: string, sessionToken: string): Promise<PlexAuthPollResult> {
 		const invitation = await this.invites.findActiveByCode(code);
-		if (invitation.server?.type !== "plex") {
+		if (!this.hasPlexTarget(invitation)) {
 			throw new BadRequest("This invitation does not use Plex sign-in.");
 		}
 		try {
@@ -102,12 +147,21 @@ export class InviteRedemptionService {
 		}
 	}
 
-	/** Redeems a Plex invitation using the ticket obtained from the Plex OAuth popup window. */
-	async redeemWithPlex(code: string, plexAuthTicket: string): Promise<RedemptionResult> {
+	/** Redeems a Plex invitation (or Step 2 of a multi-service invite) using the Plex OAuth ticket. */
+	async redeemWithPlex(code: string, plexAuthTicket: string, authorization?: string): Promise<RedemptionResult> {
 		const ticket = readPlexAuthTicket(code, plexAuthTicket);
 		const invitation = await this.invites.findActiveByCode(code);
-		if (invitation.server?.type !== "plex") {
+		if (!this.hasPlexTarget(invitation)) {
 			throw new BadRequest("This invitation does not use Plex sign-in.");
+		}
+
+		// If the user already authenticated in Step 1 of a multi-service invite, link Plex to that Flixer user.
+		if (authorization) {
+			const authedUser = await this.auth.getAuthenticatedUser(authorization).catch(() => null);
+			const fullUser = authedUser ? await this.dataSource.getRepository(User).findOneBy({ id: authedUser.id }) : null;
+			if (fullUser) {
+				return this.linkPlexForUser(fullUser, invitation, ticket.plexEmail, ticket.plexToken);
+			}
 		}
 
 		const normalizedEmail = ticket.plexEmail.trim().toLowerCase();
@@ -120,6 +174,36 @@ export class InviteRedemptionService {
 		const username = await this.resolveUniqueUsername(ticket.plexUsername, ticket.plexEmail);
 		const password = randomBytes(24).toString("base64url");
 		return this.completeRedemption(consumed, { username, password, email: ticket.plexEmail, displayName: ticket.plexDisplayName }, ticket.plexToken);
+	}
+
+	private async linkPlexForUser(user: User, invitation: Invitation, plexEmail: string, plexUserToken: string): Promise<RedemptionResult> {
+		const usage = (await this.findExistingUsage(user.id, invitation)) ?? this.dataSource.getRepository(InvitationUsage).create({
+			id: randomUUID(),
+			invitationId: invitation.id,
+			userId: user.id,
+			username: user.username,
+			status: "completed",
+			expiresAt: invitation.userExpiresInDays === null ? null : new Date(Date.now() + invitation.userExpiresInDays * 24 * 60 * 60 * 1000),
+		});
+		if (!usage.createdAt) {
+			await this.dataSource.getRepository(InvitationUsage).save(usage);
+		}
+		const verificationRequired = !invitation.skipEmailVerification && (await this.auth.isEmailVerificationRequired()) && !user.emailVerifiedAt;
+		const { primary, linkedResults } = await this.fulfillment.fulfillAll(
+			usage,
+			invitation,
+			{ password: "", email: plexEmail || user.email || "", plexUserToken },
+			{ requireVerification: verificationRequired, toleratePartialFailure: true },
+		);
+		const destination = buildInviteDestination(invitation, Boolean(primary?.invitedEmail && !primary.inviteAccepted));
+		const authResult = await this.auth.issueAuthResult(user);
+		return {
+			...authResult,
+			destination,
+			services: this.buildPublicServices(invitation),
+			linkedServices: linkedResults,
+			plexPending: false,
+		};
 	}
 
 	/**
@@ -141,15 +225,10 @@ export class InviteRedemptionService {
 		const existingUser = byUsername ?? byEmail;
 
 		if (existingUser) {
-			const passwordMatches = byUsername !== null && (await this.auth.verifyUserPassword(byUsername, request.password));
-			if (passwordMatches) {
-				return this.resumeExistingUser(byUsername, invitation, {
-					password: request.password,
-					email: byUsername.email ?? normalizedEmail,
-				});
-			}
 			return {
 				accountExists: true,
+				existingUsername: existingUser.username,
+				services: this.buildPublicServices(invitation),
 				destination: buildInviteDestination(invitation, false),
 			};
 		}
@@ -179,7 +258,7 @@ export class InviteRedemptionService {
 			throw new Forbidden("This account has been disabled. Contact your server administrator.");
 		}
 
-		const usage = await this.findExistingUsage(user.id, invitation);
+		let usage = await this.findExistingUsage(user.id, invitation);
 		const signupPending = await this.payments.isSignupPending(user.id);
 		const inviteRequiresPayment = await this.paymentRequired(invitation);
 
@@ -193,6 +272,7 @@ export class InviteRedemptionService {
 			return {
 				paymentRequired: true,
 				token: this.payments.issueSignupToken(user.id),
+				services: this.buildPublicServices(invitation),
 				destination: buildInviteDestination(invitation, false),
 			};
 		}
@@ -209,24 +289,72 @@ export class InviteRedemptionService {
 				verificationRequired: true,
 				email: user.email ?? credentials.email ?? "",
 				resendToken: this.auth.issueInviteVerificationResendToken(user.id),
+				services: this.buildPublicServices(invitation),
 				destination: buildInviteDestination(invitation, false),
 			};
 		}
 
 		let destination = buildInviteDestination(invitation, false);
-		if (usage && usage.status === "pending_payment") {
+		let linkedServices: LinkedServiceOutcome[] | undefined;
+		const skipPlex = this.hasPlexTarget(invitation) && this.hasNonPlexServices(invitation) && !credentials.plexUserToken;
+
+		if (!usage) {
+			// Existing Flixer user redeeming a new invite (e.g. Flixer -> Jellyfin/Emby/Multi-service).
+			const consumed = await this.invites.consume(invitation.code);
+			usage = this.dataSource.getRepository(InvitationUsage).create({
+				id: randomUUID(),
+				invitationId: consumed.id,
+				userId: user.id,
+				username: user.username,
+				status: "completed",
+				expiresAt: consumed.userExpiresInDays === null ? null : new Date(Date.now() + consumed.userExpiresInDays * 24 * 60 * 60 * 1000),
+			});
+			await this.dataSource.getRepository(InvitationUsage).save(usage);
+			const result = await this.fulfillment.fulfillAll(
+				usage,
+				consumed,
+				{
+					password: credentials.password ?? "",
+					email: user.email ?? credentials.email ?? "",
+					...(credentials.plexUserToken ? { plexUserToken: credentials.plexUserToken } : {}),
+				},
+				{ requireVerification: false, toleratePartialFailure: true, skipPlex },
+			);
+			linkedServices = result.linkedResults;
+			destination = buildInviteDestination(consumed, Boolean(result.primary?.invitedEmail && !result.primary.inviteAccepted));
+		} else if (usage.status === "pending_payment") {
 			const merged = this.mergePendingCredentials(usage, credentials);
-			const external = await this.fulfillment.fulfill(usage, invitation, merged, { requireVerification: false });
-			destination = buildInviteDestination(invitation, Boolean(external?.invitedEmail && !external.inviteAccepted));
-		} else if (usage && usage.status === "pending_verification") {
+			const result = await this.fulfillment.fulfillAll(usage, invitation, merged, { requireVerification: false, toleratePartialFailure: true, skipPlex });
+			linkedServices = result.linkedResults;
+			destination = buildInviteDestination(invitation, Boolean(result.primary?.invitedEmail && !result.primary.inviteAccepted));
+		} else if (usage.status === "pending_verification") {
 			if (invitation.server?.type === "plex" && credentials.plexUserToken) {
 				await this.refreshPendingCredentials(usage, credentials);
 			}
 			destination = (await this.fulfillment.fulfillVerifiedForUser(user.id)) ?? destination;
+		} else if (this.targetServers(invitation).length > 1) {
+			// Usage already exists for this invite; ensure any missing targets on a multi-service invite are provisioned.
+			const result = await this.fulfillment.fulfillAll(
+				usage,
+				invitation,
+				{
+					password: credentials.password ?? "",
+					email: user.email ?? credentials.email ?? "",
+					...(credentials.plexUserToken ? { plexUserToken: credentials.plexUserToken } : {}),
+				},
+				{ requireVerification: false, toleratePartialFailure: true, skipPlex },
+			);
+			linkedServices = result.linkedResults;
 		}
 
 		const authResult = await this.auth.issueAuthResult(user);
-		return { ...authResult, destination };
+		return {
+			...authResult,
+			destination,
+			services: this.buildPublicServices(invitation),
+			...(linkedServices ? { linkedServices } : {}),
+			...(skipPlex ? { plexPending: true } : {}),
+		};
 	}
 
 	private async findExistingUsage(userId: string, invitation: Invitation): Promise<InvitationUsage | null> {
@@ -305,9 +433,17 @@ export class InviteRedemptionService {
 				});
 			}
 			let invitedByEmail = false;
+			let linkedServices: LinkedServiceOutcome[] | undefined;
+			const skipPlex = this.hasPlexTarget(invitation) && this.hasNonPlexServices(invitation) && !plexUserToken;
 			if (!collectPayment) {
-				const external = await this.fulfillment.fulfill(usage, invitation, { password: request.password, email: user.email ?? request.email, ...(plexUserToken ? { plexUserToken } : {}) }, { requireVerification: verificationRequired });
-				invitedByEmail = Boolean(external?.invitedEmail && !external.inviteAccepted);
+				const fulfilled = await this.fulfillment.fulfillAll(
+					usage,
+					invitation,
+					{ password: request.password, email: user.email ?? request.email, ...(plexUserToken ? { plexUserToken } : {}) },
+					{ requireVerification: verificationRequired, skipPlex },
+				);
+				linkedServices = fulfilled.linkedResults;
+				invitedByEmail = Boolean(fulfilled.primary?.invitedEmail && !fulfilled.primary.inviteAccepted);
 			}
 			const destination = buildInviteDestination(invitation, invitedByEmail);
 			if (verificationRequired) {
@@ -315,7 +451,13 @@ export class InviteRedemptionService {
 			} else if (!collectPayment) {
 				await this.auth.sendInviteWelcome(user, destination);
 			}
-			return { ...result, destination };
+			return {
+				...result,
+				destination,
+				services: this.buildPublicServices(invitation),
+				...(linkedServices ? { linkedServices } : {}),
+				...(skipPlex ? { plexPending: true } : {}),
+			};
 		} catch (error) {
 			await this.undoRedemption(invitation, usage, user).catch((undoError) => logger().error("Could not undo a failed invite redemption.", undoError));
 			if (error instanceof MediaServerError) {
@@ -352,7 +494,7 @@ export class InviteRedemptionService {
 
 	/** Jellyfin and Emby need the chosen password once the fee clears; Plex only needs the email. */
 	private needsCredentialsLater(invitation: Invitation): boolean {
-		return invitation.serverId !== null;
+		return this.targetServers(invitation).length > 0;
 	}
 
 	/** Best-effort compensation when redemption fails halfway: the account, usage and claimed use are taken back. */

@@ -93,6 +93,15 @@ export class CreateInvitationRequest {
 	@MaxLength(36)
 	serverId?: string;
 
+	/** Multiple external media servers to create accounts on in one invite flow. */
+	@Property()
+	@CollectionOf(String)
+	serverIds?: string[];
+
+	/** Whether redeeming this invite creates/links a Flixer account (defaults to true). */
+	@Property()
+	includeFlixer?: boolean;
+
 	@Property()
 	@Integer()
 	@Min(1)
@@ -150,6 +159,14 @@ export class UpdateInvitationRequest {
 	@Nullable(String)
 	@MaxLength(36)
 	serverId?: string | null;
+
+	/** Multiple external media servers to create accounts on in one invite flow. */
+	@Property()
+	@CollectionOf(String)
+	serverIds?: string[];
+
+	@Property()
+	includeFlixer?: boolean;
 
 	/** Null removes the limit. */
 	@Property()

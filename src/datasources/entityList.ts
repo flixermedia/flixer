@@ -71,7 +71,9 @@ import { MediaSourceGroup } from "../entities/mediaSourceGroup.entity.js";
 import { MediaSearchLyrics, MediaSearchOutboxEvent } from "../entities/mediaSearch.entity.js";
 import { InviteServer } from "../entities/inviteServer.entity.js";
 import { Invitation } from "../entities/invitation.entity.js";
+import { InvitationServer } from "../entities/invitationServer.entity.js";
 import { InvitationUsage } from "../entities/invitationUsage.entity.js";
+import { UserLinkedAccount } from "../entities/userLinkedAccount.entity.js";
 
 export const ENTITIES = [
 	User,
@@ -167,5 +169,7 @@ export const ENTITIES = [
 	MediaSearchLyrics,
 	InviteServer,
 	Invitation,
+	InvitationServer,
 	InvitationUsage,
+	UserLinkedAccount,
 ];

@@ -1,13 +1,18 @@
 import { Inject, Injectable, logger } from "@tsed/di";
+import { randomUUID } from "node:crypto";
 import { DataSource, In } from "typeorm";
 import { DefaultDataSource } from "../../datasources/defaultDataSource.datasource.js";
 import { Invitation } from "../../entities/invitation.entity.js";
 import { InvitationUsage } from "../../entities/invitationUsage.entity.js";
+import type { InviteServer, InviteServerType } from "../../entities/inviteServer.entity.js";
+import { UserLinkedAccount, type LinkedAccountStatus } from "../../entities/userLinkedAccount.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 import { appConfig } from "../../config/store/appConfig.js";
 import { aesGcmDecrypt, aesGcmEncrypt, deriveAesKey } from "../../utils/aesGcm.js";
+import { mimeForAvatarFile, readAvatarFile } from "../auth/avatar/avatarStorage.js";
 import { decryptSecret } from "./inviteSecrets.js";
 import { buildInviteDestination, type InviteDestination } from "./inviteDestination.js";
-import { deleteExternalAccount, provisionExternalAccount, setExternalAccountDisabled, type ExternalAccountResult } from "./mediaServerClient.js";
+import { deleteExternalAccount, grantExternalLibraryAccess, provisionExternalAccount, setExternalAccountDisabled, uploadExternalUserAvatar, type ExternalAccountResult } from "./mediaServerClient.js";
 
 const CREDENTIALS_CONTEXT = "flixer:invites:pending-credentials:v1";
 const CREDENTIALS_AAD = Buffer.from(CREDENTIALS_CONTEXT);
@@ -20,6 +25,30 @@ export interface PendingInviteCredentials {
 	password: string;
 	email: string;
 	plexUserToken?: string;
+}
+
+export interface LinkedServiceOutcome {
+	serverId: string;
+	name: string;
+	type: InviteServerType;
+	url: string | null;
+	status: LinkedAccountStatus;
+	alreadyLinked: boolean;
+	invitedByEmail: boolean;
+	error: string | null;
+}
+
+function invitationTargetServers(invitation: Invitation): InviteServer[] {
+	const byId = new Map<string, InviteServer>();
+	for (const target of invitation.targets ?? []) {
+		if (target.server) {
+			byId.set(target.server.id, target.server);
+		}
+	}
+	if (invitation.serverId && invitation.server && !byId.has(invitation.server.id)) {
+		byId.set(invitation.server.id, invitation.server);
+	}
+	return Array.from(byId.values());
 }
 
 export function encryptPendingCredentials(credentials: PendingInviteCredentials): string {
@@ -46,38 +75,215 @@ export class InviteFulfillmentService {
 	 * - Plex shares are held (with the encrypted OAuth token) until email verification, because Plex shares cannot be disabled once accepted.
 	 */
 	async fulfill(usage: InvitationUsage, invitation: Invitation, credentials: PendingInviteCredentials, options?: { requireVerification?: boolean }): Promise<ExternalAccountResult | null> {
-		const server = invitation.server;
+		const { primary } = await this.fulfillAll(usage, invitation, credentials, options);
+		return primary;
+	}
+
+	/**
+	 * Provisions all external media servers on an invitation (single- or multi-service)
+	 * and records each result in `user_linked_accounts`.
+	 */
+	async fulfillAll(
+		usage: InvitationUsage,
+		invitation: Invitation,
+		credentials: PendingInviteCredentials,
+		options?: { requireVerification?: boolean; toleratePartialFailure?: boolean; skipPlex?: boolean },
+	): Promise<{ primary: ExternalAccountResult | null; linkedResults: LinkedServiceOutcome[] }> {
+		const servers = invitationTargetServers(invitation).filter((s) => !(options?.skipPlex && s.type === "plex"));
 		const requireVerification = Boolean(options?.requireVerification);
-		let result: ExternalAccountResult | null = null;
+		const toleratePartial = Boolean(options?.toleratePartialFailure) || servers.length > 1;
+		const linkedResults: LinkedServiceOutcome[] = [];
+		let primary: ExternalAccountResult | null = null;
 
-		if (invitation.serverId && server) {
-			if (requireVerification && server.type === "plex") {
-				usage.status = "pending_verification";
-				usage.error = null;
-				usage.pendingCredentials = encryptPendingCredentials(credentials);
-				await this.dataSource.getRepository(InvitationUsage).save(usage);
-				return null;
+		for (const server of servers) {
+			try {
+				const { result, outcome } = await this.provisionOneServer(usage, invitation, server, credentials, requireVerification);
+				linkedResults.push(outcome);
+				if (!primary && result) {
+					primary = result;
+					usage.externalUserId = result.externalUserId;
+					usage.externalEmail = result.invitedEmail;
+				}
+			} catch (error) {
+				if (!toleratePartial) {
+					throw error;
+				}
+				const message = error instanceof Error ? error.message : "The media server refused the account.";
+				await this.upsertLinkedAccount(usage.userId, server.id, {
+					externalUserId: null,
+					externalUsername: usage.username,
+					externalEmail: credentials.email || null,
+					status: "failed",
+					error: message,
+					pendingCredentials: null,
+				});
+				linkedResults.push({
+					serverId: server.id,
+					name: server.name,
+					type: server.type,
+					url: server.externalUrl?.trim() || server.url,
+					status: "failed",
+					alreadyLinked: false,
+					invitedByEmail: false,
+					error: message,
+				});
 			}
-
-			result = await provisionExternalAccount(server.type, server.url, server.apiKeyEncrypted ? decryptSecret(server.apiKeyEncrypted) : null, {
-				username: usage.username,
-				password: credentials.password,
-				email: credentials.email,
-				libraryIds: invitation.externalLibraryIds,
-				allowDownloads: invitation.allowDownloads,
-				disabled: requireVerification && (server.type === "jellyfin" || server.type === "emby" || server.type === "flixer"),
-				plexUserToken: credentials.plexUserToken,
-				disableOnlineMediaSources: invitation.disablePlexOnlineSources,
-			});
-			usage.externalUserId = result.externalUserId;
-			usage.externalEmail = result.invitedEmail;
 		}
 
-		usage.status = requireVerification ? "pending_verification" : "completed";
-		usage.error = null;
-		usage.pendingCredentials = null;
+		const anyFailed = linkedResults.some((r) => r.status === "failed");
+		const anyPending = linkedResults.some((r) => r.status === "pending_verification");
+		const hasPendingPlex = servers.some((s) => requireVerification && s.type === "plex");
+		usage.status = anyPending || requireVerification ? "pending_verification" : anyFailed && linkedResults.every((r) => r.status === "failed") ? "failed" : "completed";
+		usage.error = linkedResults.find((r) => r.error)?.error ?? null;
+		usage.pendingCredentials = hasPendingPlex ? encryptPendingCredentials(credentials) : null;
 		await this.dataSource.getRepository(InvitationUsage).save(usage);
-		return result;
+		return { primary, linkedResults };
+	}
+
+	private async provisionOneServer(
+		usage: InvitationUsage,
+		invitation: Invitation,
+		server: InviteServer,
+		credentials: PendingInviteCredentials,
+		requireVerification: boolean,
+	): Promise<{ result: ExternalAccountResult | null; outcome: LinkedServiceOutcome }> {
+		const apiKey = server.apiKeyEncrypted ? decryptSecret(server.apiKeyEncrypted) : null;
+		const serverUrl = server.externalUrl?.trim() || server.url;
+
+		if (usage.userId) {
+			const linkedRepo = this.dataSource.getRepository(UserLinkedAccount);
+			const existing = typeof linkedRepo?.findOneBy === "function" ? await linkedRepo.findOneBy({ userId: usage.userId, serverId: server.id }) : null;
+			if (existing && existing.status === "completed") {
+				if (existing.externalUserId && (server.type === "jellyfin" || server.type === "emby")) {
+					await grantExternalLibraryAccess(server.type, server.url, apiKey, existing.externalUserId, invitation.externalLibraryIds, invitation.allowDownloads).catch((err) =>
+						logger().warn(`Could not merge library access on ${server.name}: ${err instanceof Error ? err.message : String(err)}`),
+					);
+				}
+				return {
+					result: { externalUserId: existing.externalUserId, invitedEmail: existing.externalEmail },
+					outcome: {
+						serverId: server.id,
+						name: server.name,
+						type: server.type,
+						url: serverUrl,
+						status: "completed",
+						alreadyLinked: true,
+						invitedByEmail: false,
+						error: null,
+					},
+				};
+			}
+		}
+
+		if (requireVerification && server.type === "plex") {
+			await this.upsertLinkedAccount(usage.userId, server.id, {
+				externalUserId: null,
+				externalUsername: usage.username,
+				externalEmail: credentials.email || null,
+				status: "pending_verification",
+				error: null,
+				pendingCredentials: encryptPendingCredentials(credentials),
+			});
+			return {
+				result: null,
+				outcome: {
+					serverId: server.id,
+					name: server.name,
+					type: server.type,
+					url: serverUrl,
+					status: "pending_verification",
+					alreadyLinked: false,
+					invitedByEmail: false,
+					error: null,
+				},
+			};
+		}
+
+		const result = await provisionExternalAccount(server.type, server.url, apiKey, {
+			username: usage.username,
+			password: credentials.password,
+			email: credentials.email,
+			libraryIds: invitation.externalLibraryIds,
+			allowDownloads: invitation.allowDownloads,
+			disabled: requireVerification && (server.type === "jellyfin" || server.type === "emby" || server.type === "flixer"),
+			plexUserToken: credentials.plexUserToken,
+			disableOnlineMediaSources: invitation.disablePlexOnlineSources,
+		});
+
+		if (usage.userId && result.externalUserId && (server.type === "jellyfin" || server.type === "emby")) {
+			await this.pushAvatarBestEffort(usage.userId, server, apiKey, result.externalUserId);
+		}
+
+		const status: LinkedAccountStatus = requireVerification ? "pending_verification" : "completed";
+		await this.upsertLinkedAccount(usage.userId, server.id, {
+			externalUserId: result.externalUserId,
+			externalUsername: usage.username,
+			externalEmail: result.invitedEmail,
+			status,
+			error: null,
+			pendingCredentials: null,
+			lastSyncedAt: new Date(),
+		});
+
+		return {
+			result,
+			outcome: {
+				serverId: server.id,
+				name: server.name,
+				type: server.type,
+				url: serverUrl,
+				status,
+				alreadyLinked: false,
+				invitedByEmail: Boolean(result.invitedEmail && !result.inviteAccepted),
+				error: null,
+			},
+		};
+	}
+
+	private async pushAvatarBestEffort(userId: string, server: InviteServer, apiKey: string | null, externalUserId: string): Promise<void> {
+		try {
+			const prefRepo = this.dataSource.getRepository(UserPreference);
+			if (typeof prefRepo?.findOneBy !== "function") return;
+			const pref = await prefRepo.findOneBy({ userId });
+			if (!pref?.avatarFile) return;
+			const buffer = await readAvatarFile(pref.avatarFile);
+			if (!buffer) return;
+			const mime = mimeForAvatarFile(pref.avatarFile);
+			if (!mime) return;
+			await uploadExternalUserAvatar(server.type, server.url, apiKey, externalUserId, buffer, mime);
+		} catch (error) {
+			logger().warn(`Could not sync Flixer avatar to ${server.name}: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	private async upsertLinkedAccount(
+		userId: string | null,
+		serverId: string,
+		fields: Partial<Pick<UserLinkedAccount, "externalUserId" | "externalUsername" | "externalEmail" | "status" | "error" | "pendingCredentials" | "lastSyncedAt">>,
+	): Promise<void> {
+		if (!userId) return;
+		const repo = this.dataSource.getRepository(UserLinkedAccount);
+		if (typeof repo?.findOneBy !== "function" || typeof repo?.save !== "function") return;
+		const existing = await repo.findOneBy({ userId, serverId });
+		if (existing) {
+			Object.assign(existing, fields);
+			await repo.save(existing);
+			return;
+		}
+		await repo.save(
+			repo.create({
+				id: randomUUID(),
+				userId,
+				serverId,
+				externalUserId: fields.externalUserId ?? null,
+				externalUsername: fields.externalUsername ?? null,
+				externalEmail: fields.externalEmail ?? null,
+				status: fields.status ?? "completed",
+				error: fields.error ?? null,
+				pendingCredentials: fields.pendingCredentials ?? null,
+				lastSyncedAt: fields.lastSyncedAt ?? null,
+			}),
+		);
 	}
 
 	/**
@@ -175,6 +381,32 @@ export class InviteFulfillmentService {
 	 * Called before deleting a Flixer account; external errors are logged so an offline server cannot trap deletions.
 	 */
 	async deprovisionForUser(userId: string): Promise<void> {
+		const handledServerIds = new Set<string>();
+		const linkedAccounts = await this.dataSource.getRepository(UserLinkedAccount).find({
+			where: { userId, status: In(["completed", "pending_verification"]) },
+			relations: { server: true },
+		});
+
+		for (const linked of linkedAccounts) {
+			const server = linked.server;
+			if (!server || server.type === "other" || !server.apiKeyEncrypted) {
+				continue;
+			}
+			handledServerIds.add(server.id);
+			if (linked.status === "pending_verification" && server.type === "plex" && !linked.externalUserId && !linked.externalEmail) {
+				continue;
+			}
+			try {
+				await deleteExternalAccount(server.type, server.url, decryptSecret(server.apiKeyEncrypted), {
+					externalUserId: linked.externalUserId,
+					externalEmail: linked.externalEmail,
+					username: linked.externalUsername ?? "",
+				});
+			} catch (error) {
+				logger().error(`Could not delete ${server.type} account for user ${linked.externalUsername ?? userId} on "${server.name}".`, error);
+			}
+		}
+
 		const usages = await this.dataSource.getRepository(InvitationUsage).find({
 			where: { userId, status: In(["completed", "pending_verification"]) },
 			relations: { invitation: { server: true } },
@@ -182,7 +414,7 @@ export class InviteFulfillmentService {
 
 		for (const usage of usages) {
 			const server = usage.invitation?.server;
-			if (!server || server.type === "other" || !server.apiKeyEncrypted) {
+			if (!server || handledServerIds.has(server.id) || server.type === "other" || !server.apiKeyEncrypted) {
 				continue;
 			}
 			if (usage.status === "pending_verification" && server.type === "plex" && !usage.externalUserId && !usage.externalEmail) {

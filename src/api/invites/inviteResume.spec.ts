@@ -35,6 +35,7 @@ function buildHarness(options: { invitation: Invitation; users?: User[]; usages?
 					findOne: async ({ where }: { where: Partial<InvitationUsage> }) => usages.find((u) => (where.invitationId ? u.invitationId === where.invitationId : true) && (where.userId ? u.userId === where.userId : true)) ?? null,
 					find: async ({ where }: { where: Partial<InvitationUsage> }) => usages.filter((u) => (where.userId ? u.userId === where.userId : true)),
 					existsBy: async ({ invitationId }: { invitationId: string }) => usages.some((u) => u.invitationId === invitationId),
+					create: (row: unknown) => row,
 					save: saveUsage,
 				};
 			}
@@ -77,8 +78,13 @@ function buildHarness(options: { invitation: Invitation; users?: User[]; usages?
 		issueSignupToken: vi.fn().mockImplementation((userId: string) => `pay-token-${userId}`),
 	} as unknown as PaymentsService;
 
+	const fulfillMock = vi.fn().mockResolvedValue(null);
 	const fulfillment = {
-		fulfill: vi.fn().mockResolvedValue(null),
+		fulfill: fulfillMock,
+		fulfillAll: vi.fn().mockImplementation(async (...args: unknown[]) => ({
+			primary: await fulfillMock(...args),
+			linkedResults: [],
+		})),
 		fulfillVerifiedForUser: vi.fn().mockResolvedValue(null),
 	} as unknown as InviteFulfillmentService;
 
@@ -217,7 +223,7 @@ describe("invite resume flow for existing users", () => {
 		});
 	});
 
-	it("shows the payment screen directly when Jellyfin/Emby/Flixer user already exists and username + password match", async () => {
+	it("always prompts the invite login/link confirmation when a Jellyfin/Emby/Flixer user already exists", async () => {
 		const user = { id: "u-jf", username: "sam", displayName: "Sam", email: "sam@example.com", emailVerifiedAt: null, disabledAt: null, role: "user" } as User;
 		const usage = { id: "use-2", invitationId: "inv-jf", userId: "u-jf", status: "pending_payment", pendingCredentials: null } as InvitationUsage;
 		const { service, invites } = buildHarness({
@@ -236,8 +242,8 @@ describe("invite resume flow for existing users", () => {
 		});
 		expect(invites.consume).not.toHaveBeenCalled();
 		expect(result).toMatchObject({
-			paymentRequired: true,
-			token: "pay-token-u-jf",
+			accountExists: true,
+			existingUsername: "sam",
 			destination: { type: "jellyfin", name: "Home Jellyfin" },
 		});
 	});
@@ -258,9 +264,36 @@ describe("invite resume flow for existing users", () => {
 			email: "sam@example.com",
 		});
 		expect(invites.consume).not.toHaveBeenCalled();
-		expect(result).toEqual({
+		expect(result).toMatchObject({
 			accountExists: true,
+			existingUsername: "sam",
 			destination: { type: "jellyfin", name: "Home Jellyfin", url: "https://jf.example.com", instructions: null, invitedByEmail: false },
+		});
+	});
+
+	it("provisions a new Jellyfin account when an existing Flixer-only user confirms via login", async () => {
+		const user = { id: "u-flixer", username: "test", displayName: "Test", email: "test@example.com", emailVerifiedAt: new Date(), disabledAt: null, role: "user" } as User;
+		const flixerOnlyUsage = { id: "use-flixer", invitationId: "inv-flixer", userId: "u-flixer", status: "completed", pendingCredentials: null, invitation: { serverId: null } } as unknown as InvitationUsage;
+		const { service, invites, fulfillment, saveUsage } = buildHarness({
+			invitation: jellyfinInvitation(),
+			users: [user],
+			usages: [flixerOnlyUsage],
+			signupPending: false,
+			cardRequired: false,
+			verificationRequired: false,
+			passwordMatches: true,
+		});
+
+		const result = await service.resumeWithLogin("JELLY123", {
+			username: "test",
+			password: "existing-flixer-password",
+		});
+		expect(invites.consume).toHaveBeenCalledWith("JELLY123");
+		expect(saveUsage).toHaveBeenCalledOnce();
+		expect(fulfillment.fulfillAll).toHaveBeenCalledOnce();
+		expect(result).toMatchObject({
+			accessToken: "jwt-u-flixer",
+			destination: { type: "jellyfin", name: "Home Jellyfin" },
 		});
 	});
 
