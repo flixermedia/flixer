@@ -36,6 +36,11 @@ export class IssueReportsController {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return this.issues.userDetail(id, user);
 	}
+
+	@Post("/:id/updates")
+	addUserUpdate(@PathParams("id") id: string, @BodyParams() request: AddIssueReportUpdateRequest, @HeaderParams("authorization") authorization?: string) {
+		return this.issues.addUserUpdate(id, request.body, request.attachments, authorization);
+	}
 }
 
 /** Administrative issue report queue and ticket actions. */
@@ -68,7 +73,7 @@ export class AdminIssueReportsController {
 
 	@Post("/:id/updates")
 	addUpdate(@PathParams("id") id: string, @BodyParams() request: AddIssueReportUpdateRequest, @HeaderParams("authorization") authorization?: string) {
-		return this.issues.addUpdate(id, request.body, request.isInternal, authorization);
+		return this.issues.addUpdate(id, request.body, request.isInternal, authorization, request.attachments);
 	}
 
 	@Patch("/:id/chat")

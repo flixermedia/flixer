@@ -17,7 +17,7 @@ export const PRIORITY_SUPPORT_WS_PATH = "/api/cloud/support/live";
 
 const AUTH_TIMEOUT_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const SYNC_INTERVAL_MS = 30_000;
+const SYNC_INTERVAL_MS = 5_000;
 const UPSTREAM_RECONNECT_MS = 3_000;
 const MAX_CLIENTS = 20;
 const MAX_PAYLOAD_BYTES = 16_384;

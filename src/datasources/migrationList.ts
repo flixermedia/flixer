@@ -25,6 +25,7 @@ import { EnableRemainingUserOwnedRls1798300000044 } from "../migrations/enableRe
 import { EnableSocialAndSharedRls1798300000045 } from "../migrations/enableSocialAndSharedRls1798300000045.js";
 import { EnableCatalogAndAdminRls1798300000046 } from "../migrations/enableCatalogAndAdminRls1798300000046.js";
 import { AddMultiServiceInvitesAndLinkedAccounts1798300000047 } from "../migrations/addMultiServiceInvitesAndLinkedAccounts1798300000047.js";
+import { AddIssueReportAttachments1798300000048 } from "../migrations/addIssueReportAttachments1798300000048.js";
 import { CreateMailServer1798000000000 } from "../migrations/createMailServer1798000000000.js";
 import { CreateUserAccessPolicies1798200000000 } from "../migrations/createUserAccessPolicies1798200000000.js";
 import { CreatePayments1798300000000 } from "../migrations/createPayments1798300000000.js";
@@ -222,4 +223,5 @@ export const MIGRATIONS = [
 	EnableSocialAndSharedRls1798300000045,
 	EnableCatalogAndAdminRls1798300000046,
 	AddMultiServiceInvitesAndLinkedAccounts1798300000047,
+	AddIssueReportAttachments1798300000048,
 ];

@@ -3,6 +3,13 @@ import { ChatConversation } from "./chatConversation.entity.js";
 import { MediaItem } from "./mediaItem.entity.js";
 import { User } from "./user.entity.js";
 
+export interface IssueReportAttachment {
+	id: string;
+	name: string;
+	dataUrl: string;
+	contentType: string;
+}
+
 @Entity("issue_reports")
 @Check("ck_issue_reports_status", `"status" IN ('open', 'in_progress', 'resolved', 'closed')`)
 @Index("idx_issue_reports_user_updated", ["userId", "updatedAt"])
@@ -51,6 +58,9 @@ export class IssueReport {
 	@Column({ name: "chat_open", type: "boolean", default: false })
 	chatOpen!: boolean;
 
+	@Column({ type: "jsonb", default: () => "'[]'" })
+	attachments!: IssueReportAttachment[];
+
 	@Column({ name: "created_at", type: "timestamptz", default: () => "now()" })
 	createdAt!: Date;
 
@@ -87,6 +97,9 @@ export class IssueReportUpdate {
 
 	@Column({ name: "is_internal", type: "boolean", default: false })
 	isInternal!: boolean;
+
+	@Column({ type: "jsonb", default: () => "'[]'" })
+	attachments!: IssueReportAttachment[];
 
 	@Column({ name: "created_at", type: "timestamptz", default: () => "now()" })
 	createdAt!: Date;

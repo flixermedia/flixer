@@ -1,5 +1,10 @@
 import { MaxLength, Property, Required } from "@tsed/schema";
 
+export interface IssueReportAttachmentInput {
+	name?: string;
+	dataUrl?: string;
+}
+
 export class CreateIssueReportRequest {
 
 	@Required()
@@ -17,6 +22,9 @@ export class CreateIssueReportRequest {
 	@Property()
 	@MaxLength(36)
 	mediaItemId?: string;
+
+	@Property()
+	attachments?: IssueReportAttachmentInput[];
 }
 
 export class UpdateIssueReportStatusRequest {
@@ -28,12 +36,15 @@ export class UpdateIssueReportStatusRequest {
 
 export class AddIssueReportUpdateRequest {
 
-	@Required()
+	@Property()
 	@MaxLength(2000)
-	body!: string;
+	body?: string;
 
 	@Property()
 	isInternal?: boolean;
+
+	@Property()
+	attachments?: IssueReportAttachmentInput[];
 }
 
 export class SetIssueReportChatRequest {

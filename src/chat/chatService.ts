@@ -155,18 +155,33 @@ const messageOf = (row: MessageRow): ChatMessage => ({
 });
 
 /** Direct messages and group chats between the people on this server. */
-export type ChatEvent = { type: "message"; conversationId: string; message: ChatMessage } | { type: "changed"; conversationId: string };
+export type ChatEvent = { type: "message"; conversationId: string; message: ChatMessage } | { type: "changed"; conversationId: string } | { type: "deleted"; conversationId: string };
 
 @Injectable()
 export class ChatService {
 
 	private readonly recentSends = new Map<string, number[]>();
+	private readonly loggedCallIds = new Map<string, number>();
 	private readonly listeners = new Set<(userIds: string[], event: ChatEvent) => void>();
+	private readonly presenceMap = new Map<string, { status: "online" | "away"; updatedAt: number; viaSocket: boolean }>();
+	private supportTicketMessageHandler?: (conversationId: string, body: string) => Promise<void>;
+	private supportTicketSyncHandler?: (conversationId: string) => Promise<void>;
+	private supportTicketDeleteHandler?: (conversationId: string) => Promise<void>;
 
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly notifications: NotificationService,
 	) {}
+
+	setSupportTicketHandlers(handlers: {
+		onMessage: (conversationId: string, body: string) => Promise<void>;
+		onSync: (conversationId: string) => Promise<void>;
+		onDelete: (conversationId: string) => Promise<void>;
+	}): void {
+		this.supportTicketMessageHandler = handlers.onMessage;
+		this.supportTicketSyncHandler = handlers.onSync;
+		this.supportTicketDeleteHandler = handlers.onDelete;
+	}
 
 	/** Subscribes to realtime events; returns an unsubscribe function. */
 	onEvent(listener: (userIds: string[], event: ChatEvent) => void): () => void {
@@ -400,8 +415,8 @@ export class ChatService {
 					.where("member.conversationId = :conversationId", { conversationId })
 					.groupBy("member.userId")
 					.getRawMany<{ user_id: string; device_count: number; ready_count: number }>();
-		if (readiness.some((row) => row.device_count === 0 || row.ready_count < row.device_count)) {
-			throw new Conflict("Every active chat device needs an unused MLS key package. Ask each member to open Flixer and try again.");
+		if (readiness.some((row) => row.device_count === 0 || row.ready_count === 0)) {
+			throw new Conflict("Each member needs at least one active chat device with an unused MLS key package. Ask them to open Flixer and try again.");
 		}
 		const rows = await this.dataSource.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'").innerJoin(ChatMlsKeyPackage, "keyPackage", "keyPackage.deviceId = device.id").select("device.userId", "user_id").addSelect("device.id", "device_id").addSelect("keyPackage.id", "key_package_id").addSelect("keyPackage.keyPackage", "key_package").addSelect("keyPackage.usedAt IS NULL", "available").where("member.conversationId = :conversationId", { conversationId }).orderBy("device.userId", "ASC").addOrderBy("device.createdAt", "ASC").addOrderBy("keyPackage.createdAt", "ASC").getRawMany<{ user_id: string; device_id: string; key_package_id: string; key_package: string; available: boolean }>();
 		return rows.map((row) => ({
@@ -558,13 +573,52 @@ export class ChatService {
 		return this.conversation(userId, id);
 	}
 
+	/** Creates a plaintext group chat for a support ticket and inserts the customer's opening message. */
+	async createSupportTicketChat(userId: string, name: string, initialBody: string): Promise<ChatConversation> {
+		const title = cleanName(name);
+		const body = cleanMessage(initialBody);
+		const id = randomUUID();
+		await this.dataSource.transaction(async (manager) => {
+			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "group", name: title, createdBy: userId, encryptionMode: "plaintext" });
+			await manager.getRepository(ChatMemberEntity).insert({ conversationId: id, userId, role: "owner" });
+			await manager.getRepository(ChatMessageEntity).insert({ id: randomUUID(), conversationId: id, userId, kind: "text", body, encrypted: false });
+			await manager.getRepository(ChatConversationEntity).update({ id }, { lastMessageAt: () => "now()" });
+		});
+		await this.changed(id);
+		return this.conversation(userId, id);
+	}
+
+	/** Appends a support agent reply into a support ticket chat conversation and notifies members. */
+	async insertSupportTicketReply(conversationId: string, body: string): Promise<void> {
+		const exists = await this.dataSource.getRepository(ChatConversationEntity).exists({ where: { id: conversationId } });
+		if (!exists) return;
+		await this.dataSource.transaction(async (manager) => {
+			await manager.getRepository(ChatMessageEntity).insert({ id: randomUUID(), conversationId, userId: null, kind: "text", body: body.slice(0, MAX_MESSAGE_LENGTH), encrypted: false });
+			await manager.getRepository(ChatConversationEntity).update({ id: conversationId }, { lastMessageAt: () => "now()" });
+		});
+		await this.changed(conversationId);
+	}
+
+	/** Deletes a support ticket chat conversation without checking requester membership. */
+	async deleteSupportTicketConversation(id: string): Promise<void> {
+		const members = await this.memberIds(id);
+		await this.dataSource.getRepository(ChatConversationEntity).delete({ id });
+		await this.dataSource
+			.getRepository(Notification)
+			.delete({ kind: "message", url: `/chat/${id}` })
+			.catch(() => undefined);
+		if (this.supportTicketDeleteHandler) {
+			await this.supportTicketDeleteHandler(id).catch(() => undefined);
+		}
+		this.publish(members, { type: "deleted", conversationId: id });
+	}
+
 	/** Creates a support chat with members selected by the ticket system rather than public-profile lookup. */
 	async createSupportGroup(adminId: string, requesterId: string, name: string): Promise<ChatConversation> {
 		const title = cleanName(name);
 		const id = randomUUID();
 		await this.dataSource.transaction(async (manager) => {
-			const encryptionMode = await this.defaultEncryptionMode(manager);
-			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "group", name: title, createdBy: adminId, encryptionMode });
+			await manager.getRepository(ChatConversationEntity).insert({ id, kind: "group", name: title, createdBy: adminId, encryptionMode: "plaintext" });
 			const members = manager.getRepository(ChatMemberEntity);
 			await members.insert({ conversationId: id, userId: adminId, role: "owner" });
 			if (requesterId !== adminId) {
@@ -659,6 +713,9 @@ export class ChatService {
 	/** Messages oldest first. `before` pages back through history, `after` fetches what arrived since. Fetching marks the thread read. */
 	async messages(userId: string, id: string, options: { before?: string; after?: string; beforeSequence?: string; afterSequence?: string }): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
 		await this.assertMember(userId, id);
+		if (this.supportTicketSyncHandler) {
+			await this.supportTicketSyncHandler(id).catch(() => undefined);
+		}
 		const before = this.date(options.before);
 		const after = this.date(options.after);
 		const beforeSequence = this.sequence(options.beforeSequence);
@@ -700,7 +757,10 @@ export class ChatService {
 			.getRepository(Notification)
 			.delete({ kind: "message", url: `/chat/${id}` })
 			.catch(() => undefined);
-		this.publish(members, { type: "changed", conversationId: id });
+		if (this.supportTicketDeleteHandler) {
+			await this.supportTicketDeleteHandler(id).catch(() => undefined);
+		}
+		this.publish(members, { type: "deleted", conversationId: id });
 	}
 
 	async markRead(userId: string, id: string, announce = true): Promise<void> {
@@ -765,12 +825,23 @@ export class ChatService {
 				await this.storeMlsWelcomeRows(manager, userId, id, messageId, mlsWelcome.recipients, mlsWelcome.welcome, mlsWelcome.ratchetTree);
 			}
 			if (encrypted) {
-				const activeDevices = await manager.getRepository(ChatMemberEntity).createQueryBuilder("member").innerJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'").select("device.id", "device_id").where("member.conversationId = :id AND device.id <> :mlsDeviceId", { id, mlsDeviceId }).getRawMany<{ device_id: string }>();
+				const activeDevices = await manager
+					.getRepository(ChatMemberEntity)
+					.createQueryBuilder("member")
+					.innerJoin(ChatMlsDevice, "device", "device.userId = member.userId AND device.status = 'active'")
+					.select("member.userId", "user_id")
+					.addSelect("device.id", "device_id")
+					.where("member.conversationId = :id AND device.id <> :mlsDeviceId", { id, mlsDeviceId })
+					.getRawMany<{ user_id: string; device_id: string }>();
 				const deliveries = await manager.getRepository(ChatMlsWelcome).find({ select: { deviceId: true }, where: { messageId } });
 				const expectedDevices = new Set(activeDevices.map(({ device_id }) => device_id));
 				const deliveredDevices = new Set(deliveries.map(({ deviceId }) => deviceId));
-				if (deliveredDevices.size !== deliveries.length || expectedDevices.size !== deliveredDevices.size || [...expectedDevices].some((deviceId) => !deliveredDevices.has(deviceId))) {
-					throw new Conflict("Encrypted chat messages must include a Welcome for every other active chat device.");
+				const otherMemberIds = new Set(activeDevices.filter((row) => row.user_id !== userId).map((row) => row.user_id));
+				const coveredMemberIds = new Set(activeDevices.filter((row) => deliveredDevices.has(row.device_id)).map((row) => row.user_id));
+				const hasInvalidDelivery = deliveries.some(({ deviceId }) => !expectedDevices.has(deviceId));
+				const missingOtherMember = [...otherMemberIds].some((memberId) => !coveredMemberIds.has(memberId));
+				if (deliveredDevices.size !== deliveries.length || hasInvalidDelivery || missingOtherMember) {
+					throw new Conflict("Encrypted chat messages must include a Welcome for every other member.");
 				}
 			}
 			await manager.getRepository(ChatConversationEntity).update({ id }, { lastMessageAt: () => "now()" });
@@ -779,15 +850,95 @@ export class ChatService {
 		});
 		const row = await this.messageQuery().where("m.id = :messageId", { messageId }).getRawOne<MessageRow>();
 		const message = messageOf(row as MessageRow);
-		await this.notify(id, userId, message).catch((error: unknown) => logger().warn("Could not notify chat members.", error));
-		this.publish(await this.memberIds(id), { type: "changed", conversationId: id });
+		const members = await this.memberIds(id);
+		this.publish(members, { type: "message", conversationId: id, message });
+		void this.notify(id, userId, message).catch((error: unknown) => logger().warn("Could not notify chat members.", error));
+		if (!encrypted && this.supportTicketMessageHandler) {
+			void this.supportTicketMessageHandler(id, body).catch((error: unknown) => logger().warn("Could not mirror chat message to support ticket.", error));
+		}
 		return message;
+	}
+
+	/** Records a system call-log entry in the conversation, deduplicated per `callId`. */
+	async logCall(
+		userId: string,
+		conversationId: string,
+		input: { callId: string; video: boolean; outcome: "ended" | "declined" | "missed" | "failed"; durationSeconds?: number },
+	): Promise<{ message: ChatMessage | null }> {
+		await this.assertMember(userId, conversationId);
+		const now = Date.now();
+		for (const [id, at] of this.loggedCallIds) {
+			if (now - at > 10 * 60_000) this.loggedCallIds.delete(id);
+		}
+		if (this.loggedCallIds.has(input.callId)) {
+			return { message: null };
+		}
+		this.loggedCallIds.set(input.callId, now);
+		if (this.loggedCallIds.size > 5_000) {
+			const first = this.loggedCallIds.keys().next().value;
+			if (first) this.loggedCallIds.delete(first);
+		}
+		const media = input.video ? "a video" : "an audio";
+		const secs = typeof input.durationSeconds === "number" && Number.isFinite(input.durationSeconds) ? Math.max(0, Math.round(input.durationSeconds)) : 0;
+		const durationLabel = secs >= 3600 ? `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m` : secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : secs > 0 ? `${secs}s` : "";
+		let body: string;
+		switch (input.outcome) {
+			case "ended":
+				body = durationLabel ? `started ${media} call · ${durationLabel}` : `started ${media} call`;
+				break;
+			case "declined":
+				body = `declined ${media} call`;
+				break;
+			case "missed":
+				body = `started ${media} call (no answer)`;
+				break;
+			case "failed":
+				body = `tried to start ${media} call (connection failed)`;
+				break;
+		}
+		const messageId = randomUUID();
+		await this.dataSource.transaction(async (manager) => {
+			await manager.getRepository(ChatMessageEntity).insert({ id: messageId, conversationId, userId, kind: "system", body, encrypted: false });
+			await manager.getRepository(ChatConversationEntity).update({ id: conversationId }, { lastMessageAt: () => "now()" });
+		});
+		const row = await this.messageQuery().where("m.id = :messageId", { messageId }).getRawOne<MessageRow>();
+		const message = messageOf(row as MessageRow);
+		const members = await this.memberIds(conversationId);
+		this.publish(members, { type: "message", conversationId, message });
+		return { message };
 	}
 
 	/** Unread messages across every conversation, for the navbar badge. */
 	async unreadCount(userId: string): Promise<number> {
 		const result = await this.dataSource.getRepository(ChatMessageEntity).createQueryBuilder("message").innerJoin(ChatMemberEntity, "member", "member.conversationId = message.conversationId").select("COUNT(*)::int", "n").where("member.userId = :userId", { userId }).andWhere("message.kind = 'text'").andWhere("message.createdAt > member.lastReadAt").andWhere("message.userId IS DISTINCT FROM :userId", { userId }).getRawOne<{ n: number }>();
 		return result?.n ?? 0;
+	}
+
+	async usernameForUser(userId: string): Promise<string | null> {
+		const user = await this.dataSource.getRepository(User).findOne({ select: { username: true }, where: { id: userId } });
+		return user?.username ?? null;
+	}
+
+	setPresence(username: string, status: "online" | "away" | "offline", viaSocket = false): void {
+		if (!username) return;
+		if (status === "offline") {
+			this.presenceMap.delete(username);
+			return;
+		}
+		this.presenceMap.set(username, { status, updatedAt: Date.now(), viaSocket });
+	}
+
+	getPresenceSnapshot(): Record<string, "online" | "away"> {
+		const now = Date.now();
+		const out: Record<string, "online" | "away"> = {};
+		for (const [username, entry] of this.presenceMap.entries()) {
+			if (!entry.viaSocket && now - entry.updatedAt > 25_000) {
+				this.presenceMap.delete(username);
+				continue;
+			}
+			out[username] = entry.status;
+		}
+		return out;
 	}
 
 	async encryptionStatus(): Promise<{ enabled: boolean; supported: boolean; allowUserDowngrade: boolean }> {

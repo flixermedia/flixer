@@ -42,13 +42,79 @@ export function derivedTurnSecret(appSecret: string): string {
  * Supplies what clients need to place peer-to-peer calls. Media and call keys never touch the server: it only hands
  * out STUN/TURN settings and checks who may signal whom.
  */
+export interface QueuedCallSignal {
+	type: "call-signal";
+	conversationId: string;
+	callId: string;
+	from: string;
+	payload: string;
+	at: number;
+	seq: number;
+}
+
+type SignalListener = (userIds: string[], signal: Omit<QueuedCallSignal, "at" | "seq">) => void;
+
 @Injectable()
 export class CallService {
+
+	private readonly signalQueue = new Map<string, QueuedCallSignal[]>();
+	private readonly signalListeners = new Set<SignalListener>();
+	private nextSeq = 0;
 
 	constructor(
 		@Inject(DefaultDataSource) private readonly dataSource: DataSource,
 		private readonly parties: PartiesService,
 	) {}
+
+	onSignal(listener: SignalListener): () => void {
+		this.signalListeners.add(listener);
+		return () => this.signalListeners.delete(listener);
+	}
+
+	enqueueSignal(targetUserIds: string[], signal: Omit<QueuedCallSignal, "at" | "seq">): void {
+		const now = Date.now();
+		const entry: QueuedCallSignal = { ...signal, at: now, seq: ++this.nextSeq };
+		for (const uid of targetUserIds) {
+			const list = (this.signalQueue.get(uid) ?? []).filter((item) => now - item.at < 60_000);
+			list.push(entry);
+			if (list.length > 100) list.splice(0, list.length - 100);
+			this.signalQueue.set(uid, list);
+		}
+		for (const listener of this.signalListeners) {
+			listener(targetUserIds, signal);
+		}
+	}
+
+	/**
+	 * Reads unexpired signals for a user after `after` without deleting them, so multiple open tabs for the same
+	 * user do not steal call signals from each other.
+	 */
+	readSignals(userId: string, after = 0): { signals: Array<Omit<QueuedCallSignal, "at">>; cursor: number } {
+		const list = this.signalQueue.get(userId);
+		if (!list?.length) return { signals: [], cursor: after };
+		const now = Date.now();
+		const fresh = list.filter((item) => now - item.at < 60_000);
+		if (fresh.length === 0) {
+			this.signalQueue.delete(userId);
+			return { signals: [], cursor: after };
+		}
+		if (fresh.length !== list.length) this.signalQueue.set(userId, fresh);
+		const signals = fresh
+			.filter((item) => item.seq > after)
+			.map(({ type, conversationId, callId, from, payload, seq }) => ({ type, conversationId, callId, from, payload, seq }));
+		const cursor = signals.length > 0 ? signals[signals.length - 1]!.seq : after;
+		return { signals, cursor };
+	}
+
+	drainSignals(userId: string): Array<Omit<QueuedCallSignal, "at" | "seq">> {
+		const list = this.signalQueue.get(userId);
+		if (!list?.length) return [];
+		this.signalQueue.delete(userId);
+		const now = Date.now();
+		return list
+			.filter((item) => now - item.at < 60_000)
+			.map(({ type, conversationId, callId, from, payload }) => ({ type, conversationId, callId, from, payload }));
+	}
 
 	async isEnabled(): Promise<boolean> {
 		return (await this.setting("calls_enabled")) === true;

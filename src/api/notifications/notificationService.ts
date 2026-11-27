@@ -11,6 +11,7 @@ import { PushKey } from "../../entities/pushKey.entity.js";
 import { Setting } from "../../entities/setting.entity.js";
 import { PushSubscription } from "../../entities/pushSubscription.entity.js";
 import { User } from "../../entities/user.entity.js";
+import { UserPreference } from "../../entities/userPreference.entity.js";
 
 const NEW_MEDIA_TYPES = new Set(["movie", "series", "episode"]);
 /** New titles are announced together once the indexer has been quiet this long, so a library scan is one message. */
@@ -164,20 +165,31 @@ export class NotificationService {
 			return { recipients: 0, pushed: 0 };
 		}
 
+		const prefRows = await this.dataSource
+			.getRepository(UserPreference)
+			.find({ where: { userId: In(recipients) }, select: { userId: true, data: true } })
+			.catch(() => [] as UserPreference[]);
+		const prefMap = new Map(prefRows.map((row) => [row.userId, row.data?.notifications as { pushEnabled?: unknown; categories?: Record<string, unknown> } | undefined]));
+		const filteredRecipients = recipients.filter((id) => prefMap.get(id)?.categories?.[input.kind] !== false);
+		if (filteredRecipients.length === 0) {
+			return { recipients: 0, pushed: 0 };
+		}
+
 		const title = input.title.slice(0, 120);
 		const body = input.body.slice(0, 500);
-		const rows = recipients.map((userId) => ({ id: randomUUID(), userId, kind: input.kind, title, body, url: input.url ?? null }));
+		const rows = filteredRecipients.map((userId) => ({ id: randomUUID(), userId, kind: input.kind, title, body, url: input.url ?? null }));
 		for (let start = 0; start < rows.length; start += 500) {
 			await this.dataSource.getRepository(Notification).insert(rows.slice(start, start + 500));
 		}
-		this.publish(recipients);
+		this.publish(filteredRecipients);
 		await this.dataSource
 			.getRepository(Notification)
 			.delete({ createdAt: LessThan(new Date(Date.now() - RETENTION_DAYS * 86_400_000)) })
 			.catch(() => undefined);
 
-		const pushed = await this.push(recipients, { title, body, url: input.url ?? "/" });
-		return { recipients: recipients.length, pushed };
+		const pushRecipients = filteredRecipients.filter((id) => prefMap.get(id)?.pushEnabled !== false);
+		const pushed = pushRecipients.length > 0 ? await this.push(pushRecipients, { title, body, url: input.url ?? "/" }) : 0;
+		return { recipients: filteredRecipients.length, pushed };
 	}
 
 	/** Tells a user's open pages that something they hold changed, so they re-read it. */

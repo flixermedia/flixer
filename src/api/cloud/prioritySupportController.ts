@@ -1,6 +1,6 @@
 import { Controller } from "@tsed/di";
-import { BodyParams, Context, HeaderParams, QueryParams } from "@tsed/platform-params";
-import { Get, Post, Security } from "@tsed/schema";
+import { BodyParams, Context, HeaderParams, PathParams, QueryParams } from "@tsed/platform-params";
+import { Delete, Get, Post, Security } from "@tsed/schema";
 import type { PlatformContext } from "@tsed/platform-http";
 import { AuthService } from "../auth/authService.js";
 import { PrioritySupportGateway } from "./prioritySupportGateway.js";
@@ -63,5 +63,50 @@ export class PrioritySupportController {
 		const result = await this.prioritySupport.closeSession();
 		this.gateway.broadcastClosed("user");
 		return result;
+	}
+
+	@Get("/tickets")
+	async listTickets(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.requireAdmin(authorization);
+		return this.prioritySupport.listTickets();
+	}
+
+	@Get("/tickets/:ticketId")
+	async getTicket(
+		@PathParams("ticketId") ticketId: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const session = await this.authService.requireAdmin(authorization);
+		return this.prioritySupport.getTicket(ticketId, session.user.id);
+	}
+
+	@Post("/tickets")
+	async createTicket(
+		@BodyParams("subject") subject?: string,
+		@BodyParams("message") message?: string,
+		@BodyParams("category") category?: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const session = await this.authService.requireAdminSession(authorization);
+		return this.prioritySupport.createTicket(subject ?? "", message ?? "", category, session.user.id);
+	}
+
+	@Post("/tickets/:ticketId/reply")
+	async replyTicket(
+		@PathParams("ticketId") ticketId: string,
+		@BodyParams("message") message?: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		await this.authService.requireAdminSession(authorization);
+		return this.prioritySupport.replyTicket(ticketId, message ?? "");
+	}
+
+	@Delete("/tickets/:ticketId")
+	async deleteTicket(
+		@PathParams("ticketId") ticketId: string,
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		await this.authService.requireAdminSession(authorization);
+		return this.prioritySupport.deleteTicket(ticketId);
 	}
 }

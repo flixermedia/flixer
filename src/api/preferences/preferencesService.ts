@@ -15,6 +15,20 @@ interface DashboardGridItem {
 	h: number;
 }
 
+export interface NotificationPreferences {
+	chatChime: boolean;
+	chatChimeWhileOpen: boolean;
+	chatToasts: boolean;
+	pushEnabled: boolean;
+	categories: {
+		message: boolean;
+		new_media: boolean;
+		request: boolean;
+		system: boolean;
+		admin: boolean;
+	};
+}
+
 export interface Preferences {
 	language?: string;
 	audioLanguage?: string;
@@ -23,6 +37,7 @@ export interface Preferences {
 	autoSkipIntroCredits: boolean;
 	emulateLyricWordTiming: boolean;
 	themeId?: string;
+	notifications?: NotificationPreferences;
 }
 
 const LANGUAGE_PATTERN = /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/;
@@ -62,6 +77,26 @@ export const isAutoSkipIntroCredits = (value: unknown): value is boolean => type
 
 const isThemeId = (value: unknown): value is string => typeof value === "string" && AuthService.isUuid(value);
 
+const NOTIFICATION_CATEGORIES = ["message", "new_media", "request", "system", "admin"] as const;
+
+const isNotificationPreferences = (value: unknown): value is NotificationPreferences => {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+	const obj = value as Record<string, unknown>;
+	if (
+		typeof obj.chatChime !== "boolean" ||
+		typeof obj.chatChimeWhileOpen !== "boolean" ||
+		typeof obj.chatToasts !== "boolean" ||
+		typeof obj.pushEnabled !== "boolean" ||
+		typeof obj.categories !== "object" ||
+		obj.categories === null ||
+		Array.isArray(obj.categories)
+	) {
+		return false;
+	}
+	const cats = obj.categories as Record<string, unknown>;
+	return NOTIFICATION_CATEGORIES.every((key) => typeof cats[key] === "boolean");
+};
+
 /** Allowed preference keys. Add an entry here to let the frontend persist a new setting. */
 const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	language: (value) => typeof value === "string" && value.length <= 35 && LANGUAGE_PATTERN.test(value),
@@ -71,6 +106,7 @@ const PREFERENCE_VALIDATORS: Record<string, (value: unknown) => boolean> = {
 	autoSkipIntroCredits: isAutoSkipIntroCredits,
 	emulateLyricWordTiming: (value) => typeof value === "boolean",
 	themeId: isThemeId,
+	notifications: isNotificationPreferences,
 };
 
 export function publicPreferences(data: Record<string, unknown>): Preferences {
@@ -93,6 +129,9 @@ export function publicPreferences(data: Record<string, unknown>): Preferences {
 	}
 	if (isThemeId(data.themeId)) {
 		preferences.themeId = data.themeId;
+	}
+	if (isNotificationPreferences(data.notifications)) {
+		preferences.notifications = data.notifications;
 	}
 	return preferences;
 

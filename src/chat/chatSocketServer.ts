@@ -11,8 +11,8 @@ export const CHAT_PATH = "/api/chat/live";
 const AUTH_TIMEOUT_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_CLIENTS = 2_000;
-const MAX_CLIENT_MESSAGE_BYTES = 32_768;
-const MAX_SIGNAL_PAYLOAD_CHARS = 24_000;
+const MAX_CLIENT_MESSAGE_BYTES = 262_144;
+const MAX_SIGNAL_PAYLOAD_CHARS = 200_000;
 const SIGNAL_WINDOW_MS = 10_000;
 const MAX_SIGNALS_PER_WINDOW = 60;
 const MAX_BUFFERED_BYTES = 1_024 * 1_024;
@@ -20,10 +20,14 @@ const MAX_PENDING_EVENTS = 256;
 
 type ChatAuthenticator = (token: string) => Promise<string>;
 
+export type PresenceStatus = "online" | "away" | "offline";
+
 interface Connection {
 	authenticated: boolean;
 	userId?: string;
+	username?: string;
 	token?: string;
+	activeTab: boolean;
 	alive: boolean;
 	signals: number[];
 	delivery: Promise<void>;
@@ -48,6 +52,7 @@ export class ChatSocketServer {
 	private server?: Server;
 	private heartbeat?: NodeJS.Timeout;
 	private unsubscribe?: () => void;
+	private unsubscribeSignals?: () => void;
 	private readonly onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => this.handleUpgrade(request, socket, head);
 
 	constructor(
@@ -59,6 +64,7 @@ export class ChatSocketServer {
 	attach(server: Server): void {
 		server.on("upgrade", this.onUpgrade);
 		this.unsubscribe = this.chat.onEvent((userIds, event) => this.dispatch(userIds, event));
+		this.unsubscribeSignals = typeof this.calls?.onSignal === "function" ? this.calls.onSignal((userIds, signal) => this.dispatch(userIds, signal)) : undefined;
 		this.heartbeat = setInterval(() => this.pingClients(), HEARTBEAT_INTERVAL_MS);
 		this.heartbeat.unref();
 		this.server = server;
@@ -67,6 +73,7 @@ export class ChatSocketServer {
 	close(): void {
 		clearInterval(this.heartbeat);
 		this.unsubscribe?.();
+		this.unsubscribeSignals?.();
 		this.server?.off("upgrade", this.onUpgrade);
 		for (const ws of this.connections.keys()) {
 			ws.close(1001, "Server shutting down");
@@ -127,6 +134,7 @@ export class ChatSocketServer {
 	private onConnection(ws: WebSocket): void {
 		const connection: Connection = {
 			authenticated: false,
+			activeTab: true,
 			alive: true,
 			signals: [],
 			delivery: Promise.resolve(),
@@ -145,12 +153,51 @@ export class ChatSocketServer {
 		ws.on("error", () => ws.terminate());
 		ws.on("close", () => {
 			clearTimeout(authTimer);
+			const username = connection.username;
+			const prev = username ? this.userPresence(username) : "offline";
 			this.connections.delete(ws);
+			if (username) {
+				const next = this.userPresence(username);
+				if (next !== prev) this.broadcastPresence(username, next);
+			}
 		});
 	}
 
+	private userPresence(username: string): PresenceStatus {
+		let hasAny = false;
+		for (const conn of this.connections.values()) {
+			if (!conn.authenticated || conn.username !== username) continue;
+			if (conn.activeTab) return "online";
+			hasAny = true;
+		}
+		return hasAny ? "away" : "offline";
+	}
+
+	private presenceSnapshot(): Record<string, PresenceStatus> {
+		const map: Record<string, PresenceStatus> = {};
+		for (const conn of this.connections.values()) {
+			if (!conn.authenticated || !conn.username) continue;
+			if (conn.activeTab) {
+				map[conn.username] = "online";
+			} else if (!map[conn.username]) {
+				map[conn.username] = "away";
+			}
+		}
+		return map;
+	}
+
+	private broadcastPresence(username: string, status: PresenceStatus): void {
+		this.chat.setPresence?.(username, status, status !== "offline");
+		const payload = { type: "presence", username, status };
+		for (const [ws, conn] of this.connections) {
+			if (conn.authenticated && conn.userId && ws.readyState === WebSocket.OPEN) {
+				this.send(ws, payload);
+			}
+		}
+	}
+
 	private async onMessage(ws: WebSocket, connection: Connection, raw: RawData): Promise<void> {
-		let message: { type?: unknown; token?: unknown };
+		let message: { type?: unknown; token?: unknown; active?: unknown };
 		try {
 			message = JSON.parse(raw.toString()) as typeof message;
 		} catch {
@@ -158,6 +205,13 @@ export class ChatSocketServer {
 			return;
 		}
 		if (connection.authenticated) {
+			if (message.type === "presence" && typeof message.active === "boolean" && connection.username) {
+				const prev = this.userPresence(connection.username);
+				connection.activeTab = message.active;
+				const next = this.userPresence(connection.username);
+				if (next !== prev) this.broadcastPresence(connection.username, next);
+				return;
+			}
 			if (message.type === "call-signal" && connection.userId && (await this.revalidate(ws, connection))) {
 				await this.relaySignal(ws, connection.userId, connection, message as Record<string, unknown>);
 			}
@@ -172,12 +226,17 @@ export class ChatSocketServer {
 		try {
 			connection.userId = await this.authenticate(message.token);
 			connection.token = message.token;
+			connection.activeTab = typeof message.active === "boolean" ? message.active : true;
+			connection.username = (await this.chat.usernameForUser?.(connection.userId)) ?? undefined;
 		} catch {
 			connection.authenticated = false;
 			ws.close(CLOSE_UNAUTHORIZED, "Sign in to receive messages");
 			return;
 		}
-		this.send(ws, { type: "ready" });
+		this.send(ws, { type: "ready", presence: this.presenceSnapshot() });
+		if (connection.username) {
+			this.broadcastPresence(connection.username, this.userPresence(connection.username));
+		}
 	}
 
 	private async relaySignal(ws: WebSocket, userId: string, connection: Connection, message: Record<string, unknown>): Promise<void> {
@@ -204,13 +263,18 @@ export class ChatSocketServer {
 			return;
 		}
 		const targets = to === undefined ? recipients : recipients.filter((id) => id === to);
-		this.dispatch(targets, {
-			type: "call-signal",
+		const signal = {
+			type: "call-signal" as const,
 			conversationId: conversationId.toLowerCase(),
 			callId,
 			from: userId,
 			payload,
-		});
+		};
+		if (typeof this.calls?.enqueueSignal === "function") {
+			this.calls.enqueueSignal(targets, signal);
+		} else {
+			this.dispatch(targets, signal);
+		}
 	}
 
 	private send(ws: WebSocket, message: unknown): void {

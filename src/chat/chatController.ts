@@ -38,10 +38,80 @@ export class ChatController {
 		return this.calls.iceConfig(user.id);
 	}
 
+	@Post("/calls/signal")
+	async sendCallSignal(
+		@BodyParams() body: { conversationId?: string; callId?: string; to?: string; payload?: string },
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
+		const callId = typeof body?.callId === "string" ? body.callId : "";
+		const payload = typeof body?.payload === "string" ? body.payload : "";
+		const to = typeof body?.to === "string" ? body.to : undefined;
+		if (!AuthService.isUuid(conversationId) || !/^[\w-]{1,64}$/.test(callId) || payload.length === 0 || payload.length > 200_000) {
+			throw new BadRequest("Invalid call signal.");
+		}
+		const recipients = await this.calls.recipients(user.id, conversationId.toLowerCase());
+		const targets = to === undefined ? recipients : recipients.filter((id) => id === to);
+		this.calls.enqueueSignal(targets, {
+			type: "call-signal",
+			conversationId: conversationId.toLowerCase(),
+			callId,
+			from: user.id,
+			payload,
+		});
+		return { queued: targets.length };
+	}
+
+	@Get("/calls/signals")
+	async pollCallSignals(@QueryParams("after") afterRaw?: string, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		const parsed = afterRaw ? Number.parseInt(afterRaw, 10) : 0;
+		const after = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+		return this.calls.readSignals(user.id, after);
+	}
+
+	@Post("/calls/log")
+	async logCall(
+		@BodyParams() body: { conversationId?: string; callId?: string; video?: boolean; outcome?: string; durationSeconds?: number },
+		@HeaderParams("authorization") authorization?: string,
+	) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		const id = typeof body?.conversationId === "string" ? body.conversationId : "";
+		const callId = typeof body?.callId === "string" ? body.callId : "";
+		const outcome = body?.outcome;
+		if (!AuthService.isUuid(id) || !/^[\w-]{1,64}$/.test(callId) || (outcome !== "ended" && outcome !== "declined" && outcome !== "missed" && outcome !== "failed")) {
+			throw new BadRequest("Invalid call log.");
+		}
+		return this.chat.logCall(user.id, id.toLowerCase(), {
+			callId,
+			video: body?.video === true,
+			outcome,
+			durationSeconds: typeof body?.durationSeconds === "number" ? body.durationSeconds : undefined,
+		});
+	}
+
 	@Get("/unread")
 	async unread(@HeaderParams("authorization") authorization?: string) {
 		const user = await this.authService.getAuthenticatedUser(authorization);
 		return { count: await this.chat.unreadCount(user.id) };
+	}
+
+	@Get("/presence")
+	async presence(@HeaderParams("authorization") authorization?: string) {
+		await this.authService.getAuthenticatedUser(authorization);
+		return { presence: this.chat.getPresenceSnapshot() };
+	}
+
+	@Post("/presence")
+	async updatePresence(@BodyParams() body: { active?: boolean; offline?: boolean }, @HeaderParams("authorization") authorization?: string) {
+		const user = await this.authService.getAuthenticatedUser(authorization);
+		const username = user.username ?? (await this.chat.usernameForUser(user.id));
+		if (username) {
+			const status = body?.offline ? "offline" : body?.active === false ? "away" : "online";
+			this.chat.setPresence(username, status, false);
+		}
+		return { presence: this.chat.getPresenceSnapshot() };
 	}
 
 	@Get("/encryption/status")

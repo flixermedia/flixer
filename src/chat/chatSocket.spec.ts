@@ -60,13 +60,13 @@ describe("ChatSocketServer", () => {
 		const alice = await open(port, "alice");
 		const bob = await open(port, "bob");
 		const mallory = await open(port, "bad");
-		expect(alice.received).toEqual([{ type: "ready" }]);
+		expect(alice.received).toEqual([{ type: "ready", presence: {} }]);
 		expect(mallory.received).toEqual([]);
 
 		chat.emit(["alice"], { type: "changed", conversationId: "c1" });
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(alice.received).toContainEqual({ type: "changed", conversationId: "c1" });
-		expect(bob.received).toEqual([{ type: "ready" }]);
+		expect(bob.received).toEqual([{ type: "ready", presence: {} }]);
 		for (const { ws } of [alice, bob, mallory]) ws.close();
 	});
 
@@ -96,7 +96,7 @@ describe("ChatSocketServer", () => {
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		expect(bob.received).toContainEqual({ type: "call-signal", conversationId, callId: "c1", from: "alice", payload: "sealed" });
-		expect(carol.received).toEqual([{ type: "ready" }]);
+		expect(carol.received).toEqual([{ type: "ready", presence: {} }]);
 		expect(mallory.received).toContainEqual({ type: "call-error", callId: "c2", reason: "unavailable" });
 		expect(alice.received).toContainEqual({ type: "call-error", callId: "c3", reason: "invalid" });
 		for (const { ws } of [alice, bob, carol, mallory]) ws.close();
@@ -127,7 +127,7 @@ describe("ChatSocketServer", () => {
 		alice.ws.send(JSON.stringify({ type: "call-signal", conversationId, callId: "c1", payload: "sealed" }));
 		expect(await closed).toBe(4401);
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(bob.received).toEqual([{ type: "ready" }]);
+		expect(bob.received).toEqual([{ type: "ready", presence: {} }]);
 		bob.ws.close();
 	});
 
@@ -150,7 +150,7 @@ describe("ChatSocketServer", () => {
 		chat.emit(["alice"], { type: "changed", conversationId: "c1" });
 		expect(await closed).toBe(4401);
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(oldSession.received).toEqual([{ type: "ready" }]);
+		expect(oldSession.received).toEqual([{ type: "ready", presence: {} }]);
 		expect(validSession.received).toContainEqual({ type: "changed", conversationId: "c1" });
 		validSession.ws.close();
 	});
@@ -194,7 +194,7 @@ describe("ChatSocketServer", () => {
 		finishLookup(["bob"]);
 		expect(await closed).toBe(4401);
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(bob.received).toEqual([{ type: "ready" }]);
+		expect(bob.received).toEqual([{ type: "ready", presence: {} }]);
 		bob.ws.close();
 	});
 
@@ -225,10 +225,10 @@ describe("ChatSocketServer", () => {
 		await started;
 		chat.emit(["alice"], { type: "changed", conversationId: "second" });
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(alice.received).toEqual([{ type: "ready" }]);
+		expect(alice.received).toEqual([{ type: "ready", presence: {} }]);
 		finishCheck();
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(alice.received).toEqual([{ type: "ready" }, { type: "changed", conversationId: "first" }, { type: "changed", conversationId: "second" }]);
+		expect(alice.received).toEqual([{ type: "ready", presence: {} }, { type: "changed", conversationId: "first" }, { type: "changed", conversationId: "second" }]);
 		alice.ws.close();
 	});
 
@@ -263,6 +263,6 @@ describe("ChatSocketServer", () => {
 		}
 		expect(await closed).toBe(1013);
 		finishCheck();
-		expect(alice.received).toEqual([{ type: "ready" }]);
+		expect(alice.received).toEqual([{ type: "ready", presence: {} }]);
 	});
 });
