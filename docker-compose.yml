@@ -141,7 +141,7 @@ services:
                 - CMD
                 - node
                 - -e
-                - "const s=require('node:net').connect(8081,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))"
+                - "fetch('http://127.0.0.1:8081/healthz',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
             interval: 15s
             timeout: 5s
             retries: 5

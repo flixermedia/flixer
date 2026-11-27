@@ -22,7 +22,10 @@ export const DefaultDataSource = injectable(Symbol.for("DefaultDataSource"))
 			type: "postgres",
 			url,
 			// Explicit so the pool is sized above INDEXER_MAX_WRITES and always leaves connections for web requests.
-			extra: { max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10) || 10 },
+			extra: {
+				max: Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 100) || 100,
+				idle_in_transaction_session_timeout: 60_000,
+			},
 			entities: ENTITIES,
 			migrations: MIGRATIONS,
 			synchronize: false,

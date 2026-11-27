@@ -17,6 +17,7 @@ import * as api from "./api.js";
 import { config } from "./config/config.js";
 import { isTrustedProxy } from "./config/trustedProxies.js";
 import { DefaultDataSource } from "./datasources/defaultDataSource.datasource.js";
+import { RlsDataSource } from "./datasources/rlsDataSource.datasource.js";
 import { AuthService } from "./api/auth/authService.js";
 import { shouldBlockForMaintenance } from "./api/settings/maintenanceGuard.js";
 import { applyRlsSession, runInRlsScope } from "./datasources/rlsContext.js";
@@ -62,7 +63,7 @@ const fastifyPlugins = [
 
 @Configuration({
 	...config,
-	imports: [DefaultDataSource, JobScheduler, SentryService, LiveLogService, LoggerExportService, LoggerControlSocket, LoggerLocalBootstrapService, LiveService, PrioritySupportGateway, MailDeliveryService, MailInboundService, PartyGateway, ChatGateway, NotificationGateway, PlaybackRemoteService],
+	imports: [DefaultDataSource, RlsDataSource, JobScheduler, SentryService, LiveLogService, LoggerExportService, LoggerControlSocket, LoggerLocalBootstrapService, LiveService, PrioritySupportGateway, MailDeliveryService, MailInboundService, PartyGateway, ChatGateway, NotificationGateway, PlaybackRemoteService],
 	acceptMimes: ["application/json"],
 	httpPort: process.env.PORT || 8083,
 	httpsPort: false, // CHANGE
@@ -107,10 +108,32 @@ export class Server {
 	protected app = application();
 	@Inject(OidcProviderService) private readonly oidc!: OidcProviderService;
 	@Inject(DefaultDataSource) private readonly dataSource!: DefaultDataSource;
+	@Inject(RlsDataSource) private readonly rlsDataSource!: RlsDataSource;
 	@Inject(AuthService) private readonly authService!: AuthService;
 
 	$beforeRoutesInit(): void {
 		const fastify = this.app.getApp() as FastifyInstance;
+		fastify.get("/healthz", async (_request, reply) => {
+			if (!this.dataSource?.isInitialized) {
+				return reply.code(503).send({ status: "unavailable" });
+			}
+			let timer: ReturnType<typeof setTimeout> | undefined;
+			try {
+				await Promise.race([
+					// RAW SQL: Lightweight DB connectivity probe for /healthz.
+					this.dataSource.query("SELECT 1"),
+					new Promise<never>((_, reject) => {
+						timer = setTimeout(() => reject(new Error("Database healthcheck timeout")), 2500);
+					}),
+				]);
+				return { status: "ok" };
+			} catch {
+				return reply.code(503).send({ status: "unavailable" });
+			} finally {
+				if (timer) clearTimeout(timer);
+			}
+		});
+
 		fastify.addHook("onRequest", async (request, reply) => {
 			if (await shouldBlockForMaintenance(request.url, request.headers.authorization, this.dataSource, this.authService)) {
 				reply.code(503).send({
@@ -142,17 +165,27 @@ export class Server {
 		fastify.addHook("onRequest", (request, _reply, done) => {
 			const path = request.url.split("?")[0] || "";
 			const authorization = request.headers.authorization;
-			if (!this.dataSource.isInitialized || !authorization || !path.startsWith("/api/") || path.startsWith("/api/auth/") || path.startsWith("/api/setup/") || path.startsWith("/api/oidc/")) {
+			const isUpgrade = request.headers.upgrade?.toLowerCase() === "websocket";
+			if (!this.rlsDataSource?.isInitialized || isUpgrade || !authorization || !path.startsWith("/api/") || path.startsWith("/api/auth/") || path.startsWith("/api/setup/") || path.startsWith("/api/oidc/")) {
 				done();
 				return;
 			}
 			void this.authService
 				.getUserFromKeyOrSession(authorization)
 				.then(async (user) => {
-					const qr = this.dataSource.createQueryRunner();
+					if (request.raw.aborted || request.raw.destroyed) {
+						done();
+						return;
+					}
+					const qr = this.rlsDataSource.createQueryRunner();
 					await qr.connect();
-					await qr.startTransaction();
 					try {
+						if (request.raw.aborted || request.raw.destroyed) {
+							await qr.release().catch(() => {});
+							done();
+							return;
+						}
+						await qr.startTransaction();
 						await applyRlsSession(qr, { userId: user.id, role: user.role });
 					} catch (error) {
 						if (qr.isTransactionActive) await qr.rollbackTransaction().catch(() => {});
@@ -172,6 +205,10 @@ export class Server {
 		});
 
 		fastify.addHook("onError", async (request: FastifyRequest) => {
+			await finishRls(request, false);
+		});
+
+		fastify.addHook("onRequestAbort", async (request: FastifyRequest) => {
 			await finishRls(request, false);
 		});
 		fastify.use("/.well-known/oauth-authorization-server/api/oidc", (request: IncomingMessage, response: ServerResponse, next: (error?: Error) => void) => {
